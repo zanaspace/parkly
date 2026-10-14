@@ -43,13 +43,13 @@
 
 | Store | Purpose | Region | Encryption | Notes |
 |---|---|---|---|---|
-| **Supabase Postgres** (`parkly-prod`) + PostGIS — app schemas | System of record | London `eu-west-2` ⚖️ | Provider-managed AES-256 at rest; TLS; field-level for C4 (`ENC_KEY_V<n>`) | RLS deny-all for client roles; PITR (§7) |
-| **Supabase Auth** (`auth` schema, same project) | Users' phone/email, password hashes, OTP tokens, TOTP factors, sessions, refresh tokens, auth audit log | London | Provider-managed; secrets hashed by Supabase | Managed by Supabase Auth; we never read hashes; app `users` table references `auth.users.id` |
-| **Supabase Storage** private buckets: `kyb-docs` (C4), `permits` (C3), `verification` (C3), `incident-evidence` (C3/C4 prefix), `lot-photos` (pre-approval, C3), `exports` (DSAR/statement downloads, C3) | Files | London | Provider-managed at rest; signed URLs only (≤ 5 min for C4, ≤ 24 h one-time for DSAR exports) | Every object has a `files` row (class, retention) |
-| Supabase Storage `lot-photos-public` | Approved lot photos (C1) | London + Supabase CDN | Provider-managed | EXIF stripped, re-encoded; public read |
-| `pgmq` queues, `pg_cron` job history (`cron.job_run_details`) | Job payloads (IDs only, no PII), run history | London | As Postgres | Job payloads carry IDs, never PII; `cron.job_run_details` pruned to 14 days |
+| **Supabase Postgres** (`parkly-prod`) + PostGIS — app schemas | System of record | Ireland `eu-west-1` ⚖️ | Provider-managed AES-256 at rest; TLS; field-level for C4 (`ENC_KEY_V<n>`) | RLS deny-all for client roles; PITR (§7) |
+| **Supabase Auth** (`auth` schema, same project) | Users' phone/email, password hashes, OTP tokens, TOTP factors, sessions, refresh tokens, auth audit log | Ireland | Provider-managed; secrets hashed by Supabase | Managed by Supabase Auth; we never read hashes; app `users` table references `auth.users.id` |
+| **Supabase Storage** private buckets: `kyb-docs` (C4), `permits` (C3), `verification` (C3), `incident-evidence` (C3/C4 prefix), `lot-photos` (pre-approval, C3), `exports` (DSAR/statement downloads, C3) | Files | Ireland | Provider-managed at rest; signed URLs only (≤ 5 min for C4, ≤ 24 h one-time for DSAR exports) | Every object has a `files` row (class, retention) |
+| Supabase Storage `lot-photos-public` | Approved lot photos (C1) | Ireland + Supabase CDN | Provider-managed | EXIF stripped, re-encoded; public read |
+| `pgmq` queues, `pg_cron` job history (`cron.job_run_details`) | Job payloads (IDs only, no PII), run history | Ireland | As Postgres | Job payloads carry IDs, never PII; `cron.job_run_details` pruned to 14 days |
 | **Upstash Redis** | Rate-limit counters, SMS budget counters, job nonces | EU region | Provider-managed; TLS | Keys contain **hashed** phone/IP only; all keys TTL'd; no durable PII |
-| **Vercel** (function logs, Firewall logs) | App/request logs | Vercel (`lhr1` + edge) | Provider-managed | Masked PII only; Vercel log retention is short (plan-dependent) — drained to Better Stack |
+| **Vercel** (function logs, Firewall logs) | App/request logs | Vercel (`dub1` + edge) | Provider-managed | Masked PII only; Vercel log retention is short (plan-dependent) — drained to Better Stack |
 | **Better Stack** | Log storage/search, uptime, status page | EU region | Provider-managed | Masked PII only |
 | Off-platform object-lock bucket (provider chosen by Sprint 0 ADR) | Nightly encrypted `pg_dump` (incl. `auth`), Storage sync, daily audit-log export | EU region ⚖️ | `age`-encrypted before upload + provider at rest; compliance-mode object lock | Immutable for retention period |
 | Paystack / Flutterwave | Card data, bank account numbers, settlement | Provider | Provider (PCI DSS L1) | We store references + masked data only |
@@ -311,8 +311,8 @@ Keys `key_blind` (`HMAC_KEY_V<n>`), `key_psid` (`PSID_KEY_V<n>`) and the field-e
 
 | Data | Location | Transfer basis |
 |---|---|---|
-| Primary database, auth, files, job queues | Supabase **London (`eu-west-2`)** — closest region available at project creation; confirm at Sprint 0 | Cross-border transfer under NDPA Part VIII / GAID — adequacy or appropriate safeguards (Supabase DPA + contractual clauses) ⚖️ |
-| API compute, web hosting, request/firewall logs | Vercel Functions `lhr1` (London); Vercel edge network (global, incl. nearest PoP to Lagos) | Vercel DPA + contractual clauses ⚖️ |
+| Primary database, auth, files, job queues | Supabase **Ireland (`eu-west-1`)** — closest region available at project creation; confirm at Sprint 0 | Cross-border transfer under NDPA Part VIII / GAID — adequacy or appropriate safeguards (Supabase DPA + contractual clauses) ⚖️ |
+| API compute, web hosting, request/firewall logs | Vercel Functions `dub1` (Ireland); Vercel edge network (global, incl. nearest PoP to Lagos) | Vercel DPA + contractual clauses ⚖️ |
 | Logs, uptime | Better Stack (EU region) | Processor DPA ⚖️ |
 | Rate-limit counters (hashed identifiers) | Upstash (EU region) | Processor DPA ⚖️ |
 | Email | Resend (EU region if available, else US) | Processor DPA + SCC-style clauses ⚖️ |

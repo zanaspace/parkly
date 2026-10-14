@@ -39,7 +39,7 @@ We record every significant architecture, provider, data-model, security or proc
 | 0009 | Capacity-count model (no numbered bays) for MVP |
 | 0010 | Idempotency-key storage and replay semantics |
 | 0011 | Feature flags in DB (no vendor) |
-| 0012 | Data residency: Supabase London region, NDPA transfer basis (pending counsel) |
+| 0012 | Data residency: Supabase Ireland region, NDPA transfer basis (pending counsel) |
 
 The authoritative list with status is doc 01 §16.
 

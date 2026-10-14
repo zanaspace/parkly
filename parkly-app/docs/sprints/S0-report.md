@@ -17,7 +17,7 @@
 | 8. App skeletons | `apps/web` (3000), `apps/portal` (3001, `/attend` placeholder), `apps/admin` (3002), `apps/mobile` (Expo Router; expo-doctor clean, Android bundle exports) |
 | 9. Provider interfaces | Payment, SMS, Push, Email, Maps, Storage, Clock + in-memory fakes |
 | 10. CI | `ci.yml` (format, lint, typecheck, test, build, OpenAPI drift, Drizzle drift, `supabase start` + db lint + RLS integration tests, gitleaks, `pnpm audit`), `codeql.yml`, PR template |
-| 11. Deploy | `deploy.yml`: main → migrate dev + staging → Vercel staging; tag → approval → migrate prod → Vercel prod; `vercel.json` (`lhr1`) per Next app |
+| 11. Deploy | `deploy.yml`: main → migrate dev + staging → Vercel staging; tag → approval → migrate prod → Vercel prod; `vercel.json` (`dub1`) per Next app |
 | 13. ADRs | 0003 monorepo, 0004 Paystack split, 0005 attendant PWA accepted; 0006 slot inventory proposed; 0002 amended |
 
 Commands green at repo root: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
@@ -46,3 +46,16 @@ Commands green at repo root: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
 
 - Account approvals (Termii sender ID, Paystack live KYB) are the long pole for Sprints 1 and 4.
 - The migrations haven't been applied to a real database yet; the first `supabase start` may surface SQL fixes.
+
+## Update — migrations applied to the hosted dev project
+
+- `supabase db push` to the dev project (`devproject`, ref `qbheoilyuvudiefubdco`, Ireland `eu-west-1`) applied all migrations.
+- Verified on the remote:
+  - all 5 tables have RLS
+  - only `parkly_api` policies exist, and `anon`/`authenticated` have no table grants
+  - 27 settings and 10 flags are seeded
+  - the `job-ping` cron job and the 3 pgmq queues exist
+  - `parkly_api` can insert audit logs but not update them
+- The Supabase security advisor flagged `pg_net` in `public` and a Supabase-provided `public.rls_auto_enable()` executable by `anon`. Both are fixed by migration `20261014225303_security_advisor_fixes.sql`, and the advisor now reports **no issues**.
+- Region is Ireland, so Vercel Functions are pinned to `dub1` (ADR 0002 amendment).
+- Still to do on the dev project: Vault secrets `job_hmac_secret` and `api_base_url`, and a LOGIN password for `parkly_api`. The `pnpm --filter @parkly/db test:integration` suite still needs a local or CI run.

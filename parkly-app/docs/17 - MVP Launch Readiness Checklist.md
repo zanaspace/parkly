@@ -66,7 +66,7 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [ ] [B] Logs and analytics events are scanned: no phone numbers, emails, OTPs, tokens, full plates or card data (an automated test plus a manual sample review).
 - [ ] [R] Retention jobs are scheduled and dry-run on staging (doc 06 schedule).
 - [ ] [R] Data processing agreements (DPAs) are signed with every sub-processor: Supabase, Vercel, Paystack, Termii, Google Maps, Sentry, Resend, Upstash, Better Stack, Expo (or their standard terms accepted and filed). The sub-processor list is published with the privacy policy.
-- [ ] [R] The cross-border transfer basis (Supabase/Vercel region outside Nigeria, default London) is documented by counsel.
+- [ ] [R] The cross-border transfer basis (Supabase/Vercel region outside Nigeria, default Ireland) is documented by counsel.
 
 ## 5. Payments
 

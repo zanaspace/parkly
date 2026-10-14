@@ -65,7 +65,7 @@ Explicitly **not** in scope (yet): on-street parking, peer-to-peer driveways, **
 | Push | Expo Notifications (FCM on Android, APNs on iOS) |
 | Email | Resend (receipts, operator statements; also Supabase Auth SMTP) |
 | Maps / geocoding | Google Maps Platform (Places Autocomplete, Geocoding, Maps SDK for Android/JS) |
-| Hosting / region | Vercel projects `parkly-api`, `parkly-web`, `parkly-portal`, `parkly-admin` (admin: own domain, IP allowlist). Supabase region nearest Lagos available at creation, default **London (`eu-west-2`)**; Vercel Functions pinned to the **same region as the DB** (`lhr1`). Cross-border transfer basis to be confirmed by counsel under NDPA 2023 (see doc 05). |
+| Hosting / region | Vercel projects `parkly-api`, `parkly-web`, `parkly-portal`, `parkly-admin` (admin: own domain, IP allowlist). Supabase region nearest Lagos available at creation, default **Ireland (`eu-west-1`)**; Vercel Functions pinned to the **same region as the DB** (`dub1`). Cross-border transfer basis to be confirmed by counsel under NDPA 2023 (see doc 05). |
 | Secrets | Vercel environment variables (Sensitive), per environment; Supabase Vault for SQL-side secrets. Supabase secret/service key never in any client. |
 | Config as code | `supabase/config.toml` + `supabase/migrations/`, `vercel.json` per app. No Terraform in MVP. |
 | CI/CD | GitHub Actions (tests against `supabase start`, then `supabase db push` before Vercel promotion); Vercel Git integration; EAS Build/Submit for mobile |
@@ -185,5 +185,5 @@ parkly-app/
 | Q3 | Payment structure confirmed by counsel | Paystack split payments, no stored funds |
 | Q4 | Insurance partner and claim caps | Claims feature behind flag `claims_enabled=false` until Sprint 12 |
 | Q5 | NDPC "major importance" classification | Build to DCMI standard anyway (DPO, audit trail, DPIA) |
-| Q6 | Supabase/Vercel region outside Nigeria (default London) acceptable for data transfer under NDPA | Yes, pending counsel; data is plain Postgres so the region/provider stays swappable |
+| Q6 | Supabase/Vercel region outside Nigeria (default Ireland) acceptable for data transfer under NDPA | Yes, pending counsel; data is plain Postgres so the region/provider stays swappable |
 | Q7 | Brand name "Parkly" final | Used everywhere; brand strings centralised in `packages/config/brand.ts` |

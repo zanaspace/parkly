@@ -24,7 +24,7 @@ Option 3. The canonical stack becomes:
 | Concern | Decision |
 |---|---|
 | Database | **Supabase Postgres** with extensions `postgis`, `pg_cron`, `pgmq`, `pg_net`, `pgcrypto`. One Supabase project per environment: `parkly-dev`, `parkly-staging`, `parkly-prod`. |
-| Region | Closest Supabase region to Lagos that the project offers at creation time; default **London (`eu-west-2`)**. Vercel Functions run in the **same region as the database** (London → `lhr1`), not near the user — DB round-trips dominate latency. Cross-border transfer basis under NDPA still needs counsel (doc 05). |
+| Region | Closest Supabase region to Lagos that the project offers at creation time; default **Ireland (`eu-west-1`)**. Vercel Functions run in the **same region as the database** (Ireland → `dub1`), not near the user — DB round-trips dominate latency. Cross-border transfer basis under NDPA still needs counsel (doc 05). |
 | ORM / migrations | **Drizzle ORM** (`packages/db`: schema, client, typed queries; PostGIS via `customType` + parameterised `sql\`\``). Migrations: drizzle-kit generates SQL into `supabase/migrations/`; RLS policies, SQL functions, triggers and cron schedules are hand-written SQL migrations in the same folder. **Supabase CLI** applies them (`supabase db push`). Prisma is no longer used. |
 | DB connections | Serverless code connects through **Supavisor in transaction mode** (port 6543, `prepare: false`). Migrations use the direct connection. |
 | API | `apps/api` = **Hono** app deployed as **Vercel Functions (Node.js runtime, not Edge)**. Same `/v1` REST surface, same module boundaries under `apps/api/src/modules/<module>/`. OpenAPI generated from `packages/contracts` via `@hono/zod-openapi`. |
@@ -53,7 +53,7 @@ The "hold a slot" step is a single Postgres function `fn_hold_booking(...)` (SEC
 ## Consequences
 
 - **Easier:** Sprint 0 (no AWS/Terraform), Sprint 1 (Auth, MFA, refresh rotation built in), backups, local dev (`supabase start`).
-- **Harder / watch:** Vercel function time limits (chunk long jobs); connection pooling must use Supavisor; vendor lock-in on Auth (mitigated: data is plain Postgres, users exportable); no African region (latency ~80–120 ms Lagos→London, acceptable); NDPA cross-border transfer needs counsel.
+- **Harder / watch:** Vercel function time limits (chunk long jobs); connection pooling must use Supavisor; vendor lock-in on Auth (mitigated: data is plain Postgres, users exportable); no African region (latency ~80–120 ms Lagos→Ireland, acceptable); NDPA cross-border transfer needs counsel.
 - **Docs updated in the same change:** 00, 01, 02, 03, 05, 06, 17, 18, 19, 20, AGENTS.md, ADR 0001 planned list.
 - **Revisit** when: sustained > 50 req/s on the API, jobs regularly near time limits, an enterprise customer requires in-country hosting, or Supabase cost exceeds an equivalent managed AWS setup.
 
@@ -61,3 +61,4 @@ The "hold a slot" step is a single Postgres function `fn_hold_booking(...)` (SEC
 
 - **2026-10-14 — API role and RLS.** `parkly_api` does **not** get `BYPASSRLS` (hosted Supabase may not allow granting it). Every table instead carries one explicit RLS policy `TO parkly_api`, declared in the Drizzle schema (`apiAccess()` / `apiAppendOnly()` in `packages/db/src/schema/common.ts`). `anon`/`authenticated` remain deny-all, and Supabase's default table privileges for them are revoked in the first migration. Migrations run as `postgres` via `supabase db push`, from CI only.
 - **2026-10-14 — Deploy flow.** See the Environments row: `main` deploys staging, tags deploy production after manual approval; migrations always run first (`.github/workflows/deploy.yml`).
+- **2026-10-14 — Region.** The Supabase projects were created in Ireland (`eu-west-1`), so Vercel Functions are pinned to Dublin (`dub1`), next to the database. London references were updated to Ireland across the docs.

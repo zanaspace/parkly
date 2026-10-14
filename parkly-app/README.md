@@ -27,19 +27,19 @@ The Supabase CLI is a dev dependency; run it as `pnpm exec supabase …`.
 ```bash
 pnpm install
 pnpm build                                   # builds shared packages once
-cp apps/api/.env.example apps/api/.env       # local values only
+cp apps/api/.env.example apps/api/.env       # optional locally: the API has local defaults
 pnpm exec supabase start                     # Postgres+PostGIS, Auth, Storage, Studio (needs Docker)
 pnpm dev                                     # all apps in watch mode
 ```
 
-| App             | URL                                                                       |
-| --------------- | ------------------------------------------------------------------------- |
-| API             | http://localhost:4000/health/ready                                        |
-| Driver web      | http://localhost:3000                                                     |
-| Operator portal | http://localhost:3001                                                     |
-| Admin           | http://localhost:3002                                                     |
-| Supabase Studio | http://127.0.0.1:54323                                                    |
-| Mobile          | `pnpm --filter @parkly/mobile start`, then open in Expo Go or a dev build |
+| App             | URL                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| API             | http://localhost:4000/health/ready                                                                                                        |
+| Driver web      | http://localhost:3000                                                                                                                     |
+| Operator portal | http://localhost:3001                                                                                                                     |
+| Admin           | http://localhost:3002                                                                                                                     |
+| Supabase Studio | http://127.0.0.1:54323                                                                                                                    |
+| Mobile          | Port 8081 is the Expo bundler, not a web page: scan the QR in the terminal with Expo Go on an Android phone, or press `a` for an emulator |
 
 Local sign-in without SMS: phone `+2348000000001`, code `123456` (`supabase/config.toml`).
 
@@ -66,7 +66,7 @@ See `.github/workflows/deploy.yml` and ADR 0002. Remote databases are changed on
 
 ## One-time platform setup (owner tasks)
 
-1. **Supabase:** create `parkly-dev`, `parkly-staging`, `parkly-prod` (Pro plan; PITR add-on on prod) in the region closest to Lagos (default London). In each project's Vault add `job_hmac_secret` and `api_base_url`. Create the API's login: `alter role parkly_api with login password '…'` (password stored only in Vercel env).
-2. **Vercel (Pro):** projects `parkly-api`, `parkly-web`, `parkly-portal`, `parkly-admin` with root directories `apps/<name>`, Functions region `lhr1`, a custom `staging` environment, env vars per environment (mark secrets Sensitive), admin domain with IP allowlist.
+1. **Supabase:** create `parkly-dev`, `parkly-staging`, `parkly-prod` (Pro plan; PITR add-on on prod) in the region closest to Lagos (default Ireland). In each project's Vault add `job_hmac_secret` and `api_base_url`. Create the API's login: `alter role parkly_api with login password '…'` (password stored only in Vercel env).
+2. **Vercel (Pro):** projects `parkly-api`, `parkly-web`, `parkly-portal`, `parkly-admin` with root directories `apps/<name>`, Functions region `dub1`, a custom `staging` environment, env vars per environment (mark secrets Sensitive), admin domain with IP allowlist.
 3. **GitHub:** environments `dev`, `staging`, `production` (required reviewers on `production`) with secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `VERCEL_TOKEN`, `VERCEL_ORG_ID` and variables `SUPABASE_PROJECT_REF`, `VERCEL_PROJECT_ID_API|WEB|PORTAL|ADMIN`.
 4. **Accounts to start now (slow approvals):** Termii sender ID + DND route, Paystack (test + live KYB), Google Maps keys, Upstash, Resend domain, Sentry, Better Stack, Google Play Console.

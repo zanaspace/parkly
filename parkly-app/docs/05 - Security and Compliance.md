@@ -24,7 +24,7 @@ Target assurance level: **OWASP ASVS 4.0 Level 2** for all apps, **Level 3 contr
 [Driver app / Driver web] ──TLS──┐                  (Auth only: publishable key)
 [Attendant PWA (offline cache)] ─┼──────────────────────────────► Supabase Auth ──Send SMS Hook──► API ──► Termii
 [Operator portal] ───────────────┤
-[Admin console (IP allowlist)] ──┴──► Vercel Firewall (WAF) ──► API (Hono on Vercel Functions, lhr1)
+[Admin console (IP allowlist)] ──┴──► Vercel Firewall (WAF) ──► API (Hono on Vercel Functions, dub1)
                                                                    │  service-side DB role (bypasses RLS)
                                                                    ├──► Supabase Postgres (Supavisor, TLS) — RLS deny-all for anon/authenticated
                                                                    ├──► Supabase Storage (private buckets, signed URLs)
@@ -490,7 +490,7 @@ Security headers (set in Next.js middleware / `next.config` `headers()` for web 
 **Vercel**
 - Team SSO + MFA; Pro plan; production env vars editable only by owners; **Deployment Protection** on preview deployments (no public previews with staging/dev data); `parkly-admin` protected by Vercel Firewall IP allowlist on the admin domain.
 - Vercel Firewall: managed rulesets (OWASP core where available), bot protection, custom rules for `/v1/auth/*`, `/v1/webhooks/*` (Paystack IPs), `/internal/*`, and rate limits (§8). Attack Challenge Mode runbook for DDoS.
-- Functions pinned to the DB region (`lhr1`); Node.js runtime; no secrets in build logs (`--no-verbose`, redact).
+- Functions pinned to the DB region (`dub1`); Node.js runtime; no secrets in build logs (`--no-verbose`, redact).
 - Custom domains with HSTS; no `*.vercel.app` URLs used by clients in prod.
 
 ---
@@ -556,7 +556,7 @@ Runbooks in `docs/runbooks/` (created in Sprint 9): key compromise, provider sec
 | **Data subject rights** | Access, rectification, erasure, restriction, objection, portability, withdraw consent — self-serve in app (export/delete account) + `privacy@` channel; SLA below | Support + DPO |
 | **Data Controller/Processor of Major Importance (DCMI/DPMI)** | Assess threshold; **build to DCMI standard regardless**: register with NDPC if required, annual **compliance audit** filing via a licensed DPCO, pay fees ⚖️ | DPO |
 | **Processor contracts** | DPAs with every sub-processor in §18.1.1 before production data flows to it | Legal |
-| **Cross-border transfer** | Primary data in Supabase **London (`eu-west-2`)**, API compute in Vercel `lhr1` (London) with Vercel edge network globally, off-platform backups, and US-based processors (e.g. Sentry, Upstash/Resend/Better Stack depending on chosen region) → document transfer basis (adequacy / appropriate safeguards / standard contractual clauses) per NDPA Part VIII and GAID for **each** processor; record in RoPA (doc 06) ⚖️ | DPO + Counsel |
+| **Cross-border transfer** | Primary data in Supabase **Ireland (`eu-west-1`)**, API compute in Vercel `dub1` (Ireland) with Vercel edge network globally, off-platform backups, and US-based processors (e.g. Sentry, Upstash/Resend/Better Stack depending on chosen region) → document transfer basis (adequacy / appropriate safeguards / standard contractual clauses) per NDPA Part VIII and GAID for **each** processor; record in RoPA (doc 06) ⚖️ | DPO + Counsel |
 | **Security of processing** | This document | Eng |
 | **Breach notification** | §16.3 | DPO |
 | **Children** | Service is for drivers (adults); block sign-up if declared under 18; no knowing processing of children's data | Product |
@@ -569,8 +569,8 @@ Kept current in this table and published in the Privacy Policy. Status columns m
 
 | Sub-processor | Purpose | Data (class) | Location (choose EU/closest region where offered) | DPA | SOC 2 Type II / ISO 27001 |
 |---|---|---|---|---|---|
-| **Supabase** | Database, Auth, Storage, cron/queues | All app data incl. C4 | London (`eu-west-2`) | Sign Supabase DPA — to confirm | SOC 2 Type II (report under NDA) — to confirm current |
-| **Vercel** | Hosting of web apps + API functions, Firewall, logs | Request data, logs (C3 in transit) | Functions `lhr1`; edge global | Vercel DPA — to confirm | SOC 2 Type II, ISO 27001 — to confirm current |
+| **Supabase** | Database, Auth, Storage, cron/queues | All app data incl. C4 | Ireland (`eu-west-1`) | Sign Supabase DPA — to confirm | SOC 2 Type II (report under NDA) — to confirm current |
+| **Vercel** | Hosting of web apps + API functions, Firewall, logs | Request data, logs (C3 in transit) | Functions `dub1`; edge global | Vercel DPA — to confirm | SOC 2 Type II, ISO 27001 — to confirm current |
 | **Upstash** | Rate-limit counters (keys contain hashed phone/IP) | C2/C3 (hashed identifiers only) | EU region (e.g. Ireland or Frankfurt) | Upstash DPA — to confirm | SOC 2 — to confirm |
 | **Resend** | Transactional email (receipts, statements, auth email) | Email, name, receipt content (C3) | Choose EU sending region if available | Resend DPA — to confirm | SOC 2 Type II — to confirm |
 | **Better Stack** | Log aggregation, uptime, status page | Redacted logs (C2/C3) | EU region | DPA — to confirm | SOC 2 Type II — to confirm |
@@ -660,7 +660,7 @@ Identity verification for DSARs: OTP to registered phone (+ email confirmation i
 1. Whether split-settlement marketplace model requires any CBN licence for Parkly (PSSP/aggregator).
 2. Referral credits are not e-money/stored value.
 3. NDPC DCMI classification, registration and audit obligations.
-4. Cross-border transfer basis for Supabase London hosting, Vercel functions/edge, off-platform backups and each non-Nigerian sub-processor (§18.1.1).
+4. Cross-border transfer basis for Supabase Ireland hosting, Vercel functions/edge, off-platform backups and each non-Nigerian sub-processor (§18.1.1).
 5. Statutory DSAR response periods and breach notification thresholds/content under NDPA + GAID 2025.
 6. Liability, licence vs bailment, owner's-risk wording (Anya v Imo), and claims/insurance distribution rules.
 7. LASPA pricing approval and LASTMA approvals for hotels/event centres.

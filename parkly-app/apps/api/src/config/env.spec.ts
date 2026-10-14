@@ -17,6 +17,21 @@ describe('loadConfig', () => {
     });
   });
 
+  it('starts locally with no .env at all, using local-only defaults', () => {
+    const config = loadConfig({});
+    expect(config.appEnv).toBe('local');
+    expect(config.jobHmacSecret).toBe('local-dev-job-secret-change-me-0123456789'); // matches supabase/seed.sql
+    expect(config.corsOrigins).toEqual([
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+    ]);
+  });
+
+  it('never falls back to the local secret outside local', () => {
+    expect(() => loadConfig({ APP_ENV: 'staging' })).toThrow(/JOB_HMAC_SECRET/);
+  });
+
   it('requires Upstash outside local', () => {
     expect(() => loadConfig({ APP_ENV: 'dev', JOB_HMAC_SECRET: secret })).toThrow(
       /UPSTASH_REDIS_REST_URL/,

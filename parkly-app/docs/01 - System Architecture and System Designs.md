@@ -63,7 +63,7 @@ flowchart TB
     admin[apps/admin<br/>Next.js internal console]
   end
 
-  subgraph Vercel[Vercel — Functions region lhr1, same region as the DB]
+  subgraph Vercel[Vercel — Functions region dub1, same region as the DB]
     fw[Vercel Firewall<br/>WAF rules, bot protection, rate rules,<br/>IP allowlist on admin + /internal]
     vweb[parkly-web]
     vportal[parkly-portal]
@@ -71,7 +71,7 @@ flowchart TB
     api[parkly-api<br/>Hono on Vercel Functions, Node.js 22<br/>/v1/* · /v1/webhooks/* · /internal/jobs/*]
   end
 
-  subgraph Supabase[Supabase project parkly-env — London eu-west-2]
+  subgraph Supabase[Supabase project parkly-env — Ireland eu-west-1]
     auth[Supabase Auth<br/>phone OTP, email+password, TOTP MFA,<br/>ES256 JWT, refresh rotation]
     pool[Supavisor pooler<br/>transaction mode :6543]
     pg[(Postgres + PostGIS<br/>pg_cron · pgmq · pg_net · pgcrypto<br/>RLS deny-all on every table)]
@@ -487,12 +487,12 @@ flowchart TB
   dns -->|admin.parkly.ng| fw
   subgraph Vercel[Vercel team parkly — Pro plan]
     fw[Vercel Firewall<br/>TLS 1.2+, HSTS, WAF custom rules,<br/>rate rules, IP allowlist on admin]
-    papi[parkly-api<br/>Functions region lhr1]
+    papi[parkly-api<br/>Functions region dub1]
     pweb[parkly-web]
     pportal[parkly-portal]
     padmin[parkly-admin<br/>Deployment Protection]
   end
-  subgraph SB[Supabase org parkly — Pro plan, region eu-west-2]
+  subgraph SB[Supabase org parkly — Pro plan, region eu-west-1]
     dev[(parkly-dev)]
     stg[(parkly-staging)]
     prd[(parkly-prod<br/>+ PITR add-on)]
@@ -627,4 +627,4 @@ Numbering follows [ADR 0001](decisions/0001-record-architecture-decisions.md).
 | 0009 | Capacity-count model (no numbered bays) for MVP | To write |
 | 0010 | Idempotency-key storage and replay semantics | To write |
 | 0011 | Feature flags in DB (no vendor) | To write |
-| 0012 | Data residency: Supabase London region, NDPA transfer basis | To write, pending counsel (Q6) |
+| 0012 | Data residency: Supabase Ireland region, NDPA transfer basis | To write, pending counsel (Q6) |
