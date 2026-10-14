@@ -1,0 +1,36 @@
+{
+  "name": "@parkly/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    "./css": "./dist/css/tokens.css",
+    "./tokens.css": "./dist/css/tokens.css",
+    "./native": {
+      "types": "./dist/native/theme.d.ts",
+      "default": "./dist/native/theme.js"
+    },
+    "./tailwind": {
+      "types": "./dist/tailwind/preset.d.ts",
+      "import": "./dist/tailwind/preset.js",
+      "require": "./dist/tailwind/preset.cjs"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "node build.mjs && tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node build.mjs && vitest run"
+  },
+  "devDependencies": {
+    "@parkly/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.12.0",
+    "style-dictionary": "4.4.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
+  }
+}

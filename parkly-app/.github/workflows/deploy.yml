@@ -1,0 +1,113 @@
+# Migrations always land before the code that needs them (ADR 0002).
+#   push to main   → migrate dev + staging → deploy staging
+#   tag vX.Y.Z     → manual approval (GitHub environment "production") → migrate prod → deploy prod
+# PR previews are built by Vercel's Git integration against the dev project.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+jobs:
+  migrate:
+    name: Migrate ${{ matrix.target }}
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        target: [dev, staging]
+    environment: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      - run: pnpm exec supabase db push
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  deploy-staging:
+    name: Deploy ${{ matrix.app }} to staging
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: staging
+    strategy:
+      matrix:
+        app: [api, web, portal, admin]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy to the Vercel "staging" environment
+        env:
+          VERCEL_PROJECT_ID: ${{ vars[format('VERCEL_PROJECT_ID_{0}', matrix.app)] }}
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=staging --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@latest deploy --target=staging --token="$VERCEL_TOKEN"
+
+  migrate-prod:
+    name: Migrate prod
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment: production # requires manual approval in GitHub settings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      - run: pnpm exec supabase db push
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  deploy-prod:
+    name: Deploy ${{ matrix.app }} to production
+    needs: migrate-prod
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        app: [api, web, portal, admin]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy to Vercel production
+        env:
+          VERCEL_PROJECT_ID: ${{ vars[format('VERCEL_PROJECT_ID_{0}', matrix.app)] }}
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@latest deploy --prod --token="$VERCEL_TOKEN"

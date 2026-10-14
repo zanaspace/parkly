@@ -1,0 +1,20 @@
+/* App-level layout only; colours, type and spacing come from @parkly/tokens. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--pk-color-bg-canvas);
+  color: var(--pk-color-text-primary);
+  font-family: var(--pk-font-family-text);
+}
+.pk-page {
+  max-width: var(--pk-container-form);
+  margin-inline: auto;
+  padding: var(--pk-space-layout-section) var(--pk-space-layout-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-md);
+}

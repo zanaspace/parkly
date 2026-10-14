@@ -1,0 +1,44 @@
+{
+  "name": "@parkly/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start",
+    "android": "expo start --android",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor"
+  },
+  "dependencies": {
+    "@expo-google-fonts/inter": "0.4.2",
+    "@expo-google-fonts/jetbrains-mono": "0.4.1",
+    "@expo-google-fonts/plus-jakarta-sans": "0.4.2",
+    "@parkly/tokens": "workspace:*",
+    "@parkly/ui-native": "workspace:*",
+    "expo": "57.0.29",
+    "expo-constants": "57.0.22",
+    "expo-font": "57.0.4",
+    "expo-linking": "57.0.13",
+    "expo-router": "57.0.27",
+    "expo-splash-screen": "57.0.10",
+    "expo-status-bar": "57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.2"
+  },
+  "devDependencies": {
+    "@parkly/config": "workspace:*",
+    "@types/react": "19.2.18",
+    "eslint": "10.12.0",
+    "typescript": "5.9.3"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "typescript"
+      ]
+    }
+  }
+}

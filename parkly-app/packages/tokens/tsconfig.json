@@ -1,0 +1,5 @@
+{
+  "extends": "@parkly/config/tsconfig/base.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false, "types": ["node"] },
+  "include": ["test"]
+}

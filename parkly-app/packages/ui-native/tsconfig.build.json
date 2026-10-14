@@ -1,0 +1,6 @@
+{
+  "extends": "@parkly/config/tsconfig/library.json",
+  "compilerOptions": { "jsx": "react-jsx", "lib": ["ES2023"] },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}

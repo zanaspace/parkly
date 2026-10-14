@@ -1,0 +1,24 @@
+{
+  "name": "@parkly/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.config.js",
+    "./brand": "./brand.ts",
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/library.json": "./tsconfig/library.json",
+    "./next-security-headers": {
+      "types": "./next-security-headers.d.ts",
+      "default": "./next-security-headers.js"
+    }
+  },
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint-config-prettier": "10.1.8",
+    "typescript-eslint": "8.71.2"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0"
+  }
+}

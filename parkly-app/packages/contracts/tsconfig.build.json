@@ -1,0 +1,5 @@
+{
+  "extends": "@parkly/config/tsconfig/library.json",
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}

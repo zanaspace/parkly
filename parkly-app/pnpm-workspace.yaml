@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm blocks dependency install scripts by default; allow only these.
+onlyBuiltDependencies:
+  - esbuild
+  - supabase

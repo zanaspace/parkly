@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Parkly",
+    "slug": "parkly",
+    "scheme": "parkly",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.parkly.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.parkly.app",
+      "supportsTablet": false
+    },
+    "plugins": ["expo-router", "expo-font", "expo-splash-screen"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

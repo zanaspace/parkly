@@ -1,0 +1,28 @@
+{
+  "name": "parkly",
+  "private": true,
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "contracts:openapi": "pnpm --filter @parkly/api openapi",
+    "tokens:build": "pnpm --filter @parkly/tokens build",
+    "db:generate": "pnpm --filter @parkly/db generate"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "supabase": "2.121.0",
+    "turbo": "2.11.8",
+    "typescript": "5.9.3"
+  }
+}

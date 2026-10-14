@@ -1,0 +1,47 @@
+{
+  "button": {
+    "height": {
+      "$type": "dimension",
+      "sm": { "$value": "36px" },
+      "md": { "$value": "48px" },
+      "lg": { "$value": "56px" }
+    },
+    "padding-x": {
+      "$type": "dimension",
+      "sm": { "$value": "{space.3}" },
+      "md": { "$value": "{space.inset.md}" },
+      "lg": { "$value": "{space.6}" }
+    },
+    "gap": { "$type": "dimension", "$value": "{space.inline.xs}" },
+    "radius": { "$type": "dimension", "$value": "{radius.control}" },
+    "radius-sm": { "$type": "dimension", "$value": "{radius.control-sm}" },
+    "primary": {
+      "$type": "color",
+      "bg": { "$value": "{color.action.primary.bg}" },
+      "bg-hover": { "$value": "{color.action.primary.bg-hover}" },
+      "bg-pressed": { "$value": "{color.action.primary.bg-pressed}" },
+      "fg": { "$value": "{color.action.primary.fg}" }
+    },
+    "secondary": {
+      "$type": "color",
+      "bg": { "$value": "{color.action.secondary.bg}" },
+      "bg-pressed": { "$value": "{color.action.secondary.bg-pressed}" },
+      "fg": { "$value": "{color.action.secondary.fg}" }
+    },
+    "ghost": {
+      "$type": "color",
+      "fg": { "$value": "{color.text.brand}" },
+      "bg-pressed": { "$value": "{color.bg.subtle}" }
+    },
+    "danger": {
+      "$type": "color",
+      "bg": { "$value": "{color.action.danger.bg}" },
+      "fg": { "$value": "{color.action.danger.fg}" }
+    },
+    "disabled": {
+      "$type": "color",
+      "bg": { "$value": "{color.action.disabled.bg}" },
+      "fg": { "$value": "{color.action.disabled.fg}" }
+    }
+  }
+}

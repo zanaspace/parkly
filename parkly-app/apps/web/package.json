@@ -1,0 +1,29 @@
+{
+  "name": "@parkly/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@parkly/config": "workspace:*",
+    "@parkly/tokens": "workspace:*",
+    "@parkly/ui": "workspace:*",
+    "next": "16.4.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "16.4.1",
+    "@types/node": "22.20.5",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "eslint": "10.12.0",
+    "typescript": "5.9.3"
+  }
+}

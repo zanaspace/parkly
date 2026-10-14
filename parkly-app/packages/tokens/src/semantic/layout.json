@@ -1,0 +1,41 @@
+{
+  "space": {
+    "$type": "dimension",
+    "inset": {
+      "xs": { "$value": "{space.1}" },
+      "sm": { "$value": "{space.2}" },
+      "md": { "$value": "{space.4}" },
+      "lg": { "$value": "{space.6}" },
+      "xl": { "$value": "{space.8}" }
+    },
+    "stack": {
+      "xs": { "$value": "{space.1}" },
+      "sm": { "$value": "{space.2}" },
+      "md": { "$value": "{space.4}" },
+      "lg": { "$value": "{space.6}" },
+      "xl": { "$value": "{space.10}" }
+    },
+    "inline": {
+      "xs": { "$value": "{space.1}" },
+      "sm": { "$value": "{space.2}" },
+      "md": { "$value": "{space.4}" }
+    },
+    "layout": {
+      "gutter": { "$value": "{space.4}" },
+      "gutter-md": { "$value": "{space.6}" },
+      "gutter-lg": { "$value": "{space.8}" },
+      "section": { "$value": "{space.12}" }
+    }
+  },
+  "radius": {
+    "$type": "dimension",
+    "control": { "$value": "{radius.lg}" },
+    "control-sm": { "$value": "{radius.md}" },
+    "surface": { "$value": "{radius.lg}" },
+    "overlay": { "$value": "{radius.xl}" },
+    "sheet": { "$value": "{radius.xl}" },
+    "media": { "$value": "{radius.md}" },
+    "ticket": { "$value": "{radius.xl}" },
+    "pill": { "$value": "{radius.full}" }
+  }
+}

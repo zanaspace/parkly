@@ -1,0 +1,6 @@
+{
+  "extends": "@parkly/config/tsconfig/base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "types": ["node"], "sourceMap": true },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts", "src/test-helpers.ts"]
+}

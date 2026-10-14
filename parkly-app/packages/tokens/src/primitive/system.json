@@ -1,0 +1,85 @@
+{
+  "breakpoint": {
+    "$type": "dimension",
+    "xs": { "$value": "0px" },
+    "sm": { "$value": "360px" },
+    "md": { "$value": "768px" },
+    "lg": { "$value": "1024px" },
+    "xl": { "$value": "1280px" },
+    "2xl": { "$value": "1536px" }
+  },
+  "container": {
+    "$type": "dimension",
+    "prose": { "$value": "680px" },
+    "form": { "$value": "560px" },
+    "content": { "$value": "1200px" },
+    "app": { "$value": "1440px" }
+  },
+  "z": {
+    "$type": "number",
+    "base": { "$value": 0 },
+    "raised": { "$value": 10 },
+    "sticky": { "$value": 100 },
+    "app-bar": { "$value": 200 },
+    "map-controls": { "$value": 250 },
+    "offline-banner": { "$value": 300 },
+    "dropdown": { "$value": 400 },
+    "sheet": { "$value": 500 },
+    "overlay": { "$value": 600 },
+    "dialog": { "$value": 700 },
+    "toast": { "$value": 800 },
+    "tooltip": { "$value": 900 },
+    "env-banner": { "$value": 1000 }
+  },
+  "opacity": {
+    "$type": "number",
+    "0": { "$value": 0 },
+    "disabled": { "$value": 0.48 },
+    "muted": { "$value": 0.64 },
+    "pressed-overlay": { "$value": 0.12 },
+    "hover-overlay": { "$value": 0.08 },
+    "100": { "$value": 1 }
+  },
+  "motion": {
+    "duration": {
+      "$type": "duration",
+      "instant": { "$value": "0ms" },
+      "fast": { "$value": "100ms" },
+      "base": { "$value": "200ms" },
+      "moderate": { "$value": "280ms" },
+      "slow": { "$value": "400ms" },
+      "shimmer": { "$value": "1200ms" }
+    },
+    "easing": {
+      "$type": "cubicBezier",
+      "standard": { "$value": [0.2, 0, 0, 1] },
+      "enter": { "$value": [0, 0, 0.2, 1] },
+      "exit": { "$value": [0.4, 0, 1, 1] },
+      "linear": { "$value": [0, 0, 1, 1] }
+    }
+  },
+  "focus": {
+    "ring": {
+      "width": { "$type": "dimension", "$value": "2px" },
+      "offset": { "$type": "dimension", "$value": "2px" }
+    }
+  },
+  "target": {
+    "$type": "dimension",
+    "min": { "$value": "48px" },
+    "min-web": { "$value": "44px" },
+    "min-spacing": { "$value": "8px" },
+    "large": { "$value": "56px" }
+  },
+  "icon": {
+    "size": {
+      "$type": "dimension",
+      "xs": { "$value": "14px" },
+      "sm": { "$value": "16px" },
+      "md": { "$value": "20px" },
+      "lg": { "$value": "24px" },
+      "xl": { "$value": "32px" },
+      "2xl": { "$value": "48px" }
+    }
+  }
+}

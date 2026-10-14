@@ -1,0 +1,123 @@
+{
+  "color": {
+    "$type": "color",
+    "bg": {
+      "canvas": { "$value": "{color.neutral.950}" },
+      "surface": { "$value": "{color.neutral.900}" },
+      "surface-raised": { "$value": "{color.neutral.800}" },
+      "subtle": { "$value": "{color.neutral.800}" },
+      "muted": { "$value": "{color.neutral.700}" },
+      "inverse": { "$value": "{color.neutral.50}" },
+      "brand": { "$value": "{color.teal.900}" },
+      "brand-subtle": { "$value": "{color.teal.950}" },
+      "overlay": { "$value": "{color.alpha.black-64}" }
+    },
+    "text": {
+      "primary": { "$value": "{color.neutral.50}" },
+      "secondary": { "$value": "{color.neutral.300}" },
+      "tertiary": { "$value": "{color.neutral.400}" },
+      "disabled": { "$value": "{color.neutral.500}" },
+      "inverse": { "$value": "{color.neutral.900}" },
+      "on-brand": { "$value": "{color.neutral.0}" },
+      "link": { "$value": "{color.teal.300}" },
+      "brand": { "$value": "{color.teal.300}" }
+    },
+    "border": {
+      "default": { "$value": "{color.neutral.700}" },
+      "strong": { "$value": "{color.neutral.500}" },
+      "brand": { "$value": "{color.teal.300}" }
+    },
+    "action": {
+      "primary": {
+        "bg": { "$value": "{color.teal.300}" },
+        "bg-hover": { "$value": "{color.teal.200}" },
+        "bg-pressed": { "$value": "{color.teal.400}" },
+        "fg": { "$value": "{color.teal.950}" }
+      },
+      "secondary": {
+        "bg": { "$value": "{color.teal.950}" },
+        "fg": { "$value": "{color.teal.200}" },
+        "bg-pressed": { "$value": "{color.teal.900}" }
+      },
+      "danger": {
+        "bg": { "$value": "{color.red.300}" },
+        "fg": { "$value": "{color.red.950}" }
+      },
+      "disabled": {
+        "bg": { "$value": "{color.neutral.800}" },
+        "fg": { "$value": "{color.neutral.500}" }
+      }
+    },
+    "focus": { "ring": { "$value": "{color.teal.300}" } },
+    "status": {
+      "success": {
+        "bg": { "$value": "{color.green.950}" },
+        "fg": { "$value": "{color.green.300}" },
+        "icon": { "$value": "{color.green.300}" }
+      },
+      "warning": {
+        "bg": { "$value": "{color.amber.950}" },
+        "fg": { "$value": "{color.amber.300}" },
+        "icon": { "$value": "{color.amber.300}" }
+      },
+      "danger": {
+        "bg": { "$value": "{color.red.950}" },
+        "fg": { "$value": "{color.red.300}" },
+        "icon": { "$value": "{color.red.300}" }
+      },
+      "info": {
+        "bg": { "$value": "{color.blue.950}" },
+        "fg": { "$value": "{color.blue.300}" },
+        "icon": { "$value": "{color.blue.300}" }
+      }
+    },
+    "verified": {
+      "bg": { "$value": "{color.amber.950}" },
+      "fg": { "$value": "{color.amber.300}" },
+      "icon": { "$value": "{color.amber.300}" }
+    },
+    "accent": {
+      "solid": { "$value": "{color.amber.300}" },
+      "on-solid": { "$value": "{color.neutral.900}" }
+    },
+    "offline": {
+      "bg": { "$value": "{color.amber.300}" },
+      "fg": { "$value": "{color.neutral.950}" }
+    },
+    "qr": { "fg": { "$value": "{color.pure.black}" }, "bg": { "$value": "{color.pure.white}" } }
+  },
+  "shadow": {
+    "$type": "shadow-css",
+    "none": { "$value": "none" },
+    "xs": { "$value": "none" },
+    "sm": { "$value": "0 1px 2px 0 rgba(0,0,0,0.40)" },
+    "md": { "$value": "0 4px 8px -2px rgba(0,0,0,0.50)" },
+    "lg": { "$value": "0 12px 24px -6px rgba(0,0,0,0.60)" },
+    "xl": { "$value": "0 24px 48px -12px rgba(0,0,0,0.70)" },
+    "inset": { "$value": "inset 0 1px 2px 0 rgba(0,0,0,0.40)" }
+  },
+  "elevation": {
+    "$type": "shadow-css",
+    "flat": { "$value": "{shadow.none}" },
+    "raised": { "$value": "{shadow.none}" },
+    "floating": { "$value": "{shadow.sm}" },
+    "overlay": { "$value": "{shadow.md}" },
+    "modal": { "$value": "{shadow.lg}" },
+    "toast": { "$value": "{shadow.md}" }
+  },
+  "gradient": {
+    "$type": "gradient-css",
+    "brand": { "$value": "linear-gradient(135deg, #0D4843 0%, #062321 100%)" },
+    "brand-accent": { "$value": "linear-gradient(135deg, #0B3B37 0%, #062321 70%, #5A360E 100%)" },
+    "scrim-bottom": {
+      "$value": "linear-gradient(180deg, rgba(13,16,15,0) 0%, rgba(13,16,15,0.72) 100%)"
+    },
+    "scrim-top": {
+      "$value": "linear-gradient(0deg, rgba(13,16,15,0) 0%, rgba(13,16,15,0.48) 100%)"
+    },
+    "skeleton": { "$value": "linear-gradient(90deg, #262C2B 0%, #3A413F 50%, #262C2B 100%)" }
+  },
+  "opacity": {
+    "scrim": { "$type": "number", "$value": 0.64 }
+  }
+}

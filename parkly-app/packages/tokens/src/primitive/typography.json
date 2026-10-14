@@ -1,0 +1,70 @@
+{
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "display": {
+        "$value": [
+          "Plus Jakarta Sans",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif"
+        ]
+      },
+      "text": {
+        "$value": ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"]
+      },
+      "mono": {
+        "$value": [
+          "JetBrains Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace"
+        ]
+      }
+    },
+    "weight": {
+      "$type": "fontWeight",
+      "regular": { "$value": 400 },
+      "medium": { "$value": 500 },
+      "semibold": { "$value": 600 },
+      "bold": { "$value": 700 },
+      "extrabold": { "$value": 800 }
+    },
+    "size": {
+      "$type": "dimension",
+      "12": { "$value": "12px" },
+      "14": { "$value": "14px" },
+      "16": { "$value": "16px" },
+      "18": { "$value": "18px" },
+      "20": { "$value": "20px" },
+      "24": { "$value": "24px" },
+      "28": { "$value": "28px" },
+      "32": { "$value": "32px" },
+      "40": { "$value": "40px" }
+    },
+    "line-height": {
+      "$type": "dimension",
+      "16": { "$value": "16px" },
+      "20": { "$value": "20px" },
+      "24": { "$value": "24px" },
+      "26": { "$value": "26px" },
+      "28": { "$value": "28px" },
+      "32": { "$value": "32px" },
+      "36": { "$value": "36px" },
+      "40": { "$value": "40px" },
+      "48": { "$value": "48px" }
+    },
+    "letter-spacing": {
+      "$type": "dimension",
+      "tight": { "$value": "-0.02em" },
+      "normal": { "$value": "0em" },
+      "wide": { "$value": "0.06em" },
+      "code": { "$value": "0.08em" }
+    }
+  }
+}

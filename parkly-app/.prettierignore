@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+docs/
+supabase/migrations/
+**/openapi.json
+AGENTS.md
+CLAUDE.md
+.github/pull_request_template.md

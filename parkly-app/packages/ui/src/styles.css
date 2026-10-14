@@ -1,0 +1,174 @@
+/* @parkly/ui — styles use design tokens only (doc 04 §12 rule 4). Import after @parkly/tokens/css. */
+
+.pk-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Button (doc 15 §3.1) */
+.pk-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pk-button-gap);
+  min-height: var(--pk-target-min-web);
+  height: var(--pk-button-height-md);
+  padding-inline: var(--pk-button-padding-x-md);
+  border: 0;
+  border-radius: var(--pk-button-radius);
+  font-family: var(--pk-type-label-md-font-family);
+  font-size: var(--pk-type-label-md-font-size);
+  font-weight: var(--pk-type-label-md-font-weight);
+  line-height: var(--pk-type-label-md-line-height);
+  cursor: pointer;
+  transition: background-color var(--pk-motion-duration-fast) var(--pk-motion-easing-standard);
+}
+.pk-button:focus-visible {
+  outline: var(--pk-focus-ring-width) solid var(--pk-color-focus-ring);
+  outline-offset: var(--pk-focus-ring-offset);
+}
+.pk-button--sm {
+  height: var(--pk-button-height-sm);
+  padding-inline: var(--pk-button-padding-x-sm);
+  border-radius: var(--pk-button-radius-sm);
+}
+.pk-button--lg {
+  height: var(--pk-button-height-lg);
+  padding-inline: var(--pk-button-padding-x-lg);
+  font-size: var(--pk-type-label-lg-font-size);
+}
+.pk-button--full {
+  width: 100%;
+}
+.pk-button--primary {
+  background: var(--pk-button-primary-bg);
+  color: var(--pk-button-primary-fg);
+}
+.pk-button--primary:hover {
+  background: var(--pk-button-primary-bg-hover);
+}
+.pk-button--primary:active {
+  background: var(--pk-button-primary-bg-pressed);
+}
+.pk-button--secondary {
+  background: var(--pk-button-secondary-bg);
+  color: var(--pk-button-secondary-fg);
+}
+.pk-button--secondary:active {
+  background: var(--pk-button-secondary-bg-pressed);
+}
+.pk-button--ghost {
+  background: transparent;
+  color: var(--pk-button-ghost-fg);
+}
+.pk-button--ghost:active {
+  background: var(--pk-button-ghost-bg-pressed);
+}
+.pk-button--danger {
+  background: var(--pk-button-danger-bg);
+  color: var(--pk-button-danger-fg);
+}
+.pk-button[aria-disabled='true'] {
+  background: var(--pk-button-disabled-bg);
+  color: var(--pk-button-disabled-fg);
+  cursor: not-allowed;
+}
+.pk-button[aria-busy='true'] {
+  cursor: progress;
+}
+.pk-spinner {
+  width: var(--pk-icon-size-sm);
+  height: var(--pk-icon-size-sm);
+  border: var(--pk-focus-ring-width) solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--pk-radius-full);
+  animation: pk-spin var(--pk-motion-duration-shimmer) linear infinite;
+}
+@keyframes pk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pk-spinner {
+    animation-duration: calc(var(--pk-motion-duration-shimmer) * 3);
+  }
+}
+
+/* Text (doc 08 §3) — one class per type token */
+.pk-text {
+  margin: 0;
+  color: var(--pk-color-text-primary);
+}
+.pk-text--secondary {
+  color: var(--pk-color-text-secondary);
+}
+.pk-text--tertiary {
+  color: var(--pk-color-text-tertiary);
+}
+.pk-text--brand {
+  color: var(--pk-color-text-brand);
+}
+.pk-text--tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Input (doc 15 §3.2) */
+.pk-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-xs);
+}
+.pk-field__label {
+  color: var(--pk-input-label-fg);
+  font-family: var(--pk-type-label-md-font-family);
+  font-size: var(--pk-type-label-md-font-size);
+  font-weight: var(--pk-type-label-md-font-weight);
+  line-height: var(--pk-type-label-md-line-height);
+}
+.pk-input {
+  height: var(--pk-input-height-md);
+  padding-inline: var(--pk-input-padding-x);
+  border: var(--pk-input-border-width) solid var(--pk-input-border);
+  border-radius: var(--pk-input-radius);
+  background: var(--pk-input-bg);
+  color: var(--pk-input-fg);
+  font-family: var(--pk-type-body-md-font-family);
+  font-size: var(--pk-type-body-md-font-size);
+  line-height: var(--pk-type-body-md-line-height);
+}
+.pk-input::placeholder {
+  color: var(--pk-input-placeholder);
+}
+.pk-input:hover {
+  border-color: var(--pk-input-border-hover);
+}
+.pk-input:focus-visible {
+  outline: none;
+  border-color: var(--pk-input-border-focus);
+  box-shadow: inset 0 0 0 1px var(--pk-input-border-focus);
+}
+.pk-input[aria-invalid='true'] {
+  border-color: var(--pk-input-border-error);
+  box-shadow: inset 0 0 0 1px var(--pk-input-border-error);
+}
+.pk-input:disabled {
+  background: var(--pk-input-bg-disabled);
+}
+.pk-field__helper {
+  color: var(--pk-input-helper-fg);
+  font-size: var(--pk-type-caption-font-size);
+  line-height: var(--pk-type-caption-line-height);
+}
+.pk-field__error {
+  color: var(--pk-input-error-fg);
+  font-size: var(--pk-type-caption-font-size);
+  line-height: var(--pk-type-caption-line-height);
+}
