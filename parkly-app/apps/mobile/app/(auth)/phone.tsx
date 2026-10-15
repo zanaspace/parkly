@@ -2,6 +2,8 @@ import { Button, Input, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useAuth } from '../../src/auth/AuthProvider';
+import { isDevBypass } from '../../src/auth/dev-auth';
 import { requestCode } from '../../src/auth/request-code';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
@@ -13,6 +15,7 @@ import { phoneFromInput } from '../../src/logic/forms';
 export default function Phone() {
   const theme = useTheme();
   const router = useRouter();
+  const auth = useAuth();
   const [input, setInput] = useState('');
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,17 +41,41 @@ export default function Phone() {
     if (result.waitSeconds) wait.start(result.waitSeconds);
   }
 
+  async function quickDevLogin() {
+    setBusy(true);
+    setError(null);
+    try {
+      const targetPhone = phone ?? '+2348031234567';
+      await auth.signInDev(targetPhone);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Quick sign-in failed');
+      setBusy(false);
+    }
+  }
+
   return (
     <Screen
       footer={
-        <Button
-          label={wait.running ? `Try again in ${formatCountdown(wait.remaining)}` : 'Send code'}
-          size="lg"
-          fullWidth
-          loading={busy}
-          disabled={!phone || wait.running}
-          onPress={() => void submit()}
-        />
+        <View style={{ gap: theme.space.stack.sm }}>
+          <Button
+            label={wait.running ? `Try again in ${formatCountdown(wait.remaining)}` : 'Send code'}
+            size="lg"
+            fullWidth
+            loading={busy}
+            disabled={!phone || wait.running}
+            onPress={() => void submit()}
+          />
+          {isDevBypass() ? (
+            <Button
+              label="⚡ Quick Dev Sign In (Bypass SMS)"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              loading={busy}
+              onPress={() => void quickDevLogin()}
+            />
+          ) : null}
+        </View>
       }
     >
       <Text variant="heading.lg">What’s your phone number?</Text>
@@ -83,6 +110,12 @@ export default function Phone() {
           />
         </View>
       </View>
+      {isDevBypass() ? (
+        <Notice
+          kind="info"
+          message="⚡ Dev Mode: Paid SMS is bypassed. Tap 'Quick Dev Sign In' or enter any number and code 123456."
+        />
+      ) : null}
       {error ? <Notice message={error} /> : null}
     </Screen>
   );

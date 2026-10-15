@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { isDevBypass } from '../../src/auth/dev-auth';
 import { requestCode } from '../../src/auth/request-code';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
@@ -48,6 +49,16 @@ export default function Otp() {
     setBusy(true);
     setError(null);
     setInfo(null);
+    if (isDevBypass()) {
+      try {
+        await auth.signInDev(phone);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not sign in in dev mode');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const { error: err } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
     setBusy(false);
     if (err) {
@@ -140,6 +151,12 @@ export default function Otp() {
       />
       {error ? <Notice message={error} /> : null}
       {info ? <Notice kind="info" message={info} /> : null}
+      {isDevBypass() ? (
+        <Notice
+          kind="info"
+          message="⚡ Dev Mode: SMS is bypassed. Enter any 6 digits (e.g. 123456) or tap Verify to sign in."
+        />
+      ) : null}
       <Button label="Change number" variant="ghost" onPress={() => router.replace('/phone')} />
     </Screen>
   );

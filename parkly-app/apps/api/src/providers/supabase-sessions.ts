@@ -13,6 +13,7 @@ export function supabaseSessions(options: {
   const base = options.url.replace(/\/$/, '');
   return {
     async signOut(accessToken, scope) {
+      if (accessToken.startsWith('dev-token')) return;
       const res = await doFetch(`${base}/auth/v1/logout?scope=${scope}`, {
         method: 'POST',
         headers: { apikey: options.apiKey, authorization: `Bearer ${accessToken}` },

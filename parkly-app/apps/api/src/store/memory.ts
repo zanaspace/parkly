@@ -53,7 +53,10 @@ export class MemoryStore implements Store {
     ensure: async (id, init) => {
       const existing = this.userRows.get(id);
       if (existing) return { user: { ...existing }, created: false };
-      this.seedUser(id, { ...(init.phoneLast4 ? { phoneLast4: init.phoneLast4 } : {}) });
+      this.seedUser(id, {
+        roles: [{ role: 'DRIVER', operatorId: null }],
+        ...(init.phoneLast4 ? { phoneLast4: init.phoneLast4 } : {}),
+      });
       return { user: { ...this.mustUser(id) }, created: true };
     },
     setLookupHashes: async (id, hashes) => {

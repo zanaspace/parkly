@@ -19,6 +19,8 @@ import { config } from '../lib/config';
 import { getDeviceId } from '../lib/device';
 import { supabase } from '../lib/supabase';
 
+import { clearDevSession, createDevSession, getStoredDevSession, saveDevSession } from './dev-auth';
+
 type AuthState = {
   initialised: boolean;
   session: Session | null;
@@ -36,6 +38,8 @@ type AuthContextValue = AuthState & {
   skipVehicleStep: () => Promise<void>;
   /** Revokes this device's (or every) session on the server, then clears local state. */
   signOut: (scope: 'device' | 'all') => Promise<void>;
+  /** Bypasses SMS OTP in development and signs in immediately with a test driver session. */
+  signInDev: (phone: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       bootstrappedFor.current = null;
       if (err instanceof ApiError && (err.status === 401 || err.code === 'AUTH_ACCOUNT_LOCKED')) {
         // Session no longer valid on the server: drop it locally.
+        await clearDevSession();
         await supabase.auth.signOut({ scope: 'local' });
       }
       setState((s) => ({
@@ -94,11 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
+    void (async () => {
+      const devSession = await getStoredDevSession();
+      if (!active) return;
+      if (devSession) {
+        setState((s) => ({ ...s, initialised: true, session: devSession }));
+        void bootstrap(devSession);
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
       if (!active) return;
       setState((s) => ({ ...s, initialised: true, session: data.session }));
       if (data.session) void bootstrap(data.session);
-    });
+    })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setState((s) =>
@@ -144,7 +157,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // Best effort: still clear the local session so the user is signed out on this device.
         }
+        await clearDevSession();
         await supabase.auth.signOut({ scope: 'local' });
+        setState((s) => ({
+          ...s,
+          session: null,
+          me: null,
+          vehicles: null,
+          vehicleStepSkipped: false,
+          bootstrapError: null,
+        }));
+      },
+      signInDev: async (phone: string) => {
+        const devSession = createDevSession(phone);
+        await saveDevSession(devSession);
+        setState((s) => ({ ...s, session: devSession, bootstrapError: null }));
+        await bootstrap(devSession);
       },
     }),
     [state, bootstrap],

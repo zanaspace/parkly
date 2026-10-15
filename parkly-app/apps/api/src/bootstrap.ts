@@ -20,6 +20,8 @@ import {
 } from './providers/supabase-sessions.js';
 import { termiiSmsProvider } from './providers/termii.js';
 import { drizzleStore } from './store/drizzle.js';
+import { MemoryStore } from './store/memory.js';
+import type { Store } from './store/types.js';
 
 // Local Supabase from `supabase start` (supabase/config.toml ports).
 const LOCAL_DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
@@ -64,8 +66,20 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
   let replayGuard: ReplayGuard = new InMemoryReplayGuard();
   const readinessChecks: Record<string, () => Promise<boolean>> = {};
 
-  const { db } = createDb(config.databaseUrl ?? LOCAL_DATABASE_URL);
-  readinessChecks.db = async () => (await db.execute(sql`select 1`)).length === 1;
+  let store: Store;
+  if (config.databaseUrl) {
+    const { db } = createDb(config.databaseUrl);
+    readinessChecks.db = async () => (await db.execute(sql`select 1`)).length === 1;
+    store = drizzleStore(db);
+  } else if (config.appEnv === 'local') {
+    logger.warn('DATABASE_URL not set: using in-memory store for local development');
+    readinessChecks.db = async () => true;
+    store = new MemoryStore();
+  } else {
+    const { db } = createDb(LOCAL_DATABASE_URL);
+    readinessChecks.db = async () => (await db.execute(sql`select 1`)).length === 1;
+    store = drizzleStore(db);
+  }
 
   if (config.upstash) {
     const redis = new Redis({ url: config.upstash.url, token: config.upstash.token });
@@ -104,8 +118,10 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     replayGuard,
     jobs,
     now: () => new Date(),
-    store: drizzleStore(db),
-    verifyToken: supabaseTokenVerifier(config.supabase.url),
+    store,
+    verifyToken: supabaseTokenVerifier(config.supabase.url, {
+      allowDevTokens: config.appEnv === 'local',
+    }),
     crypto: createCrypto({
       encKeys: config.encKeys,
       currentEncVersion: config.encKeyCurrent,

@@ -106,4 +106,22 @@ describe('Supabase JWT verification (doc 05 §4.4)', () => {
     expect(identity.aal).toBe('aal1');
     expect(identity.email).toBe('ops@parkly.example');
   });
+
+  it('accepts dev tokens when allowDevTokens is true', async () => {
+    const devVerifier = createTokenVerifier({
+      issuer: ISSUER,
+      jwks: createLocalJWKSet({ keys: [] }),
+      allowDevTokens: true,
+    });
+    const id1 = await devVerifier('dev-token:+2348031234567:11111111-1111-4111-8111-111111111111');
+    expect(id1.userId).toBe('11111111-1111-4111-8111-111111111111');
+    expect(id1.phone).toBe('+2348031234567');
+
+    const id2 = await devVerifier('dev-token');
+    expect(id2.userId).toBe('11111111-1111-4111-8111-111111111111');
+    expect(id2.phone).toBe('+2348031234567');
+
+    // Rejected when allowDevTokens is not set
+    await expect(verify('dev-token')).rejects.toThrow();
+  });
 });

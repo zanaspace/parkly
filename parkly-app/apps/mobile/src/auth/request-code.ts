@@ -3,6 +3,7 @@ import { ApiError } from '../lib/api';
 import { api } from '../lib/client';
 import { getDeviceId } from '../lib/device';
 import { supabase } from '../lib/supabase';
+import { isDevBypass } from './dev-auth';
 
 export type RequestCodeResult =
   { ok: true } | { ok: false; message: string; waitSeconds: number | null };
@@ -20,6 +21,11 @@ export async function requestCode(phone: string): Promise<RequestCodeResult> {
       return { ok: false, message: err.message, waitSeconds: err.retryAfterSec };
     }
     return { ok: false, message: 'Could not send a code. Please try again.', waitSeconds: null };
+  }
+
+  // Bypass third-party paid SMS providers (e.g. Twilio) in development
+  if (isDevBypass()) {
+    return { ok: true };
   }
 
   const { error } = await supabase.auth.signInWithOtp({ phone });
