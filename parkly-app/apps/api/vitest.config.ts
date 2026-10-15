@@ -15,6 +15,12 @@ export default defineConfig({
         'src/instrumentation.ts',
         'src/bootstrap.ts',
         'src/providers/**',
+        // DB adapter: covered by the store contract in test/integration against real Postgres.
+        'src/store/drizzle.ts',
+        // Test doubles and helpers.
+        'src/store/memory.ts',
+        'src/store/store-contract.ts',
+        'src/test-helpers.ts',
       ],
       thresholds: { lines: 85, functions: 85, branches: 85, statements: 85 },
     },

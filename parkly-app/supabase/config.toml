@@ -286,10 +286,10 @@ timebox = "720h"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
-# Sprint 1: adds app_roles / operator_id / lot_ids claims (doc 02 §2.2).
-# [auth.hook.custom_access_token]
-# enabled = true
-# uri = "pg-functions://postgres/public/fn_custom_access_token_hook"
+# Adds app_roles / operator_id / lot_ids claims (doc 02 §2.2). Hosted projects: enable in Dashboard → Auth → Hooks.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/fn_custom_access_token_hook"
 
 # Sprint 1: OTP SMS goes through our API to Termii (ADR 0002).
 # [auth.hook.send_sms]

@@ -53,7 +53,7 @@ jobs:
       - name: Start local Supabase (applies migrations + seed)
         run: pnpm exec supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor
       - run: pnpm exec supabase db lint --level error
-      - run: pnpm --filter @parkly/db test:integration
+      - run: pnpm test:integration
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 

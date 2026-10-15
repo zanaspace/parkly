@@ -5,6 +5,14 @@
     "version": "0.1.0"
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth access token (ES256)"
+      }
+    },
     "schemas": {},
     "parameters": {}
   },
@@ -108,6 +116,1389 @@
                   "required": [
                     "status",
                     "checks"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/otp/precheck": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "phone",
+                  "deviceId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "OK to request a code"
+          }
+        }
+      }
+    },
+    "/v1/auth/bootstrap": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "ANDROID",
+                      "IOS",
+                      "WEB",
+                      "PWA"
+                    ]
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 32
+                  }
+                },
+                "required": [
+                  "deviceId",
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed-in profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "firstName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "phoneLast4": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "LOCKED",
+                            "SUSPENDED",
+                            "PENDING_DELETION",
+                            "DELETED"
+                          ]
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "DRIVER",
+                                  "OPERATOR_OWNER",
+                                  "OPERATOR_MANAGER",
+                                  "OPERATOR_ATTENDANT",
+                                  "ADMIN_SUPPORT",
+                                  "ADMIN_OPS",
+                                  "ADMIN_FINANCE",
+                                  "ADMIN_COMPLIANCE",
+                                  "SUPER_ADMIN"
+                                ]
+                              },
+                              "operatorId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "uuid"
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "operatorId"
+                            ]
+                          }
+                        },
+                        "profileComplete": {
+                          "type": "boolean"
+                        },
+                        "consents": {
+                          "type": "object",
+                          "properties": {
+                            "termsVersion": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "privacyVersion": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "marketing": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "termsVersion",
+                            "privacyVersion",
+                            "marketing"
+                          ]
+                        },
+                        "currentLegalVersions": {
+                          "type": "object",
+                          "properties": {
+                            "terms": {
+                              "type": "string"
+                            },
+                            "privacy": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "terms",
+                            "privacy"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "phoneLast4",
+                        "status",
+                        "roles",
+                        "profileComplete",
+                        "consents",
+                        "currentLegalVersions"
+                      ]
+                    },
+                    "isNewUser": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "isNewUser"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/sessions/revoke": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "device",
+                      "all"
+                    ]
+                  }
+                },
+                "required": [
+                  "scope"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Signed out"
+          }
+        }
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "phoneLast4": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "LOCKED",
+                        "SUSPENDED",
+                        "PENDING_DELETION",
+                        "DELETED"
+                      ]
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "DRIVER",
+                              "OPERATOR_OWNER",
+                              "OPERATOR_MANAGER",
+                              "OPERATOR_ATTENDANT",
+                              "ADMIN_SUPPORT",
+                              "ADMIN_OPS",
+                              "ADMIN_FINANCE",
+                              "ADMIN_COMPLIANCE",
+                              "SUPER_ADMIN"
+                            ]
+                          },
+                          "operatorId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "operatorId"
+                        ]
+                      }
+                    },
+                    "profileComplete": {
+                      "type": "boolean"
+                    },
+                    "consents": {
+                      "type": "object",
+                      "properties": {
+                        "termsVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "privacyVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "marketing": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "termsVersion",
+                        "privacyVersion",
+                        "marketing"
+                      ]
+                    },
+                    "currentLegalVersions": {
+                      "type": "object",
+                      "properties": {
+                        "terms": {
+                          "type": "string"
+                        },
+                        "privacy": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "terms",
+                        "privacy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "phoneLast4",
+                    "status",
+                    "roles",
+                    "profileComplete",
+                    "consents",
+                    "currentLegalVersions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[\\p{L}\\p{M}' .-]+$/u"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[\\p{L}\\p{M}' .-]+$/u"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "phoneLast4": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "LOCKED",
+                        "SUSPENDED",
+                        "PENDING_DELETION",
+                        "DELETED"
+                      ]
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "DRIVER",
+                              "OPERATOR_OWNER",
+                              "OPERATOR_MANAGER",
+                              "OPERATOR_ATTENDANT",
+                              "ADMIN_SUPPORT",
+                              "ADMIN_OPS",
+                              "ADMIN_FINANCE",
+                              "ADMIN_COMPLIANCE",
+                              "SUPER_ADMIN"
+                            ]
+                          },
+                          "operatorId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "operatorId"
+                        ]
+                      }
+                    },
+                    "profileComplete": {
+                      "type": "boolean"
+                    },
+                    "consents": {
+                      "type": "object",
+                      "properties": {
+                        "termsVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "privacyVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "marketing": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "termsVersion",
+                        "privacyVersion",
+                        "marketing"
+                      ]
+                    },
+                    "currentLegalVersions": {
+                      "type": "object",
+                      "properties": {
+                        "terms": {
+                          "type": "string"
+                        },
+                        "privacy": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "terms",
+                        "privacy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "phoneLast4",
+                    "status",
+                    "roles",
+                    "profileComplete",
+                    "consents",
+                    "currentLegalVersions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Deletion requested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_DELETION"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requestId",
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/consents": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TERMS",
+                      "PRIVACY",
+                      "MARKETING",
+                      "LOCATION"
+                    ]
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "granted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "type",
+                  "version",
+                  "granted"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "phoneLast4": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "LOCKED",
+                        "SUSPENDED",
+                        "PENDING_DELETION",
+                        "DELETED"
+                      ]
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "DRIVER",
+                              "OPERATOR_OWNER",
+                              "OPERATOR_MANAGER",
+                              "OPERATOR_ATTENDANT",
+                              "ADMIN_SUPPORT",
+                              "ADMIN_OPS",
+                              "ADMIN_FINANCE",
+                              "ADMIN_COMPLIANCE",
+                              "SUPER_ADMIN"
+                            ]
+                          },
+                          "operatorId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "operatorId"
+                        ]
+                      }
+                    },
+                    "profileComplete": {
+                      "type": "boolean"
+                    },
+                    "consents": {
+                      "type": "object",
+                      "properties": {
+                        "termsVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "privacyVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "marketing": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "termsVersion",
+                        "privacyVersion",
+                        "marketing"
+                      ]
+                    },
+                    "currentLegalVersions": {
+                      "type": "object",
+                      "properties": {
+                        "terms": {
+                          "type": "string"
+                        },
+                        "privacy": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "terms",
+                        "privacy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "phoneLast4",
+                    "status",
+                    "roles",
+                    "profileComplete",
+                    "consents",
+                    "currentLegalVersions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/devices": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "ANDROID",
+                      "IOS",
+                      "WEB",
+                      "PWA"
+                    ]
+                  },
+                  "pushToken": {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 32
+                  }
+                },
+                "required": [
+                  "deviceId",
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Device registered"
+          }
+        }
+      }
+    },
+    "/v1/me/vehicles": {
+      "get": {
+        "tags": [
+          "vehicles"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vehicles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "plate": {
+                            "type": "string"
+                          },
+                          "plateNorm": {
+                            "type": "string"
+                          },
+                          "make": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "model": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "colour": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "isDefault": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "plate",
+                          "plateNorm",
+                          "make",
+                          "model",
+                          "colour",
+                          "isDefault"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vehicles"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plate": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 20
+                  },
+                  "make": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "colour": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "plate"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vehicle added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "plate": {
+                      "type": "string"
+                    },
+                    "plateNorm": {
+                      "type": "string"
+                    },
+                    "make": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "colour": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "plate",
+                    "plateNorm",
+                    "make",
+                    "model",
+                    "colour",
+                    "isDefault"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/vehicles/{id}": {
+      "patch": {
+        "tags": [
+          "vehicles"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "make": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "colour": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "isDefault": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vehicle updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "plate": {
+                      "type": "string"
+                    },
+                    "plateNorm": {
+                      "type": "string"
+                    },
+                    "make": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "colour": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "plate",
+                    "plateNorm",
+                    "make",
+                    "model",
+                    "colour",
+                    "isDefault"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vehicles"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Vehicle removed"
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/members": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "DRIVER",
+                              "OPERATOR_OWNER",
+                              "OPERATOR_MANAGER",
+                              "OPERATOR_ATTENDANT",
+                              "ADMIN_SUPPORT",
+                              "ADMIN_OPS",
+                              "ADMIN_FINANCE",
+                              "ADMIN_COMPLIANCE",
+                              "SUPER_ADMIN"
+                            ]
+                          },
+                          "firstName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "role",
+                          "firstName"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "entityType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "required": false,
+            "name": "entityId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "actorUserId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "actorUserId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "actorRole": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "entityType": {
+                            "type": "string"
+                          },
+                          "entityId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "requestId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "actorUserId",
+                          "actorRole",
+                          "action",
+                          "entityType",
+                          "entityId",
+                          "requestId",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
                   ]
                 }
               }

@@ -1,8 +1,19 @@
 import { z } from 'zod';
 
 // Local-only fallbacks so `pnpm dev` works without a .env. Never used outside APP_ENV=local.
-const LOCAL_JOB_HMAC_SECRET = 'local-dev-job-secret-change-me-0123456789'; // = supabase/seed.sql
-const LOCAL_CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,http://localhost:3002';
+const LOCAL = {
+  jobHmacSecret: 'local-dev-job-secret-change-me-0123456789', // = supabase/seed.sql
+  corsOrigins: 'http://localhost:3000,http://localhost:3001,http://localhost:3002',
+  supabaseUrl: 'http://127.0.0.1:54321',
+  // = SUPABASE_SMS_HOOK_SECRET in supabase/.env.example
+  smsHookSecret: `v1,whsec_${Buffer.from('local-dev-sms-hook-secret-change-me').toString('base64')}`,
+  pepper: 'local-dev-hash-pepper-change-me-0123456789',
+  encKeyV1: Buffer.alloc(32, 7).toString('base64'),
+};
+
+const base64Key = z
+  .string()
+  .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64-encoded');
 
 const EnvSchema = z
   .object({
@@ -14,28 +25,44 @@ const EnvSchema = z
     JOB_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
     /** Supavisor transaction-mode URL as parkly_api (port 6543). */
     DATABASE_URL: z.url().optional(),
+    SUPABASE_URL: z.url().optional(),
+    /** Publishable (anon) key; used only as the `apikey` header when signing users out. */
+    SUPABASE_PUBLISHABLE_KEY: z.string().min(20).optional(),
+    SUPABASE_SMS_HOOK_SECRET: z.string().startsWith('v1,whsec_').optional(),
+    HASH_PEPPER_V1: z.string().min(32).optional(),
+    ENC_KEY_V1: base64Key.optional(),
+    ENC_KEY_V2: base64Key.optional(),
+    ENC_KEY_CURRENT: z.enum(['v1', 'v2']).default('v1'),
+    SMS_PROVIDER: z.enum(['fake', 'termii']).default('fake'),
+    TERMII_API_KEY: z.string().min(10).optional(),
+    TERMII_SENDER_ID: z.string().min(3).max(11).optional(),
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     SENTRY_DSN: z.url().optional(),
     PORT: z.coerce.number().int().positive().default(4000),
   })
   .superRefine((env, ctx) => {
-    if (env.APP_ENV !== 'local' && !env.JOB_HMAC_SECRET) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['JOB_HMAC_SECRET'],
-        message: 'required outside local',
-      });
+    const required = (key: keyof typeof env) => {
+      if (!env[key])
+        ctx.addIssue({ code: 'custom', path: [key], message: 'required outside local' });
+    };
+    if (env.APP_ENV !== 'local') {
+      required('JOB_HMAC_SECRET');
+      required('DATABASE_URL');
+      required('UPSTASH_REDIS_REST_URL');
+      required('UPSTASH_REDIS_REST_TOKEN');
+      required('SUPABASE_URL');
+      required('SUPABASE_PUBLISHABLE_KEY');
+      required('SUPABASE_SMS_HOOK_SECRET');
+      required('HASH_PEPPER_V1');
+      required('ENC_KEY_V1');
     }
-    if (env.APP_ENV !== 'local' && (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['UPSTASH_REDIS_REST_URL'],
-        message: 'required outside local',
-      });
+    if (env.APP_ENV === 'prod' && env.SMS_PROVIDER !== 'termii') {
+      ctx.addIssue({ code: 'custom', path: ['SMS_PROVIDER'], message: 'must be termii in prod' });
     }
-    if (env.APP_ENV !== 'local' && !env.DATABASE_URL) {
-      ctx.addIssue({ code: 'custom', path: ['DATABASE_URL'], message: 'required outside local' });
+    if (env.SMS_PROVIDER === 'termii') {
+      required('TERMII_API_KEY');
+      required('TERMII_SENDER_ID');
     }
   });
 
@@ -45,6 +72,12 @@ export type AppConfig = {
   corsOrigins: string[];
   jobHmacSecret: string;
   databaseUrl: string | undefined;
+  supabase: { url: string; publishableKey: string | undefined };
+  smsHookSecret: string;
+  hashPepper: string;
+  encKeys: Record<string, Buffer>;
+  encKeyCurrent: string;
+  sms: { provider: 'fake' } | { provider: 'termii'; apiKey: string; senderId: string };
   upstash: { url: string; token: string } | undefined;
   sentryDsn: string | undefined;
   port: number;
@@ -59,7 +92,14 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const e = parsed.data;
   const local = e.APP_ENV === 'local';
-  const corsOrigins = e.CORS_ORIGINS || (local ? LOCAL_CORS_ORIGINS : '');
+  const corsOrigins = e.CORS_ORIGINS || (local ? LOCAL.corsOrigins : '');
+
+  // superRefine guarantees the real values outside local; the fallbacks only apply locally.
+  const encKeys: Record<string, Buffer> = {
+    v1: Buffer.from(e.ENC_KEY_V1 ?? LOCAL.encKeyV1, 'base64'),
+  };
+  if (e.ENC_KEY_V2) encKeys.v2 = Buffer.from(e.ENC_KEY_V2, 'base64');
+
   return {
     appEnv: e.APP_ENV,
     logLevel: e.LOG_LEVEL,
@@ -67,9 +107,20 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
-    // superRefine guarantees a value outside local.
-    jobHmacSecret: e.JOB_HMAC_SECRET ?? LOCAL_JOB_HMAC_SECRET,
+    jobHmacSecret: e.JOB_HMAC_SECRET ?? LOCAL.jobHmacSecret,
     databaseUrl: e.DATABASE_URL,
+    supabase: {
+      url: e.SUPABASE_URL ?? LOCAL.supabaseUrl,
+      publishableKey: e.SUPABASE_PUBLISHABLE_KEY,
+    },
+    smsHookSecret: e.SUPABASE_SMS_HOOK_SECRET ?? LOCAL.smsHookSecret,
+    hashPepper: e.HASH_PEPPER_V1 ?? LOCAL.pepper,
+    encKeys,
+    encKeyCurrent: e.ENC_KEY_CURRENT,
+    sms:
+      e.SMS_PROVIDER === 'termii' && e.TERMII_API_KEY && e.TERMII_SENDER_ID
+        ? { provider: 'termii', apiKey: e.TERMII_API_KEY, senderId: e.TERMII_SENDER_ID }
+        : { provider: 'fake' },
     upstash:
       e.UPSTASH_REDIS_REST_URL && e.UPSTASH_REDIS_REST_TOKEN
         ? { url: e.UPSTASH_REDIS_REST_URL, token: e.UPSTASH_REDIS_REST_TOKEN }

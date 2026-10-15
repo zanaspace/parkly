@@ -125,7 +125,12 @@ describe('security middleware', () => {
   it('returns 429 RATE_LIMITED with Retry-After when the limiter denies', async () => {
     const app = testApp({
       rateLimiter: {
-        limit: async () => ({ success: false, reset: Date.parse('2026-10-19T08:00:30Z') }),
+        limit: async () => ({
+          success: false,
+          remaining: 0,
+          reset: Date.parse('2026-10-19T08:00:30Z'),
+        }),
+        peek: async () => ({ success: false, remaining: 0, reset: 0 }),
       },
     });
     const res = await app.request('/health/live');

@@ -26,12 +26,21 @@ importers:
       '@parkly/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@parkly/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@parkly/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
       '@parkly/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: 0.12.7
+        version: 0.12.7(@supabase/supabase-js@2.117.3(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js':
+        specifier: 2.117.3
+        version: 2.117.3(@opentelemetry/api@1.9.1)
       next:
         specifier: 16.4.1
         version: 16.4.1(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -96,9 +105,15 @@ importers:
       hono:
         specifier: 4.13.13
         version: 4.13.13
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       pino:
         specifier: 10.4.0
         version: 10.4.0
+      uuid:
+        specifier: 14.0.3
+        version: 14.0.3
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -139,18 +154,30 @@ importers:
       '@expo/metro-runtime':
         specifier: 57.0.17
         version: 57.0.17(@expo/log-box@57.0.4)(expo@57.0.29)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      '@parkly/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@parkly/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@parkly/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
       '@parkly/ui-native':
         specifier: workspace:*
         version: link:../../packages/ui-native
+      '@supabase/supabase-js':
+        specifier: 2.117.3
+        version: 2.117.3(@opentelemetry/api@1.9.1)
       expo:
         specifier: 57.0.29
         version: 57.0.29(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.27)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.13.0(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       expo-constants:
         specifier: 57.0.22
         version: 57.0.22(expo@57.0.29)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))
+      expo-crypto:
+        specifier: 57.0.4
+        version: 57.0.4(expo@57.0.29)
       expo-font:
         specifier: 57.0.4
         version: 57.0.4(expo@57.0.29)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -160,6 +187,9 @@ importers:
       expo-router:
         specifier: 57.0.27
         version: 57.0.27(8037b489754393dfd10082a18119f8cb)
+      expo-secure-store:
+        specifier: 57.0.4
+        version: 57.0.4(expo@57.0.29)
       expo-splash-screen:
         specifier: 57.0.10
         version: 57.0.10(expo@57.0.29)(typescript@5.9.3)
@@ -181,6 +211,9 @@ importers:
       react-native-screens:
         specifier: 4.26.2
         version: 4.26.2(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      react-native-url-polyfill:
+        specifier: 4.0.0
+        version: 4.0.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))
       react-native-web:
         specifier: 0.21.4
         version: 0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -206,12 +239,21 @@ importers:
       '@parkly/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@parkly/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@parkly/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
       '@parkly/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: 0.12.7
+        version: 0.12.7(@supabase/supabase-js@2.117.3(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js':
+        specifier: 2.117.3
+        version: 2.117.3(@opentelemetry/api@1.9.1)
       next:
         specifier: 16.4.1
         version: 16.4.1(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -240,6 +282,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(@vitest/coverage-v8@5.0.4)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/web:
     dependencies:
@@ -2786,6 +2831,10 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
+  '@supabase/auth-js@2.117.3':
+    resolution: {integrity: sha512-XOZV+jllcU2Hzij8SwgM78zl0lOEr6BTjzi2MYkBb39nOAQzb5AelGpMUvVj7lwGSB11JmpAs/FEQroAyFzWEA==}
+    engines: {node: '>=22.0.0'}
+
   '@supabase/cli-darwin-arm64@2.121.0':
     resolution: {integrity: sha512-ZvXKj3wW4Kq5/MrG2xdgZeOWETxmUC9jl16X/i/np7u5A/WLuC/L0+KKY5i0eCrTnNwWFpZdlWKzu/J9QgkPgg==}
     cpu: [arm64]
@@ -2829,6 +2878,39 @@ packages:
     resolution: {integrity: sha512-uvWiQ3cGKrZhtkctXHJJY0r0L6D2s/Dbc8/CxOVDxlXIH5mG3f8ZbqwMs9eRbPDqifyYFlwl+BX+tY3aJosIxQ==}
     cpu: [x64]
     os: [win32]
+
+  '@supabase/functions-js@2.117.3':
+    resolution: {integrity: sha512-6GuizbP4N5xWaxEVUsI+UQpJdmMmn0t3sYNpObo9gCAldvM22gFjnYzRVmkHxp5ylU21azEYmiWVwk9iDgCMkQ==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/phoenix@0.4.5':
+    resolution: {integrity: sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==}
+
+  '@supabase/postgrest-js@2.117.3':
+    resolution: {integrity: sha512-NpyTgullu6tw11ojYKTdZg9HannZ4mu4FUlhc9V5zDXOVllUJzEmuyLM+WWoYF0BurfrRvarimpm3SR8P0Gzfw==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/realtime-js@2.117.3':
+    resolution: {integrity: sha512-4W4ISbreRygNXbhwqxeqyuRul8RPx+SF+Hp2IT8wctebQEHSVCULfKatiRiEhmasfoXvYm2AHV4XFsOxhoousA==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/ssr@0.12.7':
+    resolution: {integrity: sha512-wiBtEie1KkRJi9RrZWY3R2imRhX1JY7qMyUCH2z9AUk15gQebNEplM+urbCKamdxaTJLXUU6LlpkJsaxhojCEg==}
+    peerDependencies:
+      '@supabase/supabase-js': ^2.114.0
+
+  '@supabase/storage-js@2.117.3':
+    resolution: {integrity: sha512-QhUxFC33Crlw6WDeA4hLADdi1PzjI3c4UJs7ivWHHEnU7ulmCWEZSDaRCuIfmsjUwbHYaIfRNFQNsm+IsGYS6w==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/supabase-js@2.117.3':
+    resolution: {integrity: sha512-K+f8PimXDunPWQ63CKRXaF5pbVPJxmfw5ryAnh0s9S9PkwcuqBjiSpIaqpF7KLDljeYwXIL85ST8QxaO0+XuvA==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -3430,6 +3512,10 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
+  cookie@1.1.1:
+    resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
+    engines: {node: '>=18'}
+
   core-js-compat@3.50.0:
     resolution: {integrity: sha512-XGpFGbMLHwSt74YLTKho7Ib242qi6O8MSX+sRokV4oz7iKXvQWGYZthjIhjRGMxjzVkAubBO512dKGYcefmX3Q==}
     engines: {node: '>=6.4.0'}
@@ -3810,6 +3896,11 @@ packages:
       expo: '*'
       react-native: '*'
 
+  expo-crypto@57.0.4:
+    resolution: {integrity: sha512-LqMMs/N6wvwZyw4deVmcl3AgXgqMwCVQ9WyWf2eaWyrk99TXSKk5da3QspiLOOjnn5Qv9f8C50cDNuoyLThpdw==}
+    peerDependencies:
+      expo: '*'
+
   expo-file-system@57.0.7:
     resolution: {integrity: sha512-1vkZRadOsIputFDBcclqBa1pO3iXOO6iIsdqJipQWw4V5TSnWgmRTuOF7ro8IzrVue+PHbum++KCG3Tawem4cg==}
     peerDependencies:
@@ -3892,6 +3983,11 @@ packages:
         optional: true
       react-server-dom-webpack:
         optional: true
+
+  expo-secure-store@57.0.4:
+    resolution: {integrity: sha512-7zBA1RThURTXdP4w65kBzZNbcSsfArqVd+p+ETAnPRWXO8J296Qd0YaCVyRpJ0HSwlCnGdvOnqO+NgSreHsOhA==}
+    peerDependencies:
+      expo: '*'
 
   expo-server@57.0.3:
     resolution: {integrity: sha512-aK+LdKzauHSGmsOStZtyxdzv0zWssCkxTw3m4QuOhfDSJsZaMRTd9O41d8ixU/QfELTbaJ0oRNcF7JFV/7O9YQ==}
@@ -4207,6 +4303,10 @@ packages:
 
   hyphenate-style-name@1.1.0:
     resolution: {integrity: sha512-WDC/ui2VVRrz3jOVi+XtjqkDjiVjTtFaAGiW37k6b+ohyQ5wYDOGkvCZa8+H0nx3gyvv0+BST9xuOgIyGQ00gw==}
+
+  iceberg-js@0.8.1:
+    resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
+    engines: {node: '>=20.0.0'}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -5195,6 +5295,11 @@ packages:
     resolution: {integrity: sha512-2XnWsZToKj76trGtEZzx5ELD/qOICFEprEeUntImmitQFVUkea27fiWdUSITArI356Y1qynpXZINW+Unbhky/A==}
     peerDependencies:
       react: '*'
+      react-native: '*'
+
+  react-native-url-polyfill@4.0.0:
+    resolution: {integrity: sha512-eqYM3wBAA0eL1sPYbBAoNfbES3+NkgcxUdelQ7QzmoVtqKB5qGG0U13MPTRUroAWK+y2EoJFS3MZUK0fwTf0pA==}
+    peerDependencies:
       react-native: '*'
 
   react-native-web@0.21.4:
@@ -8336,6 +8441,10 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
+  '@supabase/auth-js@2.117.3':
+    dependencies:
+      tslib: 2.8.1
+
   '@supabase/cli-darwin-arm64@2.121.0':
     optional: true
 
@@ -8359,6 +8468,41 @@ snapshots:
 
   '@supabase/cli-windows-x64@2.121.0':
     optional: true
+
+  '@supabase/functions-js@2.117.3':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/phoenix@0.4.5': {}
+
+  '@supabase/postgrest-js@2.117.3':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/realtime-js@2.117.3':
+    dependencies:
+      '@supabase/phoenix': 0.4.5
+      tslib: 2.8.1
+
+  '@supabase/ssr@0.12.7(@supabase/supabase-js@2.117.3(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@supabase/supabase-js': 2.117.3(@opentelemetry/api@1.9.1)
+      cookie: 1.1.1
+
+  '@supabase/storage-js@2.117.3':
+    dependencies:
+      iceberg-js: 0.8.1
+      tslib: 2.8.1
+
+  '@supabase/supabase-js@2.117.3(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@supabase/auth-js': 2.117.3
+      '@supabase/functions-js': 2.117.3
+      '@supabase/postgrest-js': 2.117.3
+      '@supabase/realtime-js': 2.117.3
+      '@supabase/storage-js': 2.117.3
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
 
   '@swc/helpers@0.5.23':
     dependencies:
@@ -9033,6 +9177,8 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
+  cookie@1.1.1: {}
+
   core-js-compat@3.50.0:
     dependencies:
       browserslist: 4.29.3
@@ -9377,6 +9523,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  expo-crypto@57.0.4(expo@57.0.29):
+    dependencies:
+      expo: 57.0.29(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.27)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.13.0(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
+
   expo-file-system@57.0.7(expo@57.0.29)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)):
     dependencies:
       expo: 57.0.29(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.27)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.13.0(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
@@ -9481,6 +9631,10 @@ snapshots:
       - expo-font
       - react-native-worklets
       - supports-color
+
+  expo-secure-store@57.0.4(expo@57.0.29):
+    dependencies:
+      expo: 57.0.29(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.27)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.13.0(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
 
   expo-server@57.0.3: {}
 
@@ -9832,6 +9986,8 @@ snapshots:
   hyperdyperid@1.2.0: {}
 
   hyphenate-style-name@1.1.0: {}
+
+  iceberg-js@0.8.1: {}
 
   ieee754@1.2.1: {}
 
@@ -11147,6 +11303,10 @@ snapshots:
       react-freeze: 1.0.4(react@19.2.3)
       react-native: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
       warn-once: 0.1.1
+
+  react-native-url-polyfill@4.0.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)):
+    dependencies:
+      react-native: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
 
   react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:

@@ -18,11 +18,14 @@
     "@expo/metro-runtime": "57.0.17",
     "@parkly/tokens": "workspace:*",
     "@parkly/ui-native": "workspace:*",
+    "@supabase/supabase-js": "2.117.3",
     "expo": "57.0.29",
     "expo-constants": "57.0.22",
+    "expo-crypto": "57.0.4",
     "expo-font": "57.0.4",
     "expo-linking": "57.0.13",
     "expo-router": "57.0.27",
+    "expo-secure-store": "57.0.4",
     "expo-splash-screen": "57.0.10",
     "expo-status-bar": "57.0.1",
     "react": "19.2.3",
@@ -30,7 +33,10 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "5.7.0",
     "react-native-screens": "4.26.2",
-    "react-native-web": "0.21.4"
+    "react-native-url-polyfill": "4.0.0",
+    "react-native-web": "0.21.4",
+    "@parkly/contracts": "workspace:*",
+    "@parkly/domain": "workspace:*"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",

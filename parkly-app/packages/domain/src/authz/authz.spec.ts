@@ -1,0 +1,127 @@
+import { describe, expect, it } from 'vitest';
+import { can, isAdmin, needsAal2, type Actor } from './authz.js';
+
+const OP_A = 'op-a';
+const OP_B = 'op-b';
+
+const actor = (roles: Actor['roles'], extra: Partial<Actor> = {}): Actor => ({
+  userId: 'u1',
+  roles,
+  aal: 'aal1',
+  ...extra,
+});
+
+const driver = actor([{ role: 'DRIVER', operatorId: null }]);
+const ownerA = actor([{ role: 'OPERATOR_OWNER', operatorId: OP_A }], { aal: 'aal2' });
+const managerA = actor([{ role: 'OPERATOR_MANAGER', operatorId: OP_A }], { aal: 'aal2' });
+const attendantA = actor([{ role: 'OPERATOR_ATTENDANT', operatorId: OP_A }], { lotIds: ['lot-1'] });
+const compliance = actor([{ role: 'ADMIN_COMPLIANCE', operatorId: null }], { aal: 'aal2' });
+const support = actor([{ role: 'ADMIN_SUPPORT', operatorId: null }], { aal: 'aal2' });
+
+describe('deny by default (doc 05 §5.2)', () => {
+  it('denies an actor with no roles everything', () => {
+    expect(can(actor([]), 'profile:read:own', { ownerUserId: 'u1' })).toBe(false);
+  });
+});
+
+describe('own-resource permissions', () => {
+  it('lets a user manage their own profile, vehicles and consents', () => {
+    for (const action of [
+      'profile:read:own',
+      'profile:update:own',
+      'consent:write:own',
+      'device:register:own',
+      'session:revoke:own',
+    ] as const) {
+      expect(can(driver, action, { ownerUserId: 'u1' })).toBe(true);
+    }
+    expect(can(driver, 'vehicle:manage:own', { ownerUserId: 'u1' })).toBe(true);
+    expect(can(driver, 'account:delete:own', { ownerUserId: 'u1' })).toBe(true);
+  });
+
+  it('never lets a user act on someone else’s resource', () => {
+    expect(can(driver, 'profile:read:own', { ownerUserId: 'u2' })).toBe(false);
+    expect(can(driver, 'vehicle:manage:own', { ownerUserId: 'u2' })).toBe(false);
+  });
+
+  it('limits vehicles and account deletion to drivers', () => {
+    expect(can(ownerA, 'vehicle:manage:own', { ownerUserId: 'u1' })).toBe(false);
+    expect(can(ownerA, 'account:delete:own', { ownerUserId: 'u1' })).toBe(false);
+  });
+
+  it('lets staff use profile and session actions on themselves', () => {
+    expect(can(ownerA, 'profile:read:own', { ownerUserId: 'u1' })).toBe(true);
+    expect(can(compliance, 'session:revoke:own', { ownerUserId: 'u1' })).toBe(true);
+  });
+});
+
+describe('operator scoping (FR-AUTH-005)', () => {
+  it('lets owner and manager read their own operator’s members', () => {
+    expect(can(ownerA, 'operator:members:read', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:members:read', { operatorId: OP_A })).toBe(true);
+  });
+
+  it('denies a manager of operator A anything at operator B', () => {
+    expect(can(managerA, 'operator:members:read', { operatorId: OP_B })).toBe(false);
+  });
+
+  it('denies attendants and drivers operator member lists', () => {
+    expect(can(attendantA, 'operator:members:read', { operatorId: OP_A })).toBe(false);
+    expect(can(driver, 'operator:members:read', { operatorId: OP_A })).toBe(false);
+  });
+
+  it('requires an operator id on operator-scoped resources', () => {
+    expect(can(ownerA, 'operator:members:read', {})).toBe(false);
+  });
+
+  it('scopes attendants to their assigned lots', () => {
+    expect(can(attendantA, 'lot:checkin', { operatorId: OP_A, lotId: 'lot-1' })).toBe(true);
+    expect(can(attendantA, 'lot:checkin', { operatorId: OP_A, lotId: 'lot-2' })).toBe(false);
+    expect(can(attendantA, 'lot:checkin', { operatorId: OP_B, lotId: 'lot-1' })).toBe(false);
+  });
+});
+
+describe('platform roles', () => {
+  it('lets compliance read the audit log, but not support or operators', () => {
+    expect(can(compliance, 'audit:read', {})).toBe(true);
+    expect(can(support, 'audit:read', {})).toBe(false);
+    expect(can(ownerA, 'audit:read', {})).toBe(false);
+  });
+
+  it('lets super admin read the audit log and revoke any user’s sessions', () => {
+    const sa = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
+    expect(can(sa, 'audit:read', {})).toBe(true);
+    expect(can(sa, 'user:sessions:revoke', {})).toBe(true);
+    expect(can(compliance, 'user:sessions:revoke', {})).toBe(false);
+  });
+
+  it('denies admin permissions below aal2 even with the role', () => {
+    expect(can({ ...compliance, aal: 'aal1' }, 'audit:read', {})).toBe(false);
+  });
+});
+
+describe('MFA requirement (FR-AUTH-004)', () => {
+  it.each([
+    ['DRIVER', false],
+    ['OPERATOR_ATTENDANT', false],
+    ['OPERATOR_MANAGER', true],
+    ['OPERATOR_OWNER', true],
+    ['ADMIN_SUPPORT', true],
+    ['SUPER_ADMIN', true],
+  ] as const)('%s needs aal2: %s', (role, expected) => {
+    expect(
+      needsAal2(actor([{ role, operatorId: role.startsWith('OPERATOR') ? OP_A : null }])),
+    ).toBe(expected);
+  });
+
+  it('denies operator-scoped actions to an owner below aal2', () => {
+    expect(can({ ...ownerA, aal: 'aal1' }, 'operator:members:read', { operatorId: OP_A })).toBe(
+      false,
+    );
+  });
+
+  it('identifies admins', () => {
+    expect(isAdmin(compliance)).toBe(true);
+    expect(isAdmin(ownerA)).toBe(false);
+  });
+});

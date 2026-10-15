@@ -28,6 +28,10 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it('requires Termii in prod', () => {
+    expect(() => loadConfig({ APP_ENV: 'prod' })).toThrow(/SMS_PROVIDER: must be termii in prod/);
+  });
+
   it('never falls back to the local secret outside local', () => {
     expect(() => loadConfig({ APP_ENV: 'staging' })).toThrow(/JOB_HMAC_SECRET/);
   });
@@ -40,6 +44,11 @@ describe('loadConfig', () => {
       APP_ENV: 'dev',
       JOB_HMAC_SECRET: secret,
       DATABASE_URL: 'postgresql://parkly_api.ref:pw@pooler.supabase.com:6543/postgres',
+      SUPABASE_URL: 'https://ref.supabase.co',
+      SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_0123456789abcdef',
+      SUPABASE_SMS_HOOK_SECRET: 'v1,whsec_c2VjcmV0',
+      HASH_PEPPER_V1: 'p'.repeat(32),
+      ENC_KEY_V1: Buffer.alloc(32, 1).toString('base64'),
       UPSTASH_REDIS_REST_URL: 'https://x.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 't',
     });

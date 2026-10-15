@@ -9,10 +9,14 @@ describe('schema conventions (doc 02 §1)', () => {
   it('finds the tables', () => {
     expect(tables.map((t) => getTableConfig(t).name).sort()).toEqual([
       'audit_logs',
+      'consents',
+      'data_subject_requests',
+      'devices',
       'feature_flags',
       'platform_settings',
       'user_roles',
       'users',
+      'vehicles',
     ]);
   });
 
