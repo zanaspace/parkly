@@ -1,7 +1,7 @@
-# Sprint 0 — Foundations: progress report
+# Sprint 0 — Foundations: report
 
-- **Status:** In progress — code foundations done; platform accounts and the DB/deploy exit criteria wait on owner setup.
-- **Updated:** 2026-10-14
+- **Status:** **Done**, with platform items carried over (see § Final status, 2026-10-22). The code foundations were done on 2026-10-14; the dev environment went live during S2.
+- **Updated:** 2026-10-22
 
 ## Done (verified locally)
 
@@ -59,3 +59,26 @@ Commands green at repo root: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
 - The Supabase security advisor flagged `pg_net` in `public` and a Supabase-provided `public.rls_auto_enable()` executable by `anon`. Both are fixed by migration `20261014225303_security_advisor_fixes.sql`, and the advisor now reports **no issues**.
 - Region is Ireland, so Vercel Functions are pinned to `dub1` (ADR 0002 amendment).
 - Still to do on the dev project: Vault secrets `job_hmac_secret` and `api_base_url`, and a LOGIN password for `parkly_api`. The `pnpm --filter @parkly/db test:integration` suite still needs a local or CI run.
+
+## Final status — 2026-10-22
+
+Done since the update above (during S1 and S2):
+
+| Item | Result |
+|---|---|
+| GitHub repository | `zanaspace/parkly`; every change since S2 goes through a pull request |
+| Dev hosting (task 11) | Four Vercel projects on the Hobby team, region `dub1`: API https://parkly-api-six.vercel.app, portal https://parkly-portal.vercel.app, admin https://parkly-khaki.vercel.app, web https://parkly-web-two.vercel.app. Environment variables per doc 22; secrets entered by the owner. |
+| Upstash Redis | Created; rate limiting and the job replay guard use it on dev |
+| Mobile builds | Expo account `zanas-team`, EAS project linked, Android test builds (Node 22.22.2) |
+| Environments doc | Doc 22 Environment Setup (local, dev, staging, prod; which variables, where, secret or not) |
+| Vault job secrets on dev | Entered by the owner on 2026-10-22 (doc 22 §2.5); to confirm with the `ping` check (202 in `net._http_response`) |
+
+Still carried over (doc 20 §6):
+
+| Item | Status |
+|---|---|
+| Staging and production environments | Owner decision: wait (before S4) |
+| CI secrets and the first green CI run on GitHub (DB integration tests with `supabase start`, migrations pushed by CI) | Not set up yet. Dev migrations were applied by hand in the SQL editor, so the remote history needs `supabase migration repair` before CI pushes. |
+| Sentry projects, Better Stack drains, Vercel Firewall + admin IP allowlist (task 12) | Not set up |
+| Termii sender ID, Paystack live KYB, Google Maps key, Play Console, Resend (task 14) | Paystack **test** key in use on dev; the rest pending. Supabase test phone numbers stand in for SMS. |
+| `parkly_api` login password | Not needed while the API uses the dev connection string; set before staging |

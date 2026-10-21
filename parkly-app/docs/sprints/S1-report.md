@@ -1,7 +1,7 @@
-# Sprint 1 — Identity & Auth: progress report
+# Sprint 1 — Identity & Auth: report
 
-- **Status:** In progress — core identity, auth, accounts, vehicles, portal auth/MFA, and mobile onboarding flows implemented and verified locally.
-- **Updated:** 2026-10-15
+- **Status:** **Done** on 2026-10-21 after the review below; attendant sign-in and real-number OTP are carried over.
+- **Updated:** 2026-10-22
 
 ## Done (verified locally)
 
@@ -53,3 +53,10 @@ Re-checked every S1 task against the code before starting S2. All gates are gree
 - Added `@parkly/portal` test setup with `vitest` for auth guard and API unit testing.
 - Added open-redirect guard (`safeNext`) in `@parkly/portal` to prevent malicious redirects post-authentication.
 - Strict typing enforced on all `it.each` test matrix definitions to satisfy `noImplicitAny`.
+
+## Final status — 2026-10-22
+
+- **Exit criteria** (doc 20 S1): drivers sign in with phone OTP and manage vehicles (mobile; Supabase test phone numbers on dev); operators and admins sign in with password + TOTP MFA (portal and admin console, both live on dev and used by the owner); RBAC and audit logging on every route (the RBAC matrix covers every authenticated route).
+- **Remote migrations:** the S1 migrations and `20261021090000_admin_revoke_sessions` were applied to the dev database by hand (SQL editor); `supabase migration repair` is pending (S0 carry-over).
+- **Carried over** (doc 20 §6): attendant phone OTP + lot PIN → S5 (attendants can already be invited, S2 slice F2); real Nigerian OTP via Termii and the Send SMS hook on hosted projects → when Termii approves.
+- **Later changes to S1 features:** operator sign-up by email with confirmation arrived in S2 slice A; `GET /operators/{id}/members` now lists `operator_members` with open invites (S2 slice F2); attendants' lot scope feeds authorisation (S2 slice F2).
