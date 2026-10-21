@@ -483,15 +483,27 @@ export function drizzleStore(db: Db): Store {
         return (lot as LotRow | undefined) ?? null;
       },
       async list(operatorId) {
-        const rows = await db
-          .select({
-            ...lotColumns,
-            photoCount: sql<number>`(select count(*)::int from ${lotPhotos} where ${lotPhotos.lotId} = ${lots.id})`,
-          })
+        const rows = (await db
+          .select(lotColumns)
           .from(lots)
           .where(eq(lots.operatorId, operatorId))
-          .orderBy(desc(lots.createdAt), desc(lots.id));
-        return rows as (LotRow & { photoCount: number })[];
+          .orderBy(desc(lots.createdAt), desc(lots.id))) as LotRow[];
+        if (rows.length === 0) return [];
+        // A separate grouped count: inside a select list drizzle renders columns
+        // without their table, so a correlated subquery would compare
+        // lot_photos.lot_id with lot_photos.id and always count 0.
+        const counts = await db
+          .select({ lotId: lotPhotos.lotId, n: sql<number>`count(*)::int` })
+          .from(lotPhotos)
+          .where(
+            inArray(
+              lotPhotos.lotId,
+              rows.map((r) => r.id),
+            ),
+          )
+          .groupBy(lotPhotos.lotId);
+        const byLot = new Map(counts.map((c) => [c.lotId, c.n]));
+        return rows.map((r) => ({ ...r, photoCount: byLot.get(r.id) ?? 0 }));
       },
       async update(operatorId, id, version, patch) {
         const [lot] = await db
