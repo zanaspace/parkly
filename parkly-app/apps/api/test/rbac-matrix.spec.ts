@@ -143,6 +143,19 @@ const MATRIX: Row[] = [
     expect: only([], 200, 404),
   },
   {
+    method: 'POST',
+    path: `/v1/operators/${OP_A}/lots/${LOT_A}/submit`,
+    route: 'POST /v1/operators/{operatorId}/lots/{lotId}/submit',
+    // The seeded draft has no photos, hours, prices or permit: the guard answers.
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 422, 404),
+  },
+  {
+    method: 'POST',
+    path: `/v1/operators/${OP_B}/lots/${LOT_A}/submit`,
+    route: 'POST /v1/operators/{operatorId}/lots/{lotId}/submit (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
     method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
@@ -182,6 +195,10 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/lots/{lotId}/photos',
   'POST /v1/operators/{operatorId}/lots/{lotId}/photos/{fileId}/complete',
   'DELETE /v1/operators/{operatorId}/lots/{lotId}/photos/{photoId}',
+  // Same lot lookup as the edits above (other operator 404); behaviour in submit.spec
+  'POST /v1/operators/{operatorId}/lots/{lotId}/permits/document',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/permits',
+  'PUT /v1/operators/{operatorId}/lots/{lotId}/rate-plans',
 ]);
 
 describe('RBAC matrix', () => {

@@ -2,6 +2,11 @@ import type { Lot } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import {
+  PermitSection,
+  PricesSection,
+  SubmitLotSection,
+} from '../../../../components/lot-submission';
 import { HoursEditor, LotForm, PhotoUploader } from '../../../../components/lots';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
@@ -43,7 +48,8 @@ export default async function LotPage({
       <Text variant="heading-xl">{lot.name}</Text>
       {created && (
         <p className="pk-notice pk-notice--info" role="status">
-          Lot created as a draft. Add opening hours and at least 3 photos next.
+          Lot created as a draft. Next: photos, opening hours, prices and the LASPA permit, then
+          submit it for verification.
         </p>
       )}
       {!editable && (
@@ -61,9 +67,24 @@ export default async function LotPage({
       <HoursEditor operatorId={operatorId} lot={lot} editable={editable} />
 
       <Text variant="heading-md" as="h2">
+        Prices
+      </Text>
+      <PricesSection operatorId={operatorId} lot={lot} editable={editable} />
+
+      <Text variant="heading-md" as="h2">
+        LASPA permit
+      </Text>
+      <PermitSection operatorId={operatorId} lot={lot} editable={editable} />
+
+      <Text variant="heading-md" as="h2">
         Details
       </Text>
       <LotForm operatorId={operatorId} lot={lot} editable={editable} />
+
+      <Text variant="heading-md" as="h2">
+        Submit for verification
+      </Text>
+      <SubmitLotSection operatorId={operatorId} lot={lot} />
     </main>
   );
 }

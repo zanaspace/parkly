@@ -8,6 +8,7 @@ import { loadSession } from '../auth/session';
 import { publicEnv } from '../env';
 import { kybProblemMessage } from '../operators/kyb-copy';
 import { lotFieldErrors, readHoursForm, readLotForm } from './form';
+import { describeLotGaps, readRatePlanForm } from './pricing';
 
 export type LotFormState =
   { error?: string; fieldErrors?: Record<string, string>; saved?: boolean } | undefined;
@@ -140,4 +141,109 @@ export async function deleteLotPhoto(form: FormData): Promise<void> {
     // The page re-reads the photos; a failed delete leaves the photo there.
   }
   revalidatePath(`/lots/${lotId}`);
+}
+
+/** Permit scan, step 1: signed upload URL (the browser then PUTs the file). */
+export async function presignPermitDocument(input: {
+  operatorId: string;
+  lotId: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+}): Promise<{ ok: true; fileId: string; uploadUrl: string } | { ok: false; error: string }> {
+  try {
+    const res = await apiFetch<PresignUploadResponse>(
+      publicEnv().apiUrl,
+      `${lotsPath(input.operatorId)}/${encodeURIComponent(input.lotId)}/permits/document`,
+      await token(),
+      {
+        method: 'POST',
+        body: { contentType: input.contentType, sizeBytes: input.sizeBytes, sha256: input.sha256 },
+      },
+    );
+    return { ok: true, fileId: res.fileId, uploadUrl: res.uploadUrl };
+  } catch (err) {
+    return { ok: false, error: problemState(err)?.error ?? 'Upload failed.' };
+  }
+}
+
+/** Permit, step 2: the details plus the uploaded scan. */
+export async function submitPermit(input: {
+  operatorId: string;
+  lotId: string;
+  fileId: string;
+  permitNumber: string;
+  issuedAt: string;
+  expiresAt: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(input.operatorId)}/${encodeURIComponent(input.lotId)}/permits`,
+      await token(),
+      {
+        method: 'POST',
+        body: {
+          permitNumber: input.permitNumber,
+          issuedAt: input.issuedAt,
+          expiresAt: input.expiresAt,
+          fileId: input.fileId,
+        },
+      },
+    );
+  } catch (err) {
+    if (err instanceof ApiProblem && err.code === 'PERMIT_EXPIRED')
+      return {
+        ok: false,
+        error: 'This permit has expired. Renew it with LASPA and upload the new one.',
+      };
+    if (err instanceof ApiProblem && err.code === 'VALIDATION_FAILED' && err.errors?.[0])
+      return { ok: false, error: err.errors[0].message };
+    return { ok: false, error: problemState(err)?.error ?? 'Something went wrong.' };
+  }
+  revalidatePath(`/lots/${input.lotId}`);
+  return { ok: true };
+}
+
+export async function saveRatePlan(_prev: LotFormState, form: FormData): Promise<LotFormState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  const parsed = readRatePlanForm(form);
+  if (!parsed.ok) return { error: parsed.error };
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/rate-plans`,
+      await token(),
+      { method: 'PUT', body: parsed.body },
+    );
+  } catch (err) {
+    if (err instanceof ApiProblem && err.code === 'RATE_PLAN_INVALID' && err.errors?.[0])
+      return { error: err.errors[0].message };
+    return problemState(err);
+  }
+  revalidatePath(`/lots/${lotId}`);
+  return { saved: true };
+}
+
+export type SubmitLotState = { error?: string; missing?: string[] } | undefined;
+
+export async function submitLot(_prev: SubmitLotState, form: FormData): Promise<SubmitLotState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/submit`,
+      await token(),
+      { method: 'POST' },
+    );
+  } catch (err) {
+    if (err instanceof ApiProblem && err.code === 'LOT_INCOMPLETE')
+      return { error: 'A few things are still missing:', missing: describeLotGaps(err) };
+    return { error: problemState(err)?.error ?? 'Something went wrong.' };
+  }
+  revalidatePath(`/lots/${lotId}`);
+  revalidatePath('/lots');
+  return undefined;
 }

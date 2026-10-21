@@ -3005,6 +3005,141 @@
                         ]
                       }
                     },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -3031,6 +3166,8 @@
                     "version",
                     "openingHours",
                     "photos",
+                    "permit",
+                    "ratePlans",
                     "createdAt"
                   ]
                 }
@@ -3297,6 +3434,141 @@
                         ]
                       }
                     },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -3323,6 +3595,8 @@
                     "version",
                     "openingHours",
                     "photos",
+                    "permit",
+                    "ratePlans",
                     "createdAt"
                   ]
                 }
@@ -3696,6 +3970,141 @@
                         ]
                       }
                     },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -3722,6 +4131,8 @@
                     "version",
                     "openingHours",
                     "photos",
+                    "permit",
+                    "ratePlans",
                     "createdAt"
                   ]
                 }
@@ -4057,6 +4468,141 @@
                         ]
                       }
                     },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -4083,6 +4629,8 @@
                     "version",
                     "openingHours",
                     "photos",
+                    "permit",
+                    "ratePlans",
                     "createdAt"
                   ]
                 }
@@ -4314,6 +4862,857 @@
         "responses": {
           "204": {
             "description": "Photo removed"
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/permits/document": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": [
+                      "application/pdf",
+                      "image/jpeg",
+                      "image/png"
+                    ]
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 10485760
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$/i"
+                  }
+                },
+                "required": [
+                  "contentType",
+                  "sizeBytes",
+                  "sha256"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "uploadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSec": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "fileId",
+                    "uploadUrl",
+                    "expiresInSec"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/permits": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "permitNumber": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  },
+                  "issuedAt": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "fileId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "permitNumber",
+                  "issuedAt",
+                  "expiresAt",
+                  "fileId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permit submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "issuer": {
+                      "type": "string"
+                    },
+                    "permitNumber": {
+                      "type": "string"
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUBMITTED",
+                        "IN_REVIEW",
+                        "APPROVED",
+                        "REJECTED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "rejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "submittedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "issuer",
+                    "permitNumber",
+                    "issuedAt",
+                    "expiresAt",
+                    "status",
+                    "rejectionReason",
+                    "submittedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/rate-plans": {
+      "put": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "product": {
+                        "type": "string",
+                        "enum": [
+                          "HOURLY"
+                        ]
+                      },
+                      "hourlyRateKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      },
+                      "minMinutes": {
+                        "type": "integer"
+                      },
+                      "dailyCapKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      }
+                    },
+                    "required": [
+                      "product",
+                      "hourlyRateKobo",
+                      "minMinutes"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "product": {
+                        "type": "string",
+                        "enum": [
+                          "DAILY"
+                        ]
+                      },
+                      "dailyRateKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      }
+                    },
+                    "required": [
+                      "product",
+                      "dailyRateKobo"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "product": {
+                        "type": "string",
+                        "enum": [
+                          "MONTHLY"
+                        ]
+                      },
+                      "monthlyRateKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      }
+                    },
+                    "required": [
+                      "product",
+                      "monthlyRateKobo"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rate plan awaiting approval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "product": {
+                      "type": "string",
+                      "enum": [
+                        "HOURLY",
+                        "DAILY",
+                        "MONTHLY"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_APPROVAL",
+                        "ACTIVE",
+                        "RETIRED",
+                        "REJECTED"
+                      ]
+                    },
+                    "hourlyRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "minMinutes": {
+                      "type": "integer"
+                    },
+                    "dailyCapKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "dailyRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "monthlyRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "rejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "submittedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "product",
+                    "status",
+                    "hourlyRateKobo",
+                    "minMinutes",
+                    "dailyCapKobo",
+                    "dailyRateKobo",
+                    "monthlyRateKobo",
+                    "rejectionReason",
+                    "submittedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/submit": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lot submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "permit",
+                    "ratePlans",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
           }
         }
       }

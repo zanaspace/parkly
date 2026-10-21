@@ -71,6 +71,67 @@ export const LotPhotoSchema = z.object({
   uploadedAt: z.iso.datetime(),
 });
 
+const DateSchema = z.iso.date();
+const KoboSchema = z.number().int().positive().max(100_000_000_00);
+
+/** Doc 02 §2.4 permits; dates are Lagos calendar days. */
+export const PermitSchema = z.object({
+  id: z.uuid(),
+  issuer: z.string(),
+  permitNumber: z.string(),
+  issuedAt: DateSchema,
+  expiresAt: DateSchema,
+  status: z.enum(['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'EXPIRED']),
+  rejectionReason: z.string().nullable(),
+  submittedAt: z.iso.datetime(),
+});
+
+/** Doc 03 O-11 step 6: the permit scan (PDF, JPG or PNG ≤ 10 MB) goes to the private permits bucket. */
+export const PresignPermitDocumentRequestSchema = z.object({
+  contentType: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/i, 'SHA-256 as 64 hex characters'),
+});
+
+/** After the scan is uploaded: the permit details plus the uploaded file. */
+export const SubmitPermitRequestSchema = z.object({
+  permitNumber: z.string().trim().min(3).max(64),
+  issuedAt: DateSchema,
+  expiresAt: DateSchema,
+  fileId: z.uuid(),
+});
+
+export const ProductSchema = z.enum(['HOURLY', 'DAILY', 'MONTHLY']);
+
+/** FR-LOT-005. Prices in kobo; every change waits for admin approval and applies to new bookings only. */
+export const SetRatePlanRequestSchema = z.discriminatedUnion('product', [
+  z.object({
+    product: z.literal('HOURLY'),
+    hourlyRateKobo: KoboSchema,
+    minMinutes: z.number().int(),
+    dailyCapKobo: KoboSchema.optional(),
+  }),
+  z.object({ product: z.literal('DAILY'), dailyRateKobo: KoboSchema }),
+  z.object({ product: z.literal('MONTHLY'), monthlyRateKobo: KoboSchema }),
+]);
+
+export const RatePlanSchema = z.object({
+  id: z.uuid(),
+  product: ProductSchema,
+  status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'RETIRED', 'REJECTED']),
+  hourlyRateKobo: z.number().int().nullable(),
+  minMinutes: z.number().int(),
+  dailyCapKobo: z.number().int().nullable(),
+  dailyRateKobo: z.number().int().nullable(),
+  monthlyRateKobo: z.number().int().nullable(),
+  rejectionReason: z.string().nullable(),
+  submittedAt: z.iso.datetime(),
+});
+
 export const LotSchema = LotFieldsSchema.extend({
   id: z.uuid(),
   operatorId: z.uuid(),
@@ -84,6 +145,10 @@ export const LotSchema = LotFieldsSchema.extend({
   version: z.number().int(),
   openingHours: z.array(OpeningDaySchema),
   photos: z.array(LotPhotoSchema),
+  /** The most recently submitted permit, if any. */
+  permit: PermitSchema.nullable(),
+  /** Current prices: the ACTIVE plan and any change PENDING_APPROVAL, per product. */
+  ratePlans: z.array(RatePlanSchema),
   createdAt: z.iso.datetime(),
 });
 
@@ -109,6 +174,10 @@ export const PresignLotPhotoRequestSchema = z.object({
 });
 
 export type Amenity = z.infer<typeof AmenitySchema>;
+export type Permit = z.infer<typeof PermitSchema>;
+export type RatePlan = z.infer<typeof RatePlanSchema>;
+export type Product = z.infer<typeof ProductSchema>;
+export type SetRatePlanRequest = z.infer<typeof SetRatePlanRequestSchema>;
 export type VehicleType = z.infer<typeof VehicleTypeSchema>;
 export type Lot = z.infer<typeof LotSchema>;
 export type LotSummary = z.infer<typeof LotSummarySchema>;

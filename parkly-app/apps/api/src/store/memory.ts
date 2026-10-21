@@ -12,6 +12,8 @@ import {
   type LotPhotoRow,
   type LotRow,
   type OpeningHourRow,
+  type PermitRow,
+  type RatePlanRow,
   type PayoutAccountRow,
   type OperatorRow,
   type ConsentType,
@@ -44,6 +46,8 @@ export class MemoryStore implements Store {
   readonly lotRows = new Map<string, LotRow>();
   readonly hourRows = new Map<string, OpeningHourRow[]>();
   readonly photoRows: LotPhotoRow[] = [];
+  readonly permitRows: PermitRow[] = [];
+  readonly ratePlanRows: RatePlanRow[] = [];
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -292,6 +296,13 @@ export class MemoryStore implements Store {
       Object.assign(lot, patch, { version: lot.version + 1 });
       return { ...lot };
     },
+    setStatus: async (operatorId, id, from, to, reason) => {
+      const lot = this.lotRows.get(id);
+      if (!lot || lot.operatorId !== operatorId || lot.status !== from)
+        throw new StaleVersionError();
+      Object.assign(lot, { status: to, statusReason: reason, version: lot.version + 1 });
+      return { ...lot };
+    },
     openingHours: async (lotId) =>
       [...(this.hourRows.get(lotId) ?? [])].sort((a, b) => a.weekday - b.weekday),
     setOpeningHours: async (lotId, days) => {
@@ -299,6 +310,62 @@ export class MemoryStore implements Store {
         lotId,
         days.map((d) => ({ ...d })),
       );
+    },
+  };
+
+  permits: Store['permits'] = {
+    create: async ({ submittedBy: _by, ...row }) => {
+      const permit: PermitRow = {
+        ...row,
+        id: randomUUID(),
+        issuer: 'LASPA',
+        status: 'SUBMITTED',
+        rejectionReason: null,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.permitRows.push(permit);
+      return { ...permit };
+    },
+    latest: async (lotId) =>
+      this.copy(
+        this.permitRows
+          .filter((p) => p.lotId === lotId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
+      ),
+  };
+
+  ratePlans: Store['ratePlans'] = {
+    submit: async ({ submittedBy: _by, ...row }) => {
+      const pending = this.ratePlanRows.find(
+        (p) =>
+          p.lotId === row.lotId && p.product === row.product && p.status === 'PENDING_APPROVAL',
+      );
+      if (pending) {
+        Object.assign(pending, row);
+        return { ...pending };
+      }
+      const plan: RatePlanRow = {
+        ...row,
+        id: randomUUID(),
+        status: 'PENDING_APPROVAL',
+        rejectionReason: null,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.ratePlanRows.push(plan);
+      return { ...plan };
+    },
+    current: async (lotId) => {
+      const order = ['HOURLY', 'DAILY', 'MONTHLY'];
+      return this.ratePlanRows
+        .filter(
+          (p) => p.lotId === lotId && (p.status === 'ACTIVE' || p.status === 'PENDING_APPROVAL'),
+        )
+        .sort(
+          (a, b) =>
+            order.indexOf(a.product) - order.indexOf(b.product) ||
+            a.createdAt.getTime() - b.createdAt.getTime(),
+        )
+        .map((p) => ({ ...p }));
     },
   };
 

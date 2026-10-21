@@ -145,6 +145,39 @@ export type LotPhotoRow = {
   createdAt: Date;
 };
 
+export type PermitRow = {
+  id: string;
+  lotId: string;
+  issuer: string;
+  permitNumber: string;
+  /** YYYY-MM-DD, Lagos calendar days. */
+  issuedAt: string;
+  expiresAt: string;
+  documentFileId: string | null;
+  status: 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+  rejectionReason: string | null;
+  createdAt: Date;
+};
+
+export type Product = 'HOURLY' | 'DAILY' | 'MONTHLY';
+
+export type RatePlanPrices = {
+  hourlyRateKobo: number | null;
+  minMinutes: number;
+  dailyCapKobo: number | null;
+  dailyRateKobo: number | null;
+  monthlyRateKobo: number | null;
+};
+
+export type RatePlanRow = RatePlanPrices & {
+  id: string;
+  lotId: string;
+  product: Product;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'RETIRED' | 'REJECTED';
+  rejectionReason: string | null;
+  createdAt: Date;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -274,9 +307,37 @@ export type Store = {
       version: number,
       patch: Partial<LotFields>,
     ): Promise<LotRow>;
+    /** Moves the lot only if it is still in `from` (StaleVersionError otherwise); bumps the version. */
+    setStatus(
+      operatorId: string,
+      id: string,
+      from: LotStatus,
+      to: LotStatus,
+      reason: string | null,
+    ): Promise<LotRow>;
     openingHours(lotId: string): Promise<OpeningHourRow[]>;
     /** Replaces the whole week (days left out are closed). */
     setOpeningHours(lotId: string, days: OpeningHourRow[]): Promise<void>;
+  };
+  permits: {
+    create(row: {
+      lotId: string;
+      permitNumber: string;
+      issuedAt: string;
+      expiresAt: string;
+      documentFileId: string;
+      submittedBy: string;
+    }): Promise<PermitRow>;
+    /** The most recently submitted permit for the lot. */
+    latest(lotId: string): Promise<PermitRow | null>;
+  };
+  ratePlans: {
+    /** PENDING_APPROVAL; replaces this product's pending change if there is one. */
+    submit(
+      row: RatePlanPrices & { lotId: string; product: Product; submittedBy: string },
+    ): Promise<RatePlanRow>;
+    /** ACTIVE and PENDING_APPROVAL plans, HOURLY → DAILY → MONTHLY. */
+    current(lotId: string): Promise<RatePlanRow[]>;
   };
   lotPhotos: {
     create(row: { lotId: string; fileId: string; sort: number }): Promise<LotPhotoRow>;

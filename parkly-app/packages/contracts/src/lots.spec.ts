@@ -4,6 +4,8 @@ import {
   AmenitySchema,
   CreateLotRequestSchema,
   SetOpeningHoursRequestSchema,
+  SetRatePlanRequestSchema,
+  SubmitPermitRequestSchema,
   UpdateLotRequestSchema,
   VehicleTypeSchema,
 } from './lots.js';
@@ -54,6 +56,42 @@ describe('lot contracts (FR-LOT-002)', () => {
       SetOpeningHoursRequestSchema.safeParse({
         days: [{ weekday: 1, is24h: false, opensAt: '7am', closesAt: '22:00' }],
       }).success,
+    ).toBe(false);
+  });
+
+  it('takes a permit as number + ISO dates + the uploaded file', () => {
+    const ok = {
+      permitNumber: 'LASPA/2026/0012',
+      issuedAt: '2026-01-10',
+      expiresAt: '2027-01-09',
+      fileId: '01a15ff2-2e4e-711e-a9b4-c0dea80aabbb',
+    };
+    expect(SubmitPermitRequestSchema.safeParse(ok).success).toBe(true);
+    expect(SubmitPermitRequestSchema.safeParse({ ...ok, expiresAt: '09/01/2027' }).success).toBe(
+      false,
+    );
+  });
+
+  it('takes prices in whole kobo, per product', () => {
+    expect(
+      SetRatePlanRequestSchema.safeParse({
+        product: 'HOURLY',
+        hourlyRateKobo: 50_000,
+        minMinutes: 60,
+      }).success,
+    ).toBe(true);
+    expect(
+      SetRatePlanRequestSchema.safeParse({ product: 'DAILY', dailyRateKobo: 250_000 }).success,
+    ).toBe(true);
+    expect(
+      SetRatePlanRequestSchema.safeParse({
+        product: 'HOURLY',
+        hourlyRateKobo: 500.5,
+        minMinutes: 60,
+      }).success,
+    ).toBe(false);
+    expect(
+      SetRatePlanRequestSchema.safeParse({ product: 'MONTHLY', dailyRateKobo: 1 }).success,
     ).toBe(false);
   });
 });
