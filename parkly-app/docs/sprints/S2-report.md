@@ -1,8 +1,19 @@
-# Sprint 2 — Operators, lots, permits, verification: progress report
+# Sprint 2 — Operators, lots, permits, verification: report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–E** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission; admin KYB review and lot review + go-live). All slices (A–F) are built; the S2 demo still needs staging (owner decision: wait) and the Vault job secrets on dev.
-- **Updated:** 2026-10-21
+- **Status:** **Done (code complete)** on 2026-10-22. Every story and slice is built, tested and merged to `main` (PRs #1–#15) and deployed to the dev environment. Two exit checks still need owner steps on dev, and the staging demo waits for staging (owner decision: wait). See § Exit criteria.
+- **Updated:** 2026-10-22
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
+
+## Summary
+
+Operators can now sign up, verify their business (KYB documents + bank account), create lots with photos, opening hours, prices and a LASPA permit, and submit them. Parkly staff review KYB (which creates the operator's Paystack subaccount) and review each lot's permit, prices, photos and site visit, then take it live. A daily job reminds operators before a permit expires and suspends the lot when it does. Owners build a team by inviting managers and attendants.
+
+| Who | Where (dev) | What they can do now |
+|---|---|---|
+| Operator owner | Portal https://parkly-portal.vercel.app | Sign up → business details + agreement → MFA → KYB documents + bank account → submit KYB → create lots (details, location, capacity, amenities, hours, 3–10 photos) → prices → LASPA permit → submit lot → see review outcomes and reasons → invite and remove team members |
+| Operator manager | Portal | Accept an invite (email), set up MFA, manage lots, invite attendants |
+| Parkly staff (ops, compliance, super admin) | Admin console https://parkly-khaki.vercel.app | KYB queue and review (approve creates the Paystack subaccount); lot queue and review (permit with LASPA note, prices, photos, site visit checklist), go live, send back, suspend, reinstate, archive; audit log |
+| System | API https://parkly-api-six.vercel.app + `pg_cron` | Permit reminders (30/14/7/1 days) and auto-suspend on expiry, daily 06:00 Lagos |
 
 ## Stories (in build order)
 
@@ -11,13 +22,13 @@
 | 1 | Lot state machine, `canGoLive`/`listability`, submission gaps, verification checklist, permit dates + expiry reminders, rate-plan validation (`packages/domain/lot`) | FR-LOT-003/004/005/006/007, task 4 | **Done**: 153 tests, 100 % lines |
 | 2 | Schema + migrations: `files`, operators, operator members, KYB docs, payout accounts, lots (PostGIS), hours/closures, photos, permits, verifications + items, rate plans; RLS + grants + FK/hot-path indexes; `user_roles.operator_id` FK | tasks 1–6 | **Done**: migrations `20261021091000`, `20261021091100`. Dry-run on the dev DB in a rolled-back transaction: all apply, every table has RLS, no client grants. Schema tests check that enums match the domain. |
 | 3 | Providers: `SettlementProvider` (Paystack banks, resolve, subaccounts + fake), Supabase Storage adapter (+ fake that holds bytes), `MalwareScanner` (fake; vendor via ADR 0013); upload pipeline (presign → complete: size + SHA-256 + magic bytes, WebP re-encode with EXIF stripped, PDF scan, 10-min window); 7 private buckets with size/type limits | tasks 1–2 | **Done**: 58 new tests; adapters tested against Paystack-shaped fixtures (not yet recorded from the sandbox, see `apps/api/test/fixtures/paystack/README.md`); bucket migration dry-run on the dev DB (rolled back) |
-| 4 | Operator API: create operator, business details, KYB documents, payout account | FR-LOT-001 | To do |
-| 5 | Lots API: CRUD, opening hours, closures, photos, permits, rate plans, submit, pause/resume | FR-LOT-002/003/005/006, FR-OPS-005 | To do |
-| 6 | Team invites (OWNER/MANAGER/ATTENDANT, lot scoping), revoke | FR-OPS-004 | To do |
-| 7 | Admin API: review queues (KYB, permits, verifications, rate plans), lot status actions with reason; subaccount on KYB approval | FR-ADM-001, FR-LOT-006 | To do |
-| 8 | Permit expiry job (`pg_cron` 06:00 WAT → `/internal/jobs/permit-expiry`) | FR-LOT-007, task 7 | To do |
-| 9 | Portal screens: sign-up, onboarding wizard, lots, rate plans, permits, team | task 8 | To do |
-| 10 | Admin screens: review queues, lot detail, status actions | task 9 | To do |
+| 4 | Operator API: create operator, business details, KYB documents, payout account | FR-LOT-001 | **Done** in slices A + B |
+| 5 | Lots API: CRUD, opening hours, photos, permits, rate plans, submit | FR-LOT-002/003/005/006, FR-OPS-005 | **Done** in slices C + D. Closures and operator pause/resume are carried over (§ Carried over). |
+| 6 | Team invites (OWNER/MANAGER/ATTENDANT, lot scoping), revoke | FR-OPS-004 | **Done** in slice F2 (+ invite page fix, PR #15) |
+| 7 | Admin API: review queues (KYB, permits, verifications, rate plans), lot status actions with reason; subaccount on KYB approval | FR-ADM-001, FR-LOT-006 | **Done** in slices E1 + E2 |
+| 8 | Permit expiry job (`pg_cron` 06:00 WAT → `/internal/jobs/permit-expiry-check`) | FR-LOT-007, task 7 | **Done** in slice F1 |
+| 9 | Portal screens: sign-up, onboarding wizard, lots, rate plans, permits, team | task 8 | **Done** across slices A–F |
+| 10 | Admin screens: review queues, lot detail, status actions | task 9 | **Done** in slices E1 + E2 |
 
 ## Vertical slices (from 2026-10-21)
 
@@ -25,12 +36,12 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 
 | Slice | Scope | Status |
 |---|---|---|
-| A | Operator sign-up (email + confirmation) → business details → owner; edit details until KYB is submitted | **Done** |
-| B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** |
-| C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
-| D | Permit, rate plans, submit lot for verification | **Done** |
-| E | Admin review queues → subaccount on KYB approval → lot LIVE | **Done** (E1 KYB review, E2 lot review + go-live) |
-| F | Team invites; permit expiry job | **Done** (F1 permit expiry job, F2 team invites) |
+| A | Operator sign-up (email + confirmation) → business details → owner; edit details until KYB is submitted | **Done** (#4, #5) |
+| B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** (#6) |
+| C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** (#7–#9) |
+| D | Permit, rate plans, submit lot for verification | **Done** (#10) |
+| E | Admin review queues → subaccount on KYB approval → lot LIVE | **Done** (E1 KYB review #11, E2 lot review + go-live #12) |
+| F | Team invites; permit expiry job | **Done** (F1 permit expiry job #13, F2 team invites #14, invite page #15) |
 
 ### Slice A: what was built
 
@@ -98,6 +109,10 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Checked against the dev database** (rolled back): owner listed, invite, find by contact and token, accept with role grant, accept twice refused, owner can't join twice, remove drops the role.
 - **Tests:** +11 API (team), +1 store contract, +2 authz, +2 contracts, +2 portal. API: 521 tests.
 
+### Invite page fix (PR #15)
+
+- The invite page now says who invited you and as what before sign-in (public, token-gated, rate-limited `POST /v1/invites/preview`). Managers get sign in / create account, or their signed-in email with Accept and "Sign out and use another account"; attendants are told to accept in the attendant app, with no sign-up offered; expired and used links say so. Found when an attendant invite was opened with an email account.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -136,6 +151,68 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Attendant acceptance | doc 03 §2.3 step 2: A-01 sets up a PIN after OTP | The API accepts attendant invites now; the attendant app with phone OTP + PIN is S5, so attendants keep their link until then. |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
+
+## Exit criteria (doc 20 S2)
+
+| Criterion | Status |
+|---|---|
+| A lot goes DRAFT → PENDING_VERIFICATION → LIVE only with an approved permit + verification | **Met.** The domain transition table and `listability` gate every path to LIVE (truth-table tests); the API refuses go-live with `LOT_PERMIT_INVALID` / `LOT_NOT_LISTABLE` listing what is missing (admin/lots.spec); checked against the dev database (rolled back). |
+| An expired permit auto-suspends in staging, with a time-travel test | **Met in tests; dev run pending.** The job suspends LIVE/PAUSED lots on the expiry date (permit-expiry.spec, fake clock). Staging does not exist yet (owner: wait); on dev it can be shown with `fn_invoke_job('permit-expiry-check', '{"asOf": …}')` once the Vault secrets are confirmed (doc 22 §2.5). |
+| Tests named by doc 20: state machine, `canGoLive` truth table, expiry job with a fake clock, upload rejects wrong MIME / oversize, tenancy on all lot endpoints | **Met** (domain lot specs, permit-expiry.spec, uploads specs, RBAC matrix + cross-operator tests). |
+
+**Demo script** (doc 20 S2), on dev:
+
+| Step | Status |
+|---|---|
+| Operator signs up → adds bank → creates a lot with photos → uploads permit | Done by the product owner on dev (2026-10-21) |
+| Admin approves KYB | Done on dev (creates a Paystack **test** subaccount) |
+| Admin approves permit, verification → lot LIVE | Built (slice E2); owner run on dev to confirm |
+| Fast-forward clock → lot SUSPENDED + emails | Built (slice F1); needs the Vault secrets; emails are logged until S6 |
+| (extra) Owner invites a manager who accepts and sets up MFA | Done by the product owner on dev (2026-10-22) |
+
+## Delivered (pull requests)
+
+| PR | What |
+|---|---|
+| #1, #2, #3 | Story 3 providers + upload pipeline; Vercel API build fixes |
+| #4, #5 | Slice A operator sign-up (+ EAS Node fix, any email at sign-up) |
+| #6 | Slice B KYB documents, payout account, KYB submission |
+| #7, #8, #9 | Slice C lot wizard (+ "saved" message fix, photo count fix) |
+| #10 | Slice D permit, prices, lot submission |
+| #11 | Slice E1 admin KYB review + Paystack subaccount |
+| #12 | Slice E2 admin lot review + go-live |
+| #13 | Slice F1 permit expiry job |
+| #14 | Slice F2 team invites |
+| #15 | Invite page says who invited you and as what |
+
+Stories 1 and 2 (domain rules, schema + migrations) were committed before the PR flow started.
+
+**Tests at sprint end** (all green; typecheck, lint and format clean): API 524 (branches ≥ 86 %), domain 335, contracts 53, DB schema 52, portal 68, admin 25, tokens 51, UI 8, UI native 4.
+
+**Migrations added this sprint** (applied to the dev database by the owner in the SQL editor): `20261021090000_admin_revoke_sessions`, `20261021091000_operators_lots_permits`, `20261021091100_operators_lots_grants`, `20261021093000_storage_buckets`, `20261021131441_consent_operator_agreement`, `20261021131500_operator_agreement_version`, `20261021200000_permit_expiry_cron`.
+
+## Carried over
+
+| Item | Why | New target |
+|---|---|---|
+| Lot closures (holidays, events) and operator pause/resume | Only matter once drivers can book (closures block availability; pause needs the "N bookings affected" warning) | S4 (booking and availability) |
+| Operator "Go live" button (O-13), "ready to go live" email, ≥ 1 active attendant in the go-live gate | Ops take lots live for now (doc 02); notifications are S6 and attendants sign in from S5 | S5/S6 |
+| Attendant invite acceptance in an app (phone OTP + PIN) | The attendant app is S5 | S5 |
+| Emails (permit reminders, suspension, KYB decision) and SMS invites | Email provider and notification outbox are S6; SMS needs Termii | S6 |
+| Suspend impact preview and bulk cancel/refund | No bookings until S4 | S8 (admin console) |
+| Site-visit evidence photos | Field use of X-03 | S8 |
+| Rejected price changes shown on the portal | Not specified; ops send the lot back with a reason meanwhile | S7 (operator dashboard) |
+| Staging and production environments, S2 demo on staging | Owner decision: wait | Before S4 |
+| `supabase migration repair` for migrations applied by hand on dev; DB integration tests in CI | Remote changes must go through CI (AGENTS.md §4); CI secrets not set yet | Owner setup, before S4 |
+| Malware scanning vendor (ADR 0013 Proposed) | Owner to choose | Before launch (prod refuses the fake scanner) |
+| Recorded Paystack sandbox fixtures | Adapters tested against fixtures written from the API reference | S4 (payments) |
+
+## Owner actions open
+
+1. Confirm the Vault secrets work: `select public.fn_invoke_job('ping');` then `net._http_response` shows 202 (doc 22 §2.5).
+2. Run the S2 demo end to end on dev (take a lot live, then fast-forward the expiry job).
+3. Decide the Google Maps key for S3 (create now, or start with the stand-in).
+4. Choose the malware scanning vendor (ADR 0013).
 
 ## Risks and notes
 
