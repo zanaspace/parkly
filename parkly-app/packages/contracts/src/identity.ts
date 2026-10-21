@@ -20,7 +20,13 @@ export const RoleGrantSchema = z.object({
 
 export const PlatformSchema = z.enum(['ANDROID', 'IOS', 'WEB', 'PWA']);
 
-export const ConsentTypeSchema = z.enum(['TERMS', 'PRIVACY', 'MARKETING', 'LOCATION']);
+export const ConsentTypeSchema = z.enum([
+  'TERMS',
+  'PRIVACY',
+  'MARKETING',
+  'LOCATION',
+  'OPERATOR_AGREEMENT',
+]);
 
 /** Raw input; the API normalises to E.164 and rejects non-Nigerian mobiles. */
 export const PhoneInputSchema = z.string().trim().min(1).max(20);
@@ -59,7 +65,11 @@ export const MeSchema = z.object({
     marketing: z.boolean(),
   }),
   /** Versions the client must show for acceptance. */
-  currentLegalVersions: z.object({ terms: z.string(), privacy: z.string() }),
+  currentLegalVersions: z.object({
+    terms: z.string(),
+    privacy: z.string(),
+    operatorAgreement: z.string(),
+  }),
 });
 
 export const BootstrapResponseSchema = z.object({

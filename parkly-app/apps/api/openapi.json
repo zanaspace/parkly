@@ -316,11 +316,15 @@
                             },
                             "privacy": {
                               "type": "string"
+                            },
+                            "operatorAgreement": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "terms",
-                            "privacy"
+                            "privacy",
+                            "operatorAgreement"
                           ]
                         }
                       },
@@ -509,11 +513,15 @@
                         },
                         "privacy": {
                           "type": "string"
+                        },
+                        "operatorAgreement": {
+                          "type": "string"
                         }
                       },
                       "required": [
                         "terms",
-                        "privacy"
+                        "privacy",
+                        "operatorAgreement"
                       ]
                     }
                   },
@@ -676,11 +684,15 @@
                         },
                         "privacy": {
                           "type": "string"
+                        },
+                        "operatorAgreement": {
+                          "type": "string"
                         }
                       },
                       "required": [
                         "terms",
-                        "privacy"
+                        "privacy",
+                        "operatorAgreement"
                       ]
                     }
                   },
@@ -763,7 +775,8 @@
                       "TERMS",
                       "PRIVACY",
                       "MARKETING",
-                      "LOCATION"
+                      "LOCATION",
+                      "OPERATOR_AGREEMENT"
                     ]
                   },
                   "version": {
@@ -893,11 +906,15 @@
                         },
                         "privacy": {
                           "type": "string"
+                        },
+                        "operatorAgreement": {
+                          "type": "string"
                         }
                       },
                       "required": [
                         "terms",
-                        "privacy"
+                        "privacy",
+                        "operatorAgreement"
                       ]
                     }
                   },
@@ -1284,6 +1301,499 @@
         "responses": {
           "204": {
             "description": "Vehicle removed"
+          }
+        }
+      }
+    },
+    "/v1/operators": {
+      "post": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "legalName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "tradingName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "HOTEL",
+                      "OFFICE",
+                      "COMMERCIAL_LOT",
+                      "EVENT_CENTRE",
+                      "OTHER"
+                    ]
+                  },
+                  "cacNumber": {
+                    "type": "string",
+                    "pattern": "^(RC|BN|IT|LP|LLP)[\\s-]?\\d{4,8}$/i"
+                  },
+                  "tin": {
+                    "type": "string",
+                    "pattern": "^\\d{8}(-?\\d{4})?$|^\\d{10,14}$"
+                  },
+                  "addressLine": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email"
+                  },
+                  "contactPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "agreementVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  }
+                },
+                "required": [
+                  "legalName",
+                  "tradingName",
+                  "type",
+                  "cacNumber",
+                  "addressLine",
+                  "contactEmail",
+                  "contactPhone",
+                  "agreementVersion"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Operator created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "tradingName": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "cacNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tin": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactEmail": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactPhone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "SUSPENDED",
+                        "OFFBOARDED"
+                      ]
+                    },
+                    "kybStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "SUBMITTED",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "commissionBps": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "legalName",
+                    "tradingName",
+                    "type",
+                    "cacNumber",
+                    "tin",
+                    "addressLine",
+                    "contactEmail",
+                    "contactPhone",
+                    "status",
+                    "kybStatus",
+                    "commissionBps",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "tradingName": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "cacNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tin": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactEmail": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactPhone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "SUSPENDED",
+                        "OFFBOARDED"
+                      ]
+                    },
+                    "kybStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "SUBMITTED",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "commissionBps": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "legalName",
+                    "tradingName",
+                    "type",
+                    "cacNumber",
+                    "tin",
+                    "addressLine",
+                    "contactEmail",
+                    "contactPhone",
+                    "status",
+                    "kybStatus",
+                    "commissionBps",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "legalName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "tradingName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "HOTEL",
+                      "OFFICE",
+                      "COMMERCIAL_LOT",
+                      "EVENT_CENTRE",
+                      "OTHER"
+                    ]
+                  },
+                  "cacNumber": {
+                    "type": "string",
+                    "pattern": "^(RC|BN|IT|LP|LLP)[\\s-]?\\d{4,8}$/i"
+                  },
+                  "tin": {
+                    "type": "string",
+                    "pattern": "^\\d{8}(-?\\d{4})?$|^\\d{10,14}$"
+                  },
+                  "addressLine": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email"
+                  },
+                  "contactPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operator updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "tradingName": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "cacNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tin": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactEmail": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactPhone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "SUSPENDED",
+                        "OFFBOARDED"
+                      ]
+                    },
+                    "kybStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "SUBMITTED",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "commissionBps": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "legalName",
+                    "tradingName",
+                    "type",
+                    "cacNumber",
+                    "tin",
+                    "addressLine",
+                    "contactEmail",
+                    "contactPhone",
+                    "status",
+                    "kybStatus",
+                    "commissionBps",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
           }
         }
       }

@@ -6,6 +6,8 @@ export class ApiProblem extends Error {
     readonly status: number,
     readonly code: ErrorCode | 'UNKNOWN',
     readonly detail?: string,
+    /** Field-level problems for VALIDATION_FAILED (`path` is the request field). */
+    readonly errors?: { path: string; message: string }[],
   ) {
     super(detail ?? code);
     this.name = 'ApiProblem';
@@ -17,11 +19,21 @@ export function parseProblem(status: number, body: unknown): ApiProblem {
   const b = (typeof body === 'object' && body !== null ? body : {}) as {
     code?: unknown;
     detail?: unknown;
+    errors?: unknown;
   };
   const code =
     typeof b.code === 'string' && b.code in ERROR_STATUS ? (b.code as ErrorCode) : 'UNKNOWN';
   const detail = typeof b.detail === 'string' ? b.detail : undefined;
-  return new ApiProblem(status, code, detail);
+  const errors = Array.isArray(b.errors)
+    ? b.errors.filter(
+        (e): e is { path: string; message: string } =>
+          typeof e === 'object' &&
+          e !== null &&
+          typeof (e as { path?: unknown }).path === 'string' &&
+          typeof (e as { message?: unknown }).message === 'string',
+      )
+    : undefined;
+  return new ApiProblem(status, code, detail, errors);
 }
 
 /** Server-side call to the Parkly API with the user's access token. */

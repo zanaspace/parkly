@@ -44,6 +44,12 @@ describe('decideAccess', () => {
     },
   );
 
+  it('portal: a signed-in user with no role yet goes to operator onboarding', () => {
+    // Operators self-sign-up by email; they have no role until they create their operator.
+    expect(decideAccess({ ...base, app: 'portal', roles: [] }).kind).toBe('onboarding');
+    expect(decideAccess({ ...base, app: 'admin', roles: [] }).kind).toBe('no-access');
+  });
+
   it('checks the role before asking for MFA', () => {
     expect(
       decideAccess({ ...base, app: 'admin', roles: [], currentLevel: null, nextLevel: null }).kind,

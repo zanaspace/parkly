@@ -6,6 +6,8 @@ export async function legalVersions(store: Store) {
   return {
     terms: (await store.settings.get<string>('legal.terms_version')) ?? 'unset',
     privacy: (await store.settings.get<string>('legal.privacy_version')) ?? 'unset',
+    operatorAgreement:
+      (await store.settings.get<string>('legal.operator_agreement_version')) ?? 'unset',
   };
 }
 

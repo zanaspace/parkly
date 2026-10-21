@@ -19,8 +19,51 @@ const compliance = actor([{ role: 'ADMIN_COMPLIANCE', operatorId: null }], { aal
 const support = actor([{ role: 'ADMIN_SUPPORT', operatorId: null }], { aal: 'aal2' });
 
 describe('deny by default (doc 05 §5.2)', () => {
-  it('denies an actor with no roles everything', () => {
-    expect(can(actor([]), 'profile:read:own', { ownerUserId: 'u1' })).toBe(false);
+  const newcomer = actor([]);
+
+  it('lets a signed-in user with no roles only read their profile, sign out and create an operator', () => {
+    // An operator who just signed up by email has no role until their operator exists (S2).
+    expect(can(newcomer, 'profile:read:own', { ownerUserId: 'u1' })).toBe(true);
+    expect(can(newcomer, 'session:revoke:own', { ownerUserId: 'u1' })).toBe(true);
+    expect(can(newcomer, 'operator:create', { ownerUserId: 'u1' })).toBe(true);
+  });
+
+  it('denies a user with no roles everything else', () => {
+    for (const action of [
+      'profile:update:own',
+      'consent:write:own',
+      'device:register:own',
+      'vehicle:manage:own',
+      'account:delete:own',
+    ] as const) {
+      expect(can(newcomer, action, { ownerUserId: 'u1' }), action).toBe(false);
+    }
+    expect(can(newcomer, 'operator:read', { operatorId: OP_A })).toBe(false);
+    expect(can(newcomer, 'audit:read', {})).toBe(false);
+  });
+
+  it('never lets anyone create an operator on someone else’s behalf', () => {
+    expect(can(newcomer, 'operator:create', { ownerUserId: 'u2' })).toBe(false);
+    expect(can(compliance, 'operator:create', { ownerUserId: 'u2' })).toBe(false);
+  });
+});
+
+describe('operator business details (FR-LOT-001)', () => {
+  it('lets owner and manager read their operator; only the owner edits it', () => {
+    expect(can(ownerA, 'operator:read', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:read', { operatorId: OP_A })).toBe(true);
+    expect(can(ownerA, 'operator:update', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:update', { operatorId: OP_A })).toBe(false);
+  });
+
+  it('denies other operators, attendants and drivers', () => {
+    expect(can(ownerA, 'operator:read', { operatorId: OP_B })).toBe(false);
+    expect(can(attendantA, 'operator:read', { operatorId: OP_A })).toBe(false);
+    expect(can(driver, 'operator:read', { operatorId: OP_A })).toBe(false);
+  });
+
+  it('requires a completed MFA check (aal2) for the owner', () => {
+    expect(can({ ...ownerA, aal: 'aal1' }, 'operator:update', { operatorId: OP_A })).toBe(false);
   });
 });
 

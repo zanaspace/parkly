@@ -5,6 +5,7 @@ export type AppKind = 'portal' | 'admin';
 export type AccessDecision =
   | { kind: 'sign-in' }
   | { kind: 'no-access' }
+  | { kind: 'onboarding' }
   | { kind: 'mfa-enroll' }
   | { kind: 'mfa-verify' }
   | { kind: 'ok' };
@@ -22,7 +23,8 @@ const PORTAL_ROLES = new Set<RoleGrant['role']>(['OPERATOR_OWNER', 'OPERATOR_MAN
  * Who may enter which console, and when MFA must be completed first
  * (FR-AUTH-004, doc 05 §4.2–4.3):
  * - admin: an admin role, and aal2 for everyone;
- * - portal: an operator owner/manager role, and aal2 (attendants use /attend).
+ * - portal: an operator owner/manager role, and aal2 (attendants use /attend);
+ *   a signed-in user with no role yet is a new operator and goes to onboarding.
  * `nextLevel === 'aal2'` means the user already has a verified factor.
  */
 export function decideAccess(input: {
@@ -34,6 +36,7 @@ export function decideAccess(input: {
 }): AccessDecision {
   if (!input.signedIn) return { kind: 'sign-in' };
 
+  if (input.app === 'portal' && input.roles.length === 0) return { kind: 'onboarding' };
   const allowed = input.app === 'admin' ? ADMIN_ROLES : PORTAL_ROLES;
   if (!input.roles.some((r) => allowed.has(r.role))) return { kind: 'no-access' };
 

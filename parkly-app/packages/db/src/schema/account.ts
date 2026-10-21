@@ -19,6 +19,7 @@ export const consentTypeEnum = pgEnum('consent_type', [
   'PRIVACY',
   'MARKETING',
   'LOCATION',
+  'OPERATOR_AGREEMENT',
 ]);
 export const dsrTypeEnum = pgEnum('dsr_type', [
   'ACCESS',

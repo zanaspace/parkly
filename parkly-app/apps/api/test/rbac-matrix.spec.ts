@@ -65,6 +65,18 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}`,
+    route: 'GET /v1/operators/{operatorId}',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}`,
+    route: 'GET /v1/operators/{operatorId} (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
@@ -89,6 +101,8 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/me/vehicles',
   'PATCH /v1/me/vehicles/{id}',
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
+  'POST /v1/operators', // any signed-in user, incl. no role yet; operators.spec
+  'PATCH /v1/operators/{operatorId}', // owner only, manager 403, other tenant 404; operators.spec
 ]);
 
 describe('RBAC matrix', () => {
@@ -103,6 +117,21 @@ describe('RBAC matrix', () => {
     ]),
   ) as Record<Role, string>;
   w.store.seedUser(TARGET_USER, { roles: [{ role: 'DRIVER', operatorId: null }] });
+  w.store.operatorRows.set(OP_A, {
+    id: OP_A,
+    legalName: 'Operator A Ltd',
+    tradingName: 'Operator A',
+    type: 'HOTEL',
+    cacNumberEnc: null,
+    tinEnc: null,
+    addressLine: null,
+    contactEmail: null,
+    contactPhoneEnc: null,
+    status: 'ONBOARDING',
+    kybStatus: 'NOT_STARTED',
+    commissionBps: 1200,
+    createdAt: new Date('2026-10-21T00:00:00Z'),
+  });
 
   for (const row of MATRIX) {
     for (const who of WHO) {

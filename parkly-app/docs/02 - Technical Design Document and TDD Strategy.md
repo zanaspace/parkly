@@ -82,7 +82,7 @@ Row creation: SQL trigger `on_auth_user_created` (AFTER INSERT on `auth.users`, 
 
 **`devices`** — `id`, `user_id FK`, `platform enum (ANDROID, IOS, WEB, PWA)`, `push_token` [enc] (C3), `app_version`, `last_seen_at`, `revoked_at`, `auth_session_id` (Supabase session id, so revoking a device can sign that session out). For attendant PWAs also `operator_id`, `lot_id`, `device_key_public` (used to sign sync batches), `approved_by`, `approved_at` (manager approval, doc 05). The attendant local PIN never leaves the device.
 
-**`consents`** *append-only* — `id`, `user_id`, `type enum (TERMS, PRIVACY, MARKETING, LOCATION)`, `version text`, `granted bool`, `ip_hash` (C3), `created_at`.
+**`consents`** *append-only* — `id`, `user_id`, `type enum (TERMS, PRIVACY, MARKETING, LOCATION, OPERATOR_AGREEMENT)`, `version text`, `granted bool`, `ip_hash` (C3), `created_at`.
 
 ### 2.3 Operators (module `operators`)
 
@@ -532,8 +532,8 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 ### 6.6 Operator portal (`/operators/:operatorId/...`, `operatorScope` middleware)
 | Method | Path | Role | Idem | Notes | Errors |
 |---|---|---|---|---|---|
-| POST | `/operators` | authenticated user | ✅ | create org → caller becomes OWNER | `OPERATOR_DUPLICATE` |
-| GET/PATCH | `/operators/:operatorId` | OWN, MGR(read) | — | | |
+| POST | `/operators` | any signed-in user, incl. no role yet | ✅ | O-03 business details + `agreementVersion` (must equal `legal.operator_agreement_version`). One transaction: operator (`ONBOARDING`, KYB `NOT_STARTED`, commission from `fees.commission_bps_default`), OWNER membership, `OPERATOR_OWNER` role. Records `OPERATOR_AGREEMENT` + `PRIVACY` consents; CAC, TIN and phone stored [enc]; CAC normalised (`RC123456`). One operator per owner (advisory lock). Audited `operator.created`. | `OPERATOR_DUPLICATE`, `AUTH_PHONE_INVALID`, `VALIDATION_FAILED` |
+| GET/PATCH | `/operators/:operatorId` | OWN, MGR(read) | — | decrypted business details for the operator's own members; other operators → 404. PATCH only while KYB is `NOT_STARTED`/`REJECTED`; audited `operator.updated` with changed field names only | `INVALID_STATE_TRANSITION` |
 | POST | `/operators/:operatorId/kyb-documents` | OWN | ✅ | `{type, contentType, sha256, sizeBytes}` → Supabase Storage **signed upload URL** (`createSignedUploadUrl`, bucket `kyb-docs`, valid 5 min) + `storagePath`; client uploads directly, then `POST …/kyb-documents/:id/complete` triggers server-side verification (size, MIME sniff, sha256) | `UPLOAD_TYPE_NOT_ALLOWED` |
 | PUT | `/operators/:operatorId/payout-account` | OWN | ✅ | `{bankCode, accountNumber}` → resolves name, creates Paystack subaccount | `PAYOUT_ACCOUNT_UNRESOLVED` |
 | GET/POST | `/operators/:operatorId/members` | OWN (MGR may invite ATT) | ✅ | `{email|phone, role, lotIds}` | `MEMBER_EXISTS`, `FORBIDDEN_ROLE_GRANT` |

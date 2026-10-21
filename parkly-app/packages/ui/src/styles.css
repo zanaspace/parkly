@@ -162,6 +162,23 @@
 .pk-input:disabled {
   background: var(--pk-input-bg-disabled);
 }
+.pk-select {
+  cursor: pointer;
+}
+/* Checkbox with a wrapping label (consents, agreements). */
+.pk-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pk-space-inline-sm);
+  color: var(--pk-input-label-fg);
+  font-family: var(--pk-type-body-md-font-family);
+  font-size: var(--pk-type-body-md-font-size);
+  line-height: var(--pk-type-body-md-line-height);
+}
+.pk-check input {
+  margin-block-start: var(--pk-space-1);
+  accent-color: var(--pk-input-border-focus);
+}
 .pk-field__helper {
   color: var(--pk-input-helper-fg);
   font-size: var(--pk-type-caption-font-size);
