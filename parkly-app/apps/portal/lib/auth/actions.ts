@@ -201,5 +201,7 @@ export async function signOut(form: FormData): Promise<void> {
     }
   }
   await supabase.auth.signOut({ scope: scope === 'all' ? 'global' : 'local' });
-  redirect('/sign-in');
+  // e.g. the invite page: sign out of the wrong account, then sign back in to the invite.
+  const next = field(form, 'next');
+  redirect(next ? `/sign-in?next=${encodeURIComponent(safeNext(next))}` : '/sign-in');
 }

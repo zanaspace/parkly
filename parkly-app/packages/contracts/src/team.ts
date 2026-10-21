@@ -50,6 +50,22 @@ export const AcceptInviteResponseSchema = z.object({
   role: MemberRoleSchema,
 });
 
+/**
+ * What the invite page shows before anyone signs in: who invited them and as
+ * what. Unknown, used and cancelled links all read INVALID (no enumeration).
+ */
+export const InvitePreviewSchema = z.discriminatedUnion('state', [
+  z.object({
+    state: z.literal('OPEN'),
+    role: MemberRoleSchema,
+    businessName: z.string(),
+    expiresAt: z.iso.datetime(),
+  }),
+  z.object({ state: z.literal('EXPIRED'), businessName: z.string() }),
+  z.object({ state: z.literal('INVALID') }),
+]);
+
+export type InvitePreview = z.infer<typeof InvitePreviewSchema>;
 export type MemberRole = z.infer<typeof MemberRoleSchema>;
 export type TeamMember = z.infer<typeof TeamMemberSchema>;
 export type InviteMemberRequest = z.infer<typeof InviteMemberRequestSchema>;

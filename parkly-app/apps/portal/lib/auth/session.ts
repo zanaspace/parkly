@@ -12,6 +12,8 @@ export type SignedInState = {
   accessToken: string;
   currentLevel: string | null;
   nextLevel: string | null;
+  /** The signed-in email (shown on the invite page so people can spot the wrong account). */
+  email: string | null;
 };
 
 /** Validated session state (getClaims verifies the JWT; never trust getSession alone). */
@@ -29,6 +31,8 @@ export async function loadSession(): Promise<SignedInState | { signedIn: false }
     accessToken: session.access_token,
     currentLevel: aal?.currentLevel ?? null,
     nextLevel: aal?.nextLevel ?? null,
+    email:
+      typeof claims.claims.email === 'string' && claims.claims.email ? claims.claims.email : null,
   };
 }
 

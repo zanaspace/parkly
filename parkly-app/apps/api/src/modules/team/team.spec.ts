@@ -212,3 +212,54 @@ describe('removing a member', () => {
     expect([own.status, own.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
   });
 });
+
+describe('invite preview (doc 03 §2.3 step 2)', () => {
+  const preview = (ctx: Ctx, inviteToken: unknown, ip = '203.0.113.7') =>
+    ctx.w.call('POST', '/v1/invites/preview', {
+      body: { inviteToken },
+      headers: { 'x-forwarded-for': ip },
+    });
+
+  it('tells anyone with the link the business and role, without signing in', async () => {
+    const ctx = await setup();
+    const manager = await inviteManager(ctx);
+    expect((await preview(ctx, manager.body?.inviteToken)).body).toEqual({
+      state: 'OPEN',
+      role: 'MANAGER',
+      businessName: 'Eko Hotel',
+      expiresAt: '2026-10-22T08:00:00.000Z',
+    });
+    const attendant = await inviteAttendant(ctx);
+    expect((await preview(ctx, attendant.body?.inviteToken)).body).toMatchObject({
+      state: 'OPEN',
+      role: 'ATTENDANT',
+    });
+  });
+
+  it('reports expired links, and the same INVALID for unknown, used or cancelled ones', async () => {
+    const ctx = await setup();
+    const invite = await inviteManager(ctx);
+    const token = invite.body?.inviteToken;
+    const row = ctx.w.store.memberRows.find((m) => m.role === 'MANAGER');
+    if (row) row.inviteExpiresAt = new Date('2026-10-19T07:00:00Z');
+    expect((await preview(ctx, token)).body).toEqual({
+      state: 'EXPIRED',
+      businessName: 'Eko Hotel',
+    });
+    expect((await preview(ctx, 'x'.repeat(43))).body).toEqual({ state: 'INVALID' });
+    await ctx.w.call(
+      'DELETE',
+      `${ctx.base}/${(invite.body?.member as { id: string }).id}`,
+      ctx.as(ctx.owner),
+    );
+    expect((await preview(ctx, token)).body).toEqual({ state: 'INVALID' });
+    expect((await preview(ctx, 'not a token')).status).toBe(400);
+  });
+
+  it('is rate limited per IP', async () => {
+    const ctx = await setup();
+    let last = 0;
+    for (let i = 0; i < 31; i++) last = (await preview(ctx, 'x'.repeat(43), '198.51.100.9')).status;
+    expect(last).toBe(429);
+  });
+});
