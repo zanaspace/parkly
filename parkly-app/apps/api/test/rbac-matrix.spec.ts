@@ -45,7 +45,7 @@ const MATRIX: Row[] = [
     method: 'GET',
     path: '/v1/me',
     route: 'GET /v1/me',
-    expect: { anon: 401, ...EVERYONE_SIGNED_IN },
+    expect: { ...EVERYONE_SIGNED_IN, anon: 401 },
   },
   {
     method: 'GET',
@@ -157,6 +157,18 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/admin/operators',
+    route: 'GET /v1/admin/operators',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/operators/${OP_A}`,
+    route: 'GET /v1/admin/operators/{operatorId}',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
@@ -199,6 +211,9 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/lots/{lotId}/permits/document',
   'POST /v1/operators/{operatorId}/lots/{lotId}/permits',
   'PUT /v1/operators/{operatorId}/lots/{lotId}/rate-plans',
+  // Same kyb:review rule as the rows above; behaviour in admin/kyb.spec
+  'GET /v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url',
+  'POST /v1/admin/operators/{operatorId}/kyb/review',
 ]);
 
 describe('RBAC matrix', () => {
@@ -226,6 +241,8 @@ describe('RBAC matrix', () => {
     contactPhoneEnc: null,
     status: 'ONBOARDING',
     kybStatus: 'NOT_STARTED',
+    kybSubmittedAt: null,
+    kybRejectionReason: null,
     commissionBps: 1200,
     createdAt: new Date('2026-10-21T00:00:00Z'),
   });

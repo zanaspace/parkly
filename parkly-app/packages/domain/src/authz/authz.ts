@@ -62,6 +62,8 @@ const RULES = {
     scope: 'lot',
     roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER', 'OPERATOR_ATTENDANT'],
   },
+  /** Review operator KYB: read details and documents, approve or reject (doc 02 §6.8). */
+  'kyb:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   'audit:read': { scope: 'platform', roles: ['ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   'user:sessions:revoke': { scope: 'platform', roles: ['SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;

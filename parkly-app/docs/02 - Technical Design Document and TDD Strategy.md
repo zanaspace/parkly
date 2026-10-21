@@ -578,7 +578,7 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET | `/admin/search` | ADM-* | — | by phone, plate, booking code, email (PII view audited `user.pii_view`) |
 | GET | `/admin/users/:id` · POST `/admin/users/:id/suspend` | SUP, OPS, SA | ✅ | |
 | POST | `/admin/users/:id/sessions/revoke` | SA | — | FR-AUTH-006; deletes the user's `auth.sessions` via `fn_revoke_user_sessions` (refresh tokens cascade), revokes `devices`; audited `user.sessions_revoked` |
-| GET | `/admin/operators` · `/admin/operators/:id` · POST `/kyb/review` | OPS | ✅ | |
+| GET | `/admin/operators?kybStatus=` · `/admin/operators/:id` · GET `/kyb-documents/:docId/url` · POST `/kyb/review` | OPS, CMP, SA | ✅ | Queue oldest-first with the bank-name flag; detail with decrypted CAC/TIN/phone, documents, masked bank account and owner (view audited `operator.kyb_viewed`); document links valid 5 min (C4, audited `operator.kyb_document_viewed`). Review `{decision: APPROVE} \| {decision: REJECT, reason}` from SUBMITTED only: APPROVE creates the Paystack subaccount (legal name, bank, account number, commission %) and saves the code at once so a retry reuses it, then in one transaction operator ACTIVE + documents APPROVED + payout ACTIVE with the full number erased; REJECT stores the reason the owner sees and unlocks editing. Audited `operator.kyb_approved` / `operator.kyb_rejected` | `INVALID_STATE_TRANSITION`, `PAYMENT_PROVIDER_UNAVAILABLE` |
 | GET | `/admin/lots?status=` · POST `/admin/lots/:id/status` | OPS, CMP | ✅ | `{status, reason}` |
 | GET/POST | `/admin/permits/:id/review` | CMP, OPS | ✅ | `{decision, reason}` |
 | POST | `/admin/lots/:id/verifications` · POST `/admin/verifications/:id/review` | OPS | ✅ | checklist with item results + evidence |

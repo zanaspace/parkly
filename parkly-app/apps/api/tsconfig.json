@@ -1,5 +1,5 @@
 {
   "extends": "@parkly/config/tsconfig/base.json",
   "compilerOptions": { "noEmit": true, "types": ["node"] },
-  "include": ["src", "scripts", "vitest.config.ts"]
+  "include": ["src", "scripts", "test", "vitest.config.ts", "vitest.integration.config.ts"]
 }

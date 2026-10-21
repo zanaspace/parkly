@@ -34,8 +34,11 @@ export default async function AdminHome({
   return (
     <main className="pk-page pk-page--wide">
       <Text variant="heading-xl">Welcome{me.firstName ? `, ${me.firstName}` : ''}</Text>
-      <Text tone="secondary">
-        Review queues for operators, permits and verifications arrive with lots this sprint.
+      <Link className="pk-link" href="/kyb">
+        KYB to review
+      </Link>
+      <Text variant="body-sm" tone="tertiary">
+        Lot reviews (permits, prices, site visits, go-live) arrive next.
       </Text>
 
       <Text variant="heading-md" as="h2">

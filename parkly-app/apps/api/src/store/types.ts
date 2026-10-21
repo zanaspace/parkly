@@ -69,6 +69,8 @@ export type OperatorRow = OperatorDetails & {
   id: string;
   status: 'ONBOARDING' | 'ACTIVE' | 'SUSPENDED' | 'OFFBOARDED';
   kybStatus: 'NOT_STARTED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  kybSubmittedAt: Date | null;
+  kybRejectionReason: string | null;
   commissionBps: number;
   createdAt: Date;
 };
@@ -291,6 +293,8 @@ export type Store = {
       row: Omit<PayoutAccountRow, 'status' | 'providerSubaccountCode'>,
     ): Promise<PayoutAccountRow>;
     find(operatorId: string): Promise<PayoutAccountRow | null>;
+    /** Saved straight after the provider creates it, so a retried approval reuses it. */
+    setSubaccount(operatorId: string, code: string): Promise<void>;
   };
   lots: {
     /** DRAFT, version 1. Throws SlugTakenError when the slug is in use. */
@@ -370,6 +374,19 @@ export type Store = {
     update(id: string, patch: Partial<OperatorDetails>): Promise<OperatorRow>;
     /** KYB → SUBMITTED (callers check the gaps first). */
     submitKyb(id: string, at: Date): Promise<OperatorRow>;
+    /** KYB review queue: oldest submission first. */
+    list(filter: { kybStatus?: OperatorRow['kybStatus'] | undefined }): Promise<OperatorRow[]>;
+    /**
+     * SUBMITTED → APPROVED in one transaction: operator ACTIVE, documents
+     * APPROVED, payout account ACTIVE with the full number erased. Needs the
+     * subaccount code saved first. StaleVersionError if KYB is no longer SUBMITTED.
+     */
+    approveKyb(id: string, review: { reviewerId: string; at: Date }): Promise<OperatorRow>;
+    /** SUBMITTED → REJECTED with a reason; the owner can edit and resubmit. */
+    rejectKyb(
+      id: string,
+      review: { reviewerId: string; at: Date; reason: string },
+    ): Promise<OperatorRow>;
     /** The operator this user owns, if any. */
     ownedBy(userId: string): Promise<string | null>;
     members(

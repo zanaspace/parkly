@@ -263,6 +263,10 @@ export class MemoryStore implements Store {
       return { ...account };
     },
     find: async (operatorId) => this.copy(this.payoutRows.get(operatorId)),
+    setSubaccount: async (operatorId, code) => {
+      const p = this.payoutRows.get(operatorId);
+      if (p) p.providerSubaccountCode = code;
+    },
   };
 
   lots: Store['lots'] = {
@@ -429,6 +433,8 @@ export class MemoryStore implements Store {
         id: randomUUID(),
         status: 'ONBOARDING',
         kybStatus: 'NOT_STARTED',
+        kybSubmittedAt: null,
+        kybRejectionReason: null,
         commissionBps,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };
@@ -443,10 +449,37 @@ export class MemoryStore implements Store {
       Object.assign(row, patch);
       return { ...row };
     },
-    submitKyb: async (id) => {
+    submitKyb: async (id, at) => {
       const row = this.operatorRows.get(id);
       if (!row) throw new Error(`no operator ${id}`);
       row.kybStatus = 'SUBMITTED';
+      row.kybSubmittedAt = at;
+      row.kybRejectionReason = null;
+      return { ...row };
+    },
+    list: async ({ kybStatus }) =>
+      [...this.operatorRows.values()]
+        .filter((o) => !kybStatus || o.kybStatus === kybStatus)
+        .sort(
+          (a, b) =>
+            (a.kybSubmittedAt?.getTime() ?? Infinity) - (b.kybSubmittedAt?.getTime() ?? Infinity) ||
+            a.createdAt.getTime() - b.createdAt.getTime(),
+        )
+        .map((o) => ({ ...o })),
+    approveKyb: async (id) => {
+      const row = this.operatorRows.get(id);
+      const payout = this.payoutRows.get(id);
+      if (!row || row.kybStatus !== 'SUBMITTED') throw new StaleVersionError();
+      if (!payout?.providerSubaccountCode) throw new Error('subaccount code not saved');
+      Object.assign(row, { kybStatus: 'APPROVED', status: 'ACTIVE', kybRejectionReason: null });
+      for (const d of this.kybDocRows) if (d.operatorId === id) d.status = 'APPROVED';
+      Object.assign(payout, { status: 'ACTIVE', pendingAccountNumberEnc: null });
+      return { ...row };
+    },
+    rejectKyb: async (id, { reason }) => {
+      const row = this.operatorRows.get(id);
+      if (!row || row.kybStatus !== 'SUBMITTED') throw new StaleVersionError();
+      Object.assign(row, { kybStatus: 'REJECTED', kybRejectionReason: reason });
       return { ...row };
     },
     ownedBy: async (userId) =>

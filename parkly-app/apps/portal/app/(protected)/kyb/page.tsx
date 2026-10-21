@@ -41,6 +41,11 @@ export default async function KybPage() {
       </Link>
       <Text variant="heading-xl">Verification (KYB)</Text>
       <Text tone="secondary">{STATUS_TEXT[operator.kybStatus]}</Text>
+      {operator.kybStatus === 'REJECTED' && operator.kybRejectionReason && (
+        <p className="pk-notice pk-notice--error" role="alert">
+          What to fix: {operator.kybRejectionReason}
+        </p>
+      )}
       {!isOwner && <Text tone="secondary">Only the account owner can change KYB items.</Text>}
 
       <Text variant="heading-md" as="h2">
