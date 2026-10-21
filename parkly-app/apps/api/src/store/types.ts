@@ -73,6 +73,33 @@ export type OperatorRow = OperatorDetails & {
   createdAt: Date;
 };
 
+export type KybDocumentType = 'CAC_CERT' | 'DIRECTOR_ID' | 'UTILITY_BILL' | 'OTHER';
+export type ReviewStatus = 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+
+export type KybDocumentRow = {
+  id: string;
+  operatorId: string;
+  type: KybDocumentType;
+  fileId: string;
+  status: ReviewStatus;
+  rejectionReason: string | null;
+  createdAt: Date;
+};
+
+/** Doc 06 §3.5: masked number + resolved name; the full number only until the subaccount exists. */
+export type PayoutAccountRow = {
+  operatorId: string;
+  bankCode: string;
+  bankName: string;
+  accountNumberLast4: string;
+  accountName: string;
+  pendingAccountNumberEnc: string | null;
+  nameMismatch: boolean;
+  providerSubaccountCode: string | null;
+  status: 'PENDING' | 'VERIFIED' | 'ACTIVE' | 'DISABLED';
+  verifiedAt: Date | null;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -164,6 +191,29 @@ export type Store = {
     ): Promise<void>;
     markRejected(id: string, reason: string): Promise<void>;
   };
+  kybDocuments: {
+    create(row: {
+      operatorId: string;
+      type: KybDocumentType;
+      fileId: string;
+    }): Promise<KybDocumentRow>;
+    /** Newest first, with the stored file's type, size and check status. */
+    list(
+      operatorId: string,
+    ): Promise<
+      (KybDocumentRow & { mime: string; sizeBytes: number; fileStatus: FileRow['status'] })[]
+    >;
+    find(operatorId: string, id: string): Promise<KybDocumentRow | null>;
+    /** Deletes the document and marks its file REJECTED (DELETED) so retention can sweep it. */
+    remove(operatorId: string, id: string): Promise<void>;
+  };
+  payoutAccounts: {
+    /** One per operator: replaces the previous account (status VERIFIED, no subaccount yet). */
+    upsert(
+      row: Omit<PayoutAccountRow, 'status' | 'providerSubaccountCode'>,
+    ): Promise<PayoutAccountRow>;
+    find(operatorId: string): Promise<PayoutAccountRow | null>;
+  };
   audit: {
     write(entry: AuditEntry): Promise<void>;
     list(query: {
@@ -185,6 +235,8 @@ export type Store = {
     ): Promise<OperatorRow>;
     find(id: string): Promise<OperatorRow | null>;
     update(id: string, patch: Partial<OperatorDetails>): Promise<OperatorRow>;
+    /** KYB → SUBMITTED (callers check the gaps first). */
+    submitKyb(id: string, at: Date): Promise<OperatorRow>;
     /** The operator this user owns, if any. */
     ownedBy(userId: string): Promise<string | null>;
     members(

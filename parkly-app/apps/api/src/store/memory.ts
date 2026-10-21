@@ -6,6 +6,8 @@ import {
   OperatorExistsError,
   type AuditRow,
   type FileRow,
+  type KybDocumentRow,
+  type PayoutAccountRow,
   type OperatorRow,
   type ConsentType,
   type Store,
@@ -32,6 +34,8 @@ export class MemoryStore implements Store {
   readonly revokedSessionUsers: string[] = [];
   readonly fileRows = new Map<string, FileRow>();
   readonly operatorRows = new Map<string, OperatorRow>();
+  readonly kybDocRows: KybDocumentRow[] = [];
+  readonly payoutRows = new Map<string, PayoutAccountRow>();
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -202,6 +206,53 @@ export class MemoryStore implements Store {
     },
   };
 
+  kybDocuments: Store['kybDocuments'] = {
+    create: async (row) => {
+      const doc: KybDocumentRow = {
+        ...row,
+        id: randomUUID(),
+        status: 'SUBMITTED',
+        rejectionReason: null,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.kybDocRows.push(doc);
+      return { ...doc };
+    },
+    list: async (operatorId) =>
+      this.kybDocRows
+        .filter((d) => d.operatorId === operatorId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((d) => {
+          const f = this.mustFile(d.fileId);
+          return { ...d, mime: f.mime, sizeBytes: f.sizeBytes, fileStatus: f.status };
+        }),
+    find: async (operatorId, id) =>
+      this.copy(this.kybDocRows.find((d) => d.operatorId === operatorId && d.id === id)),
+    remove: async (operatorId, id) => {
+      const i = this.kybDocRows.findIndex((d) => d.operatorId === operatorId && d.id === id);
+      if (i < 0) return;
+      const [doc] = this.kybDocRows.splice(i, 1);
+      if (doc)
+        Object.assign(this.mustFile(doc.fileId), {
+          status: 'REJECTED',
+          rejectionReason: 'DELETED',
+        });
+    },
+  };
+
+  payoutAccounts: Store['payoutAccounts'] = {
+    upsert: async (row) => {
+      const account: PayoutAccountRow = {
+        ...row,
+        status: 'VERIFIED',
+        providerSubaccountCode: null,
+      };
+      this.payoutRows.set(row.operatorId, account);
+      return { ...account };
+    },
+    find: async (operatorId) => this.copy(this.payoutRows.get(operatorId)),
+  };
+
   audit: Store['audit'] = {
     write: async (entry) => {
       // Strictly increasing timestamps keep cursor tests deterministic.
@@ -244,6 +295,12 @@ export class MemoryStore implements Store {
       const row = this.operatorRows.get(id);
       if (!row) throw new Error(`no operator ${id}`);
       Object.assign(row, patch);
+      return { ...row };
+    },
+    submitKyb: async (id) => {
+      const row = this.operatorRows.get(id);
+      if (!row) throw new Error(`no operator ${id}`);
+      row.kybStatus = 'SUBMITTED';
       return { ...row };
     },
     ownedBy: async (userId) =>

@@ -49,6 +49,12 @@ const RULES = {
   'account:delete:own': { scope: 'own', roles: ['DRIVER'] },
   'operator:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:update': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
+  'operator:kyb:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  'operator:kyb:manage': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
+  'bank:list': {
+    scope: 'platform',
+    roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
   'operator:members:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'lot:checkin': {
     scope: 'lot',
