@@ -102,6 +102,20 @@ describe('lot review (FR-LOT-004, FR-LOT-006, FR-ADM-001)', () => {
   });
 });
 
+describe('team (FR-OPS-004)', () => {
+  it('lets owners and managers invite, and only owners remove', () => {
+    expect(can(ownerA, 'operator:members:invite', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:members:invite', { operatorId: OP_A })).toBe(true);
+    expect(can(ownerA, 'operator:members:remove', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:members:remove', { operatorId: OP_A })).toBe(false);
+  });
+  it('denies other operators, attendants and drivers', () => {
+    expect(can(ownerA, 'operator:members:invite', { operatorId: OP_B })).toBe(false);
+    expect(can(attendantA, 'operator:members:invite', { operatorId: OP_A })).toBe(false);
+    expect(can(driver, 'operator:members:invite', { operatorId: OP_A })).toBe(false);
+  });
+});
+
 describe('lots (FR-LOT-002)', () => {
   it('lets owner and manager create, edit and read their operator’s lots', () => {
     for (const who of [ownerA, managerA]) {

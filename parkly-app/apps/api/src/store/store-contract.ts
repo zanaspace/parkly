@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
+  MemberExistsError,
   OperatorExistsError,
   SlugTakenError,
   StaleVersionError,
@@ -853,6 +854,113 @@ export function storeContract(
       expect(await store.permits.expire(expired.id)).toBe(false);
       expect((await store.permits.find(expired.id))?.status).toBe('EXPIRED');
       expect(mine(await store.permits.dueForExpiryCheck(today, 50))).toEqual([]);
+    });
+
+    it('invites, accepts once with the role grant, removes, and scopes attendants to lots', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'T Ltd',
+        tradingName: 'T',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'T Lot',
+        slug: `t-lot-${randomUUID().slice(0, 6)}`,
+        description: null,
+        addressLine: 'VI',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 10,
+        capacityBookable: 5,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      expect((await store.members.list(op.id)).map((m) => [m.role, m.status, m.userId])).toEqual([
+        ['OWNER', 'ACTIVE', owner],
+      ]);
+
+      const now = new Date('2026-10-21T10:00:00Z');
+      const phoneHash = Buffer.from(randomUUID());
+      const token = Buffer.from(randomUUID());
+      const invite = await store.members.invite({
+        operatorId: op.id,
+        role: 'ATTENDANT',
+        lotIds: [],
+        inviteeName: 'Musa',
+        inviteePhoneHash: phoneHash,
+        inviteeEmailHash: null,
+        inviteTokenHash: token,
+        inviteExpiresAt: new Date('2026-10-24T10:00:00Z'),
+        invitedBy: owner,
+      });
+      expect(invite).toMatchObject({ status: 'INVITED', userId: null, inviteeName: 'Musa' });
+      expect(
+        (await store.members.findByContact(op.id, { phoneHash, emailHash: null }, now))?.id,
+      ).toBe(invite.id);
+      expect(
+        await store.members.findByContact(
+          op.id,
+          { phoneHash, emailHash: null },
+          new Date('2026-10-25T00:00:00Z'),
+        ),
+      ).toBeNull();
+      expect((await store.members.findByToken(token))?.inviteePhoneHash?.equals(phoneHash)).toBe(
+        true,
+      );
+
+      const attendant = await newUser();
+      const accepted = await store.members.accept(invite.id, attendant, now);
+      expect(accepted).toMatchObject({ status: 'ACTIVE', userId: attendant });
+      expect(await store.users.roles(attendant)).toEqual(
+        expect.arrayContaining([{ role: 'OPERATOR_ATTENDANT', operatorId: op.id }]),
+      );
+      expect(await store.members.findByToken(token)).toBeNull();
+      await expect(store.members.accept(invite.id, attendant, now)).rejects.toBeInstanceOf(
+        StaleVersionError,
+      );
+      expect(await store.members.attendantLotIds(attendant)).toEqual([lot.id]);
+
+      // The owner accepting an invite to their own operator is refused.
+      const second = await store.members.invite({
+        operatorId: op.id,
+        role: 'MANAGER',
+        lotIds: [],
+        inviteeName: 'Owner again',
+        inviteePhoneHash: null,
+        inviteeEmailHash: Buffer.from(randomUUID()),
+        inviteTokenHash: Buffer.from(randomUUID()),
+        inviteExpiresAt: new Date('2026-10-24T10:00:00Z'),
+        invitedBy: owner,
+      });
+      await expect(store.members.accept(second.id, owner, now)).rejects.toBeInstanceOf(
+        MemberExistsError,
+      );
+
+      const removed = await store.members.remove(op.id, invite.id, now);
+      expect(removed.status).toBe('REMOVED');
+      expect(
+        (await store.users.roles(attendant)).some((r) => r.role === 'OPERATOR_ATTENDANT'),
+      ).toBe(false);
+      expect(await store.members.attendantLotIds(attendant)).toEqual([]);
+      await expect(store.members.remove(op.id, invite.id, now)).rejects.toBeInstanceOf(
+        StaleVersionError,
+      );
+      expect((await store.members.list(op.id)).map((m) => m.inviteeName ?? 'owner')).toEqual([
+        'owner',
+        'Owner again',
+      ]);
     });
   });
 }

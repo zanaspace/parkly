@@ -1,11 +1,12 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import type { RoleGrant } from '@parkly/domain/authz';
-import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
+  MemberExistsError,
   OperatorExistsError,
   SlugTakenError,
   StaleVersionError,
@@ -14,6 +15,7 @@ import {
   type KybDocumentRow,
   type LotPhotoRow,
   type LotRow,
+  type MemberRow,
   type OpeningHourRow,
   type PermitRow,
   type RatePlanRow,
@@ -200,6 +202,26 @@ const ratePlanColumns = {
   rejectionReason: ratePlans.rejectionReason,
   createdAt: ratePlans.createdAt,
 };
+
+const memberColumns = {
+  id: operatorMembers.id,
+  operatorId: operatorMembers.operatorId,
+  userId: operatorMembers.userId,
+  role: operatorMembers.role,
+  lotIds: operatorMembers.lotIds,
+  status: operatorMembers.status,
+  inviteeName: operatorMembers.inviteeName,
+  inviteExpiresAt: operatorMembers.inviteExpiresAt,
+  invitedBy: operatorMembers.invitedBy,
+  acceptedAt: operatorMembers.acceptedAt,
+  createdAt: operatorMembers.createdAt,
+};
+
+const MEMBER_ROLE = {
+  OWNER: 'OPERATOR_OWNER',
+  MANAGER: 'OPERATOR_MANAGER',
+  ATTENDANT: 'OPERATOR_ATTENDANT',
+} as const;
 
 const verificationColumns = {
   id: verificationRecords.id,
@@ -967,6 +989,162 @@ export function drizzleStore(db: Db): Store {
           .returning(verificationColumns);
         if (!row) throw new StaleVersionError();
         return withItems(row as Omit<VerificationRow, 'items'>);
+      },
+    },
+
+    members: {
+      async list(operatorId) {
+        const rows = await db
+          .select({ ...memberColumns, firstName: users.firstName, lastName: users.lastName })
+          .from(operatorMembers)
+          .leftJoin(users, eq(users.id, operatorMembers.userId))
+          .where(
+            and(eq(operatorMembers.operatorId, operatorId), ne(operatorMembers.status, 'REMOVED')),
+          )
+          .orderBy(asc(operatorMembers.createdAt), asc(operatorMembers.id));
+        return rows as (MemberRow & { firstName: string | null; lastName: string | null })[];
+      },
+      async find(operatorId, id) {
+        const [row] = await db
+          .select(memberColumns)
+          .from(operatorMembers)
+          .where(and(eq(operatorMembers.id, id), eq(operatorMembers.operatorId, operatorId)));
+        return (row as MemberRow | undefined) ?? null;
+      },
+      async findByContact(operatorId, { phoneHash, emailHash }, now) {
+        const matchesUser = or(
+          phoneHash ? eq(users.phoneHash, phoneHash) : undefined,
+          emailHash ? eq(users.emailHash, emailHash) : undefined,
+        );
+        const matchesInvite = or(
+          phoneHash ? eq(operatorMembers.inviteePhoneHash, phoneHash) : undefined,
+          emailHash ? eq(operatorMembers.inviteeEmailHash, emailHash) : undefined,
+        );
+        if (!matchesUser || !matchesInvite) return null;
+        const [row] = await db
+          .select(memberColumns)
+          .from(operatorMembers)
+          .leftJoin(users, eq(users.id, operatorMembers.userId))
+          .where(
+            and(
+              eq(operatorMembers.operatorId, operatorId),
+              or(
+                and(eq(operatorMembers.status, 'ACTIVE'), matchesUser),
+                and(
+                  eq(operatorMembers.status, 'INVITED'),
+                  gt(operatorMembers.inviteExpiresAt, now),
+                  matchesInvite,
+                ),
+              ),
+            ),
+          )
+          .limit(1);
+        return (row as MemberRow | undefined) ?? null;
+      },
+      async invite(row) {
+        const [member] = await db
+          .insert(operatorMembers)
+          .values({ id: uuidv7(), ...row, status: 'INVITED' })
+          .returning(memberColumns);
+        if (!member) throw new Error('insert failed');
+        return member as MemberRow;
+      },
+      async findByToken(tokenHash) {
+        const [row] = await db
+          .select({
+            ...memberColumns,
+            inviteePhoneHash: operatorMembers.inviteePhoneHash,
+            inviteeEmailHash: operatorMembers.inviteeEmailHash,
+          })
+          .from(operatorMembers)
+          .where(eq(operatorMembers.inviteTokenHash, tokenHash));
+        return (
+          (row as
+            | (MemberRow & { inviteePhoneHash: Buffer | null; inviteeEmailHash: Buffer | null })
+            | undefined) ?? null
+        );
+      },
+      async accept(id, userId, at) {
+        try {
+          return await db.transaction(async (tx) => {
+            const [member] = await tx
+              .update(operatorMembers)
+              .set({ status: 'ACTIVE', userId, acceptedAt: at, inviteTokenHash: null })
+              .where(and(eq(operatorMembers.id, id), eq(operatorMembers.status, 'INVITED')))
+              .returning(memberColumns);
+            if (!member) throw new StaleVersionError();
+            await tx
+              .insert(userRoles)
+              .values({
+                id: uuidv7(),
+                userId,
+                role: MEMBER_ROLE[member.role],
+                operatorId: member.operatorId,
+                grantedBy: member.invitedBy,
+              })
+              .onConflictDoNothing();
+            return member as MemberRow;
+          });
+        } catch (err) {
+          if (isUniqueViolation(err, 'operator_members_operator_user_key'))
+            throw new MemberExistsError();
+          throw err;
+        }
+      },
+      async remove(operatorId, id, at) {
+        return db.transaction(async (tx) => {
+          const [before] = await tx
+            .select({ status: operatorMembers.status })
+            .from(operatorMembers)
+            .where(and(eq(operatorMembers.id, id), eq(operatorMembers.operatorId, operatorId)))
+            .for('update');
+          const [member] = await tx
+            .update(operatorMembers)
+            .set({ status: 'REMOVED', removedAt: at, inviteTokenHash: null })
+            .where(
+              and(
+                eq(operatorMembers.id, id),
+                eq(operatorMembers.operatorId, operatorId),
+                ne(operatorMembers.status, 'REMOVED'),
+              ),
+            )
+            .returning(memberColumns);
+          if (!member) throw new StaleVersionError();
+          if (before?.status === 'ACTIVE' && member.userId)
+            await tx
+              .delete(userRoles)
+              .where(
+                and(
+                  eq(userRoles.userId, member.userId),
+                  eq(userRoles.role, MEMBER_ROLE[member.role]),
+                  eq(userRoles.operatorId, operatorId),
+                ),
+              );
+          return member as MemberRow;
+        });
+      },
+      async attendantLotIds(userId) {
+        const rows = await db
+          .select({ operatorId: operatorMembers.operatorId, lotIds: operatorMembers.lotIds })
+          .from(operatorMembers)
+          .where(
+            and(
+              eq(operatorMembers.userId, userId),
+              eq(operatorMembers.role, 'ATTENDANT'),
+              eq(operatorMembers.status, 'ACTIVE'),
+            ),
+          );
+        const ids: string[] = [];
+        for (const m of rows) {
+          if (m.lotIds.length > 0) ids.push(...m.lotIds);
+          else
+            ids.push(
+              ...(
+                await db.select({ id: lots.id }).from(lots).where(eq(lots.operatorId, m.operatorId))
+              ).map((l) => l.id),
+            );
+        }
+        return ids;
       },
     },
 

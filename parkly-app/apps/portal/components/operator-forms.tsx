@@ -17,11 +17,12 @@ function Notice({ tone, children }: { tone: 'error' | 'info'; children: string }
 }
 
 /** O-01: email + password. Confirmation link lands on /onboarding. */
-export function SignUpForm() {
+export function SignUpForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(signUp, undefined);
   if (state?.message) return <Notice tone="info">{state.message}</Notice>;
   return (
     <form action={action} className="pk-form" noValidate>
+      {next && <input type="hidden" name="next" value={next} />}
       <Input label="Email address" name="email" type="email" autoComplete="email" required />
       <Input
         label="Password"
