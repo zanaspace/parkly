@@ -1,0 +1,5 @@
+.vercel
+.env*
+
+# Templates are committed; real env files are not.
+!.env.example
