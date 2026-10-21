@@ -9,7 +9,10 @@ const config: NextConfig = {
   async headers() {
     return securityHeaders({
       isDev,
-      connectSrc: [process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'],
+      connectSrc: [
+        process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000',
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321',
+      ],
     });
   },
 };

@@ -1506,6 +1506,34 @@
           }
         }
       }
+    },
+    "/v1/admin/users/{userId}/sessions/revoke": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sessions revoked"
+          }
+        }
+      }
     }
   },
   "webhooks": {}

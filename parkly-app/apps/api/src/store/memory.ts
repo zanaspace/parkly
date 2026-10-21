@@ -26,6 +26,7 @@ export class MemoryStore implements Store {
   readonly dsrRows: { id: string; userId: string; type: 'DELETION'; open: boolean; dueAt: Date }[] =
     [];
   readonly auditRows: AuditRow[] = [];
+  readonly revokedSessionUsers: string[] = [];
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -160,6 +161,12 @@ export class MemoryStore implements Store {
     },
     revokeAll: async (userId) => {
       for (const d of this.deviceRows) if (d.userId === userId) d.revokedAt = new Date();
+    },
+  };
+
+  sessions: Store['sessions'] = {
+    revokeAll: async (userId) => {
+      this.revokedSessionUsers.push(userId);
     },
   };
 

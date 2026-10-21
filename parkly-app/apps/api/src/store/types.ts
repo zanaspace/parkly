@@ -103,6 +103,10 @@ export type Store = {
     revokeBySession(userId: string, authSessionId: string): Promise<void>;
     revokeAll(userId: string): Promise<void>;
   };
+  sessions: {
+    /** Ends every Supabase Auth session the user has; access tokens still expire within 15 min. */
+    revokeAll(userId: string): Promise<void>;
+  };
   dataRequests: {
     /** Throws DsrAlreadyOpenError if one is open. */
     createDeletion(userId: string, dueAt: Date): Promise<{ id: string }>;

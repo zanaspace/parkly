@@ -569,6 +569,7 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 |---|---|---|---|---|
 | GET | `/admin/search` | ADM-* | — | by phone, plate, booking code, email (PII view audited `user.pii_view`) |
 | GET | `/admin/users/:id` · POST `/admin/users/:id/suspend` | SUP, OPS, SA | ✅ | |
+| POST | `/admin/users/:id/sessions/revoke` | SA | — | FR-AUTH-006; deletes the user's `auth.sessions` via `fn_revoke_user_sessions` (refresh tokens cascade), revokes `devices`; audited `user.sessions_revoked` |
 | GET | `/admin/operators` · `/admin/operators/:id` · POST `/kyb/review` | OPS | ✅ | |
 | GET | `/admin/lots?status=` · POST `/admin/lots/:id/status` | OPS, CMP | ✅ | `{status, reason}` |
 | GET/POST | `/admin/permits/:id/review` | CMP, OPS | ✅ | `{decision, reason}` |

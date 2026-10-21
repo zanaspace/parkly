@@ -237,6 +237,12 @@ export function drizzleStore(db: Db): Store {
       },
     },
 
+    sessions: {
+      async revokeAll(userId) {
+        await db.execute(sql`select public.fn_revoke_user_sessions(${userId}::uuid)`);
+      },
+    },
+
     dataRequests: {
       async createDeletion(userId, dueAt) {
         try {
