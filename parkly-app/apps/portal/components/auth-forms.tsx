@@ -26,7 +26,7 @@ export function SignInForm({ next }: { next: string }) {
   return (
     <form action={action} className="pk-form" noValidate>
       <input type="hidden" name="next" value={next} />
-      <Input label="Work email" name="email" type="email" autoComplete="username" required />
+      <Input label="Email address" name="email" type="email" autoComplete="username" required />
       <Input
         label="Password"
         name="password"
@@ -166,7 +166,7 @@ export function ResetRequestForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, undefined);
   return (
     <form action={action} className="pk-form" noValidate>
-      <Input label="Work email" name="email" type="email" autoComplete="username" required />
+      <Input label="Email address" name="email" type="email" autoComplete="username" required />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       {state?.message && <Notice tone="info">{state.message}</Notice>}
       <Button type="submit" loading={pending} fullWidth>

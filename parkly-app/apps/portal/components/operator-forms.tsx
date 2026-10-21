@@ -22,7 +22,7 @@ export function SignUpForm() {
   if (state?.message) return <Notice tone="info">{state.message}</Notice>;
   return (
     <form action={action} className="pk-form" noValidate>
-      <Input label="Work email" name="email" type="email" autoComplete="email" required />
+      <Input label="Email address" name="email" type="email" autoComplete="email" required />
       <Input
         label="Password"
         name="password"

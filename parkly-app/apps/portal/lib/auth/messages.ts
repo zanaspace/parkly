@@ -23,3 +23,8 @@ export function signInErrorMessage(error: {
 }
 
 export const MIN_PASSWORD_LENGTH = 12;
+
+/** Loose shape check; Supabase sends the confirmation email, which proves the address. */
+export function isEmailAddress(value: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+}
