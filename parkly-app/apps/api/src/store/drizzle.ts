@@ -22,6 +22,7 @@ import {
   type Store,
   type UserRow,
   type VehicleRow,
+  type VerificationRow,
 } from './types.js';
 
 const {
@@ -43,6 +44,9 @@ const {
   lotPhotos,
   permits,
   ratePlans,
+  verificationRecords,
+  verificationItems,
+  featureFlags,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -162,6 +166,7 @@ const photoColumns = {
   id: lotPhotos.id,
   lotId: lotPhotos.lotId,
   fileId: lotPhotos.fileId,
+  publicFileId: lotPhotos.publicFileId,
   sort: lotPhotos.sort,
   status: lotPhotos.status,
   createdAt: lotPhotos.createdAt,
@@ -177,6 +182,7 @@ const permitColumns = {
   documentFileId: permits.documentFileId,
   status: permits.status,
   rejectionReason: permits.rejectionReason,
+  reviewNote: permits.reviewNote,
   createdAt: permits.createdAt,
 };
 
@@ -194,6 +200,22 @@ const ratePlanColumns = {
   createdAt: ratePlans.createdAt,
 };
 
+const verificationColumns = {
+  id: verificationRecords.id,
+  lotId: verificationRecords.lotId,
+  inspectorUserId: verificationRecords.inspectorUserId,
+  inspectedAt: verificationRecords.inspectedAt,
+  status: verificationRecords.status,
+  capacityCounted: verificationRecords.capacityCounted,
+  gps: verificationRecords.gpsAtInspection,
+  notes: verificationRecords.notes,
+  validUntil: verificationRecords.validUntil,
+  rejectionReason: verificationRecords.rejectionReason,
+  createdAt: verificationRecords.createdAt,
+};
+
+const REVIEWABLE = ['SUBMITTED', 'IN_REVIEW'] as const;
+
 /** Postgres returns `time` as HH:MM:SS; the API speaks HH:MM. */
 const hhmm = (t: string | null) => (t === null ? null : t.slice(0, 5));
 
@@ -201,6 +223,19 @@ const activeVehicle = (userId: string, id: string) =>
   and(eq(vehicles.id, id), eq(vehicles.userId, userId), isNull(vehicles.deletedAt));
 
 export function drizzleStore(db: Db): Store {
+  async function withItems(record: Omit<VerificationRow, 'items'>): Promise<VerificationRow> {
+    const items = await db
+      .select({
+        item: verificationItems.item,
+        result: verificationItems.result,
+        comment: verificationItems.comment,
+      })
+      .from(verificationItems)
+      .where(eq(verificationItems.recordId, record.id))
+      .orderBy(asc(verificationItems.item));
+    return { ...record, items };
+  }
+
   return {
     users: {
       async find(id) {
@@ -521,6 +556,34 @@ export function drizzleStore(db: Db): Store {
           .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId)));
         return (lot as LotRow | undefined) ?? null;
       },
+      async findById(id) {
+        const [lot] = await db.select(lotColumns).from(lots).where(eq(lots.id, id));
+        return (lot as LotRow | undefined) ?? null;
+      },
+      async listByStatus(status) {
+        const rows = await db
+          .select({ ...lotColumns, operatorName: operators.legalName })
+          .from(lots)
+          .innerJoin(operators, eq(operators.id, lots.operatorId))
+          .where(eq(lots.status, status))
+          .orderBy(asc(lots.createdAt), asc(lots.id));
+        if (rows.length === 0) return [];
+        const counts = await db
+          .select({ lotId: lotPhotos.lotId, n: sql<number>`count(*)::int` })
+          .from(lotPhotos)
+          .where(
+            inArray(
+              lotPhotos.lotId,
+              rows.map((r) => r.id),
+            ),
+          )
+          .groupBy(lotPhotos.lotId);
+        const byLot = new Map(counts.map((c) => [c.lotId, c.n]));
+        return rows.map((r) => ({
+          ...(r as LotRow & { operatorName: string }),
+          photoCount: byLot.get(r.id) ?? 0,
+        }));
+      },
       async list(operatorId) {
         const rows = (await db
           .select(lotColumns)
@@ -556,7 +619,12 @@ export function drizzleStore(db: Db): Store {
       async setStatus(operatorId, id, from, to, reason) {
         const [lot] = await db
           .update(lots)
-          .set({ status: to, statusReason: reason, version: sql`${lots.version} + 1` })
+          .set({
+            status: to,
+            statusReason: reason,
+            verifiedBadge: to === 'LIVE',
+            version: sql`${lots.version} + 1`,
+          })
           .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId), eq(lots.status, from)))
           .returning(lotColumns);
         if (!lot) throw new StaleVersionError();
@@ -608,6 +676,33 @@ export function drizzleStore(db: Db): Store {
           .limit(1);
         return (permit as PermitRow | undefined) ?? null;
       },
+      async find(id) {
+        const [permit] = await db.select(permitColumns).from(permits).where(eq(permits.id, id));
+        return (permit as PermitRow | undefined) ?? null;
+      },
+      async approve(id, { reviewerId, at, note }) {
+        const [permit] = await db
+          .update(permits)
+          .set({ status: 'APPROVED', reviewedBy: reviewerId, reviewedAt: at, reviewNote: note })
+          .where(and(eq(permits.id, id), inArray(permits.status, [...REVIEWABLE])))
+          .returning(permitColumns);
+        if (!permit) throw new StaleVersionError();
+        return permit as PermitRow;
+      },
+      async reject(id, { reviewerId, at, reason }) {
+        const [permit] = await db
+          .update(permits)
+          .set({
+            status: 'REJECTED',
+            reviewedBy: reviewerId,
+            reviewedAt: at,
+            rejectionReason: reason,
+          })
+          .where(and(eq(permits.id, id), inArray(permits.status, [...REVIEWABLE])))
+          .returning(permitColumns);
+        if (!permit) throw new StaleVersionError();
+        return permit as PermitRow;
+      },
     },
 
     ratePlans: {
@@ -652,6 +747,51 @@ export function drizzleStore(db: Db): Store {
           .orderBy(asc(ratePlans.product), asc(ratePlans.createdAt));
         return rows as RatePlanRow[];
       },
+      async find(id) {
+        const [plan] = await db.select(ratePlanColumns).from(ratePlans).where(eq(ratePlans.id, id));
+        return (plan as RatePlanRow | undefined) ?? null;
+      },
+      async approve(id, { reviewerId, at }) {
+        return db.transaction(async (tx) => {
+          const [pending] = await tx
+            .select({ lotId: ratePlans.lotId, product: ratePlans.product })
+            .from(ratePlans)
+            .where(and(eq(ratePlans.id, id), eq(ratePlans.status, 'PENDING_APPROVAL')))
+            .for('update');
+          if (!pending) throw new StaleVersionError();
+          // Retire first: the partial unique index allows one ACTIVE plan per product.
+          await tx
+            .update(ratePlans)
+            .set({ status: 'RETIRED' })
+            .where(
+              and(
+                eq(ratePlans.lotId, pending.lotId),
+                eq(ratePlans.product, pending.product),
+                eq(ratePlans.status, 'ACTIVE'),
+              ),
+            );
+          const [plan] = await tx
+            .update(ratePlans)
+            .set({ status: 'ACTIVE', effectiveFrom: at, approvedBy: reviewerId, approvedAt: at })
+            .where(eq(ratePlans.id, id))
+            .returning(ratePlanColumns);
+          return plan as RatePlanRow;
+        });
+      },
+      async reject(id, { reviewerId, at, reason }) {
+        const [plan] = await db
+          .update(ratePlans)
+          .set({
+            status: 'REJECTED',
+            approvedBy: reviewerId,
+            approvedAt: at,
+            rejectionReason: reason,
+          })
+          .where(and(eq(ratePlans.id, id), eq(ratePlans.status, 'PENDING_APPROVAL')))
+          .returning(ratePlanColumns);
+        if (!plan) throw new StaleVersionError();
+        return plan as RatePlanRow;
+      },
     },
 
     lotPhotos: {
@@ -679,6 +819,19 @@ export function drizzleStore(db: Db): Store {
           .where(and(eq(lotPhotos.id, id), eq(lotPhotos.lotId, lotId)));
         return (photo as LotPhotoRow | undefined) ?? null;
       },
+      async findById(id) {
+        const [photo] = await db.select(photoColumns).from(lotPhotos).where(eq(lotPhotos.id, id));
+        return (photo as LotPhotoRow | undefined) ?? null;
+      },
+      async review(id, decision, { reviewerId, at }) {
+        const [photo] = await db
+          .update(lotPhotos)
+          .set({ ...decision, reviewedBy: reviewerId, reviewedAt: at })
+          .where(and(eq(lotPhotos.id, id), eq(lotPhotos.status, 'PENDING')))
+          .returning(photoColumns);
+        if (!photo) throw new StaleVersionError();
+        return photo as LotPhotoRow;
+      },
       async remove(lotId, id) {
         await db.transaction(async (tx) => {
           const [photo] = await tx
@@ -691,6 +844,98 @@ export function drizzleStore(db: Db): Store {
               .set({ status: 'REJECTED', rejectionReason: 'DELETED' })
               .where(eq(files.id, photo.fileId));
         });
+      },
+    },
+
+    verifications: {
+      async create({ items, gps, ...row }) {
+        return db.transaction(async (tx) => {
+          const [record] = await tx
+            .insert(verificationRecords)
+            .values({ id: uuidv7(), ...row, gpsAtInspection: gps })
+            .returning(verificationColumns);
+          if (!record) throw new Error('insert failed');
+          await tx
+            .insert(verificationItems)
+            .values(items.map((i) => ({ id: uuidv7(), recordId: record.id, ...i })));
+          return {
+            ...(record as Omit<VerificationRow, 'items'>),
+            items: items.map((i) => ({ ...i })),
+          };
+        });
+      },
+      async latest(lotId) {
+        const [record] = await db
+          .select(verificationColumns)
+          .from(verificationRecords)
+          .where(eq(verificationRecords.lotId, lotId))
+          .orderBy(desc(verificationRecords.createdAt), desc(verificationRecords.id))
+          .limit(1);
+        return record ? withItems(record as Omit<VerificationRow, 'items'>) : null;
+      },
+      async find(id) {
+        const [record] = await db
+          .select(verificationColumns)
+          .from(verificationRecords)
+          .where(eq(verificationRecords.id, id));
+        return record ? withItems(record as Omit<VerificationRow, 'items'>) : null;
+      },
+      async approve(id, { reviewerId, at }) {
+        const record = await db.transaction(async (tx) => {
+          const [row] = await tx
+            .update(verificationRecords)
+            .set({ status: 'APPROVED', reviewedBy: reviewerId, reviewedAt: at })
+            .where(
+              and(
+                eq(verificationRecords.id, id),
+                inArray(verificationRecords.status, [...REVIEWABLE]),
+              ),
+            )
+            .returning(verificationColumns);
+          if (!row) throw new StaleVersionError();
+          // Doc 03 §4.1: a lower count on site overrides the operator's figure.
+          await tx
+            .update(lots)
+            .set({
+              capacityTotal: row.capacityCounted,
+              capacityBookable: sql`least(${lots.capacityBookable}, ${row.capacityCounted})`,
+              version: sql`${lots.version} + 1`,
+            })
+            .where(
+              and(eq(lots.id, row.lotId), sql`${lots.capacityTotal} > ${row.capacityCounted}`),
+            );
+          return row as Omit<VerificationRow, 'items'>;
+        });
+        return withItems(record);
+      },
+      async reject(id, { reviewerId, at, reason }) {
+        const [row] = await db
+          .update(verificationRecords)
+          .set({
+            status: 'REJECTED',
+            reviewedBy: reviewerId,
+            reviewedAt: at,
+            rejectionReason: reason,
+          })
+          .where(
+            and(
+              eq(verificationRecords.id, id),
+              inArray(verificationRecords.status, [...REVIEWABLE]),
+            ),
+          )
+          .returning(verificationColumns);
+        if (!row) throw new StaleVersionError();
+        return withItems(row as Omit<VerificationRow, 'items'>);
+      },
+    },
+
+    flags: {
+      async enabled(key) {
+        const [row] = await db
+          .select({ enabled: featureFlags.enabled })
+          .from(featureFlags)
+          .where(eq(featureFlags.key, key));
+        return row?.enabled ?? false;
       },
     },
 

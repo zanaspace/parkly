@@ -43,6 +43,7 @@ import {
   type OpeningHourRow,
   type PermitRow,
   type RatePlanRow,
+  type Store,
 } from '../../store/types.js';
 import { completeUpload, presignUpload } from '../uploads/service.js';
 
@@ -91,7 +92,7 @@ const toDay = (h: OpeningHourRow): OpeningDay =>
     ? { weekday: h.weekday, is24h: true }
     : { weekday: h.weekday, is24h: false, opensAt: h.opensAt ?? '', closesAt: h.closesAt ?? '' };
 
-const toPhoto = (p: LotPhotoRow & { sizeBytes: number }) => ({
+export const toPhoto = (p: LotPhotoRow & { sizeBytes: number }) => ({
   id: p.id,
   sort: p.sort,
   status: p.status,
@@ -99,7 +100,7 @@ const toPhoto = (p: LotPhotoRow & { sizeBytes: number }) => ({
   uploadedAt: p.createdAt.toISOString(),
 });
 
-const toPermit = (p: PermitRow): Permit => ({
+export const toPermit = (p: PermitRow): Permit => ({
   id: p.id,
   issuer: p.issuer,
   permitNumber: p.permitNumber,
@@ -110,7 +111,7 @@ const toPermit = (p: PermitRow): Permit => ({
   submittedAt: p.createdAt.toISOString(),
 });
 
-const toRatePlan = (r: RatePlanRow): RatePlan => ({
+export const toRatePlan = (r: RatePlanRow): RatePlan => ({
   id: r.id,
   product: r.product,
   status: r.status,
@@ -122,6 +123,41 @@ const toRatePlan = (r: RatePlanRow): RatePlan => ({
   rejectionReason: r.rejectionReason,
   submittedAt: r.createdAt.toISOString(),
 });
+
+/** The lot as operators and admins see it: hours, photos, latest permit, current prices. */
+export async function toLotResponse(store: Store, row: LotRow): Promise<Lot> {
+  const [hours, photos, permit, plans] = await Promise.all([
+    store.lots.openingHours(row.id),
+    store.lotPhotos.list(row.id),
+    store.permits.latest(row.id),
+    store.ratePlans.current(row.id),
+  ]);
+  return {
+    id: row.id,
+    operatorId: row.operatorId,
+    slug: row.slug,
+    name: row.name,
+    type: row.type,
+    description: row.description,
+    addressLine: row.addressLine,
+    area: row.area,
+    lga: row.lga,
+    location: row.location,
+    entranceNotes: row.entranceNotes,
+    capacityTotal: row.capacityTotal,
+    capacityBookable: row.capacityBookable,
+    amenities: row.amenities as Lot['amenities'],
+    vehicleTypes: row.vehicleTypes as Lot['vehicleTypes'],
+    status: row.status,
+    statusReason: row.statusReason,
+    version: row.version,
+    openingHours: hours.map(toDay),
+    photos: photos.map(toPhoto),
+    permit: permit ? toPermit(permit) : null,
+    ratePlans: plans.map(toRatePlan),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
 
 /** A permit that still counts toward submission: not rejected or expired. */
 const LIVE_PERMIT = new Set<PermitRow['status']>(['SUBMITTED', 'IN_REVIEW', 'APPROVED']);
@@ -140,39 +176,7 @@ export function lotRoutes(deps: AppDeps) {
     now: deps.now,
   };
 
-  async function toLot(row: LotRow): Promise<Lot> {
-    const [hours, photos, permit, plans] = await Promise.all([
-      deps.store.lots.openingHours(row.id),
-      deps.store.lotPhotos.list(row.id),
-      deps.store.permits.latest(row.id),
-      deps.store.ratePlans.current(row.id),
-    ]);
-    return {
-      id: row.id,
-      operatorId: row.operatorId,
-      slug: row.slug,
-      name: row.name,
-      type: row.type,
-      description: row.description,
-      addressLine: row.addressLine,
-      area: row.area,
-      lga: row.lga,
-      location: row.location,
-      entranceNotes: row.entranceNotes,
-      capacityTotal: row.capacityTotal,
-      capacityBookable: row.capacityBookable,
-      amenities: row.amenities as Lot['amenities'],
-      vehicleTypes: row.vehicleTypes as Lot['vehicleTypes'],
-      status: row.status,
-      statusReason: row.statusReason,
-      version: row.version,
-      openingHours: hours.map(toDay),
-      photos: photos.map(toPhoto),
-      permit: permit ? toPermit(permit) : null,
-      ratePlans: plans.map(toRatePlan),
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
+  const toLot = (row: LotRow) => toLotResponse(deps.store, row);
 
   /** Read access hides other operators (404); writes need lot:manage. */
   async function loadLot(

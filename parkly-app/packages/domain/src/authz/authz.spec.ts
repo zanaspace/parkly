@@ -68,6 +68,40 @@ describe('KYB review (FR-ADM-001)', () => {
   });
 });
 
+describe('lot review (FR-LOT-004, FR-LOT-006, FR-ADM-001)', () => {
+  const ops = actor([{ role: 'ADMIN_OPS', operatorId: null }], { aal: 'aal2' });
+  const sa = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
+  const finance = actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' });
+
+  it('lets ops, compliance and super admins review lots and permits', () => {
+    for (const who of [ops, compliance, sa])
+      for (const action of ['lot:review', 'permit:review'] as const)
+        expect(can(who, action, {}), action).toBe(true);
+  });
+
+  it('keeps prices and site verification with ops and super admins', () => {
+    for (const action of ['rate-plan:review', 'lot:verify'] as const) {
+      expect(can(ops, action, {}), action).toBe(true);
+      expect(can(sa, action, {}), action).toBe(true);
+      expect(can(compliance, action, {}), action).toBe(false);
+    }
+  });
+
+  it('denies support, finance, operators and anyone below aal2', () => {
+    for (const action of [
+      'lot:review',
+      'permit:review',
+      'rate-plan:review',
+      'lot:verify',
+    ] as const) {
+      expect(can(support, action, {}), action).toBe(false);
+      expect(can(finance, action, {}), action).toBe(false);
+      expect(can(ownerA, action, {}), action).toBe(false);
+      expect(can({ ...ops, aal: 'aal1' }, action, {}), action).toBe(false);
+    }
+  });
+});
+
 describe('lots (FR-LOT-002)', () => {
   it('lets owner and manager create, edit and read their operator’s lots', () => {
     for (const who of [ownerA, managerA]) {

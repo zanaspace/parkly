@@ -20,6 +20,7 @@ import {
   type Store,
   type UserRow,
   type VehicleRow,
+  type VerificationRow,
 } from './types.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
@@ -47,7 +48,9 @@ export class MemoryStore implements Store {
   readonly hourRows = new Map<string, OpeningHourRow[]>();
   readonly photoRows: LotPhotoRow[] = [];
   readonly permitRows: PermitRow[] = [];
-  readonly ratePlanRows: RatePlanRow[] = [];
+  readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
+  readonly verificationRows: VerificationRow[] = [];
+  readonly flagRows = new Map<string, boolean>();
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -288,6 +291,16 @@ export class MemoryStore implements Store {
       const lot = this.lotRows.get(id);
       return lot && lot.operatorId === operatorId ? { ...lot } : null;
     },
+    findById: async (id) => this.copy(this.lotRows.get(id)),
+    listByStatus: async (status) =>
+      [...this.lotRows.values()]
+        .filter((l) => l.status === status)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((l) => ({
+          ...l,
+          photoCount: this.photoRows.filter((p) => p.lotId === l.id).length,
+          operatorName: this.operatorRows.get(l.operatorId)?.legalName ?? '',
+        })),
     list: async (operatorId) =>
       [...this.lotRows.values()]
         .filter((l) => l.operatorId === operatorId)
@@ -325,6 +338,7 @@ export class MemoryStore implements Store {
         issuer: 'LASPA',
         status: 'SUBMITTED',
         rejectionReason: null,
+        reviewNote: null,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };
       this.permitRows.push(permit);
@@ -336,6 +350,11 @@ export class MemoryStore implements Store {
           .filter((p) => p.lotId === lotId)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
       ),
+    find: async (id) => this.copy(this.permitRows.find((p) => p.id === id)),
+    approve: async (id, { note }) =>
+      this.decide(this.permitRows, id, { status: 'APPROVED', reviewNote: note }),
+    reject: async (id, { reason }) =>
+      this.decide(this.permitRows, id, { status: 'REJECTED', rejectionReason: reason }),
   };
 
   ratePlans: Store['ratePlans'] = {
@@ -369,7 +388,30 @@ export class MemoryStore implements Store {
             order.indexOf(a.product) - order.indexOf(b.product) ||
             a.createdAt.getTime() - b.createdAt.getTime(),
         )
-        .map((p) => ({ ...p }));
+        .map(({ effectiveFrom: _e, ...p }) => p);
+    },
+    find: async (id) => {
+      const plan = this.ratePlanRows.find((p) => p.id === id);
+      if (!plan) return null;
+      const { effectiveFrom: _e, ...row } = plan;
+      return row;
+    },
+    approve: async (id, { at }) => {
+      const plan = this.ratePlanRows.find((p) => p.id === id);
+      if (plan?.status !== 'PENDING_APPROVAL') throw new StaleVersionError();
+      for (const p of this.ratePlanRows)
+        if (p.lotId === plan.lotId && p.product === plan.product && p.status === 'ACTIVE')
+          p.status = 'RETIRED';
+      Object.assign(plan, { status: 'ACTIVE', effectiveFrom: at });
+      const { effectiveFrom: _e, ...row } = plan;
+      return row;
+    },
+    reject: async (id, { reason }) => {
+      const plan = this.ratePlanRows.find((p) => p.id === id);
+      if (plan?.status !== 'PENDING_APPROVAL') throw new StaleVersionError();
+      Object.assign(plan, { status: 'REJECTED', rejectionReason: reason });
+      const { effectiveFrom: _e, ...row } = plan;
+      return row;
     },
   };
 
@@ -378,6 +420,7 @@ export class MemoryStore implements Store {
       const photo: LotPhotoRow = {
         ...row,
         id: randomUUID(),
+        publicFileId: null,
         status: 'PENDING',
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };
@@ -391,6 +434,13 @@ export class MemoryStore implements Store {
         .map((p) => ({ ...p, sizeBytes: this.mustFile(p.fileId).sizeBytes })),
     find: async (lotId, id) =>
       this.copy(this.photoRows.find((p) => p.lotId === lotId && p.id === id)),
+    findById: async (id) => this.copy(this.photoRows.find((p) => p.id === id)),
+    review: async (id, decision) => {
+      const photo = this.photoRows.find((p) => p.id === id);
+      if (photo?.status !== 'PENDING') throw new StaleVersionError();
+      Object.assign(photo, decision);
+      return { ...photo };
+    },
     remove: async (lotId, id) => {
       const i = this.photoRows.findIndex((p) => p.lotId === lotId && p.id === id);
       if (i < 0) return;
@@ -401,6 +451,56 @@ export class MemoryStore implements Store {
           rejectionReason: 'DELETED',
         });
     },
+  };
+
+  verifications: Store['verifications'] = {
+    create: async (row) => {
+      const record: VerificationRow = {
+        ...row,
+        items: row.items.map((i) => ({ ...i })),
+        id: randomUUID(),
+        status: 'SUBMITTED',
+        rejectionReason: null,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.verificationRows.push(record);
+      return this.copyVerification(record);
+    },
+    latest: async (lotId) => {
+      const record = this.verificationRows
+        .filter((v) => v.lotId === lotId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+      return record ? this.copyVerification(record) : null;
+    },
+    find: async (id) => {
+      const record = this.verificationRows.find((v) => v.id === id);
+      return record ? this.copyVerification(record) : null;
+    },
+    approve: async (id) => {
+      const record = this.verificationRows.find((v) => v.id === id);
+      if (!record || (record.status !== 'SUBMITTED' && record.status !== 'IN_REVIEW'))
+        throw new StaleVersionError();
+      record.status = 'APPROVED';
+      const lot = this.lotRows.get(record.lotId);
+      if (lot && record.capacityCounted < lot.capacityTotal)
+        Object.assign(lot, {
+          capacityTotal: record.capacityCounted,
+          capacityBookable: Math.min(lot.capacityBookable, record.capacityCounted),
+          version: lot.version + 1,
+        });
+      return this.copyVerification(record);
+    },
+    reject: async (id, { reason }) => {
+      const record = this.verificationRows.find((v) => v.id === id);
+      if (!record || (record.status !== 'SUBMITTED' && record.status !== 'IN_REVIEW'))
+        throw new StaleVersionError();
+      Object.assign(record, { status: 'REJECTED', rejectionReason: reason });
+      return this.copyVerification(record);
+    },
+  };
+
+  flags: Store['flags'] = {
+    enabled: async (key) => this.flagRows.get(key) ?? false,
   };
 
   audit: Store['audit'] = {
@@ -517,6 +617,23 @@ export class MemoryStore implements Store {
 
   private copy<T extends object>(row: T | undefined): T | null {
     return row ? { ...row } : null;
+  }
+
+  private copyVerification(v: VerificationRow): VerificationRow {
+    return { ...v, gps: v.gps && { ...v.gps }, items: v.items.map((i) => ({ ...i })) };
+  }
+
+  /** Review from SUBMITTED / IN_REVIEW only, like the conditional UPDATE in Postgres. */
+  private decide<T extends { id: string; status: string }>(
+    rows: T[],
+    id: string,
+    patch: Partial<T>,
+  ): T {
+    const row = rows.find((r) => r.id === id);
+    if (!row || (row.status !== 'SUBMITTED' && row.status !== 'IN_REVIEW'))
+      throw new StaleVersionError();
+    Object.assign(row, patch);
+    return { ...row };
   }
 }
 

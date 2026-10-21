@@ -12,6 +12,7 @@ import type { Logger } from './lib/logger.js';
 import { problemResponse } from './lib/problem.js';
 import { rateLimit, type RateLimiter } from './middleware/rate-limit.js';
 import { adminKybRoutes } from './modules/admin/kyb.js';
+import { adminLotRoutes } from './modules/admin/lots.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
@@ -102,6 +103,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', lotRoutes(deps));
   app.route('/v1', adminRoutes(deps));
   app.route('/v1', adminKybRoutes(deps));
+  app.route('/v1', adminLotRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));
   app.onError((err, c) => {

@@ -13,6 +13,8 @@ const config: NextConfig = {
         process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000',
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321',
       ],
+      // Lot photos for review load through short-lived signed Storage links.
+      imgSrc: [process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'],
     });
   },
 };

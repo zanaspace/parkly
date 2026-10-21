@@ -34,3 +34,13 @@ describe('sign-in error copy (no account enumeration)', () => {
     expect(authErrorMessage({ code: 'mfa_verification_failed' })).toMatch(/authenticator/i);
   });
 });
+
+describe('parseProblem field errors', () => {
+  it('keeps well-formed errors[] and drops malformed ones', () => {
+    const p = parseProblem(422, {
+      code: 'LOT_NOT_LISTABLE',
+      errors: [{ path: 'NO_ACTIVE_RATE_PLAN', message: 'NO_ACTIVE_RATE_PLAN' }, { path: 1 }],
+    });
+    expect(p.errors).toEqual([{ path: 'NO_ACTIVE_RATE_PLAN', message: 'NO_ACTIVE_RATE_PLAN' }]);
+  });
+});

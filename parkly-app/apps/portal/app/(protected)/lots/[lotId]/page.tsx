@@ -13,6 +13,17 @@ import { requireAccess } from '../../../../lib/auth/session';
 import { publicEnv } from '../../../../lib/env';
 import { lotOperatorId } from '../operator';
 
+/** What the operator can expect in each status once the lot has left draft (doc 02 §3.3). */
+const STATUS_NOTE: Record<Lot['status'], string> = {
+  DRAFT: '',
+  PENDING_VERIFICATION:
+    'Submitted. Parkly is reviewing the permit, prices and photos and will arrange a site visit. It can’t be edited meanwhile.',
+  LIVE: 'Live: drivers can find and book this lot.',
+  PAUSED: 'Paused: hidden from drivers; existing bookings are honoured.',
+  SUSPENDED: 'Suspended by Parkly: hidden from drivers. Contact Parkly support to resolve it.',
+  ARCHIVED: 'Archived.',
+};
+
 export const metadata = { title: 'Lot · Parkly for Operators' };
 
 export default async function LotPage({
@@ -52,8 +63,16 @@ export default async function LotPage({
           submit it for verification.
         </p>
       )}
-      {!editable && (
-        <Text tone="secondary">This lot has been submitted, so it can’t be edited right now.</Text>
+      {lot.status === 'DRAFT' && lot.statusReason && (
+        <p className="pk-notice pk-notice--error" role="alert">
+          Parkly sent this lot back: “{lot.statusReason}”. Fix it and submit again.
+        </p>
+      )}
+      {!editable && <Text tone="secondary">{STATUS_NOTE[lot.status]}</Text>}
+      {lot.status === 'SUSPENDED' && lot.statusReason && (
+        <p className="pk-notice pk-notice--error" role="alert">
+          Reason: {lot.statusReason}
+        </p>
       )}
 
       <Text variant="heading-md" as="h2">
