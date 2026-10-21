@@ -7,6 +7,7 @@ import { publicEnv } from '../env';
 import { createClient } from '../supabase/server';
 import { getOrCreateDeviceId } from './device';
 import { safeNext } from './guard';
+import { AUTH_ERROR_MESSAGES, mapSupabaseAuthError } from '@parkly/contracts';
 import { authErrorMessage, MIN_PASSWORD_LENGTH, signInErrorMessage } from './messages';
 
 export type FormState = { error?: string; message?: string } | undefined;
@@ -35,6 +36,38 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
     return { error: 'We couldn’t reach Parkly just now. Please try again in a moment.' };
   }
   redirect(safeNext(field(form, 'next')));
+}
+
+// --- operator sign-up (doc 03 O-01) ------------------------------------------------
+
+/**
+ * Creates the login and sends Supabase's confirmation email. The answer is the
+ * same whether or not the email already has an account (doc 05 §4.2). After
+ * confirming, the link lands on /onboarding to create the operator.
+ */
+export async function signUp(_prev: FormState, form: FormData): Promise<FormState> {
+  const email = field(form, 'email').toLowerCase();
+  const password = String(form.get('password') ?? '');
+  const confirm = String(form.get('confirm') ?? '');
+  if (!/^[^@s]+@[^@s]+.[^@s]+$/.test(email)) return { error: 'Enter your work email address.' };
+  if (password.length < MIN_PASSWORD_LENGTH)
+    return { error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.` };
+  if (password !== confirm) return { error: 'The two passwords don’t match.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${await origin()}/auth/confirm?next=/onboarding` },
+  });
+  // Weak/leaked passwords and rate limits are safe to report; anything else gets the generic answer.
+  const code = error ? mapSupabaseAuthError(error) : null;
+  if (code === 'AUTH_PASSWORD_WEAK' || code === 'OTP_RATE_LIMITED' || code === 'AUTH_OTP_LOCKED')
+    return { error: AUTH_ERROR_MESSAGES[code] };
+  return {
+    message:
+      'Check your inbox: if this address can be used, we’ve sent a link to confirm it. The link expires in 1 hour.',
+  };
 }
 
 // --- MFA (TOTP) --------------------------------------------------------------

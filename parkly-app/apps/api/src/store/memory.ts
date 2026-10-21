@@ -3,8 +3,10 @@ import { randomUUID } from 'node:crypto';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
+  OperatorExistsError,
   type AuditRow,
   type FileRow,
+  type OperatorRow,
   type ConsentType,
   type Store,
   type UserRow,
@@ -29,9 +31,12 @@ export class MemoryStore implements Store {
   readonly auditRows: AuditRow[] = [];
   readonly revokedSessionUsers: string[] = [];
   readonly fileRows = new Map<string, FileRow>();
+  readonly operatorRows = new Map<string, OperatorRow>();
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
+    ['legal.operator_agreement_version', '2026-10-01'],
+    ['fees.commission_bps_default', 1200],
   ]);
   private seq = 0;
 
@@ -56,8 +61,9 @@ export class MemoryStore implements Store {
     ensure: async (id, init) => {
       const existing = this.userRows.get(id);
       if (existing) return { user: { ...existing }, created: false };
+      // Mirrors fn_on_auth_user_created: only phone sign-ups become drivers.
       this.seedUser(id, {
-        roles: [{ role: 'DRIVER', operatorId: null }],
+        roles: init.phoneLast4 ? [{ role: 'DRIVER', operatorId: null }] : [],
         ...(init.phoneLast4 ? { phoneLast4: init.phoneLast4 } : {}),
       });
       return { user: { ...this.mustUser(id) }, created: true };
@@ -219,6 +225,30 @@ export class MemoryStore implements Store {
   };
 
   operators: Store['operators'] = {
+    create: async ({ ownerUserId, commissionBps, ...details }) => {
+      if (await this.operators.ownedBy(ownerUserId)) throw new OperatorExistsError();
+      const row: OperatorRow = {
+        ...details,
+        id: randomUUID(),
+        status: 'ONBOARDING',
+        kybStatus: 'NOT_STARTED',
+        commissionBps,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.operatorRows.set(row.id, row);
+      this.roleRows.push({ userId: ownerUserId, role: 'OPERATOR_OWNER', operatorId: row.id });
+      return { ...row };
+    },
+    find: async (id) => this.copy(this.operatorRows.get(id)),
+    update: async (id, patch) => {
+      const row = this.operatorRows.get(id);
+      if (!row) throw new Error(`no operator ${id}`);
+      Object.assign(row, patch);
+      return { ...row };
+    },
+    ownedBy: async (userId) =>
+      this.roleRows.find((r) => r.userId === userId && r.role === 'OPERATOR_OWNER')?.operatorId ??
+      null,
     members: async (operatorId) =>
       this.roleRows
         .filter((r) => r.operatorId === operatorId)

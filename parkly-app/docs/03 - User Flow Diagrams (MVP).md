@@ -376,7 +376,7 @@ flowchart LR
 
 | # | Screen | User action | System response | Edge / error cases | Event |
 |---|---|---|---|---|---|
-| 1 | O-01 Sign up | Email, phone, password (min 12 chars, breached-password check). Accepts the Operator Agreement + Privacy. | Email verification link + phone OTP. Creates a User with role `OPERATOR_OWNER` once the Operator is created. | Email already used: generic "check your email" (no account enumeration) | `operator_signup_started` |
+| 1 | O-01 Sign up | Email + password (min 12 chars, breached-password check). | Email verification link (lands on O-03). The user has no role until the Operator is created, then becomes `OPERATOR_OWNER`. The Operator Agreement + Privacy are accepted on O-03, where the operator is created. Phone OTP for owners: not in MVP (contact phone is captured on O-03). | Email already used: generic "check your email" (no account enumeration) | `operator_signup_started` |
 | 2 | O-02 MFA setup | Scans TOTP QR (Supabase Auth MFA). Prompted to enrol a second TOTP factor on a backup device (Supabase has no recovery codes). | MFA is **required** for `OPERATOR_OWNER` and `OPERATOR_MANAGER` | Lost device: use the backup factor, or support-assisted reset with KYB re-check | `operator_mfa_enabled` |
 | 3 | O-03 Business details | Legal name, CAC RC/BN number, business type, address, contact person | Saves the Operator as `KYB_PENDING` | — | `operator_kyb_started` |
 | 4 | O-04 KYB documents | Uploads the CAC certificate, director ID (NIN slip / passport / driver's licence), proof of address | Supabase Storage signed upload URL (private bucket `kyb-docs`). Malware scan. File types pdf/jpg/png ≤ 10 MB. | Wrong type or size: inline. Scan fails: rejected with a reason. | `operator_kyb_docs_uploaded` |

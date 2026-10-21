@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "22.22.2",
+      "pnpm": "10.34.7"
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qbheoilyuvudiefubdco.supabase.co",
+        "EXPO_PUBLIC_API_URL": "https://parkly-api-six.vercel.app"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "environment": "production",
+      "autoIncrement": true,
+      "android": { "buildType": "app-bundle" }
+    }
+  }
+}

@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { RoleGrant } from '@parkly/domain/authz';
 import { describe, expect, it } from 'vitest';
-import { DsrAlreadyOpenError, DuplicatePlateError, type Store } from './types.js';
+import {
+  DsrAlreadyOpenError,
+  DuplicatePlateError,
+  OperatorExistsError,
+  type Store,
+} from './types.js';
 
 /**
  * Behaviour every Store must have. Runs against MemoryStore in unit tests and
@@ -234,6 +239,39 @@ export function storeContract(
         rejectionReason: 'TYPE_MISMATCH',
       });
       expect(await store.files.find(randomUUID())).toBeNull();
+    });
+
+    it('creates an operator with its owner atomically, once per user', async () => {
+      const owner = await newUser();
+      const details = {
+        legalName: 'Eko Parking Services Ltd',
+        tradingName: 'Eko Parking',
+        type: 'COMMERCIAL_LOT' as const,
+        cacNumberEnc: 'enc:cac',
+        tinEnc: null,
+        addressLine: '12 Adetokunbo Ademola St',
+        contactEmail: 'ops@eko.example',
+        contactPhoneEnc: 'enc:phone',
+        commissionBps: 1200,
+      };
+      const op = await store.operators.create({ ...details, ownerUserId: owner });
+      expect(op).toMatchObject({ ...details, status: 'ONBOARDING', kybStatus: 'NOT_STARTED' });
+      expect(await store.users.roles(owner)).toEqual(
+        expect.arrayContaining([{ role: 'OPERATOR_OWNER', operatorId: op.id }]),
+      );
+      expect(await store.operators.members(op.id)).toEqual([
+        expect.objectContaining({ userId: owner, role: 'OPERATOR_OWNER' }),
+      ]);
+      expect(await store.operators.ownedBy(owner)).toBe(op.id);
+      await expect(
+        store.operators.create({ ...details, ownerUserId: owner }),
+      ).rejects.toBeInstanceOf(OperatorExistsError);
+
+      const updated = await store.operators.update(op.id, { tradingName: 'Eko Park VI' });
+      expect(updated.tradingName).toBe('Eko Park VI');
+      expect((await store.operators.find(op.id))?.tradingName).toBe('Eko Park VI');
+      expect(await store.operators.find(randomUUID())).toBeNull();
+      expect(await store.operators.ownedBy(await newUser())).toBeNull();
     });
   });
 }

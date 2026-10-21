@@ -6,8 +6,10 @@ import { v7 as uuidv7 } from 'uuid';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
+  OperatorExistsError,
   type ConsentType,
   type FileRow,
+  type OperatorRow,
   type Store,
   type UserRow,
   type VehicleRow,
@@ -23,6 +25,8 @@ const {
   auditLogs,
   platformSettings,
   files,
+  operators,
+  operatorMembers,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -73,6 +77,22 @@ const fileColumns = {
   rejectionReason: files.rejectionReason,
   verifiedAt: files.verifiedAt,
   createdAt: files.createdAt,
+};
+
+const operatorColumns = {
+  id: operators.id,
+  legalName: operators.legalName,
+  tradingName: operators.tradingName,
+  type: operators.type,
+  cacNumberEnc: operators.cacNumberEnc,
+  tinEnc: operators.tinEnc,
+  addressLine: operators.addressLine,
+  contactEmail: operators.contactEmail,
+  contactPhoneEnc: operators.contactPhoneEnc,
+  status: operators.status,
+  kybStatus: operators.kybStatus,
+  commissionBps: operators.commissionBps,
+  createdAt: operators.createdAt,
 };
 
 const activeVehicle = (userId: string, id: string) =>
@@ -330,6 +350,64 @@ export function drizzleStore(db: Db): Store {
     },
 
     operators: {
+      async create({ ownerUserId, ...details }) {
+        return db.transaction(async (tx) => {
+          // Serialise creates per user so a double submit cannot make two operators.
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtext(${'operator-owner:' + ownerUserId}))`,
+          );
+          const [existing] = await tx
+            .select({ id: userRoles.id })
+            .from(userRoles)
+            .where(and(eq(userRoles.userId, ownerUserId), eq(userRoles.role, 'OPERATOR_OWNER')))
+            .limit(1);
+          if (existing) throw new OperatorExistsError();
+
+          const id = uuidv7();
+          const [row] = await tx
+            .insert(operators)
+            .values({ id, ...details, createdBy: ownerUserId })
+            .returning(operatorColumns);
+          await tx.insert(operatorMembers).values({
+            id: uuidv7(),
+            operatorId: id,
+            userId: ownerUserId,
+            role: 'OWNER',
+            status: 'ACTIVE',
+            acceptedAt: new Date(),
+          });
+          await tx.insert(userRoles).values({
+            id: uuidv7(),
+            userId: ownerUserId,
+            role: 'OPERATOR_OWNER',
+            operatorId: id,
+            grantedBy: ownerUserId,
+          });
+          if (!row) throw new Error('operator insert failed');
+          return row as OperatorRow;
+        });
+      },
+      async find(id) {
+        const [row] = await db.select(operatorColumns).from(operators).where(eq(operators.id, id));
+        return (row as OperatorRow | undefined) ?? null;
+      },
+      async update(id, patch) {
+        const [row] = await db
+          .update(operators)
+          .set(patch)
+          .where(eq(operators.id, id))
+          .returning(operatorColumns);
+        if (!row) throw new Error(`no operator ${id}`);
+        return row as OperatorRow;
+      },
+      async ownedBy(userId) {
+        const [row] = await db
+          .select({ operatorId: userRoles.operatorId })
+          .from(userRoles)
+          .where(and(eq(userRoles.userId, userId), eq(userRoles.role, 'OPERATOR_OWNER')))
+          .limit(1);
+        return row?.operatorId ?? null;
+      },
       async members(operatorId) {
         return db
           .select({ userId: userRoles.userId, role: userRoles.role, firstName: users.firstName })

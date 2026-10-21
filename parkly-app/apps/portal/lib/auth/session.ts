@@ -66,6 +66,7 @@ const REDIRECTS: Record<AccessDecision['kind'], string> = {
   'no-access': '/no-access',
   'mfa-enroll': '/mfa/enroll',
   'mfa-verify': '/mfa/verify',
+  onboarding: '/onboarding',
   ok: '/',
 };
 
@@ -87,4 +88,17 @@ export async function requireSignedInMember(): Promise<SignedInState & { me: Me 
     redirect('/no-access');
   }
   return { ...session, me };
+}
+
+/**
+ * For /onboarding: signed in with no role yet (a new operator). Anyone who
+ * already has a role goes to the normal entry point instead.
+ */
+export async function requireNewcomer(): Promise<{ me: Me; accessToken: string }> {
+  const session = await loadSession();
+  if (!session.signedIn) redirect('/sign-in');
+  const me = await loadMe(session.accessToken);
+  if (!me) redirect('/sign-in');
+  if (me.roles.length > 0) redirect('/');
+  return { me, accessToken: session.accessToken };
 }

@@ -221,13 +221,14 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Staff (operators/admins) are invite-only; drivers sign up by phone.
-enable_signup = false
+# Operators self-sign-up by email with confirmation (S2 decision, doc 05 §4); admins are
+# created by Parkly staff; drivers sign up by phone.
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.

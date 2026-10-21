@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Button, Input, Text } from './index.js';
+import { Button, Input, Select, Text } from './index.js';
 
 afterEach(cleanup);
 
@@ -62,5 +62,28 @@ describe('Text', () => {
   it('uses tabular numbers for prices', () => {
     render(<Text variant="price-md">₦1,500</Text>);
     expect(screen.getByText('₦1,500').className).toContain('pk-text--tabular');
+  });
+});
+
+describe('Select', () => {
+  it('is labelled, shows a disabled placeholder and announces its error', () => {
+    render(
+      <Select
+        label="Business type"
+        name="type"
+        defaultValue=""
+        placeholder="Choose one"
+        options={[
+          { value: 'HOTEL', label: 'Hotel' },
+          { value: 'OFFICE', label: 'Office building' },
+        ]}
+        error="Choose a business type."
+      />,
+    );
+    const select = screen.getByRole('combobox', { name: 'Business type' });
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('option', { name: 'Choose one' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('alert').textContent).toContain('Choose a business type.');
+    expect(select.getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
   });
 });

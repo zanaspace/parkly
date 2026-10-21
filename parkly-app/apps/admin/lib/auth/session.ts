@@ -66,6 +66,7 @@ const REDIRECTS: Record<AccessDecision['kind'], string> = {
   'no-access': '/no-access',
   'mfa-enroll': '/mfa/enroll',
   'mfa-verify': '/mfa/verify',
+  onboarding: '/onboarding',
   ok: '/',
 };
 

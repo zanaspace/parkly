@@ -15,10 +15,16 @@ export default async function SignInPage({
   const next = safeNext((await searchParams).next);
   if ((await loadSession()).signedIn) redirect(next);
   return (
-    <AuthPage title="Sign in" intro="Use the email address your Parkly invitation was sent to.">
+    <AuthPage
+      title="Sign in"
+      intro="Sign in with the email you used to create your operator account or that your invitation was sent to."
+    >
       <SignInForm next={next} />
       <Link className="pk-link" href="/reset-password">
         Forgot your password?
+      </Link>
+      <Link className="pk-link" href="/sign-up">
+        New to Parkly? Create an operator account
       </Link>
     </AuthPage>
   );

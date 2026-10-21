@@ -1,6 +1,6 @@
 # Sprint 2 — Operators, lots, permits, verification: progress report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline).
+- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slice A** (operator sign-up + business details).
 - **Updated:** 2026-10-21
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
 
@@ -19,6 +19,27 @@
 | 9 | Portal screens: sign-up, onboarding wizard, lots, rate plans, permits, team | task 8 | To do |
 | 10 | Admin screens: review queues, lot detail, status actions | task 9 | To do |
 
+## Vertical slices (from 2026-10-21)
+
+After story 3 the remaining work is built as slices that each ship API + portal screens together, so every step can be tried on the live dev portal (https://parkly-portal.vercel.app). Same scope and tests as stories 4–10, reordered.
+
+| Slice | Scope | Status |
+|---|---|---|
+| A | Operator sign-up (email + confirmation) → business details → owner; edit details until KYB is submitted | **Done** |
+| B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | To do |
+| C | Lot wizard: details, map pin, capacity, amenities, hours, photos | To do |
+| D | Permit, rate plans, submit lot for verification | To do |
+| E | Admin review queues → subaccount on KYB approval → lot LIVE | To do |
+| F | Team invites; permit expiry job | To do |
+
+### Slice A: what was built
+
+- **Permissions:** a `signed-in` level for three actions open to users with no role yet (read own profile, sign out, create an operator); `operator:read` (owner, manager), `operator:update` (owner). Everything else stays deny-by-default.
+- **API:** `POST /v1/operators` (one transaction: operator + OWNER membership + role; advisory lock so a double submit can't create two), `GET`/`PATCH /v1/operators/{id}` (other operators → 404; PATCH locked once KYB is submitted). CAC, TIN and phone are encrypted at rest; the audit log records changed field names only.
+- **Consents:** new type `OPERATOR_AGREEMENT` (migration `20261021131441`); version in `legal.operator_agreement_version` (migration `20261021131500`); `/v1/me` reports it.
+- **Portal:** `/sign-up`, `/onboarding` (business details + agreement), `/business` (view/edit), home shows business + KYB status; role-less users are routed to onboarding; the email confirmation link bootstraps the session. New `Select` component in `packages/ui`.
+- **Tests:** +12 API (operators), +3 RBAC matrix rows, +6 domain authz, +18 contracts, +1 UI, +7 portal, +1 store contract.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -35,6 +56,8 @@
 | Rate-plan approval | PRD FR-LOT-005 and doc 20: every change needs admin approval; doc 03 §2.2: only changes > 50 % | Every change needs approval, following the PRD |
 | Validity boundary | doc 00: `expires_at > now()` | A permit or verification is invalid on its expiry / valid-until date itself (Lagos calendar day). The 06:00 job suspends that morning. |
 | Operator self sign-up | PRD silent; doc 03 O-01 and the doc 20 S2 demo describe self sign-up; doc 05 §4 allows invite or self sign-up with email confirmation | Self sign-up with email confirmation (confirmed by the product owner on 2026-10-21). Email users get no role until they create an operator and become OWNER. Phone users still get DRIVER. |
+| Operator sign-up order | doc 03: O-01 sign-up (email, phone OTP, agreement) → O-02 MFA → O-03 business details | Sign-up is email + password only. Agreement + Privacy are accepted on O-03, where the operator is created (so the consent is tied to the business). MFA follows O-03, because MFA is mandatory for the OWNER role, which exists only from O-03. Owner phone OTP is not in the MVP; the contact phone is captured on O-03. Doc 03 updated. |
+| One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 
 ## Risks and notes

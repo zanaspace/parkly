@@ -17,14 +17,15 @@
 
 **Order of operations on every release:** migrations first, then code (ADR 0002). The API refuses to start with unsafe settings: live Paystack keys outside prod, fakes in prod, fake storage outside local (`apps/api/src/config/env.ts`).
 
-### 1.1 Current state (21 Oct 2026)
+### 1.1 Current state (21 Oct 2026, updated after dev hosting went live)
 
 | Item | State |
 |---|---|
 | local | ✅ working; API uses the dev DB through `apps/api/.env` |
 | dev Supabase | ✅ `devproject`, Ireland (`eu-west-1`), Postgres 17. Migrations up to S1 applied; S2 migrations (`20261021090000`, `…091000`, `…091100`, `…093000`) waiting for a push. Phone sign-in on, test number `2348061325196=123456`. |
 | staging / prod Supabase | ❌ not created. The org `parkly` already has 2 projects (`devproject` plus an unused default project `zaasjtmqznaxlqjianok`). The Free plan normally allows 2 active projects, so staging and prod need the **Pro** plan (billed per project), or the unused project must be deleted. |
-| Vercel | ❌ no projects; the CLI on this PC is not logged in |
+| Vercel (dev hosting) | ✅ Team `sellytics-1483` (**Hobby**, temporary: for dev only, move to a Parkly Pro team before staging). Projects **`parkly-api`** → https://parkly-api-six.vercel.app (`/health/ready`: db ok, redis ok) and **`parkly-admin`** → https://parkly-khaki.vercel.app (admin sign-in with TOTP verified) and **`parkly-portal`** → https://parkly-portal.vercel.app (pages load; operators exist from S2 slice A). and **`parkly-web`** → https://parkly-web-two.vercel.app (placeholder page until S3). All point at the **dev** Supabase project for Production and Preview; the API allows all three sites (`CORS_ORIGINS`). Preview deployments are behind Vercel Authentication; on Hobby the production URLs are public (admin still needs password + TOTP; no IP allowlist until Pro). |
+| Upstash | ✅ Redis in eu-west-1 (free), used by `parkly-api` |
 | GitHub environments / secrets | ❌ not set (repo `zanaspace/parkly`); `gh` CLI not installed, so use the website |
 | Custom Access Token Hook, Send SMS Hook (hosted) | ❌ not enabled (S1 carry-over) |
 | Vault secrets, `parkly_api` login (hosted) | ❌ not set (S0 carry-over) |
@@ -122,16 +123,18 @@ Project Settings → API Keys:
 
 ## 3. Vercel: four projects, three environments each
 
+> **Build settings for the API live in `apps/api/vercel.json`** (install + build commands). The build must compile only the API's workspace dependencies, never the API itself: Vercel's Hono preset compiles `src/index.ts`, and a pre-built `dist/` makes it deploy files Node cannot load ("Cannot use import statement outside a module"). `src/vercel-config.spec.ts` guards this. Next apps use `cd ../.. && pnpm turbo run build --filter=@parkly/<app>` (no `...`, which would build other apps too).
+
 Log in first on this PC with `vercel login`, or use the website.
 
 ### 3.1 Create the projects
 
 | Project | Root directory | Framework | Notes |
 |---|---|---|---|
-| `parkly-api` | `apps/api` | Other (Hono on Node 22 functions) | `vercel.json` pins `dub1` |
-| `parkly-web` | `apps/web` | Next.js | |
-| `parkly-portal` | `apps/portal` | Next.js | operator portal + `/attend` PWA |
-| `parkly-admin` | `apps/admin` | Next.js | own domain, **IP allowlist** + Deployment Protection (doc 05) |
+| `parkly-api` | `parkly-app/apps/api` | Hono (auto-detected) | `vercel.json` pins `dub1` and sets install/build commands |
+| `parkly-web` | `parkly-app/apps/web` | Next.js | |
+| `parkly-portal` | `parkly-app/apps/portal` | Next.js | operator portal + `/attend` PWA |
+| `parkly-admin` | `parkly-app/apps/admin` | Next.js | own domain, **IP allowlist** + Deployment Protection (doc 05) |
 
 For each one:
 - Plan **Pro** (needed for the custom `staging` environment, Firewall rules and `dub1` functions).

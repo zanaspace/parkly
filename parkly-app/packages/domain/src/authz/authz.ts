@@ -31,16 +31,24 @@ export type Actor = {
 export type Resource = { ownerUserId?: string; operatorId?: string; lotId?: string };
 
 type Scope = 'own' | 'operator' | 'lot' | 'platform';
+type Rule = { scope: Scope; roles: 'signed-in' | 'any' | readonly Role[] };
 
-/** Every permission the API checks. Add new ones here with their rule. */
+/**
+ * Every permission the API checks. Add new ones here with their rule.
+ * `any` = any role; `signed-in` = also users with no role yet (a new operator
+ * signs up by email and has no role until their operator exists).
+ */
 const RULES = {
-  'profile:read:own': { scope: 'own', roles: 'any' },
+  'profile:read:own': { scope: 'own', roles: 'signed-in' },
   'profile:update:own': { scope: 'own', roles: 'any' },
   'consent:write:own': { scope: 'own', roles: 'any' },
   'device:register:own': { scope: 'own', roles: 'any' },
-  'session:revoke:own': { scope: 'own', roles: 'any' },
+  'session:revoke:own': { scope: 'own', roles: 'signed-in' },
+  'operator:create': { scope: 'own', roles: 'signed-in' },
   'vehicle:manage:own': { scope: 'own', roles: ['DRIVER'] },
   'account:delete:own': { scope: 'own', roles: ['DRIVER'] },
+  'operator:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  'operator:update': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
   'operator:members:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'lot:checkin': {
     scope: 'lot',
@@ -48,7 +56,7 @@ const RULES = {
   },
   'audit:read': { scope: 'platform', roles: ['ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   'user:sessions:revoke': { scope: 'platform', roles: ['SUPER_ADMIN'] },
-} as const satisfies Record<string, { scope: Scope; roles: 'any' | readonly Role[] }>;
+} as const satisfies Record<string, Rule>;
 
 export type Action = keyof typeof RULES;
 
@@ -89,11 +97,13 @@ function grantCovers(actor: Actor, grant: RoleGrant, scope: Scope, resource: Res
 }
 
 export function can(actor: Actor, action: Action, resource: Resource): boolean {
-  const rule: { scope: Scope; roles: 'any' | readonly Role[] } = RULES[action];
+  const rule: Rule = RULES[action];
   if (rule.scope === 'own') {
     if (resource.ownerUserId !== actor.userId) return false;
+    if (rule.roles === 'signed-in') return true;
     if (rule.roles === 'any') return actor.roles.length > 0;
   }
+  if (rule.roles === 'signed-in') return false; // only meaningful for own-scope rules
   const allowed = rule.roles === 'any' ? null : new Set<Role>(rule.roles);
   return actor.roles.some(
     (grant) =>
