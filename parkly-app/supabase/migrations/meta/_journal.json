@@ -15,6 +15,13 @@
       "when": 1792050002055,
       "tag": "20261015074002_accounts_vehicles_devices_consents",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792569444571,
+      "tag": "20261021091000_operators_lots_permits",
+      "breakpoints": true
     }
   ]
 }

@@ -378,6 +378,9 @@ importers:
       '@parkly/config':
         specifier: workspace:*
         version: link:../config
+      '@parkly/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5

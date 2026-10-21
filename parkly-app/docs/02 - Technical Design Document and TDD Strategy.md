@@ -102,11 +102,11 @@ Row creation: SQL trigger `on_auth_user_created` (AFTER INSERT on `auth.users`, 
 | tier | enum (`FREE`,`PRO`) | default FREE | C2 |
 | kyb_status | enum (`NOT_STARTED`,`SUBMITTED`,`APPROVED`,`REJECTED`) | | C2 |
 
-**`operator_members`** — `id`, `operator_id FK`, `user_id FK`, `role enum (OWNER, MANAGER, ATTENDANT)`, `lot_ids uuid[]` (attendant scope; empty = all), `status enum (INVITED, ACTIVE, REMOVED)`, `invited_by`, `invite_token_hash` (C4), `invite_expires_at`. UNIQUE `(operator_id, user_id)`.
+**`operator_members`** — `id`, `operator_id FK`, `user_id FK`, `role enum (OWNER, MANAGER, ATTENDANT)`, `lot_ids uuid[]` (attendant scope; empty = all), `status enum (INVITED, ACTIVE, REMOVED)`, `invited_by`, `invitee_name` (C3), `invitee_phone_hash` / `invitee_email_hash` (C3 blind indexes), `invite_token_hash` (C4), `invite_expires_at`, `accepted_at`, `removed_at`. `user_id` is null until the invite is accepted. UNIQUE `(operator_id, user_id)` among non-REMOVED rows. Active members also hold a `user_roles` row (the source for JWT claims); `user_roles.operator_id` references `operators`.
 
-**`operator_kyb_documents`** — `id`, `operator_id`, `type enum (CAC_CERT, DIRECTOR_ID, UTILITY_BILL, OTHER)`, `storage_path` (C4 object), `sha256`, `status`, `reviewed_by`, `reviewed_at`, `rejection_reason`.
+**`operator_kyb_documents`** — `id`, `operator_id`, `type enum (CAC_CERT, DIRECTOR_ID, UTILITY_BILL, OTHER)`, `file_id` → `files` (bucket `kyb-docs`, C4; mime, size, sha256 live on the file row), `status review_status`, `reviewed_by`, `reviewed_at`, `rejection_reason`.
 
-**`payout_accounts`** — `id`, `operator_id` UNIQUE, `bank_code`, `account_number` [enc] (C4), `account_number_last4` (C3), `account_name` (C3), `provider enum (PAYSTACK, FLUTTERWAVE)`, `provider_subaccount_code` (C4), `verified_at` (via Paystack resolve-account), `status`.
+**`payout_accounts`** — `id`, `operator_id` UNIQUE, `bank_code`, `bank_name`, `account_number_last4` (C4 masked), `account_name` (C4), `pending_account_number_enc` [enc] (C4; held **only** until the subaccount is created on KYB approval, then nulled — doc 06 §3.5), `name_mismatch bool` (resolved name ≠ legal name → ops checks), `provider enum (PAYSTACK, FLUTTERWAVE)`, `provider_subaccount_code` (C4), `verified_at` (via Paystack resolve-account), `activated_at`, `status enum (PENDING, VERIFIED, ACTIVE, DISABLED)`; CHECK ACTIVE ⇒ subaccount code set.
 
 ### 2.4 Lots & verification (modules `lots`, `verification`)
 
@@ -115,6 +115,7 @@ Row creation: SQL trigger `on_auth_user_created` (AFTER INSERT on `auth.users`, 
 |---|---|---|---|
 | id | uuid | | C1 |
 | operator_id | uuid FK | | C2 |
+| type | enum `OperatorType` | lot kind shown to drivers (doc 03 §2.2 step 1) | C1 |
 | name | text | ≤ 80 | C1 |
 | slug | text | UNIQUE | C1 |
 | description | text | ≤ 1000 | C1 |
@@ -136,7 +137,7 @@ Indexes: GIST `location`; `(status)`; `(operator_id)`; `slug` unique.
 
 **`lot_opening_hours`** — `id`, `lot_id`, `weekday smallint 0–6`, `opens_at time`, `closes_at time`, `is_24h bool`; plus `lot_closures(lot_id, starts_at, ends_at, reason)` for holidays/events.
 
-**`lot_photos`** — `id`, `lot_id`, `storage_path`, `sort`, `caption`, `status (PENDING, APPROVED, REJECTED)`. Public after approval (C1).
+**`lot_photos`** — `id`, `lot_id`, `file_id` → `files` (bucket `lot-photos`), `public_file_id` → `files` (copy in `lot-photos-public` after approval), `sort`, `caption`, `status (PENDING, APPROVED, REJECTED)`, `reviewed_by`, `reviewed_at`. Public after approval (C1). 3–10 per lot (PRD FR-LOT-002).
 
 **`lot_signing_keys`** — `id`, `lot_id`, `kid text UNIQUE`, `public_key bytea` (C1), `private_key_ciphertext bytea` (C4, app-level envelope-encrypted with `ENC_KEY_V<n>`), `status enum (ACTIVE, RETIRING, REVOKED)`, `activated_at`, `retire_after`. At most one ACTIVE per lot (partial unique index).
 
@@ -147,14 +148,15 @@ Indexes: GIST `location`; `(status)`; `(operator_id)`; `slug` unique.
 | issuer | text | default `LASPA` | C2 |
 | permit_number | text | | C2 |
 | issued_at, expires_at | date | CHECK expires > issued | C2 |
-| document_storage_path | text | | C3 |
+| document_file_id | uuid FK → `files` | bucket `permits` | C3 |
 | status | enum `PermitStatus` (`SUBMITTED`,`IN_REVIEW`,`APPROVED`,`REJECTED`,`EXPIRED`) | | C2 |
 | reviewed_by, reviewed_at, rejection_reason | | | C2 |
+| review_note | text | how ops checked with LASPA + reference (doc 03 §4.2) | C2 |
 | last_reminder_days | int | 30/14/7/1 dedupe | C2 |
 Index `(lot_id, status)`, `(status, expires_at)`.
 
 **`verification_records`** — `id`, `lot_id`, `inspector_user_id`, `inspected_at`, `status enum (SUBMITTED, IN_REVIEW, APPROVED, REJECTED)`, `capacity_counted int`, `gps_at_inspection geography(Point)` (C2), `notes`, `reviewed_by`, `reviewed_at`, `valid_until date` (= inspected_at + 12 months).
-**`verification_items`** — `id`, `record_id`, `item enum (LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CCTV, ACCESS_CONTROL, CAPACITY_COUNT, OWNER_IDENTITY, ENTRANCE_SIGNAGE, FIRE_SAFETY)`, `result enum (PASS, FAIL, NA)`, `evidence_storage_paths text[]`, `comment`. UNIQUE `(record_id, item)`. Required-to-pass: LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CAPACITY_COUNT, OWNER_IDENTITY.
+**`verification_items`** — `id`, `record_id`, `item enum (LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CCTV, ACCESS_CONTROL, CAPACITY_COUNT, OWNER_IDENTITY, ENTRANCE_SIGNAGE, FIRE_SAFETY)`, `result enum (PASS, FAIL, NA)`, `evidence_file_ids uuid[]` (→ `files`, bucket `verification`), `comment`. UNIQUE `(record_id, item)`. Required-to-pass: LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CAPACITY_COUNT, OWNER_IDENTITY.
 
 ### 2.5 Pricing & availability (modules `pricing`, `availability`)
 
@@ -163,7 +165,7 @@ Index `(lot_id, status)`, `(status, expires_at)`.
 |---|---|---|
 | id, lot_id | uuid | |
 | product | enum `Product` (`HOURLY`,`DAILY`,`MONTHLY`) | |
-| status | enum (`DRAFT`,`PENDING_APPROVAL`,`ACTIVE`,`RETIRED`) | one ACTIVE per (lot, product) — partial unique |
+| status | enum (`DRAFT`,`PENDING_APPROVAL`,`ACTIVE`,`RETIRED`,`REJECTED`) | one ACTIVE and one PENDING_APPROVAL per (lot, product) — partial uniques; `rejection_reason` on REJECTED |
 | hourly_rate_kobo | bigint | HOURLY: price per hour |
 | min_minutes | int | HOURLY default 60 |
 | block_minutes | int | default 15 |
@@ -307,7 +309,7 @@ Plus provider fee journal: Dr PAYMENT_FEES_EXPENSE / Cr PROVIDER_CLEARING.
 - **`platform_settings`** — `key` PK, `value jsonb`, `description`, `updated_by`. Keys in §8.
 - **`idempotency_keys`** — `key`, `actor_id`, `method`, `path`, `request_hash`, `status (IN_PROGRESS, COMPLETED)`, `response_status`, `response_body jsonb`, `expires_at (+48h)`. PK `(actor_id, key)`.
 - **`outbox_events`** — `id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload jsonb`, `created_at`, `dispatched_at`, `attempts`. Index `(dispatched_at) WHERE dispatched_at IS NULL`.
-- **`files`** — one row per Storage object: `id`, `bucket` (`kyb-docs`, `permits`, `verification`, `incident-evidence`, `lot-photos`, `lot-photos-public`, `exports`), `path`, `data_class (C1–C4)`, `retention_policy`, `owner_entity_type`, `owner_entity_id`, `uploaded_by`, `mime`, `size_bytes`, `sha256`, `created_at`, `deleted_at`. Unique `(bucket, path)`. Retention jobs delete through this table (doc 06).
+- **`files`** — one row per Storage object: `id`, `bucket` (`kyb-docs`, `permits`, `verification`, `incident-evidence`, `lot-photos`, `lot-photos-public`, `exports`), `path`, `data_class (C1–C4)`, `retention_policy`, `owner_entity_type`, `owner_entity_id`, `uploaded_by`, `mime`, `size_bytes`, `sha256`, `status (PENDING, VERIFIED, REJECTED)` (PENDING = signed upload URL issued; VERIFIED after the server re-checks size, MIME and sha256), `verified_at`, `created_at`, `deleted_at`. Unique `(bucket, path)`. Retention jobs delete through this table (doc 06).
 - **`job_runs`** — `id`, `job` text, `run_key` (idempotency, e.g. `reconcile:2026-10-14`), `status (RUNNING, SUCCEEDED, FAILED)`, `cursor jsonb` (resume point for chunked jobs), `started_at`, `finished_at`, `error`. Unique `(job, run_key)`. Retained 90 days.
 - **`geocode_cache`** — `query_hash` PK (sha256 of normalised query), `place_id`, `lat`, `lng`, `formatted_address`, `expires_at` (+24 h; only `place_id` may be kept longer, per Google ToS). C1.
 - **`data_subject_requests`** — `id`, `user_id`, `type (ACCESS, CORRECTION, DELETION, PORTABILITY, OBJECTION)`, `status`, `due_at` (+30 days), `handled_by`, `completed_at`, `export_storage_path` (C3).

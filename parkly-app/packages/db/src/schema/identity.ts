@@ -13,6 +13,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { authUsers } from 'drizzle-orm/supabase';
 import { apiAccess, bytea, createdAt, id, updatedAt } from './common.js';
+// Circular with operators.ts (operators.created_by → users); safe because references are lazy.
+import { operators } from './operators.js';
 
 // Doc 00 §3.7. Never reorder; add new values at the end.
 export const roleEnum = pgEnum('role', [
@@ -67,7 +69,7 @@ export const users = pgTable(
 ).enableRLS();
 
 /**
- * Source for JWT role claims. operator_id gets its FK to operators in Sprint 2.
+ * Source for JWT role claims. operator_id scopes operator roles to one operator.
  * NULLS NOT DISTINCT so a user holds a platform role at most once.
  */
 export const userRoles = pgTable(
@@ -78,7 +80,7 @@ export const userRoles = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     role: roleEnum('role').notNull(),
-    operatorId: uuid('operator_id'),
+    operatorId: uuid('operator_id').references(() => operators.id, { onDelete: 'cascade' }),
     grantedBy: uuid('granted_by'),
     createdAt: createdAt(),
   },
