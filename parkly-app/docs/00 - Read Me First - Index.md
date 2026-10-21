@@ -31,6 +31,7 @@ Explicitly **not** in scope (yet): on-street parking, peer-to-peer driveways, **
 | 17 | [MVP Launch Readiness Checklist](17%20-%20MVP%20Launch%20Readiness%20Checklist.md) | From Sprint 9 onward; gate for pilot launch |
 | 18 | [Enterprise Product Readiness Criteria](18%20-%20Enterprise%20Product%20Readiness%20Criteria.md) | Grow/Scale phases; gate for employer and partner deals |
 | 21 | [Phase 1 Sprint 0 Foundations — Build Guide](21%20-%20Phase%201%20Sprint%200%20Foundations%20-%20Build%20Guide.md) | Plain-language walkthrough of what Sprint 0 built and how to run it |
+| 22 | [Environment Setup](22%20-%20Environment%20Setup.md) | Step-by-step setup of local, dev, staging and prod (Supabase, Vercel, GitHub, env vars) and their current state |
 | — | [`../AGENTS.md`](../AGENTS.md) | Working rules for coding agents (also loaded via `CLAUDE.md`) |
 
 ---
