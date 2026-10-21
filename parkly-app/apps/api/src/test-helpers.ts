@@ -7,7 +7,12 @@ import { InMemoryReplayGuard } from './jobs/replay-guard.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { allowAllRateLimiter, MemoryRateLimiter } from './middleware/rate-limit.js';
-import { FakeSmsProvider } from './providers/fakes.js';
+import {
+  FakeMalwareScanner,
+  FakeSettlementProvider,
+  FakeSmsProvider,
+  FakeStorageProvider,
+} from './providers/fakes.js';
 import { FakeSessionRevoker } from './providers/supabase-sessions.js';
 import { MemoryStore } from './store/memory.js';
 
@@ -90,6 +95,9 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     }),
     sms: { primary: new FakeSmsProvider() },
     sessions: new FakeSessionRevoker(),
+    settlement: new FakeSettlementProvider(),
+    storage: new FakeStorageProvider(),
+    scanner: new FakeMalwareScanner(),
     ...overrides,
   };
 }
@@ -100,7 +108,19 @@ export function world(overrides: Partial<AppDeps> = {}) {
   const sms = new FakeSmsProvider();
   const sessions = new FakeSessionRevoker();
   const rateLimiter = new MemoryRateLimiter(() => TEST_NOW.getTime());
-  const deps = testDeps({ store, sms: { primary: sms }, sessions, rateLimiter, ...overrides });
+  const settlement = new FakeSettlementProvider();
+  const storage = new FakeStorageProvider();
+  const scanner = new FakeMalwareScanner();
+  const deps = testDeps({
+    store,
+    sms: { primary: sms },
+    sessions,
+    rateLimiter,
+    settlement,
+    storage,
+    scanner,
+    ...overrides,
+  });
   const app = createApp(deps);
 
   const user = (
@@ -145,5 +165,5 @@ export function world(overrides: Partial<AppDeps> = {}) {
     };
   };
 
-  return { app, deps, store, sms, sessions, user, call };
+  return { app, deps, store, sms, sessions, settlement, storage, scanner, user, call };
 }

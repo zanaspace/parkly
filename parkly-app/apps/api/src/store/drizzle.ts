@@ -7,6 +7,7 @@ import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
   type ConsentType,
+  type FileRow,
   type Store,
   type UserRow,
   type VehicleRow,
@@ -21,6 +22,7 @@ const {
   dataSubjectRequests,
   auditLogs,
   platformSettings,
+  files,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -53,6 +55,24 @@ const vehicleColumns = {
   model: vehicles.model,
   colour: vehicles.colour,
   isDefault: vehicles.isDefault,
+};
+
+const fileColumns = {
+  id: files.id,
+  bucket: files.bucket,
+  path: files.path,
+  dataClass: files.dataClass,
+  retentionPolicy: files.retentionPolicy,
+  ownerEntityType: files.ownerEntityType,
+  ownerEntityId: files.ownerEntityId,
+  uploadedBy: files.uploadedBy,
+  status: files.status,
+  mime: files.mime,
+  sizeBytes: files.sizeBytes,
+  sha256: files.sha256,
+  rejectionReason: files.rejectionReason,
+  verifiedAt: files.verifiedAt,
+  createdAt: files.createdAt,
 };
 
 const activeVehicle = (userId: string, id: string) =>
@@ -256,6 +276,30 @@ export function drizzleStore(db: Db): Store {
           if (isUniqueViolation(err, 'dsr_user_type_open_key')) throw new DsrAlreadyOpenError();
           throw err;
         }
+      },
+    },
+
+    files: {
+      async create(row) {
+        const [created] = await db.insert(files).values(row).returning(fileColumns);
+        if (!created) throw new Error('insert failed');
+        return created as FileRow;
+      },
+      async find(id) {
+        const [row] = await db.select(fileColumns).from(files).where(eq(files.id, id));
+        return (row as FileRow | undefined) ?? null;
+      },
+      async markVerified(id, stored, at) {
+        await db
+          .update(files)
+          .set({ ...stored, status: 'VERIFIED', verifiedAt: at, rejectionReason: null })
+          .where(eq(files.id, id));
+      },
+      async markRejected(id, reason) {
+        await db
+          .update(files)
+          .set({ status: 'REJECTED', rejectionReason: reason })
+          .where(eq(files.id, id));
       },
     },
 

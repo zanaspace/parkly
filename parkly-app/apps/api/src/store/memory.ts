@@ -4,6 +4,7 @@ import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
   type AuditRow,
+  type FileRow,
   type ConsentType,
   type Store,
   type UserRow,
@@ -27,6 +28,7 @@ export class MemoryStore implements Store {
     [];
   readonly auditRows: AuditRow[] = [];
   readonly revokedSessionUsers: string[] = [];
+  readonly fileRows = new Map<string, FileRow>();
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -179,6 +181,21 @@ export class MemoryStore implements Store {
     },
   };
 
+  files: Store['files'] = {
+    create: async (row) => {
+      const file: FileRow = { ...row, status: 'PENDING', rejectionReason: null, verifiedAt: null };
+      this.fileRows.set(row.id, file);
+      return { ...file };
+    },
+    find: async (id) => this.copy(this.fileRows.get(id)),
+    markVerified: async (id, stored, at) => {
+      Object.assign(this.mustFile(id), { ...stored, status: 'VERIFIED', verifiedAt: at });
+    },
+    markRejected: async (id, reason) => {
+      Object.assign(this.mustFile(id), { status: 'REJECTED', rejectionReason: reason });
+    },
+  };
+
   audit: Store['audit'] = {
     write: async (entry) => {
       // Strictly increasing timestamps keep cursor tests deterministic.
@@ -215,6 +232,12 @@ export class MemoryStore implements Store {
   settings: Store['settings'] = {
     get: async <T>(key: string) => this.settingRows.get(key) as T | undefined,
   };
+
+  private mustFile(id: string) {
+    const f = this.fileRows.get(id);
+    if (!f) throw new Error(`no file ${id}`);
+    return f;
+  }
 
   private mustUser(id: string) {
     const u = this.userRows.get(id);

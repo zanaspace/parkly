@@ -40,6 +40,7 @@ We record every significant architecture, provider, data-model, security or proc
 | 0010 | Idempotency-key storage and replay semantics |
 | 0011 | Feature flags in DB (no vendor) |
 | 0012 | Data residency: Supabase Ireland region, NDPA transfer basis (pending counsel) |
+| 0013 | Malware scanning for uploaded documents — Proposed, written (vendor to choose) |
 
 The authoritative list with status is doc 01 §16.
 

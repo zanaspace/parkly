@@ -51,6 +51,8 @@ describe('loadConfig', () => {
       ENC_KEY_V1: Buffer.alloc(32, 1).toString('base64'),
       UPSTASH_REDIS_REST_URL: 'https://x.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 't',
+      STORAGE_PROVIDER: 'supabase',
+      SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
     });
     expect(config.upstash).toEqual({ url: 'https://x.upstash.io', token: 't' });
   });
@@ -60,5 +62,65 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ JOB_HMAC_SECRET: 'short-secret-value' })).not.toThrow(
       /short-secret-value/,
     );
+  });
+
+  describe('payments, storage and scanning (Sprint 2)', () => {
+    it('uses fakes locally by default', () => {
+      expect(loadConfig({})).toMatchObject({
+        settlement: { provider: 'fake' },
+        storage: { provider: 'fake' },
+        malwareScanner: 'fake',
+      });
+    });
+
+    it('uses Paystack with a test key outside prod', () => {
+      const config = loadConfig({
+        SETTLEMENT_PROVIDER: 'paystack',
+        PAYSTACK_SECRET_KEY: 'sk_test_0123456789abcdef',
+      });
+      expect(config.settlement).toEqual({
+        provider: 'paystack',
+        secretKey: 'sk_test_0123456789abcdef',
+      });
+    });
+
+    it('requires the key when Paystack is selected', () => {
+      expect(() => loadConfig({ SETTLEMENT_PROVIDER: 'paystack' })).toThrow(/PAYSTACK_SECRET_KEY/);
+    });
+
+    it('refuses a live Paystack key outside prod (no real money in tests)', () => {
+      expect(() =>
+        loadConfig({
+          SETTLEMENT_PROVIDER: 'paystack',
+          PAYSTACK_SECRET_KEY: 'sk_live_0123456789abcdef',
+        }),
+      ).toThrow(/PAYSTACK_SECRET_KEY: live keys are only allowed in prod/);
+    });
+
+    it('requires live Paystack, Supabase Storage and a real scanner in prod', () => {
+      const err = (() => {
+        try {
+          loadConfig({ APP_ENV: 'prod', PAYSTACK_SECRET_KEY: 'sk_test_0123456789abcdef' });
+        } catch (e) {
+          return (e as Error).message;
+        }
+        return '';
+      })();
+      expect(err).toMatch(/SETTLEMENT_PROVIDER: must be paystack in prod/);
+      expect(err).toMatch(/PAYSTACK_SECRET_KEY: prod needs a live key/);
+      expect(err).toMatch(/STORAGE_PROVIDER: must be supabase outside local/);
+      expect(err).toMatch(/MALWARE_SCANNER: the fake scanner is not allowed in prod/);
+      expect(err).not.toContain('sk_test_0123456789abcdef');
+    });
+
+    it('requires the Supabase secret key for Supabase Storage', () => {
+      expect(() => loadConfig({ STORAGE_PROVIDER: 'supabase' })).toThrow(/SUPABASE_SECRET_KEY/);
+      expect(
+        loadConfig({
+          STORAGE_PROVIDER: 'supabase',
+          SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
+        }).storage,
+      ).toEqual({ provider: 'supabase', secretKey: 'sb_secret_0123456789abcdef' });
+    });
   });
 });

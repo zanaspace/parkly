@@ -766,7 +766,9 @@ The codes `AUTH_PHONE_INVALID`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED`, `AUTH_OT
 | `FakeSmsProvider` | in-memory outbox (`lastOtpFor(phone)`), failure injection to test fallback |
 | `FakePushProvider`, `FakeEmailProvider` | in-memory capture |
 | `FakeMapsProvider` | fixed geocodes for VI/Ikoyi/Lekki/Ikeja |
-| `FakeStorageProvider` | in-memory signed upload/download URLs (integration tests may instead use local Supabase Storage) |
+| `FakeStorageProvider` | in-memory objects; `put()` plays the client's direct upload; signed upload/download URLs (integration tests may instead use local Supabase Storage) |
+| `FakeSettlementProvider` | banks list, resolvable accounts map, subaccount capture, `failNext` outage |
+| `FakeMalwareScanner` | flags the EICAR test string; records scanned files |
 | `FakeClock` | `advance(minutes)` to trigger expiry/no-show jobs |
 
 Local dev runs with fakes by default (`PROVIDERS_MODE=fake`); `PROVIDERS_MODE=sandbox` uses Paystack/Termii test credentials. Provider **adapter** code is tested against recorded sandbox responses (fixtures in `test/fixtures/paystack/*.json`) and a nightly sandbox smoke test.

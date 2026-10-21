@@ -188,5 +188,52 @@ export function storeContract(
       });
       expect(await store.users.find(randomUUID())).toBeNull();
     });
+
+    it('records uploaded files and their verification outcome', async () => {
+      const uploader = await newUser();
+      const owner = randomUUID();
+      const sha = Buffer.alloc(32, 1);
+      const base = {
+        bucket: 'permits' as const,
+        dataClass: 'C3' as const,
+        retentionPolicy: 'permit_expiry_plus_6y',
+        ownerEntityType: 'permit',
+        ownerEntityId: owner,
+        uploadedBy: uploader,
+        mime: 'application/pdf',
+        sizeBytes: 1234,
+        sha256: sha,
+        createdAt: new Date('2026-10-21T09:55:00Z'),
+      };
+      const a = await store.files.create({ ...base, id: randomUUID(), path: `permit/${owner}/a` });
+      expect(a).toMatchObject({
+        status: 'PENDING',
+        sizeBytes: 1234,
+        verifiedAt: null,
+        createdAt: new Date('2026-10-21T09:55:00Z'),
+      });
+      expect((await store.files.find(a.id))?.sha256.equals(sha)).toBe(true);
+
+      const at = new Date('2026-10-21T10:00:00Z');
+      await store.files.markVerified(
+        a.id,
+        { mime: 'image/webp', sizeBytes: 99, sha256: Buffer.alloc(32, 2) },
+        at,
+      );
+      expect(await store.files.find(a.id)).toMatchObject({
+        status: 'VERIFIED',
+        mime: 'image/webp',
+        sizeBytes: 99,
+        verifiedAt: at,
+      });
+
+      const b = await store.files.create({ ...base, id: randomUUID(), path: `permit/${owner}/b` });
+      await store.files.markRejected(b.id, 'TYPE_MISMATCH');
+      expect(await store.files.find(b.id)).toMatchObject({
+        status: 'REJECTED',
+        rejectionReason: 'TYPE_MISMATCH',
+      });
+      expect(await store.files.find(randomUUID())).toBeNull();
+    });
   });
 }

@@ -1,0 +1,9 @@
+{
+  "status": true,
+  "message": "Account number resolved",
+  "data": {
+    "account_number": "0123456789",
+    "account_name": "EKO PARKING SERVICES LTD",
+    "bank_id": 9
+  }
+}
