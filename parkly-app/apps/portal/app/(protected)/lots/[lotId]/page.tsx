@@ -63,7 +63,7 @@ export default async function LotPage({
       <Text variant="heading-md" as="h2">
         Details
       </Text>
-      <LotForm key={lot.version} operatorId={operatorId} lot={lot} editable={editable} />
+      <LotForm operatorId={operatorId} lot={lot} editable={editable} />
     </main>
   );
 }
