@@ -5,6 +5,7 @@ import {
   AcceptInviteResponseSchema,
   InviteMemberRequestSchema,
   InviteMemberResponseSchema,
+  InvitePreviewSchema,
   TeamMemberListSchema,
   TeamMemberSchema,
   type TeamMember,
@@ -14,12 +15,16 @@ import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
+import { clientIp, retryAfterSec, type LimitRule } from '../../middleware/rate-limit.js';
 import { MemberExistsError, StaleVersionError, type MemberRow } from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const OperatorIdParam = z.object({ operatorId: z.uuid() });
 /** Doc 03 §2.3: invite links expire after 72 hours. */
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
+
+/** Public lookup: tokens are 256-bit, but keep guessing pointless anyway. */
+const INVITE_PREVIEW_IP: LimitRule = { name: 'invite-preview-ip', limit: 30, windowSec: 60 };
 
 const tokenHash = (token: string) => createHash('sha256').update(token).digest();
 
@@ -169,6 +174,46 @@ export function teamRoutes(deps: AppDeps) {
         after: { memberId, role: member.role },
       });
       return c.json(toMember(row), 200);
+    },
+  );
+
+  // Doc 03 §2.3 step 2: the invite page shows who invited them and as what, before sign-in.
+  // POST so the token never appears in URLs or access logs.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/invites/preview',
+      tags: ['auth'],
+      request: { body: { ...json(AcceptInviteRequestSchema), required: true } },
+      responses: { 200: { description: 'Invite summary', ...json(InvitePreviewSchema) } },
+    }),
+    async (c) => {
+      const limited = await deps.rateLimiter.limit(
+        `ip:${clientIp(c.req.header('x-forwarded-for'))}`,
+        INVITE_PREVIEW_IP,
+      );
+      if (!limited.success)
+        throw new ApiError('RATE_LIMITED', undefined, {
+          headers: { 'retry-after': retryAfterSec(limited.reset, deps.now()) },
+        });
+      const invite = await deps.store.members.findByToken(
+        tokenHash(c.req.valid('json').inviteToken),
+      );
+      if (!invite || invite.status !== 'INVITED') return c.json({ state: 'INVALID' as const }, 200);
+      const operator = await deps.store.operators.find(invite.operatorId);
+      if (!operator) return c.json({ state: 'INVALID' as const }, 200);
+      const businessName = operator.tradingName;
+      if (!invite.inviteExpiresAt || invite.inviteExpiresAt.getTime() <= deps.now().getTime())
+        return c.json({ state: 'EXPIRED' as const, businessName }, 200);
+      return c.json(
+        {
+          state: 'OPEN' as const,
+          role: invite.role,
+          businessName,
+          expiresAt: invite.inviteExpiresAt.toISOString(),
+        },
+        200,
+      );
     },
   );
 

@@ -239,6 +239,7 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/members',
   'DELETE /v1/operators/{operatorId}/members/{memberId}',
   'POST /v1/auth/invites/accept',
+  'POST /v1/invites/preview', // public, token-gated and rate limited; team.spec
 ]);
 
 describe('RBAC matrix', () => {
