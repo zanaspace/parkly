@@ -18,3 +18,73 @@ body {
   flex-direction: column;
   gap: var(--pk-space-stack-md);
 }
+
+.pk-page--wide {
+  max-width: var(--pk-container-content, 72rem);
+}
+.pk-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-md);
+}
+.pk-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pk-space-inline-sm);
+}
+.pk-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-inline-md);
+  padding: var(--pk-space-inset-sm) var(--pk-space-layout-gutter);
+  background: var(--pk-color-bg-surface);
+  border-bottom: 1px solid var(--pk-color-border-default);
+}
+.pk-notice {
+  margin: 0;
+  padding: var(--pk-space-inset-sm) var(--pk-space-inset-md);
+  border-radius: var(--pk-radius-md);
+}
+.pk-notice--error {
+  background: var(--pk-color-status-danger-bg);
+  color: var(--pk-color-status-danger-fg);
+}
+.pk-notice--info {
+  background: var(--pk-color-status-info-bg);
+  color: var(--pk-color-status-info-fg);
+}
+.pk-link {
+  color: var(--pk-color-text-link);
+}
+.pk-code {
+  font-family: var(--pk-font-family-mono, monospace);
+  word-break: break-all;
+}
+/* QR codes are always black on white (doc 07), even in dark mode. */
+.pk-qr {
+  background: #fff;
+  padding: var(--pk-space-3);
+  border-radius: var(--pk-radius-md);
+  align-self: flex-start;
+}
+.pk-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--pk-color-bg-surface);
+}
+.pk-table th,
+.pk-table td {
+  text-align: left;
+  padding: var(--pk-space-inset-sm);
+  border-bottom: 1px solid var(--pk-color-border-default);
+  vertical-align: top;
+}
+.pk-table th {
+  color: var(--pk-color-text-secondary);
+}
+.pk-table-wrap {
+  overflow-x: auto;
+}

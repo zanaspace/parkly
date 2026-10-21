@@ -102,11 +102,11 @@ Row creation: SQL trigger `on_auth_user_created` (AFTER INSERT on `auth.users`, 
 | tier | enum (`FREE`,`PRO`) | default FREE | C2 |
 | kyb_status | enum (`NOT_STARTED`,`SUBMITTED`,`APPROVED`,`REJECTED`) | | C2 |
 
-**`operator_members`** — `id`, `operator_id FK`, `user_id FK`, `role enum (OWNER, MANAGER, ATTENDANT)`, `lot_ids uuid[]` (attendant scope; empty = all), `status enum (INVITED, ACTIVE, REMOVED)`, `invited_by`, `invite_token_hash` (C4), `invite_expires_at`. UNIQUE `(operator_id, user_id)`.
+**`operator_members`** — `id`, `operator_id FK`, `user_id FK`, `role enum (OWNER, MANAGER, ATTENDANT)`, `lot_ids uuid[]` (attendant scope; empty = all), `status enum (INVITED, ACTIVE, REMOVED)`, `invited_by`, `invitee_name` (C3), `invitee_phone_hash` / `invitee_email_hash` (C3 blind indexes), `invite_token_hash` (C4), `invite_expires_at`, `accepted_at`, `removed_at`. `user_id` is null until the invite is accepted. UNIQUE `(operator_id, user_id)` among non-REMOVED rows. Active members also hold a `user_roles` row (the source for JWT claims); `user_roles.operator_id` references `operators`.
 
-**`operator_kyb_documents`** — `id`, `operator_id`, `type enum (CAC_CERT, DIRECTOR_ID, UTILITY_BILL, OTHER)`, `storage_path` (C4 object), `sha256`, `status`, `reviewed_by`, `reviewed_at`, `rejection_reason`.
+**`operator_kyb_documents`** — `id`, `operator_id`, `type enum (CAC_CERT, DIRECTOR_ID, UTILITY_BILL, OTHER)`, `file_id` → `files` (bucket `kyb-docs`, C4; mime, size, sha256 live on the file row), `status review_status`, `reviewed_by`, `reviewed_at`, `rejection_reason`.
 
-**`payout_accounts`** — `id`, `operator_id` UNIQUE, `bank_code`, `account_number` [enc] (C4), `account_number_last4` (C3), `account_name` (C3), `provider enum (PAYSTACK, FLUTTERWAVE)`, `provider_subaccount_code` (C4), `verified_at` (via Paystack resolve-account), `status`.
+**`payout_accounts`** — `id`, `operator_id` UNIQUE, `bank_code`, `bank_name`, `account_number_last4` (C4 masked), `account_name` (C4), `pending_account_number_enc` [enc] (C4; held **only** until the subaccount is created on KYB approval, then nulled — doc 06 §3.5), `name_mismatch bool` (resolved name ≠ legal name → ops checks), `provider enum (PAYSTACK, FLUTTERWAVE)`, `provider_subaccount_code` (C4), `verified_at` (via Paystack resolve-account), `activated_at`, `status enum (PENDING, VERIFIED, ACTIVE, DISABLED)`; CHECK ACTIVE ⇒ subaccount code set.
 
 ### 2.4 Lots & verification (modules `lots`, `verification`)
 
@@ -115,6 +115,7 @@ Row creation: SQL trigger `on_auth_user_created` (AFTER INSERT on `auth.users`, 
 |---|---|---|---|
 | id | uuid | | C1 |
 | operator_id | uuid FK | | C2 |
+| type | enum `OperatorType` | lot kind shown to drivers (doc 03 §2.2 step 1) | C1 |
 | name | text | ≤ 80 | C1 |
 | slug | text | UNIQUE | C1 |
 | description | text | ≤ 1000 | C1 |
@@ -136,7 +137,7 @@ Indexes: GIST `location`; `(status)`; `(operator_id)`; `slug` unique.
 
 **`lot_opening_hours`** — `id`, `lot_id`, `weekday smallint 0–6`, `opens_at time`, `closes_at time`, `is_24h bool`; plus `lot_closures(lot_id, starts_at, ends_at, reason)` for holidays/events.
 
-**`lot_photos`** — `id`, `lot_id`, `storage_path`, `sort`, `caption`, `status (PENDING, APPROVED, REJECTED)`. Public after approval (C1).
+**`lot_photos`** — `id`, `lot_id`, `file_id` → `files` (bucket `lot-photos`), `public_file_id` → `files` (copy in `lot-photos-public` after approval), `sort`, `caption`, `status (PENDING, APPROVED, REJECTED)`, `reviewed_by`, `reviewed_at`. Public after approval (C1). 3–10 per lot (PRD FR-LOT-002).
 
 **`lot_signing_keys`** — `id`, `lot_id`, `kid text UNIQUE`, `public_key bytea` (C1), `private_key_ciphertext bytea` (C4, app-level envelope-encrypted with `ENC_KEY_V<n>`), `status enum (ACTIVE, RETIRING, REVOKED)`, `activated_at`, `retire_after`. At most one ACTIVE per lot (partial unique index).
 
@@ -147,14 +148,15 @@ Indexes: GIST `location`; `(status)`; `(operator_id)`; `slug` unique.
 | issuer | text | default `LASPA` | C2 |
 | permit_number | text | | C2 |
 | issued_at, expires_at | date | CHECK expires > issued | C2 |
-| document_storage_path | text | | C3 |
+| document_file_id | uuid FK → `files` | bucket `permits` | C3 |
 | status | enum `PermitStatus` (`SUBMITTED`,`IN_REVIEW`,`APPROVED`,`REJECTED`,`EXPIRED`) | | C2 |
 | reviewed_by, reviewed_at, rejection_reason | | | C2 |
+| review_note | text | how ops checked with LASPA + reference (doc 03 §4.2) | C2 |
 | last_reminder_days | int | 30/14/7/1 dedupe | C2 |
 Index `(lot_id, status)`, `(status, expires_at)`.
 
 **`verification_records`** — `id`, `lot_id`, `inspector_user_id`, `inspected_at`, `status enum (SUBMITTED, IN_REVIEW, APPROVED, REJECTED)`, `capacity_counted int`, `gps_at_inspection geography(Point)` (C2), `notes`, `reviewed_by`, `reviewed_at`, `valid_until date` (= inspected_at + 12 months).
-**`verification_items`** — `id`, `record_id`, `item enum (LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CCTV, ACCESS_CONTROL, CAPACITY_COUNT, OWNER_IDENTITY, ENTRANCE_SIGNAGE, FIRE_SAFETY)`, `result enum (PASS, FAIL, NA)`, `evidence_storage_paths text[]`, `comment`. UNIQUE `(record_id, item)`. Required-to-pass: LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CAPACITY_COUNT, OWNER_IDENTITY.
+**`verification_items`** — `id`, `record_id`, `item enum (LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CCTV, ACCESS_CONTROL, CAPACITY_COUNT, OWNER_IDENTITY, ENTRANCE_SIGNAGE, FIRE_SAFETY)`, `result enum (PASS, FAIL, NA)`, `evidence_file_ids uuid[]` (→ `files`, bucket `verification`), `comment`. UNIQUE `(record_id, item)`. Required-to-pass: LASPA_PERMIT, GUARD_PRESENCE, LIGHTING, CAPACITY_COUNT, OWNER_IDENTITY.
 
 ### 2.5 Pricing & availability (modules `pricing`, `availability`)
 
@@ -163,7 +165,7 @@ Index `(lot_id, status)`, `(status, expires_at)`.
 |---|---|---|
 | id, lot_id | uuid | |
 | product | enum `Product` (`HOURLY`,`DAILY`,`MONTHLY`) | |
-| status | enum (`DRAFT`,`PENDING_APPROVAL`,`ACTIVE`,`RETIRED`) | one ACTIVE per (lot, product) — partial unique |
+| status | enum (`DRAFT`,`PENDING_APPROVAL`,`ACTIVE`,`RETIRED`,`REJECTED`) | one ACTIVE and one PENDING_APPROVAL per (lot, product) — partial uniques; `rejection_reason` on REJECTED |
 | hourly_rate_kobo | bigint | HOURLY: price per hour |
 | min_minutes | int | HOURLY default 60 |
 | block_minutes | int | default 15 |
@@ -307,7 +309,7 @@ Plus provider fee journal: Dr PAYMENT_FEES_EXPENSE / Cr PROVIDER_CLEARING.
 - **`platform_settings`** — `key` PK, `value jsonb`, `description`, `updated_by`. Keys in §8.
 - **`idempotency_keys`** — `key`, `actor_id`, `method`, `path`, `request_hash`, `status (IN_PROGRESS, COMPLETED)`, `response_status`, `response_body jsonb`, `expires_at (+48h)`. PK `(actor_id, key)`.
 - **`outbox_events`** — `id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload jsonb`, `created_at`, `dispatched_at`, `attempts`. Index `(dispatched_at) WHERE dispatched_at IS NULL`.
-- **`files`** — one row per Storage object: `id`, `bucket` (`kyb-docs`, `permits`, `verification`, `incident-evidence`, `lot-photos`, `lot-photos-public`, `exports`), `path`, `data_class (C1–C4)`, `retention_policy`, `owner_entity_type`, `owner_entity_id`, `uploaded_by`, `mime`, `size_bytes`, `sha256`, `created_at`, `deleted_at`. Unique `(bucket, path)`. Retention jobs delete through this table (doc 06).
+- **`files`** — one row per Storage object: `id`, `bucket` (`kyb-docs`, `permits`, `verification`, `incident-evidence`, `lot-photos`, `lot-photos-public`, `exports`), `path`, `data_class (C1–C4)`, `retention_policy`, `owner_entity_type`, `owner_entity_id`, `uploaded_by`, `mime`, `size_bytes`, `sha256`, `status (PENDING, VERIFIED, REJECTED)` (PENDING = signed upload URL issued; VERIFIED after the server re-checks size, MIME and sha256), `verified_at`, `created_at`, `deleted_at`. Unique `(bucket, path)`. Retention jobs delete through this table (doc 06).
 - **`job_runs`** — `id`, `job` text, `run_key` (idempotency, e.g. `reconcile:2026-10-14`), `status (RUNNING, SUCCEEDED, FAILED)`, `cursor jsonb` (resume point for chunked jobs), `started_at`, `finished_at`, `error`. Unique `(job, run_key)`. Retained 90 days.
 - **`geocode_cache`** — `query_hash` PK (sha256 of normalised query), `place_id`, `lat`, `lng`, `formatted_address`, `expires_at` (+24 h; only `place_id` may be kept longer, per Google ToS). C1.
 - **`data_subject_requests`** — `id`, `user_id`, `type (ACCESS, CORRECTION, DELETION, PORTABILITY, OBJECTION)`, `status`, `due_at` (+30 days), `handled_by`, `completed_at`, `export_storage_path` (C3).
@@ -569,6 +571,7 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 |---|---|---|---|---|
 | GET | `/admin/search` | ADM-* | — | by phone, plate, booking code, email (PII view audited `user.pii_view`) |
 | GET | `/admin/users/:id` · POST `/admin/users/:id/suspend` | SUP, OPS, SA | ✅ | |
+| POST | `/admin/users/:id/sessions/revoke` | SA | — | FR-AUTH-006; deletes the user's `auth.sessions` via `fn_revoke_user_sessions` (refresh tokens cascade), revokes `devices`; audited `user.sessions_revoked` |
 | GET | `/admin/operators` · `/admin/operators/:id` · POST `/kyb/review` | OPS | ✅ | |
 | GET | `/admin/lots?status=` · POST `/admin/lots/:id/status` | OPS, CMP | ✅ | `{status, reason}` |
 | GET/POST | `/admin/permits/:id/review` | CMP, OPS | ✅ | `{decision, reason}` |
@@ -703,8 +706,8 @@ SMS ≤ 160 GSM-7 chars; no PII beyond first name/booking code. Copy reviewed ag
 | 401 | `AUTH_REQUIRED`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_MFA_INVALID`, `AUTH_REFRESH_INVALID`, `AUTH_REFRESH_REUSED`, `SYNC_SIGNATURE_INVALID`, `WEBHOOK_SIGNATURE_INVALID` |
 | 403 | `FORBIDDEN`, `FORBIDDEN_ROLE_GRANT`, `AUTH_MFA_REQUIRED`, `AUTH_ACCOUNT_LOCKED`, `AUTH_OTP_LOCKED`, `APP_VERSION_UNSUPPORTED` |
 | 404 | `NOT_FOUND`, `LOT_NOT_FOUND`, `BOOKING_NOT_FOUND`, `PAYMENT_NOT_FOUND` |
-| 409 | `BOOKING_SLOT_UNAVAILABLE`, `BOOKING_OVERLAP_SAME_VEHICLE`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_EXTENDABLE`, `BOOKING_NOT_EDITABLE`, `EXTENSION_UNAVAILABLE`, `INVALID_STATE_TRANSITION`, `CONFLICT_STALE_VERSION`, `IDEMPOTENCY_KEY_REUSED` (same key, different body), `IDEMPOTENCY_IN_PROGRESS`, `ALREADY_CHECKED_IN`, `NOT_CHECKED_IN`, `PASS_CAPACITY_UNAVAILABLE`, `PASS_OVERLAP`, `LOT_CAPACITY_BELOW_COMMITTED`, `VEHICLE_DUPLICATE`, `VEHICLE_IN_USE`, `MEMBER_EXISTS`, `OPERATOR_DUPLICATE`, `DSR_ALREADY_OPEN`, `ACCOUNT_HAS_OBLIGATIONS`, `OVERSTAY_NOT_DUE` |
-| 422 | `LOT_NOT_BOOKABLE`, `LOT_NOT_LISTABLE`, `LOT_INCOMPLETE`, `BOOKING_OUTSIDE_OPENING_HOURS`, `PERMIT_EXPIRED`, `PAYOUT_ACCOUNT_UNRESOLVED`, `QR_INVALID_SIGNATURE`, `QR_WRONG_LOT`, `QR_OUTSIDE_WINDOW`, `PASS_NOT_OFFERED`, `VEHICLE_LIMIT_REACHED`, `DEVICE_LIMIT_REACHED`, `INVITE_INVALID`, `INVITE_EXPIRED`, `AUTH_PASSWORD_WEAK`, `AUTH_RESET_INVALID` |
+| 409 | `BOOKING_SLOT_UNAVAILABLE`, `BOOKING_OVERLAP_SAME_VEHICLE`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_EXTENDABLE`, `BOOKING_NOT_EDITABLE`, `EXTENSION_UNAVAILABLE`, `INVALID_STATE_TRANSITION`, `CONFLICT_STALE_VERSION`, `IDEMPOTENCY_KEY_REUSED` (same key, different body), `IDEMPOTENCY_IN_PROGRESS`, `ALREADY_CHECKED_IN`, `NOT_CHECKED_IN`, `PASS_CAPACITY_UNAVAILABLE`, `PASS_OVERLAP`, `LOT_CAPACITY_BELOW_COMMITTED`, `VEHICLE_DUPLICATE`, `VEHICLE_IN_USE`, `MEMBER_EXISTS`, `OPERATOR_DUPLICATE`, `DSR_ALREADY_OPEN`, `ACCOUNT_HAS_OBLIGATIONS`, `OVERSTAY_NOT_DUE`, `LOT_HAS_FUTURE_BOOKINGS` |
+| 422 | `LOT_NOT_BOOKABLE`, `LOT_NOT_LISTABLE`, `LOT_INCOMPLETE`, `LOT_PERMIT_INVALID` (permit missing, unapproved or expired at go-live), `BOOKING_OUTSIDE_OPENING_HOURS`, `PERMIT_EXPIRED`, `PAYOUT_ACCOUNT_UNRESOLVED`, `QR_INVALID_SIGNATURE`, `QR_WRONG_LOT`, `QR_OUTSIDE_WINDOW`, `PASS_NOT_OFFERED`, `VEHICLE_LIMIT_REACHED`, `DEVICE_LIMIT_REACHED`, `INVITE_INVALID`, `INVITE_EXPIRED`, `AUTH_PASSWORD_WEAK`, `AUTH_RESET_INVALID` |
 | 429 | `RATE_LIMITED`, `OTP_RATE_LIMITED` (both with `Retry-After`) |
 | 500 | `INTERNAL_ERROR` (unexpected; details only in logs/Sentry, never in the body) |
 | 502/503 | `PAYMENT_PROVIDER_UNAVAILABLE`, `SMS_PROVIDER_UNAVAILABLE`, `MAPS_UNAVAILABLE`, `SERVICE_UNAVAILABLE` |
@@ -763,7 +766,9 @@ The codes `AUTH_PHONE_INVALID`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED`, `AUTH_OT
 | `FakeSmsProvider` | in-memory outbox (`lastOtpFor(phone)`), failure injection to test fallback |
 | `FakePushProvider`, `FakeEmailProvider` | in-memory capture |
 | `FakeMapsProvider` | fixed geocodes for VI/Ikoyi/Lekki/Ikeja |
-| `FakeStorageProvider` | in-memory signed upload/download URLs (integration tests may instead use local Supabase Storage) |
+| `FakeStorageProvider` | in-memory objects; `put()` plays the client's direct upload; signed upload/download URLs (integration tests may instead use local Supabase Storage) |
+| `FakeSettlementProvider` | banks list, resolvable accounts map, subaccount capture, `failNext` outage |
+| `FakeMalwareScanner` | flags the EICAR test string; records scanned files |
 | `FakeClock` | `advance(minutes)` to trigger expiry/no-show jobs |
 
 Local dev runs with fakes by default (`PROVIDERS_MODE=fake`); `PROVIDERS_MODE=sandbox` uses Paystack/Termii test credentials. Provider **adapter** code is tested against recorded sandbox responses (fixtures in `test/fixtures/paystack/*.json`) and a nightly sandbox smoke test.

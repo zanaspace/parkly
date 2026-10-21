@@ -17,7 +17,12 @@ import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
 import { sendSmsHook } from './modules/hooks/send-sms.js';
 import { meRoutes } from './modules/me/routes.js';
 import { operatorRoutes } from './modules/operators/routes.js';
-import type { SmsProvider } from './providers/index.js';
+import type {
+  MalwareScanner,
+  SettlementProvider,
+  SmsProvider,
+  StorageProvider,
+} from './providers/index.js';
 import type { SessionRevoker } from './providers/supabase-sessions.js';
 import type { Store } from './store/types.js';
 
@@ -34,6 +39,9 @@ export type AppDeps = {
   crypto: FieldCrypto;
   sms: { primary: SmsProvider; secondary?: SmsProvider };
   sessions: SessionRevoker;
+  settlement: SettlementProvider;
+  storage: StorageProvider;
+  scanner: MalwareScanner;
   /** Sentry in deployed envs; omitted locally and in tests. */
   reportError?: (err: unknown, ctx: { requestId: string | undefined; path: string }) => void;
 };

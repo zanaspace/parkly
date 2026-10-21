@@ -1,4 +1,5 @@
 import type { RoleGrant } from '@parkly/domain/authz';
+import type { Bucket } from '../providers/index.js';
 
 /**
  * Everything the API reads or writes in Postgres goes through this interface.
@@ -29,6 +30,25 @@ export type VehicleRow = {
   model: string | null;
   colour: string | null;
   isDefault: boolean;
+};
+
+export type FileRow = {
+  id: string;
+  bucket: Bucket;
+  path: string;
+  dataClass: 'C1' | 'C2' | 'C3' | 'C4';
+  retentionPolicy: string;
+  ownerEntityType: string;
+  ownerEntityId: string;
+  uploadedBy: string | null;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  mime: string;
+  sizeBytes: number;
+  sha256: Buffer;
+  rejectionReason: string | null;
+  verifiedAt: Date | null;
+  /** Set by the caller from its clock: the upload window is measured from it. */
+  createdAt: Date;
 };
 
 export type AuditEntry = {
@@ -103,9 +123,24 @@ export type Store = {
     revokeBySession(userId: string, authSessionId: string): Promise<void>;
     revokeAll(userId: string): Promise<void>;
   };
+  sessions: {
+    /** Ends every Supabase Auth session the user has; access tokens still expire within 15 min. */
+    revokeAll(userId: string): Promise<void>;
+  };
   dataRequests: {
     /** Throws DsrAlreadyOpenError if one is open. */
     createDeletion(userId: string, dueAt: Date): Promise<{ id: string }>;
+  };
+  files: {
+    create(row: Omit<FileRow, 'status' | 'rejectionReason' | 'verifiedAt'>): Promise<FileRow>;
+    find(id: string): Promise<FileRow | null>;
+    /** The stored object passed the checks; mime/size/sha256 describe it as stored (e.g. after re-encoding). */
+    markVerified(
+      id: string,
+      stored: { mime: string; sizeBytes: number; sha256: Buffer },
+      at: Date,
+    ): Promise<void>;
+    markRejected(id: string, reason: string): Promise<void>;
   };
   audit: {
     write(entry: AuditEntry): Promise<void>;

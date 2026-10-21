@@ -11,8 +11,15 @@ import { jobs } from './jobs/registry.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
-import { FakeSmsProvider } from './providers/fakes.js';
-import type { SmsProvider } from './providers/index.js';
+import {
+  FakeMalwareScanner,
+  FakeSettlementProvider,
+  FakeSmsProvider,
+  FakeStorageProvider,
+} from './providers/fakes.js';
+import type { SettlementProvider, SmsProvider, StorageProvider } from './providers/index.js';
+import { paystackSettlementProvider } from './providers/paystack-settlement.js';
+import { supabaseStorage } from './providers/supabase-storage.js';
 import {
   FakeSessionRevoker,
   supabaseSessions,
@@ -97,6 +104,18 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
       ? termiiSmsProvider({ apiKey: config.sms.apiKey, senderId: config.sms.senderId })
       : new FakeSmsProvider();
 
+  // Config refuses fakes where they are not allowed (live Paystack + Supabase Storage outside local).
+  const settlement: SettlementProvider =
+    config.settlement.provider === 'paystack'
+      ? paystackSettlementProvider({ secretKey: config.settlement.secretKey })
+      : new FakeSettlementProvider();
+  const storage: StorageProvider =
+    config.storage.provider === 'supabase'
+      ? supabaseStorage({ url: config.supabase.url, secretKey: config.storage.secretKey })
+      : new FakeStorageProvider();
+  if (config.storage.provider === 'fake')
+    logger.warn('STORAGE_PROVIDER=fake: uploads are kept in memory (local only)');
+
   let sessions: SessionRevoker;
   if (config.supabase.publishableKey) {
     sessions = supabaseSessions({
@@ -129,6 +148,9 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     }),
     sms: { primary },
     sessions,
+    settlement,
+    storage,
+    scanner: new FakeMalwareScanner(),
     ...(config.sentryDsn
       ? {
           reportError: (err: unknown, ctx: { requestId: string | undefined; path: string }) =>

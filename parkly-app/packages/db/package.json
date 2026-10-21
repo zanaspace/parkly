@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@parkly/config": "workspace:*",
+    "@parkly/domain": "workspace:*",
     "@types/node": "22.20.5",
     "drizzle-kit": "0.31.11",
     "eslint": "10.12.0",

@@ -1,0 +1,55 @@
+{
+  "status": true,
+  "message": "Banks retrieved",
+  "data": [
+    {
+      "id": 1,
+      "name": "Access Bank",
+      "slug": "access-bank",
+      "code": "044",
+      "longcode": "044150149",
+      "active": true,
+      "is_deleted": false,
+      "country": "Nigeria",
+      "currency": "NGN",
+      "type": "nuban"
+    },
+    {
+      "id": 9,
+      "name": "Guaranty Trust Bank",
+      "slug": "guaranty-trust-bank",
+      "code": "058",
+      "longcode": "058152036",
+      "active": true,
+      "is_deleted": false,
+      "country": "Nigeria",
+      "currency": "NGN",
+      "type": "nuban"
+    },
+    {
+      "id": 21,
+      "name": "Zenith Bank",
+      "slug": "zenith-bank",
+      "code": "057",
+      "longcode": "057150013",
+      "active": true,
+      "is_deleted": false,
+      "country": "Nigeria",
+      "currency": "NGN",
+      "type": "nuban"
+    },
+    {
+      "id": 99,
+      "name": "Closed Bank Plc",
+      "slug": "closed-bank",
+      "code": "999",
+      "longcode": "",
+      "active": false,
+      "is_deleted": false,
+      "country": "Nigeria",
+      "currency": "NGN",
+      "type": "nuban"
+    }
+  ],
+  "meta": { "next": null, "previous": null, "perPage": 100 }
+}

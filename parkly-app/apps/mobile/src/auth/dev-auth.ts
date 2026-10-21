@@ -4,8 +4,14 @@ import { Platform } from 'react-native';
 
 const DEV_SESSION_KEY = 'parkly.dev_session';
 
-/** Whether SMS OTP is bypassed for local development and testing. */
+/**
+ * Whether SMS OTP is bypassed for local development and testing. Dev tokens
+ * only work against the API's in-memory store (there is no auth.users row
+ * behind them), so set EXPO_PUBLIC_DEV_AUTH=off when the API uses a real
+ * database and sign in with a Supabase test phone number instead.
+ */
 export function isDevBypass(): boolean {
+  if (process.env.EXPO_PUBLIC_DEV_AUTH === 'off') return false;
   return __DEV__ || process.env.NODE_ENV !== 'production';
 }
 

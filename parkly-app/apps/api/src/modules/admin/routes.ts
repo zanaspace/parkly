@@ -1,7 +1,8 @@
-import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { AuditLogPageSchema, AuditLogQuerySchema } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 
 /** Cursor = base64url("<createdAt ISO>|<id>"), newest first. */
@@ -64,6 +65,32 @@ export function adminRoutes(deps: AppDeps) {
         },
         200,
       );
+    },
+  );
+
+  // FR-AUTH-006: end every session a user has (lost phone, compromised account).
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/admin/users/{userId}/sessions/revoke',
+      tags: ['admin'],
+      security: [{ bearerAuth: [] }],
+      middleware: [authenticate(deps.verifyToken), loadActor(deps.store)],
+      request: { params: z.object({ userId: z.uuid() }) },
+      responses: { 204: { description: 'Sessions revoked' } },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'user:sessions:revoke', {});
+      const { userId } = c.req.valid('param');
+      if (!(await deps.store.users.find(userId))) throw new ApiError('NOT_FOUND');
+      await deps.store.sessions.revokeAll(userId);
+      await deps.store.devices.revokeAll(userId);
+      await audit(c, deps, {
+        action: 'user.sessions_revoked',
+        entityType: 'user',
+        entityId: userId,
+      });
+      return c.body(null, 204);
     },
   );
 

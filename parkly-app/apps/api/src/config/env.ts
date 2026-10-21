@@ -36,6 +36,16 @@ const EnvSchema = z
     SMS_PROVIDER: z.enum(['fake', 'termii']).default('fake'),
     TERMII_API_KEY: z.string().min(10).optional(),
     TERMII_SENDER_ID: z.string().min(3).max(11).optional(),
+    /** Server-only secret key (sb_secret_…) for Supabase Storage. Never in a client. */
+    SUPABASE_SECRET_KEY: z.string().min(20).optional(),
+    STORAGE_PROVIDER: z.enum(['fake', 'supabase']).default('fake'),
+    SETTLEMENT_PROVIDER: z.enum(['fake', 'paystack']).default('fake'),
+    PAYSTACK_SECRET_KEY: z
+      .string()
+      .regex(/^sk_(test|live)_[A-Za-z0-9]+$/, 'must be a Paystack secret key')
+      .optional(),
+    /** Only the fake exists until ADR 0013 picks a hosted scanner. */
+    MALWARE_SCANNER: z.enum(['fake']).default('fake'),
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     SENTRY_DSN: z.url().optional(),
@@ -60,6 +70,22 @@ const EnvSchema = z
     if (env.APP_ENV === 'prod' && env.SMS_PROVIDER !== 'termii') {
       ctx.addIssue({ code: 'custom', path: ['SMS_PROVIDER'], message: 'must be termii in prod' });
     }
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: 'custom', path: [path], message });
+    if (env.SETTLEMENT_PROVIDER === 'paystack') required('PAYSTACK_SECRET_KEY');
+    const liveKey = env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_') ?? false;
+    if (env.APP_ENV === 'prod') {
+      if (env.SETTLEMENT_PROVIDER !== 'paystack')
+        issue('SETTLEMENT_PROVIDER', 'must be paystack in prod');
+      if (!liveKey) issue('PAYSTACK_SECRET_KEY', 'prod needs a live key');
+      if (env.MALWARE_SCANNER === 'fake')
+        issue('MALWARE_SCANNER', 'the fake scanner is not allowed in prod');
+    } else if (liveKey) {
+      issue('PAYSTACK_SECRET_KEY', 'live keys are only allowed in prod');
+    }
+    if (env.APP_ENV !== 'local' && env.STORAGE_PROVIDER !== 'supabase')
+      issue('STORAGE_PROVIDER', 'must be supabase outside local');
+    if (env.STORAGE_PROVIDER === 'supabase') required('SUPABASE_SECRET_KEY');
     if (env.SMS_PROVIDER === 'termii') {
       required('TERMII_API_KEY');
       required('TERMII_SENDER_ID');
@@ -78,6 +104,9 @@ export type AppConfig = {
   encKeys: Record<string, Buffer>;
   encKeyCurrent: string;
   sms: { provider: 'fake' } | { provider: 'termii'; apiKey: string; senderId: string };
+  settlement: { provider: 'fake' } | { provider: 'paystack'; secretKey: string };
+  storage: { provider: 'fake' } | { provider: 'supabase'; secretKey: string };
+  malwareScanner: 'fake';
   upstash: { url: string; token: string } | undefined;
   sentryDsn: string | undefined;
   port: number;
@@ -121,6 +150,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       e.SMS_PROVIDER === 'termii' && e.TERMII_API_KEY && e.TERMII_SENDER_ID
         ? { provider: 'termii', apiKey: e.TERMII_API_KEY, senderId: e.TERMII_SENDER_ID }
         : { provider: 'fake' },
+    settlement:
+      e.SETTLEMENT_PROVIDER === 'paystack' && e.PAYSTACK_SECRET_KEY
+        ? { provider: 'paystack', secretKey: e.PAYSTACK_SECRET_KEY }
+        : { provider: 'fake' },
+    storage:
+      e.STORAGE_PROVIDER === 'supabase' && e.SUPABASE_SECRET_KEY
+        ? { provider: 'supabase', secretKey: e.SUPABASE_SECRET_KEY }
+        : { provider: 'fake' },
+    malwareScanner: e.MALWARE_SCANNER,
     upstash:
       e.UPSTASH_REDIS_REST_URL && e.UPSTASH_REDIS_REST_TOKEN
         ? { url: e.UPSTASH_REDIS_REST_URL, token: e.UPSTASH_REDIS_REST_TOKEN }

@@ -1,11 +1,14 @@
 import type {
+  Bank,
   Bucket,
   Clock,
   EmailProvider,
+  MalwareScanner,
   MapsProvider,
   PaymentProvider,
   PaymentStatus,
   PushProvider,
+  SettlementProvider,
   SmsProvider,
   StorageProvider,
 } from './index.js';
@@ -106,19 +109,75 @@ export class FakeMapsProvider implements MapsProvider {
   }
 }
 
+/** Holds objects in memory. Tests call `put()` to play the client's direct upload. */
 export class FakeStorageProvider implements StorageProvider {
-  readonly objects = new Set<string>();
+  readonly objects = new Map<string, { body: Uint8Array; contentType: string }>();
+  readonly signedUploads: string[] = [];
+  put(bucket: Bucket, path: string, body: Uint8Array, contentType = 'application/octet-stream') {
+    this.objects.set(`${bucket}/${path}`, { body, contentType });
+  }
   async createSignedUploadUrl(input: { bucket: Bucket; path: string }) {
-    this.objects.add(`${input.bucket}/${input.path}`);
+    this.signedUploads.push(`${input.bucket}/${input.path}`);
     return {
-      url: `https://storage.fake/upload/${input.bucket}/${input.path}`,
+      url: `https://storage.fake/upload/${input.bucket}/${input.path}?token=upload-token`,
       token: 'upload-token',
     };
   }
   async createSignedDownloadUrl(input: { bucket: Bucket; path: string; expiresInSec: number }) {
     return `https://storage.fake/${input.bucket}/${input.path}?expires=${input.expiresInSec}`;
   }
+  async download(input: { bucket: Bucket; path: string }) {
+    return this.objects.get(`${input.bucket}/${input.path}`)?.body ?? null;
+  }
+  async upload(input: { bucket: Bucket; path: string; body: Uint8Array; contentType: string }) {
+    this.put(input.bucket, input.path, input.body, input.contentType);
+  }
   async remove(input: { bucket: Bucket; paths: string[] }) {
     for (const p of input.paths) this.objects.delete(`${input.bucket}/${p}`);
+  }
+}
+
+/** Account numbers listed in `accounts` resolve; everything else does not. */
+export class FakeSettlementProvider implements SettlementProvider {
+  readonly name = 'fake' as const;
+  readonly banks: Bank[] = [
+    { code: '044', name: 'Access Bank' },
+    { code: '058', name: 'Guaranty Trust Bank' },
+    { code: '057', name: 'Zenith Bank' },
+  ];
+  readonly accounts = new Map<string, string>([['058:0123456789', 'EKO PARKING SERVICES LTD']]);
+  readonly subaccounts: Parameters<SettlementProvider['createSubaccount']>[0][] = [];
+  failNext = false;
+  async listBanks() {
+    return [...this.banks];
+  }
+  async resolveAccount(input: { bankCode: string; accountNumber: string }) {
+    this.maybeFail();
+    const accountName = this.accounts.get(`${input.bankCode}:${input.accountNumber}`);
+    return accountName ? { accountName } : null;
+  }
+  async createSubaccount(input: Parameters<SettlementProvider['createSubaccount']>[0]) {
+    this.maybeFail();
+    this.subaccounts.push(input);
+    return { subaccountCode: `ACCT_fake${this.subaccounts.length}` };
+  }
+  private maybeFail() {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('fake settlement provider unavailable');
+    }
+  }
+}
+
+/** Flags the EICAR test string, like real scanners do. */
+export class FakeMalwareScanner implements MalwareScanner {
+  readonly name = 'fake';
+  readonly scanned: string[] = [];
+  async scan(input: { bytes: Uint8Array; filename: string }) {
+    this.scanned.push(input.filename);
+    const text = Buffer.from(input.bytes).toString('latin1');
+    return text.includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE')
+      ? { clean: false, threat: 'EICAR-Test-File' }
+      : { clean: true };
   }
 }

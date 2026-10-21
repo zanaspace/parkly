@@ -48,6 +48,20 @@ describe('RLS deny-all baseline (doc 02 §1, AGENTS.md rule 14)', () => {
     expect(rows).toEqual([]);
   });
 
+  it('every Storage bucket is private and clients have no storage.objects policies (doc 05 V12)', async () => {
+    const publicBuckets = await sql`select id from storage.buckets where public`;
+    expect(publicBuckets).toEqual([]);
+    const policies = await sql`
+      select policyname from pg_policies
+      where schemaname = 'storage' and tablename = 'objects'
+        and roles && array['anon', 'authenticated', 'public']::name[]`;
+    expect(policies).toEqual([]);
+    const buckets = await sql`select id from storage.buckets order by id`;
+    expect(buckets.map((b) => b.id)).toEqual(
+      expect.arrayContaining(['kyb-docs', 'lot-photos', 'permits', 'verification']),
+    );
+  });
+
   it('anon and authenticated hold no table privileges in public', async () => {
     const rows = await sql`
       select table_name, grantee, privilege_type from information_schema.role_table_grants

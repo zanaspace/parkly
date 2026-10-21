@@ -27,6 +27,7 @@ const WHO: Who[] = [
 
 const OP_A = randomUUID();
 const OP_B = randomUUID();
+const TARGET_USER = randomUUID();
 const EVERYONE_SIGNED_IN = Object.fromEntries(
   WHO.filter((w) => w !== 'anon').map((w) => [w, 200]),
 ) as Record<Who, number>;
@@ -68,6 +69,12 @@ const MATRIX: Row[] = [
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
   },
+  {
+    method: 'POST',
+    path: `/v1/admin/users/${TARGET_USER}/sessions/revoke`,
+    route: 'POST /v1/admin/users/{userId}/sessions/revoke',
+    expect: only(['SUPER_ADMIN'], 204, 403),
+  },
 ];
 
 /** Endpoints covered by dedicated tests instead (public, write-only or per-user resources). */
@@ -95,6 +102,7 @@ describe('RBAC matrix', () => {
       ),
     ]),
   ) as Record<Role, string>;
+  w.store.seedUser(TARGET_USER, { roles: [{ role: 'DRIVER', operatorId: null }] });
 
   for (const row of MATRIX) {
     for (const who of WHO) {
@@ -214,5 +222,41 @@ describe('admin audit log', () => {
     expect(
       (await w.call('GET', '/v1/admin/audit-logs?cursor=garbage', { as: sa, aal: 'aal2' })).status,
     ).toBe(400);
+  });
+});
+
+describe('admin revokes a user’s sessions (FR-AUTH-006)', () => {
+  it('ends their Supabase sessions, revokes their devices and writes an audit row', async () => {
+    const w = world();
+    const sa = w.user([{ role: 'SUPER_ADMIN', operatorId: null }], 'S');
+    const driver = w.user([{ role: 'DRIVER', operatorId: null }], 'D');
+    await w.store.devices.upsert({
+      userId: driver,
+      clientDeviceId: 'phone-1',
+      platform: 'ANDROID',
+      appVersion: null,
+      authSessionId: randomUUID(),
+    });
+    const res = await w.call('POST', `/v1/admin/users/${driver}/sessions/revoke`, {
+      as: sa,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(204);
+    expect(w.store.revokedSessionUsers).toEqual([driver]);
+    expect(w.store.deviceRows.every((d) => d.revokedAt !== null)).toBe(true);
+    expect(w.store.auditRows).toMatchObject([
+      { actorUserId: sa, action: 'user.sessions_revoked', entityType: 'user', entityId: driver },
+    ]);
+  });
+
+  it('returns 404 for an unknown user and revokes nothing', async () => {
+    const w = world();
+    const sa = w.user([{ role: 'SUPER_ADMIN', operatorId: null }], 'S');
+    const res = await w.call('POST', `/v1/admin/users/${randomUUID()}/sessions/revoke`, {
+      as: sa,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(404);
+    expect(w.store.revokedSessionUsers).toEqual([]);
   });
 });

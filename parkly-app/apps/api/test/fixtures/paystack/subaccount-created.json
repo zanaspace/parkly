@@ -1,0 +1,22 @@
+{
+  "status": true,
+  "message": "Subaccount created",
+  "data": {
+    "business_name": "Eko Parking Services Ltd",
+    "account_number": "0123456789",
+    "percentage_charge": 12,
+    "settlement_bank": "Guaranty Trust Bank",
+    "currency": "NGN",
+    "bank": 9,
+    "integration": 100032,
+    "domain": "test",
+    "subaccount_code": "ACCT_4hl4xenwpjy5wb",
+    "is_verified": false,
+    "settlement_schedule": "AUTO",
+    "active": true,
+    "migrate": false,
+    "id": 55,
+    "createdAt": "2026-10-21T09:00:00.000Z",
+    "updatedAt": "2026-10-21T09:00:00.000Z"
+  }
+}

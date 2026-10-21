@@ -1,0 +1,7 @@
+{
+  "status": false,
+  "message": "Could not resolve account name. Check parameters or try again.",
+  "meta": { "nextStep": "Ensure that you're passing the correct bank code and account number" },
+  "type": "validation_error",
+  "code": "invalid_bank_code"
+}

@@ -40,3 +40,32 @@ export const updatedAt = () =>
 export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => 'bytea',
 });
+
+export type LatLng = { lat: number; lng: number };
+
+/**
+ * Reads a PostGIS point as Postgres returns it: hex EWKB, optionally with an
+ * SRID (flag 0x20000000). Only Point is supported; anything else throws.
+ */
+export function parseEwkbPoint(hex: string): LatLng {
+  const buf = Buffer.from(hex, 'hex');
+  const le = buf.readUInt8(0) === 1;
+  const readU32 = (o: number) => (le ? buf.readUInt32LE(o) : buf.readUInt32BE(o));
+  const readF64 = (o: number) => (le ? buf.readDoubleLE(o) : buf.readDoubleBE(o));
+  const type = readU32(1);
+  if ((type & 0xffff) !== 1) throw new Error(`expected a Point, got WKB type ${type & 0xffff}`);
+  const offset = type & 0x20000000 ? 9 : 5;
+  return { lng: readF64(offset), lat: readF64(offset + 8) };
+}
+
+/**
+ * `geography(Point,4326)` from PostGIS, which Supabase installs in the
+ * `extensions` schema (not on the API role's search_path, so qualify it).
+ * Geo queries (ST_DWithin, distance) stay in parameterised `sql` (doc 00 §3.2).
+ */
+export const geographyPoint = customType<{ data: LatLng; driverData: string }>({
+  dataType: () => 'extensions.geography(Point,4326)',
+  toDriver: ({ lat, lng }) =>
+    sql`extensions.st_setsrid(extensions.st_makepoint(${lng}, ${lat}), 4326)::extensions.geography`,
+  fromDriver: parseEwkbPoint,
+});

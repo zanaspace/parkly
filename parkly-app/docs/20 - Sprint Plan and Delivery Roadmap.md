@@ -457,4 +457,6 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 
 | Sprint | Item | Reason | New target |
 |---|---|---|---|
-| — | — | — | — |
+| S0 | Vercel projects/env/Firewall, Sentry + Better Stack, external accounts (tasks 11, 12, 14) | Need owner accounts and approvals | Owner setup, before S4 |
+| S1 | Attendant sign-in: phone OTP + lot PIN, device registration (task 4) | Attendant flow lives in the `/attend` PWA built in S5; lot assignments only exist from S2 | S5 |
+| S1 | OTP delivered on a real Nigerian number in staging; Send SMS + Custom Access Token hooks enabled on hosted projects | Termii sender ID / DND approval; hosted dashboard access | When Termii approves; fake SMS + test numbers until then |
