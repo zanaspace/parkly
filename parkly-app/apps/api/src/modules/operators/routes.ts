@@ -1,7 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
   CreateOperatorRequestSchema,
-  OperatorMemberListSchema,
   OperatorSchema,
   UpdateOperatorRequestSchema,
   type Operator,
@@ -193,23 +192,6 @@ export function operatorRoutes(deps: AppDeps) {
         after: { fields: Object.keys(body) },
       });
       return c.json(toOperator(row, deps.crypto), 200);
-    },
-  );
-
-  // Sprint 1: proves tenant scoping end to end (FR-AUTH-005).
-  app.openapi(
-    createRoute({
-      method: 'get',
-      path: '/operators/{operatorId}/members',
-      tags: ['operators'],
-      ...secured,
-      request: { params: OperatorIdParam },
-      responses: { 200: { description: 'Members', ...json(OperatorMemberListSchema) } },
-    }),
-    async (c) => {
-      const { operatorId } = c.req.valid('param');
-      authorize(c, deps.logger, 'operator:members:read', { operatorId }, { denyAs: 'NOT_FOUND' });
-      return c.json({ items: await deps.store.operators.members(operatorId) }, 200);
     },
   );
 

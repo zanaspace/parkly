@@ -235,6 +235,10 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/admin/lots/{lotId}/verifications',
   'POST /v1/admin/verifications/{verificationId}/review',
   'POST /v1/admin/lots/{lotId}/status',
+  // Owner/manager per role, other operator 404, invitee identity match: team/team.spec
+  'POST /v1/operators/{operatorId}/members',
+  'DELETE /v1/operators/{operatorId}/members/{memberId}',
+  'POST /v1/auth/invites/accept',
 ]);
 
 describe('RBAC matrix', () => {

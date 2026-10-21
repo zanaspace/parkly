@@ -222,6 +222,22 @@ export type RatePlanRow = RatePlanPrices & {
   createdAt: Date;
 };
 
+export type MemberRow = {
+  id: string;
+  operatorId: string;
+  /** Null until the invite is accepted. */
+  userId: string | null;
+  role: 'OWNER' | 'MANAGER' | 'ATTENDANT';
+  /** Attendants: lots they work; empty = every lot of the operator. */
+  lotIds: string[];
+  status: 'INVITED' | 'ACTIVE' | 'REMOVED';
+  inviteeName: string | null;
+  inviteExpiresAt: Date | null;
+  invitedBy: string | null;
+  acceptedAt: Date | null;
+  createdAt: Date;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -446,6 +462,45 @@ export type Store = {
     approve(id: string, review: Review): Promise<VerificationRow>;
     reject(id: string, review: Review & { reason: string }): Promise<VerificationRow>;
   };
+  members: {
+    /** Active members and open invites, oldest first, with the member's profile name. */
+    list(
+      operatorId: string,
+    ): Promise<(MemberRow & { firstName: string | null; lastName: string | null })[]>;
+    find(operatorId: string, id: string): Promise<MemberRow | null>;
+    /** An ACTIVE member whose user has this phone/email hash, or an unexpired INVITED row for it. */
+    findByContact(
+      operatorId: string,
+      contact: { phoneHash: Buffer | null; emailHash: Buffer | null },
+      now: Date,
+    ): Promise<MemberRow | null>;
+    invite(row: {
+      operatorId: string;
+      role: 'MANAGER' | 'ATTENDANT';
+      lotIds: string[];
+      inviteeName: string;
+      inviteePhoneHash: Buffer | null;
+      inviteeEmailHash: Buffer | null;
+      inviteTokenHash: Buffer;
+      inviteExpiresAt: Date;
+      invitedBy: string;
+    }): Promise<MemberRow>;
+    findByToken(
+      tokenHash: Buffer,
+    ): Promise<
+      (MemberRow & { inviteePhoneHash: Buffer | null; inviteeEmailHash: Buffer | null }) | null
+    >;
+    /**
+     * INVITED → ACTIVE plus the matching role grant, in one transaction; the
+     * token is cleared. MemberExistsError if the user is already an active
+     * member; StaleVersionError if the invite is no longer open.
+     */
+    accept(id: string, userId: string, at: Date): Promise<MemberRow>;
+    /** → REMOVED; an active member also loses the role grant. StaleVersionError if already removed. */
+    remove(operatorId: string, id: string, at: Date): Promise<MemberRow>;
+    /** Lots an attendant may work: their explicit list, or every lot of the operator when empty. */
+    attendantLotIds(userId: string): Promise<string[]>;
+  };
   flags: {
     /** A missing flag is off. */
     enabled(key: string): Promise<boolean>;
@@ -501,4 +556,5 @@ export class DuplicatePlateError extends Error {}
 export class DsrAlreadyOpenError extends Error {}
 export class OperatorExistsError extends Error {}
 export class SlugTakenError extends Error {}
+export class MemberExistsError extends Error {}
 export class StaleVersionError extends Error {}

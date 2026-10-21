@@ -1,6 +1,6 @@
 # Sprint 2 — Operators, lots, permits, verification: progress report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–E** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission; admin KYB review and lot review + go-live). Slice F (team invites, permit expiry job) remains.
+- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–E** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission; admin KYB review and lot review + go-live). All slices (A–F) are built; the S2 demo still needs staging (owner decision: wait) and the Vault job secrets on dev.
 - **Updated:** 2026-10-21
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
 
@@ -30,7 +30,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
 | D | Permit, rate plans, submit lot for verification | **Done** |
 | E | Admin review queues → subaccount on KYB approval → lot LIVE | **Done** (E1 KYB review, E2 lot review + go-live) |
-| F | Team invites; permit expiry job | **F1 (permit expiry job) done**; F2 (team invites) to do |
+| F | Team invites; permit expiry job | **Done** (F1 permit expiry job, F2 team invites) |
 
 ### Slice A: what was built
 
@@ -90,6 +90,14 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Checked against the dev database** (rolled back): due list, reminder buckets, reminders never move backwards, expire once.
 - **Tests:** +8 job, +2 registry, +1 store contract. API: 509 tests.
 
+### Slice F2: team invites
+
+- **Permissions:** `operator:members:invite` (owner, manager; managers may invite attendants only, `FORBIDDEN_ROLE_GRANT`), `operator:members:remove` (owner).
+- **API:** team list (members + open invites), invite (manager by email, attendant by phone with optional lots), cancel/remove (role grant deleted, sessions and devices revoked), `/auth/invites/accept` for the invited account only. Contact details are stored only as blind-index hashes and the invite token as a hash. Attendants' lot scope now feeds authorisation (`lot:checkin` in S5).
+- **Portal:** Team page (`/team`) with invite form, one-time link (copy / WhatsApp), remove and cancel; `/invite/[token]` to accept (sign in or sign up first, then back to the invite); home shows the team summary.
+- **Checked against the dev database** (rolled back): owner listed, invite, find by contact and token, accept with role grant, accept twice refused, owner can't join twice, remove drops the role.
+- **Tests:** +11 API (team), +1 store contract, +2 authz, +2 contracts, +2 portal. API: 521 tests.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -123,6 +131,9 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Visit evidence photos | doc 02: `evidence_file_ids` per checklist item | Not collected yet (X-03 field use, S8); the checklist, count, GPS and notes are recorded. |
 | Permit reminder channels | doc 01 §5.8: email + SMS to owners/managers and ops; drivers with future bookings notified | Email to the operator's contact email only (logged until S6). SMS needs Termii, managers arrive with team invites (F2), and bookings with S4; the ops alert comes with notifications (S6). |
 | Expiry job schedule | doc 01: daily 06:00 | 06:00 plus two catch-up runs at 07:00 and 08:00 Lagos, because one run handles at most 100 permits and pg_cron does not re-call on "remaining". |
+| Invite delivery | doc 03 §2.3: SMS invite link | The portal shows the link once to copy or share on WhatsApp. SMS (Termii) and email invites arrive with notifications (S6). |
+| Invite contact | doc 03: name + phone for every invite; doc 02: email or phone | Managers by email (they sign in to the portal by email); attendants by phone (attendant app, S5). Accepting needs the invited email/phone on the signed-in account. |
+| Attendant acceptance | doc 03 §2.3 step 2: A-01 sets up a PIN after OTP | The API accepts attendant invites now; the attendant app with phone OTP + PIN is S5, so attendants keep their link until then. |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 

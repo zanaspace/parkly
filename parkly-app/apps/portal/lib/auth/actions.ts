@@ -48,7 +48,8 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
 /**
  * Creates the login and sends Supabase's confirmation email. The answer is the
  * same whether or not the email already has an account (doc 05 §4.2). After
- * confirming, the link lands on /onboarding to create the operator.
+ * confirming, the link lands on /onboarding to create the operator, or back on
+ * the invite page (`next`) for an invited manager.
  */
 export async function signUp(_prev: FormState, form: FormData): Promise<FormState> {
   const email = field(form, 'email').toLowerCase();
@@ -63,7 +64,10 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${await origin()}/auth/confirm?next=/onboarding` },
+    // An invited manager returns to their invite; everyone else creates a business.
+    options: {
+      emailRedirectTo: `${await origin()}/auth/confirm?next=${encodeURIComponent(safeNext(field(form, 'next'), '/onboarding'))}`,
+    },
   });
   // Weak/leaked passwords and rate limits are safe to report; anything else gets the generic answer.
   const code = error ? mapSupabaseAuthError(error) : null;

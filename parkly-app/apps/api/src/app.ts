@@ -21,6 +21,7 @@ import { meRoutes } from './modules/me/routes.js';
 import { kybRoutes } from './modules/kyb/routes.js';
 import { lotRoutes } from './modules/lots/routes.js';
 import { operatorRoutes } from './modules/operators/routes.js';
+import { teamRoutes } from './modules/team/routes.js';
 import type {
   MalwareScanner,
   SettlementProvider,
@@ -104,6 +105,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminRoutes(deps));
   app.route('/v1', adminKybRoutes(deps));
   app.route('/v1', adminLotRoutes(deps));
+  app.route('/v1', teamRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));
   app.onError((err, c) => {

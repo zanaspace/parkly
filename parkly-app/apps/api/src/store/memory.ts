@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
+  MemberExistsError,
   OperatorExistsError,
   SlugTakenError,
   StaleVersionError,
@@ -11,6 +12,7 @@ import {
   type KybDocumentRow,
   type LotPhotoRow,
   type LotRow,
+  type MemberRow,
   type OpeningHourRow,
   type PermitRow,
   type RatePlanRow,
@@ -51,6 +53,11 @@ export class MemoryStore implements Store {
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
   readonly verificationRows: VerificationRow[] = [];
   readonly flagRows = new Map<string, boolean>();
+  readonly memberRows: (MemberRow & {
+    inviteePhoneHash: Buffer | null;
+    inviteeEmailHash: Buffer | null;
+    inviteTokenHash: Buffer | null;
+  })[] = [];
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -526,6 +533,112 @@ export class MemoryStore implements Store {
     },
   };
 
+  members: Store['members'] = {
+    list: async (operatorId) =>
+      this.memberRows
+        .filter((m) => m.operatorId === operatorId && m.status !== 'REMOVED')
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((m) => {
+          const u = m.userId ? this.userRows.get(m.userId) : undefined;
+          return {
+            ...this.member(m),
+            firstName: u?.firstName ?? null,
+            lastName: u?.lastName ?? null,
+          };
+        }),
+    find: async (operatorId, id) => {
+      const m = this.memberRows.find((r) => r.operatorId === operatorId && r.id === id);
+      return m ? this.member(m) : null;
+    },
+    findByContact: async (operatorId, { phoneHash, emailHash }, now) => {
+      const same = (a: Buffer | null | undefined, b: Buffer | null) => !!a && !!b && a.equals(b);
+      const m = this.memberRows.find((r) => {
+        if (r.operatorId !== operatorId) return false;
+        if (r.status === 'ACTIVE' && r.userId) {
+          const u = this.userRows.get(r.userId);
+          return same(u?.phoneHash, phoneHash) || same(u?.emailHash, emailHash);
+        }
+        return (
+          r.status === 'INVITED' &&
+          (r.inviteExpiresAt?.getTime() ?? 0) > now.getTime() &&
+          (same(r.inviteePhoneHash, phoneHash) || same(r.inviteeEmailHash, emailHash))
+        );
+      });
+      return m ? this.member(m) : null;
+    },
+    invite: async (row) => {
+      const m = {
+        ...row,
+        lotIds: [...row.lotIds],
+        id: randomUUID(),
+        userId: null,
+        status: 'INVITED' as const,
+        acceptedAt: null,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.memberRows.push(m);
+      return this.member(m);
+    },
+    findByToken: async (tokenHash) => {
+      const m = this.memberRows.find((r) => r.inviteTokenHash?.equals(tokenHash));
+      return m
+        ? {
+            ...this.member(m),
+            inviteePhoneHash: m.inviteePhoneHash,
+            inviteeEmailHash: m.inviteeEmailHash,
+          }
+        : null;
+    },
+    accept: async (id, userId, at) => {
+      const m = this.memberRows.find((r) => r.id === id);
+      if (m?.status !== 'INVITED') throw new StaleVersionError();
+      if (
+        this.memberRows.some(
+          (r) => r.operatorId === m.operatorId && r.userId === userId && r.status !== 'REMOVED',
+        )
+      )
+        throw new MemberExistsError();
+      Object.assign(m, { status: 'ACTIVE', userId, acceptedAt: at, inviteTokenHash: null });
+      const role = m.role === 'MANAGER' ? 'OPERATOR_MANAGER' : 'OPERATOR_ATTENDANT';
+      if (
+        !this.roleRows.some(
+          (r) => r.userId === userId && r.role === role && r.operatorId === m.operatorId,
+        )
+      )
+        this.roleRows.push({ userId, role, operatorId: m.operatorId });
+      return this.member(m);
+    },
+    remove: async (operatorId, id) => {
+      const m = this.memberRows.find((r) => r.operatorId === operatorId && r.id === id);
+      if (!m || m.status === 'REMOVED') throw new StaleVersionError();
+      const wasActive = m.status === 'ACTIVE';
+      Object.assign(m, { status: 'REMOVED', inviteTokenHash: null });
+      if (wasActive && m.userId) {
+        const role =
+          m.role === 'OWNER'
+            ? 'OPERATOR_OWNER'
+            : m.role === 'MANAGER'
+              ? 'OPERATOR_MANAGER'
+              : 'OPERATOR_ATTENDANT';
+        const i = this.roleRows.findIndex(
+          (r) => r.userId === m.userId && r.role === role && r.operatorId === operatorId,
+        );
+        if (i >= 0) this.roleRows.splice(i, 1);
+      }
+      return this.member(m);
+    },
+    attendantLotIds: async (userId) =>
+      this.memberRows
+        .filter((m) => m.userId === userId && m.role === 'ATTENDANT' && m.status === 'ACTIVE')
+        .flatMap((m) =>
+          m.lotIds.length > 0
+            ? m.lotIds
+            : [...this.lotRows.values()]
+                .filter((l) => l.operatorId === m.operatorId)
+                .map((l) => l.id),
+        ),
+  };
+
   flags: Store['flags'] = {
     enabled: async (key) => this.flagRows.get(key) ?? false,
   };
@@ -567,6 +680,22 @@ export class MemoryStore implements Store {
       };
       this.operatorRows.set(row.id, row);
       this.roleRows.push({ userId: ownerUserId, role: 'OPERATOR_OWNER', operatorId: row.id });
+      this.memberRows.push({
+        id: randomUUID(),
+        operatorId: row.id,
+        userId: ownerUserId,
+        role: 'OWNER',
+        lotIds: [],
+        status: 'ACTIVE',
+        inviteeName: null,
+        inviteExpiresAt: null,
+        invitedBy: null,
+        acceptedAt: row.createdAt,
+        createdAt: row.createdAt,
+        inviteePhoneHash: null,
+        inviteeEmailHash: null,
+        inviteTokenHash: null,
+      });
       return { ...row };
     },
     find: async (id) => this.copy(this.operatorRows.get(id)),
@@ -644,6 +773,22 @@ export class MemoryStore implements Store {
 
   private copy<T extends object>(row: T | undefined): T | null {
     return row ? { ...row } : null;
+  }
+
+  private member(m: MemberRow): MemberRow {
+    return {
+      id: m.id,
+      operatorId: m.operatorId,
+      userId: m.userId,
+      role: m.role,
+      lotIds: [...m.lotIds],
+      status: m.status,
+      inviteeName: m.inviteeName,
+      inviteExpiresAt: m.inviteExpiresAt,
+      invitedBy: m.invitedBy,
+      acceptedAt: m.acceptedAt,
+      createdAt: m.createdAt,
+    };
   }
 
   private copyVerification(v: VerificationRow): VerificationRow {

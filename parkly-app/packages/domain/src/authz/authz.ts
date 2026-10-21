@@ -58,6 +58,9 @@ const RULES = {
   'lot:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'lot:manage': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:members:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  /** Owners invite managers and attendants; managers invite attendants (checked per role in the API). */
+  'operator:members:invite': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  'operator:members:remove': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
   'lot:checkin': {
     scope: 'lot',
     roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER', 'OPERATOR_ATTENDANT'],

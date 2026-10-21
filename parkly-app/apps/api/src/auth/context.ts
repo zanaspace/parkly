@@ -45,10 +45,14 @@ export function loadActor(store: Store): MiddlewareHandler<AuthEnv> {
     if (!user) throw new ApiError('AUTH_REQUIRED', 'Call /v1/auth/bootstrap first');
     if (BLOCKED.has(user.status)) throw new ApiError('AUTH_ACCOUNT_LOCKED');
     c.set('user', user);
+    const roles = await store.users.roles(user.id);
     c.set('actor', {
       userId: user.id,
-      roles: await store.users.roles(user.id),
-      lotIds: [], // attendant lot assignments arrive with lots (Sprint 2)
+      roles,
+      // Attendants work only their assigned lots (FR-OPS-004).
+      lotIds: roles.some((r) => r.role === 'OPERATOR_ATTENDANT')
+        ? await store.members.attendantLotIds(user.id)
+        : [],
       aal: identity.aal,
     });
     await next();

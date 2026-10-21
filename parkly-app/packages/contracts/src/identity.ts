@@ -141,16 +141,6 @@ export const UpdateVehicleRequestSchema = z
 
 export const VehicleListSchema = z.object({ items: z.array(VehicleSchema) });
 
-// --- operators (Sprint 1: membership only) --------------------------------
-
-export const OperatorMemberSchema = z.object({
-  userId: z.uuid(),
-  role: RoleSchema,
-  firstName: z.string().nullable(),
-});
-
-export const OperatorMemberListSchema = z.object({ items: z.array(OperatorMemberSchema) });
-
 // --- admin audit log -------------------------------------------------------
 
 export const AuditLogQuerySchema = z.object({
@@ -181,4 +171,3 @@ export type Me = z.infer<typeof MeSchema>;
 export type Vehicle = z.infer<typeof VehicleSchema>;
 export type RoleGrant = z.infer<typeof RoleGrantSchema>;
 export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>;
-export type OperatorMember = z.infer<typeof OperatorMemberSchema>;

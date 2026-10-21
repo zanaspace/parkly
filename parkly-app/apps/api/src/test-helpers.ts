@@ -140,6 +140,9 @@ export function world(overrides: Partial<AppDeps> = {}) {
       aal?: 'aal1' | 'aal2';
       body?: unknown;
       sessionId?: string;
+      /** Identity claims on the token (Supabase phone / email sign-in). */
+      phone?: string;
+      email?: string;
       headers?: Record<string, string>;
     } = {},
   ) => {
@@ -148,6 +151,8 @@ export function world(overrides: Partial<AppDeps> = {}) {
       const t = await tokenFor(opts.as, {
         ...(opts.aal ? { aal: opts.aal } : {}),
         ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
+        ...(opts.phone ? { phone: opts.phone } : {}),
+        ...(opts.email ? { email: opts.email } : {}),
       });
       headers.authorization = `Bearer ${t}`;
     }
