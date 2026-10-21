@@ -13,9 +13,21 @@
       "bundleIdentifier": "com.parkly.app",
       "supportsTablet": false
     },
-    "plugins": ["expo-router", "expo-font", "expo-splash-screen", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "zanas-team",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "dce0bb26-acfd-457c-aeec-a3d43df9f899"
+      }
     }
   }
 }
