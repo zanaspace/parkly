@@ -8,7 +8,12 @@ import { createClient } from '../supabase/server';
 import { getOrCreateDeviceId } from './device';
 import { safeNext } from './guard';
 import { AUTH_ERROR_MESSAGES, mapSupabaseAuthError } from '@parkly/contracts';
-import { authErrorMessage, MIN_PASSWORD_LENGTH, signInErrorMessage } from './messages';
+import {
+  authErrorMessage,
+  isEmailAddress,
+  MIN_PASSWORD_LENGTH,
+  signInErrorMessage,
+} from './messages';
 
 export type FormState = { error?: string; message?: string } | undefined;
 
@@ -49,7 +54,7 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
   const email = field(form, 'email').toLowerCase();
   const password = String(form.get('password') ?? '');
   const confirm = String(form.get('confirm') ?? '');
-  if (!/^[^@s]+@[^@s]+.[^@s]+$/.test(email)) return { error: 'Enter your work email address.' };
+  if (!isEmailAddress(email)) return { error: 'Enter a valid email address.' };
   if (password.length < MIN_PASSWORD_LENGTH)
     return { error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.` };
   if (password !== confirm) return { error: 'The two passwords don’t match.' };

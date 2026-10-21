@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseProblem } from './api';
-import { authErrorMessage, signInErrorMessage } from './auth/messages';
+import { authErrorMessage, isEmailAddress, signInErrorMessage } from './auth/messages';
 
 describe('parseProblem', () => {
   it('keeps known problem codes and detail', () => {
@@ -33,4 +33,19 @@ describe('sign-in error copy (no account enumeration)', () => {
   it('maps MFA failures to authenticator copy', () => {
     expect(authErrorMessage({ code: 'mfa_verification_failed' })).toMatch(/authenticator/i);
   });
+});
+
+describe('isEmailAddress (operators often use personal email, not a work domain)', () => {
+  it.each(['sellytics@gmail.com', 'ops.eko+parkly@yahoo.co.uk', 'owner@ekoparking.ng', 'sss@s.ss'])(
+    'accepts %s',
+    (email) => {
+      expect(isEmailAddress(email)).toBe(true);
+    },
+  );
+  it.each(['', 'no-at-sign', 'a@b', 'two@@at.com', 'space in@mail.com', 'a@b c.com'])(
+    'rejects %j',
+    (email) => {
+      expect(isEmailAddress(email)).toBe(false);
+    },
+  );
 });
