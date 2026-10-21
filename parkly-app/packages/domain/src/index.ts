@@ -7,3 +7,4 @@ export * from './phone/index.js';
 export * from './lot/index.js';
 export * from './operator/index.js';
 export * from './pricing/index.js';
+export * from './availability/index.js';

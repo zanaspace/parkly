@@ -1,7 +1,7 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import type { RoleGrant } from '@parkly/domain/authz';
-import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import {
   DsrAlreadyOpenError,
@@ -19,6 +19,7 @@ import {
   type OpeningHourRow,
   type PermitRow,
   type RatePlanRow,
+  type SlotRow,
   type PayoutAccountRow,
   type OperatorRow,
   type Store,
@@ -49,6 +50,7 @@ const {
   verificationRecords,
   verificationItems,
   featureFlags,
+  lotSlotInventory,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -1145,6 +1147,31 @@ export function drizzleStore(db: Db): Store {
             );
         }
         return ids;
+      },
+    },
+
+    inventory: {
+      async slots(lotIds, from, to) {
+        if (lotIds.length === 0) return [];
+        const rows = await db
+          .select({
+            lotId: lotSlotInventory.lotId,
+            slotStart: lotSlotInventory.slotStart,
+            capacity: lotSlotInventory.capacity,
+            booked: lotSlotInventory.booked,
+            held: lotSlotInventory.held,
+            passReserved: lotSlotInventory.passReserved,
+            blocked: lotSlotInventory.blocked,
+          })
+          .from(lotSlotInventory)
+          .where(
+            and(
+              inArray(lotSlotInventory.lotId, lotIds),
+              gte(lotSlotInventory.slotStart, from),
+              lt(lotSlotInventory.slotStart, to),
+            ),
+          );
+        return rows as SlotRow[];
       },
     },
 

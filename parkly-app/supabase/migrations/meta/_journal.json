@@ -29,6 +29,13 @@
       "when": 1792588481377,
       "tag": "20261021131441_consent_operator_agreement",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792626475820,
+      "tag": "20261021234755_lot_slot_inventory",
+      "breakpoints": true
     }
   ]
 }
