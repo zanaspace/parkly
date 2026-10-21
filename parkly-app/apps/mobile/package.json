@@ -9,7 +9,8 @@
     "android": "expo start --android",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "eas-build-post-install": "cd ../.. && pnpm turbo run build --filter=@parkly/tokens --filter=@parkly/ui-native --filter=@parkly/contracts --filter=@parkly/domain"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "0.4.2",
