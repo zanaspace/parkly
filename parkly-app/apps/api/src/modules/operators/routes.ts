@@ -26,7 +26,7 @@ const EDITABLE_KYB = new Set<OperatorRow['kybStatus']>(['NOT_STARTED', 'REJECTED
 /** "rc 123-456" → "RC123456". */
 const normaliseCac = (cac: string) => cac.toUpperCase().replace(/[\s-]/g, '');
 
-function toOperator(row: OperatorRow, crypto: FieldCrypto): Operator {
+export function toOperator(row: OperatorRow, crypto: FieldCrypto): Operator {
   const open = (v: string | null) => (v === null ? null : crypto.decrypt(v));
   return {
     id: row.id,

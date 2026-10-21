@@ -36,6 +36,10 @@
     "./lot": {
       "types": "./dist/lot/index.d.ts",
       "default": "./dist/lot/index.js"
+    },
+    "./operator": {
+      "types": "./dist/operator/index.d.ts",
+      "default": "./dist/operator/index.js"
     }
   },
   "scripts": {

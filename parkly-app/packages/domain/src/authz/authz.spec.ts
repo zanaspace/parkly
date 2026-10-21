@@ -48,6 +48,30 @@ describe('deny by default (doc 05 §5.2)', () => {
   });
 });
 
+describe('KYB and payout account (FR-LOT-001)', () => {
+  it('lets only the owner upload documents, set the bank account and submit KYB', () => {
+    expect(can(ownerA, 'operator:kyb:manage', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:kyb:manage', { operatorId: OP_A })).toBe(false);
+    expect(can(ownerA, 'operator:kyb:manage', { operatorId: OP_B })).toBe(false);
+  });
+
+  it('lets owner and manager see KYB progress, not attendants', () => {
+    expect(can(ownerA, 'operator:kyb:read', { operatorId: OP_A })).toBe(true);
+    expect(can(managerA, 'operator:kyb:read', { operatorId: OP_A })).toBe(true);
+    expect(can(attendantA, 'operator:kyb:read', { operatorId: OP_A })).toBe(false);
+  });
+
+  it('shows the bank list to operator owners/managers and finance staff, not drivers', () => {
+    expect(can(ownerA, 'bank:list', {})).toBe(true);
+    expect(can(managerA, 'bank:list', {})).toBe(true);
+    expect(
+      can(actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' }), 'bank:list', {}),
+    ).toBe(true);
+    expect(can(driver, 'bank:list', {})).toBe(false);
+    expect(can(attendantA, 'bank:list', {})).toBe(false);
+  });
+});
+
 describe('operator business details (FR-LOT-001)', () => {
   it('lets owner and manager read their operator; only the owner edits it', () => {
     expect(can(ownerA, 'operator:read', { operatorId: OP_A })).toBe(true);

@@ -4,3 +4,4 @@ export * from './health.js';
 export * from './identity.js';
 export * from './auth-errors.js';
 export * from './operators.js';
+export * from './kyb.js';

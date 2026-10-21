@@ -3,6 +3,7 @@ import { Writable } from 'node:stream';
 import type { Role } from '@parkly/domain/authz';
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '../src/lib/logger.js';
+import { allowAllRateLimiter } from '../src/middleware/rate-limit.js';
 import { testApp, world } from '../src/test-helpers.js';
 
 /**
@@ -77,6 +78,47 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/banks',
+    route: 'GET /v1/banks',
+    expect: only(
+      ['OPERATOR_OWNER', 'OPERATOR_MANAGER', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+      200,
+      403,
+    ),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/kyb-documents`,
+    route: 'GET /v1/operators/{operatorId}/kyb-documents',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/kyb-documents`,
+    route: 'GET /v1/operators/{operatorId}/kyb-documents (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/payout-account`,
+    route: 'GET /v1/operators/{operatorId}/payout-account',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'POST',
+    path: `/v1/operators/${OP_A}/kyb/submit`,
+    route: 'POST /v1/operators/{operatorId}/kyb/submit',
+    // Owner reaches the completeness check; managers may look but not submit.
+    expect: { ...only([], 200, 404), OPERATOR_OWNER: 422, OPERATOR_MANAGER: 403 },
+  },
+  {
+    method: 'POST',
+    path: `/v1/operators/${OP_B}/kyb/submit`,
+    route: 'POST /v1/operators/{operatorId}/kyb/submit (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
@@ -103,10 +145,16 @@ const COVERED_ELSEWHERE = new Set([
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
   'POST /v1/operators', // any signed-in user, incl. no role yet; operators.spec
   'PATCH /v1/operators/{operatorId}', // owner only, manager 403, other tenant 404; operators.spec
+  // Owner only, manager 403, other tenant 404, cross-operator file → 404: kyb.spec
+  'POST /v1/operators/{operatorId}/kyb-documents',
+  'POST /v1/operators/{operatorId}/kyb-documents/{fileId}/complete',
+  'DELETE /v1/operators/{operatorId}/kyb-documents/{documentId}',
+  'PUT /v1/operators/{operatorId}/payout-account',
 ]);
 
 describe('RBAC matrix', () => {
-  const w = world();
+  // One client makes every request here; rate limits are tested on their own (auth.spec).
+  const w = world({ rateLimiter: allowAllRateLimiter });
   const ids = Object.fromEntries(
     WHO.filter((who) => who !== 'anon').map((role) => [
       role,

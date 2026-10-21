@@ -273,5 +273,89 @@ export function storeContract(
       expect(await store.operators.find(randomUUID())).toBeNull();
       expect(await store.operators.ownedBy(await newUser())).toBeNull();
     });
+
+    it('keeps KYB documents and one payout account per operator, and marks KYB submitted', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'Eko Parking Services Ltd',
+        tradingName: 'Eko Parking',
+        type: 'HOTEL',
+        cacNumberEnc: 'enc',
+        tinEnc: null,
+        addressLine: 'VI',
+        contactEmail: 'ops@eko.example',
+        contactPhoneEnc: 'enc',
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const file = await store.files.create({
+        id: randomUUID(),
+        bucket: 'kyb-docs',
+        path: `operator/${op.id}/x`,
+        dataClass: 'C4',
+        retentionPolicy: 'operator_relationship_plus_6y',
+        ownerEntityType: 'operator',
+        ownerEntityId: op.id,
+        uploadedBy: owner,
+        mime: 'application/pdf',
+        sizeBytes: 10,
+        sha256: Buffer.alloc(32, 3),
+        createdAt: new Date('2026-10-21T10:00:00Z'),
+      });
+      await store.files.markVerified(
+        file.id,
+        { mime: 'application/pdf', sizeBytes: 10, sha256: Buffer.alloc(32, 3) },
+        new Date('2026-10-21T10:01:00Z'),
+      );
+      const doc = await store.kybDocuments.create({
+        operatorId: op.id,
+        type: 'CAC_CERT',
+        fileId: file.id,
+      });
+      expect(doc).toMatchObject({ type: 'CAC_CERT', status: 'SUBMITTED', rejectionReason: null });
+      expect(await store.kybDocuments.list(op.id)).toEqual([
+        expect.objectContaining({
+          id: doc.id,
+          type: 'CAC_CERT',
+          mime: 'application/pdf',
+          sizeBytes: 10,
+          fileStatus: 'VERIFIED',
+        }),
+      ]);
+      expect(await store.kybDocuments.find(randomUUID(), doc.id)).toBeNull();
+      await store.kybDocuments.remove(op.id, doc.id);
+      expect(await store.kybDocuments.list(op.id)).toEqual([]);
+      expect((await store.files.find(file.id))?.status).toBe('REJECTED');
+
+      const first = {
+        operatorId: op.id,
+        bankCode: '058',
+        bankName: 'GTBank',
+        accountNumberLast4: '6789',
+        accountName: 'EKO PARKING SERVICES LTD',
+        pendingAccountNumberEnc: 'enc1',
+        nameMismatch: false,
+        verifiedAt: new Date('2026-10-21T10:02:00Z'),
+      };
+      await store.payoutAccounts.upsert(first);
+      const second = await store.payoutAccounts.upsert({
+        ...first,
+        bankCode: '044',
+        bankName: 'Access Bank',
+        accountNumberLast4: '1111',
+        pendingAccountNumberEnc: 'enc2',
+      });
+      expect(second).toMatchObject({
+        bankCode: '044',
+        accountNumberLast4: '1111',
+        status: 'VERIFIED',
+        providerSubaccountCode: null,
+      });
+      expect((await store.payoutAccounts.find(op.id))?.pendingAccountNumberEnc).toBe('enc2');
+      expect(await store.payoutAccounts.find(randomUUID())).toBeNull();
+
+      const submitted = await store.operators.submitKyb(op.id, new Date('2026-10-21T11:00:00Z'));
+      expect(submitted.kybStatus).toBe('SUBMITTED');
+    });
   });
 }

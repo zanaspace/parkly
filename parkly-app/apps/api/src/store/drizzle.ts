@@ -9,6 +9,8 @@ import {
   OperatorExistsError,
   type ConsentType,
   type FileRow,
+  type KybDocumentRow,
+  type PayoutAccountRow,
   type OperatorRow,
   type Store,
   type UserRow,
@@ -27,6 +29,8 @@ const {
   files,
   operators,
   operatorMembers,
+  operatorKybDocuments,
+  payoutAccounts,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -93,6 +97,29 @@ const operatorColumns = {
   kybStatus: operators.kybStatus,
   commissionBps: operators.commissionBps,
   createdAt: operators.createdAt,
+};
+
+const kybDocumentColumns = {
+  id: operatorKybDocuments.id,
+  operatorId: operatorKybDocuments.operatorId,
+  type: operatorKybDocuments.type,
+  fileId: operatorKybDocuments.fileId,
+  status: operatorKybDocuments.status,
+  rejectionReason: operatorKybDocuments.rejectionReason,
+  createdAt: operatorKybDocuments.createdAt,
+};
+
+const payoutColumns = {
+  operatorId: payoutAccounts.operatorId,
+  bankCode: payoutAccounts.bankCode,
+  bankName: payoutAccounts.bankName,
+  accountNumberLast4: payoutAccounts.accountNumberLast4,
+  accountName: payoutAccounts.accountName,
+  pendingAccountNumberEnc: payoutAccounts.pendingAccountNumberEnc,
+  nameMismatch: payoutAccounts.nameMismatch,
+  providerSubaccountCode: payoutAccounts.providerSubaccountCode,
+  status: payoutAccounts.status,
+  verifiedAt: payoutAccounts.verifiedAt,
 };
 
 const activeVehicle = (userId: string, id: string) =>
@@ -323,6 +350,75 @@ export function drizzleStore(db: Db): Store {
       },
     },
 
+    kybDocuments: {
+      async create(row) {
+        const [doc] = await db
+          .insert(operatorKybDocuments)
+          .values({ id: uuidv7(), ...row })
+          .returning(kybDocumentColumns);
+        if (!doc) throw new Error('insert failed');
+        return doc as KybDocumentRow;
+      },
+      async list(operatorId) {
+        const rows = await db
+          .select({
+            ...kybDocumentColumns,
+            mime: files.mime,
+            sizeBytes: files.sizeBytes,
+            fileStatus: files.status,
+          })
+          .from(operatorKybDocuments)
+          .innerJoin(files, eq(files.id, operatorKybDocuments.fileId))
+          .where(eq(operatorKybDocuments.operatorId, operatorId))
+          .orderBy(desc(operatorKybDocuments.createdAt), desc(operatorKybDocuments.id));
+        return rows as Awaited<ReturnType<Store['kybDocuments']['list']>>;
+      },
+      async find(operatorId, id) {
+        const [doc] = await db
+          .select(kybDocumentColumns)
+          .from(operatorKybDocuments)
+          .where(
+            and(eq(operatorKybDocuments.id, id), eq(operatorKybDocuments.operatorId, operatorId)),
+          );
+        return (doc as KybDocumentRow | undefined) ?? null;
+      },
+      async remove(operatorId, id) {
+        await db.transaction(async (tx) => {
+          const [doc] = await tx
+            .delete(operatorKybDocuments)
+            .where(
+              and(eq(operatorKybDocuments.id, id), eq(operatorKybDocuments.operatorId, operatorId)),
+            )
+            .returning({ fileId: operatorKybDocuments.fileId });
+          if (doc)
+            await tx
+              .update(files)
+              .set({ status: 'REJECTED', rejectionReason: 'DELETED' })
+              .where(eq(files.id, doc.fileId));
+        });
+      },
+    },
+
+    payoutAccounts: {
+      async upsert(row) {
+        const values = { ...row, status: 'VERIFIED' as const, providerSubaccountCode: null };
+        const [account] = await db
+          .insert(payoutAccounts)
+          .values({ id: uuidv7(), ...values })
+          .onConflictDoUpdate({ target: payoutAccounts.operatorId, set: values })
+          .returning(payoutColumns);
+        if (!account) throw new Error('upsert failed');
+        return account as PayoutAccountRow;
+      },
+      async find(operatorId) {
+        const [account] = await db
+          .select(payoutColumns)
+          .from(payoutAccounts)
+          .where(eq(payoutAccounts.operatorId, operatorId));
+        return (account as PayoutAccountRow | undefined) ?? null;
+      },
+    },
+
     audit: {
       async write(entry) {
         await db.insert(auditLogs).values({ id: uuidv7(), ...entry });
@@ -395,6 +491,15 @@ export function drizzleStore(db: Db): Store {
         const [row] = await db
           .update(operators)
           .set(patch)
+          .where(eq(operators.id, id))
+          .returning(operatorColumns);
+        if (!row) throw new Error(`no operator ${id}`);
+        return row as OperatorRow;
+      },
+      async submitKyb(id, at) {
+        const [row] = await db
+          .update(operators)
+          .set({ kybStatus: 'SUBMITTED', kybSubmittedAt: at })
           .where(eq(operators.id, id))
           .returning(operatorColumns);
         if (!row) throw new Error(`no operator ${id}`);
