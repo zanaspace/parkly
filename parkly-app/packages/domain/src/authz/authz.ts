@@ -55,6 +55,8 @@ const RULES = {
     scope: 'platform',
     roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
   },
+  'lot:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  'lot:manage': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:members:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'lot:checkin': {
     scope: 'lot',

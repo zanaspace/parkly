@@ -4,9 +4,14 @@ import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
   OperatorExistsError,
+  SlugTakenError,
+  StaleVersionError,
   type AuditRow,
   type FileRow,
   type KybDocumentRow,
+  type LotPhotoRow,
+  type LotRow,
+  type OpeningHourRow,
   type PayoutAccountRow,
   type OperatorRow,
   type ConsentType,
@@ -36,6 +41,9 @@ export class MemoryStore implements Store {
   readonly operatorRows = new Map<string, OperatorRow>();
   readonly kybDocRows: KybDocumentRow[] = [];
   readonly payoutRows = new Map<string, PayoutAccountRow>();
+  readonly lotRows = new Map<string, LotRow>();
+  readonly hourRows = new Map<string, OpeningHourRow[]>();
+  readonly photoRows: LotPhotoRow[] = [];
   readonly settingRows = new Map<string, unknown>([
     ['legal.terms_version', '2026-10-01'],
     ['legal.privacy_version', '2026-10-01'],
@@ -251,6 +259,77 @@ export class MemoryStore implements Store {
       return { ...account };
     },
     find: async (operatorId) => this.copy(this.payoutRows.get(operatorId)),
+  };
+
+  lots: Store['lots'] = {
+    create: async ({ createdBy: _createdBy, ...row }) => {
+      if ([...this.lotRows.values()].some((l) => l.slug === row.slug)) throw new SlugTakenError();
+      const lot: LotRow = {
+        ...row,
+        location: { ...row.location },
+        id: randomUUID(),
+        status: 'DRAFT',
+        statusReason: null,
+        version: 1,
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.lotRows.set(lot.id, lot);
+      return { ...lot };
+    },
+    find: async (operatorId, id) => {
+      const lot = this.lotRows.get(id);
+      return lot && lot.operatorId === operatorId ? { ...lot } : null;
+    },
+    list: async (operatorId) =>
+      [...this.lotRows.values()]
+        .filter((l) => l.operatorId === operatorId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((l) => ({ ...l, photoCount: this.photoRows.filter((p) => p.lotId === l.id).length })),
+    update: async (operatorId, id, version, patch) => {
+      const lot = this.lotRows.get(id);
+      if (!lot || lot.operatorId !== operatorId) throw new Error(`no lot ${id}`);
+      if (lot.version !== version) throw new StaleVersionError();
+      Object.assign(lot, patch, { version: lot.version + 1 });
+      return { ...lot };
+    },
+    openingHours: async (lotId) =>
+      [...(this.hourRows.get(lotId) ?? [])].sort((a, b) => a.weekday - b.weekday),
+    setOpeningHours: async (lotId, days) => {
+      this.hourRows.set(
+        lotId,
+        days.map((d) => ({ ...d })),
+      );
+    },
+  };
+
+  lotPhotos: Store['lotPhotos'] = {
+    create: async (row) => {
+      const photo: LotPhotoRow = {
+        ...row,
+        id: randomUUID(),
+        status: 'PENDING',
+        createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
+      };
+      this.photoRows.push(photo);
+      return { ...photo };
+    },
+    list: async (lotId) =>
+      this.photoRows
+        .filter((p) => p.lotId === lotId)
+        .sort((a, b) => a.sort - b.sort || a.createdAt.getTime() - b.createdAt.getTime())
+        .map((p) => ({ ...p, sizeBytes: this.mustFile(p.fileId).sizeBytes })),
+    find: async (lotId, id) =>
+      this.copy(this.photoRows.find((p) => p.lotId === lotId && p.id === id)),
+    remove: async (lotId, id) => {
+      const i = this.photoRows.findIndex((p) => p.lotId === lotId && p.id === id);
+      if (i < 0) return;
+      const [photo] = this.photoRows.splice(i, 1);
+      if (photo)
+        Object.assign(this.mustFile(photo.fileId), {
+          status: 'REJECTED',
+          rejectionReason: 'DELETED',
+        });
+    },
   };
 
   audit: Store['audit'] = {

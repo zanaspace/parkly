@@ -48,6 +48,20 @@ describe('deny by default (doc 05 §5.2)', () => {
   });
 });
 
+describe('lots (FR-LOT-002)', () => {
+  it('lets owner and manager create, edit and read their operator’s lots', () => {
+    for (const who of [ownerA, managerA]) {
+      expect(can(who, 'lot:manage', { operatorId: OP_A })).toBe(true);
+      expect(can(who, 'lot:read', { operatorId: OP_A })).toBe(true);
+    }
+  });
+  it('denies other operators, attendants and drivers', () => {
+    expect(can(ownerA, 'lot:manage', { operatorId: OP_B })).toBe(false);
+    expect(can(attendantA, 'lot:manage', { operatorId: OP_A })).toBe(false);
+    expect(can(driver, 'lot:read', { operatorId: OP_A })).toBe(false);
+  });
+});
+
 describe('KYB and payout account (FR-LOT-001)', () => {
   it('lets only the owner upload documents, set the bank account and submit KYB', () => {
     expect(can(ownerA, 'operator:kyb:manage', { operatorId: OP_A })).toBe(true);

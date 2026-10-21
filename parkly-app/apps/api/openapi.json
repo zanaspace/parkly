@@ -2564,6 +2564,1760 @@
         }
       }
     },
+    "/v1/operators/{operatorId}/lots": {
+      "get": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "addressLine": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_VERIFICATION",
+                              "LIVE",
+                              "PAUSED",
+                              "SUSPENDED",
+                              "ARCHIVED"
+                            ]
+                          },
+                          "capacityBookable": {
+                            "type": "integer"
+                          },
+                          "photoCount": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "addressLine",
+                          "status",
+                          "capacityBookable",
+                          "photoCount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "HOTEL",
+                      "OFFICE",
+                      "COMMERCIAL_LOT",
+                      "EVENT_CENTRE",
+                      "OTHER"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "addressLine": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "area": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lga": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "location": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ]
+                  },
+                  "entranceNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "capacityTotal": {
+                    "type": "integer"
+                  },
+                  "capacityBookable": {
+                    "type": "integer"
+                  },
+                  "amenities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "GUARD",
+                        "CCTV",
+                        "LIGHTING",
+                        "COVERED",
+                        "EV",
+                        "ACCESS_CONTROL",
+                        "TOILET"
+                      ]
+                    },
+                    "maxItems": 7
+                  },
+                  "vehicleTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "CAR",
+                        "SUV",
+                        "BUS"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 3
+                  }
+                },
+                "required": [
+                  "name",
+                  "type",
+                  "addressLine",
+                  "location",
+                  "capacityTotal",
+                  "capacityBookable",
+                  "amenities",
+                  "vehicleTypes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft lot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}": {
+      "get": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "HOTEL",
+                      "OFFICE",
+                      "COMMERCIAL_LOT",
+                      "EVENT_CENTRE",
+                      "OTHER"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "addressLine": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "area": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lga": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "location": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ]
+                  },
+                  "entranceNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "capacityTotal": {
+                    "type": "integer"
+                  },
+                  "capacityBookable": {
+                    "type": "integer"
+                  },
+                  "amenities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "GUARD",
+                        "CCTV",
+                        "LIGHTING",
+                        "COVERED",
+                        "EV",
+                        "ACCESS_CONTROL",
+                        "TOILET"
+                      ]
+                    },
+                    "maxItems": 7
+                  },
+                  "vehicleTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "CAR",
+                        "SUV",
+                        "BUS"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 3
+                  },
+                  "version": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lot updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/opening-hours": {
+      "put": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "days": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "weekday": {
+                              "type": "integer"
+                            },
+                            "is24h": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            }
+                          },
+                          "required": [
+                            "weekday",
+                            "is24h"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "weekday": {
+                              "type": "integer"
+                            },
+                            "is24h": {
+                              "type": "boolean",
+                              "enum": [
+                                false
+                              ]
+                            },
+                            "opensAt": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                            },
+                            "closesAt": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                            }
+                          },
+                          "required": [
+                            "weekday",
+                            "is24h",
+                            "opensAt",
+                            "closesAt"
+                          ]
+                        }
+                      ]
+                    },
+                    "maxItems": 7
+                  }
+                },
+                "required": [
+                  "days"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lot with its new hours",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/photos": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp"
+                    ]
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 10485760
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$/i"
+                  }
+                },
+                "required": [
+                  "contentType",
+                  "sizeBytes",
+                  "sha256"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "uploadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSec": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "fileId",
+                    "uploadUrl",
+                    "expiresInSec"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/photos/{fileId}/complete": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "fileId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Photo added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "sort": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "sizeBytes": {
+                      "type": "integer"
+                    },
+                    "uploadedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "sort",
+                    "status",
+                    "sizeBytes",
+                    "uploadedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/photos/{photoId}": {
+      "delete": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "photoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Photo removed"
+          }
+        }
+      }
+    },
     "/v1/admin/audit-logs": {
       "get": {
         "tags": [

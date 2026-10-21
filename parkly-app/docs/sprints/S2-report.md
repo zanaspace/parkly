@@ -1,6 +1,6 @@
 # Sprint 2 — Operators, lots, permits, verification: progress report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–B** (operator sign-up + business details; KYB documents, payout account, KYB submission).
+- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–C** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard).
 - **Updated:** 2026-10-21
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
 
@@ -27,7 +27,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 |---|---|---|
 | A | Operator sign-up (email + confirmation) → business details → owner; edit details until KYB is submitted | **Done** |
 | B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** |
-| C | Lot wizard: details, map pin, capacity, amenities, hours, photos | To do |
+| C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
 | D | Permit, rate plans, submit lot for verification | To do |
 | E | Admin review queues → subaccount on KYB approval → lot LIVE | To do |
 | F | Team invites; permit expiry job | To do |
@@ -48,6 +48,15 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Portal:** `/kyb` with one upload slot per required document (SHA-256 computed in the browser, file goes straight to Storage), bank form showing the resolved name and a mismatch notice, submit with missing items listed; home links to it.
 - **Tests:** +14 API (kyb), +6 RBAC matrix rows (the matrix now runs without rate limiting, which is tested elsewhere), +15 domain, +3 authz, +7 contracts, +19 portal copy, +1 store contract.
 
+### Slice C: what was built
+
+- **Rules** (`packages/domain/lot/draft`): amenities and vehicle types, capacity (bookable ≤ total), Lagos State bounds for the pin, opening-hours validation (one window per day, overnight allowed), slugs.
+- **Permissions:** `lot:read`, `lot:manage` (owner and manager).
+- **API:** lots list/create/read/update (optimistic `version`), opening hours, photos (presign → browser upload → complete with WebP re-encode → list/delete, max 10). Only DRAFT lots change for now.
+- **Portal:** `/lots`, `/lots/new`, `/lots/[id]` (photos, hours grid, details); home links to it. Browser upload helpers shared with KYB.
+- **Checked against the real dev database** (rolled-back transaction): map location round-trips exactly, other operators can't load the lot, stale edits are refused, overnight hours, duplicate slugs.
+- **Tests:** +13 API (lots) +1 cross-operator, +4 RBAC matrix rows, +27 domain, +2 authz, +5 contracts, +6 portal, +1 store contract.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -67,6 +76,9 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Operator sign-up order | doc 03: O-01 sign-up (email, phone OTP, agreement) → O-02 MFA → O-03 business details | Sign-up is email + password only. Agreement + Privacy are accepted on O-03, where the operator is created (so the consent is tied to the business). MFA follows O-03, because MFA is mandatory for the OWNER role, which exists only from O-03. Owner phone OTP is not in the MVP; the contact phone is captured on O-03. Doc 03 updated. |
 | Payout name mismatch | doc 03 O-05: "Account name ≠ legal name: needs admin review" | Accepted and flagged (`nameMatchesLegalName: false`); the operator is told ops will check it; the admin queue (slice E) shows it. |
 | Subaccount timing | doc 02: PUT creates the Paystack subaccount; PRD FR-LOT-001: only after admin approval | Created on KYB approval (slice E), following the PRD; PUT only resolves and stores. |
+| Map pin | doc 03 O-11: address autocomplete + drop a pin on a map | Needs a Google Maps key (S3). Until then: latitude/longitude fields, "Use my current location" (browser geolocation, for use at the entrance) and a "Check it on a map" link (OpenStreetMap). Checked against Lagos State bounds. |
+| Editing after submission | doc 02: PATCH with optimistic version, any status | Only DRAFT lots change until submission/verification (slice D) and booking capacity rules (S4, `LOT_CAPACITY_BELOW_COMMITTED`) exist |
+| Photo thumbnails in the portal | not specified | Not shown yet: photos are private until approved, and there is no signed-download endpoint for operators. The list shows count, size and review status. |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 

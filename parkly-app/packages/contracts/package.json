@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@parkly/config": "workspace:*",
+    "@parkly/domain": "workspace:*",
     "eslint": "10.12.0",
     "typescript": "5.9.3",
     "vitest": "5.0.4"

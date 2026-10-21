@@ -7,9 +7,14 @@ import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
   OperatorExistsError,
+  SlugTakenError,
+  StaleVersionError,
   type ConsentType,
   type FileRow,
   type KybDocumentRow,
+  type LotPhotoRow,
+  type LotRow,
+  type OpeningHourRow,
   type PayoutAccountRow,
   type OperatorRow,
   type Store,
@@ -31,6 +36,9 @@ const {
   operatorMembers,
   operatorKybDocuments,
   payoutAccounts,
+  lots,
+  lotOpeningHours,
+  lotPhotos,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -121,6 +129,40 @@ const payoutColumns = {
   status: payoutAccounts.status,
   verifiedAt: payoutAccounts.verifiedAt,
 };
+
+const lotColumns = {
+  id: lots.id,
+  operatorId: lots.operatorId,
+  type: lots.type,
+  name: lots.name,
+  slug: lots.slug,
+  description: lots.description,
+  addressLine: lots.addressLine,
+  area: lots.area,
+  lga: lots.lga,
+  location: lots.location,
+  entranceNotes: lots.entranceNotes,
+  capacityTotal: lots.capacityTotal,
+  capacityBookable: lots.capacityBookable,
+  amenities: lots.amenities,
+  vehicleTypes: lots.vehicleTypes,
+  status: lots.status,
+  statusReason: lots.statusReason,
+  version: lots.version,
+  createdAt: lots.createdAt,
+};
+
+const photoColumns = {
+  id: lotPhotos.id,
+  lotId: lotPhotos.lotId,
+  fileId: lotPhotos.fileId,
+  sort: lotPhotos.sort,
+  status: lotPhotos.status,
+  createdAt: lotPhotos.createdAt,
+};
+
+/** Postgres returns `time` as HH:MM:SS; the API speaks HH:MM. */
+const hhmm = (t: string | null) => (t === null ? null : t.slice(0, 5));
 
 const activeVehicle = (userId: string, id: string) =>
   and(eq(vehicles.id, id), eq(vehicles.userId, userId), isNull(vehicles.deletedAt));
@@ -416,6 +458,115 @@ export function drizzleStore(db: Db): Store {
           .from(payoutAccounts)
           .where(eq(payoutAccounts.operatorId, operatorId));
         return (account as PayoutAccountRow | undefined) ?? null;
+      },
+    },
+
+    lots: {
+      async create({ createdBy, ...row }) {
+        try {
+          const [lot] = await db
+            .insert(lots)
+            .values({ id: uuidv7(), ...row, createdBy })
+            .returning(lotColumns);
+          if (!lot) throw new Error('insert failed');
+          return lot as LotRow;
+        } catch (err) {
+          if (isUniqueViolation(err, 'lots_slug_key')) throw new SlugTakenError();
+          throw err;
+        }
+      },
+      async find(operatorId, id) {
+        const [lot] = await db
+          .select(lotColumns)
+          .from(lots)
+          .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId)));
+        return (lot as LotRow | undefined) ?? null;
+      },
+      async list(operatorId) {
+        const rows = await db
+          .select({
+            ...lotColumns,
+            photoCount: sql<number>`(select count(*)::int from ${lotPhotos} where ${lotPhotos.lotId} = ${lots.id})`,
+          })
+          .from(lots)
+          .where(eq(lots.operatorId, operatorId))
+          .orderBy(desc(lots.createdAt), desc(lots.id));
+        return rows as (LotRow & { photoCount: number })[];
+      },
+      async update(operatorId, id, version, patch) {
+        const [lot] = await db
+          .update(lots)
+          .set({ ...patch, version: sql`${lots.version} + 1` })
+          .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId), eq(lots.version, version)))
+          .returning(lotColumns);
+        if (!lot) throw new StaleVersionError();
+        return lot as LotRow;
+      },
+      async openingHours(lotId) {
+        const rows = await db
+          .select({
+            weekday: lotOpeningHours.weekday,
+            is24h: lotOpeningHours.is24h,
+            opensAt: lotOpeningHours.opensAt,
+            closesAt: lotOpeningHours.closesAt,
+          })
+          .from(lotOpeningHours)
+          .where(eq(lotOpeningHours.lotId, lotId))
+          .orderBy(asc(lotOpeningHours.weekday));
+        return rows.map((r): OpeningHourRow => ({
+          ...r,
+          opensAt: hhmm(r.opensAt),
+          closesAt: hhmm(r.closesAt),
+        }));
+      },
+      async setOpeningHours(lotId, days) {
+        await db.transaction(async (tx) => {
+          await tx.delete(lotOpeningHours).where(eq(lotOpeningHours.lotId, lotId));
+          if (days.length > 0)
+            await tx
+              .insert(lotOpeningHours)
+              .values(days.map((d) => ({ id: uuidv7(), lotId, ...d })));
+        });
+      },
+    },
+
+    lotPhotos: {
+      async create(row) {
+        const [photo] = await db
+          .insert(lotPhotos)
+          .values({ id: uuidv7(), ...row })
+          .returning(photoColumns);
+        if (!photo) throw new Error('insert failed');
+        return photo as LotPhotoRow;
+      },
+      async list(lotId) {
+        const rows = await db
+          .select({ ...photoColumns, sizeBytes: files.sizeBytes })
+          .from(lotPhotos)
+          .innerJoin(files, eq(files.id, lotPhotos.fileId))
+          .where(eq(lotPhotos.lotId, lotId))
+          .orderBy(asc(lotPhotos.sort), asc(lotPhotos.createdAt));
+        return rows as (LotPhotoRow & { sizeBytes: number })[];
+      },
+      async find(lotId, id) {
+        const [photo] = await db
+          .select(photoColumns)
+          .from(lotPhotos)
+          .where(and(eq(lotPhotos.id, id), eq(lotPhotos.lotId, lotId)));
+        return (photo as LotPhotoRow | undefined) ?? null;
+      },
+      async remove(lotId, id) {
+        await db.transaction(async (tx) => {
+          const [photo] = await tx
+            .delete(lotPhotos)
+            .where(and(eq(lotPhotos.id, id), eq(lotPhotos.lotId, lotId)))
+            .returning({ fileId: lotPhotos.fileId });
+          if (photo)
+            await tx
+              .update(files)
+              .set({ status: 'REJECTED', rejectionReason: 'DELETED' })
+              .where(eq(files.id, photo.fileId));
+        });
       },
     },
 

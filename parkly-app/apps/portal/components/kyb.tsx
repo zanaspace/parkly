@@ -11,6 +11,7 @@ import {
   savePayoutAccount,
   submitKyb,
 } from '../lib/operators/kyb-actions';
+import { putToSignedUrl, sha256Hex } from '../lib/browser-upload';
 import { formatBytes } from '../lib/operators/kyb-copy';
 
 const ACCEPTED = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -22,11 +23,6 @@ function Notice({ tone, children }: { tone: 'error' | 'info'; children: React.Re
       {children}
     </p>
   );
-}
-
-async function sha256Hex(file: File): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -63,12 +59,8 @@ export function DocumentSlot(props: {
       });
       if (!presign.ok) return setError(presign.error);
       setBusy('Uploading…');
-      const put = await fetch(presign.uploadUrl, {
-        method: 'PUT',
-        headers: { 'content-type': file.type },
-        body: file,
-      });
-      if (!put.ok) return setError('The upload failed. Please check your connection and retry.');
+      if (!(await putToSignedUrl(presign.uploadUrl, file)))
+        return setError('The upload failed. Please check your connection and retry.');
       setBusy('Checking the file…');
       const done = await completeKybDocument({
         operatorId: props.operatorId,
