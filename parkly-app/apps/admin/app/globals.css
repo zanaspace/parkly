@@ -88,3 +88,22 @@ body {
 .pk-table-wrap {
   overflow-x: auto;
 }
+/* A bordered section. Card tokens from doc 15. */
+.pk-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-sm);
+  padding: var(--pk-card-padding);
+  border: 1px solid var(--pk-card-border);
+  border-radius: var(--pk-card-radius);
+  background: var(--pk-card-bg);
+  box-shadow: var(--pk-card-shadow);
+}
+.pk-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-xs);
+}

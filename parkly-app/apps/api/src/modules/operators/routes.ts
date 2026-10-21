@@ -40,6 +40,8 @@ export function toOperator(row: OperatorRow, crypto: FieldCrypto): Operator {
     contactPhone: open(row.contactPhoneEnc),
     status: row.status,
     kybStatus: row.kybStatus,
+    kybSubmittedAt: row.kybSubmittedAt?.toISOString() ?? null,
+    kybRejectionReason: row.kybRejectionReason,
     commissionBps: row.commissionBps,
     createdAt: row.createdAt.toISOString(),
   };

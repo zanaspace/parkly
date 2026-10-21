@@ -64,6 +64,9 @@ export const OperatorSchema = z.object({
   contactPhone: z.string().nullable(),
   status: OperatorStatusSchema,
   kybStatus: KybStatusSchema,
+  kybSubmittedAt: z.iso.datetime().nullable(),
+  /** Why KYB was rejected; shown to the owner so they can fix it. */
+  kybRejectionReason: z.string().nullable(),
   commissionBps: z.number().int(),
   createdAt: z.iso.datetime(),
 });

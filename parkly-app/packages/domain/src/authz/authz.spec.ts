@@ -48,6 +48,26 @@ describe('deny by default (doc 05 §5.2)', () => {
   });
 });
 
+describe('KYB review (FR-ADM-001)', () => {
+  const ops = actor([{ role: 'ADMIN_OPS', operatorId: null }], { aal: 'aal2' });
+  const finance = actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' });
+
+  it('lets ops, compliance and super admins review KYB', () => {
+    expect(can(ops, 'kyb:review', {})).toBe(true);
+    expect(can(compliance, 'kyb:review', {})).toBe(true);
+    expect(
+      can(actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' }), 'kyb:review', {}),
+    ).toBe(true);
+  });
+
+  it('denies support, finance, operators and anyone below aal2', () => {
+    expect(can(support, 'kyb:review', {})).toBe(false);
+    expect(can(finance, 'kyb:review', {})).toBe(false);
+    expect(can(ownerA, 'kyb:review', {})).toBe(false);
+    expect(can({ ...ops, aal: 'aal1' }, 'kyb:review', {})).toBe(false);
+  });
+});
+
 describe('lots (FR-LOT-002)', () => {
   it('lets owner and manager create, edit and read their operator’s lots', () => {
     for (const who of [ownerA, managerA]) {

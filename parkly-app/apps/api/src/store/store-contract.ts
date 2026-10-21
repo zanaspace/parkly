@@ -557,5 +557,65 @@ export function storeContract(
         store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null),
       ).rejects.toBeInstanceOf(StaleVersionError);
     });
+
+    it('reviews KYB: queue, reject with reason, approve once with the subaccount saved', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'R Ltd',
+        tradingName: 'R',
+        type: 'HOTEL',
+        cacNumberEnc: 'enc',
+        tinEnc: null,
+        addressLine: 'VI',
+        contactEmail: 'r@example.com',
+        contactPhoneEnc: 'enc',
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      await store.payoutAccounts.upsert({
+        operatorId: op.id,
+        bankCode: '058',
+        bankName: 'GTBank',
+        accountNumberLast4: '6789',
+        accountName: 'R LTD',
+        pendingAccountNumberEnc: 'enc-full-number',
+        nameMismatch: false,
+        verifiedAt: new Date('2026-10-21T10:00:00Z'),
+      });
+      await store.operators.submitKyb(op.id, new Date('2026-10-21T11:00:00Z'));
+      expect((await store.operators.list({ kybStatus: 'SUBMITTED' })).map((o) => o.id)).toContain(
+        op.id,
+      );
+
+      const rejected = await store.operators.rejectKyb(op.id, {
+        reviewerId: owner,
+        at: new Date('2026-10-21T12:00:00Z'),
+        reason: 'CAC scan unreadable',
+      });
+      expect(rejected).toMatchObject({
+        kybStatus: 'REJECTED',
+        kybRejectionReason: 'CAC scan unreadable',
+      });
+      await expect(
+        store.operators.rejectKyb(op.id, { reviewerId: owner, at: new Date(), reason: 'again' }),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+
+      const resubmitted = await store.operators.submitKyb(op.id, new Date('2026-10-22T09:00:00Z'));
+      expect(resubmitted).toMatchObject({ kybStatus: 'SUBMITTED', kybRejectionReason: null });
+      await store.payoutAccounts.setSubaccount(op.id, 'ACCT_test123');
+      const approved = await store.operators.approveKyb(op.id, {
+        reviewerId: owner,
+        at: new Date('2026-10-22T10:00:00Z'),
+      });
+      expect(approved).toMatchObject({ kybStatus: 'APPROVED', status: 'ACTIVE' });
+      expect(await store.payoutAccounts.find(op.id)).toMatchObject({
+        status: 'ACTIVE',
+        providerSubaccountCode: 'ACCT_test123',
+        pendingAccountNumberEnc: null,
+      });
+      await expect(
+        store.operators.approveKyb(op.id, { reviewerId: owner, at: new Date() }),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+    });
   });
 }

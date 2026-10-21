@@ -107,6 +107,8 @@ const operatorColumns = {
   contactPhoneEnc: operators.contactPhoneEnc,
   status: operators.status,
   kybStatus: operators.kybStatus,
+  kybSubmittedAt: operators.kybSubmittedAt,
+  kybRejectionReason: operators.kybRejectionReason,
   commissionBps: operators.commissionBps,
   createdAt: operators.createdAt,
 };
@@ -490,6 +492,12 @@ export function drizzleStore(db: Db): Store {
           .where(eq(payoutAccounts.operatorId, operatorId));
         return (account as PayoutAccountRow | undefined) ?? null;
       },
+      async setSubaccount(operatorId, code) {
+        await db
+          .update(payoutAccounts)
+          .set({ providerSubaccountCode: code })
+          .where(eq(payoutAccounts.operatorId, operatorId));
+      },
     },
 
     lots: {
@@ -766,10 +774,58 @@ export function drizzleStore(db: Db): Store {
       async submitKyb(id, at) {
         const [row] = await db
           .update(operators)
-          .set({ kybStatus: 'SUBMITTED', kybSubmittedAt: at })
+          .set({ kybStatus: 'SUBMITTED', kybSubmittedAt: at, kybRejectionReason: null })
           .where(eq(operators.id, id))
           .returning(operatorColumns);
         if (!row) throw new Error(`no operator ${id}`);
+        return row as OperatorRow;
+      },
+      async list({ kybStatus }) {
+        const rows = await db
+          .select(operatorColumns)
+          .from(operators)
+          .where(kybStatus ? eq(operators.kybStatus, kybStatus) : undefined)
+          .orderBy(asc(operators.kybSubmittedAt), asc(operators.createdAt));
+        return rows as OperatorRow[];
+      },
+      async approveKyb(id, { reviewerId, at }) {
+        return db.transaction(async (tx) => {
+          const [row] = await tx
+            .update(operators)
+            .set({
+              kybStatus: 'APPROVED',
+              status: 'ACTIVE',
+              kybReviewedBy: reviewerId,
+              kybReviewedAt: at,
+              kybRejectionReason: null,
+            })
+            .where(and(eq(operators.id, id), eq(operators.kybStatus, 'SUBMITTED')))
+            .returning(operatorColumns);
+          if (!row) throw new StaleVersionError();
+          await tx
+            .update(operatorKybDocuments)
+            .set({ status: 'APPROVED', reviewedBy: reviewerId, reviewedAt: at })
+            .where(eq(operatorKybDocuments.operatorId, id));
+          // CHECK payout_accounts_active_has_subaccount refuses ACTIVE without the code.
+          await tx
+            .update(payoutAccounts)
+            .set({ status: 'ACTIVE', activatedAt: at, pendingAccountNumberEnc: null })
+            .where(eq(payoutAccounts.operatorId, id));
+          return row as OperatorRow;
+        });
+      },
+      async rejectKyb(id, { reviewerId, at, reason }) {
+        const [row] = await db
+          .update(operators)
+          .set({
+            kybStatus: 'REJECTED',
+            kybReviewedBy: reviewerId,
+            kybReviewedAt: at,
+            kybRejectionReason: reason,
+          })
+          .where(and(eq(operators.id, id), eq(operators.kybStatus, 'SUBMITTED')))
+          .returning(operatorColumns);
+        if (!row) throw new StaleVersionError();
         return row as OperatorRow;
       },
       async ownedBy(userId) {

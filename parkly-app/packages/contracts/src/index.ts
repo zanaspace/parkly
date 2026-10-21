@@ -6,3 +6,4 @@ export * from './auth-errors.js';
 export * from './operators.js';
 export * from './kyb.js';
 export * from './lots.js';
+export * from './admin-kyb.js';

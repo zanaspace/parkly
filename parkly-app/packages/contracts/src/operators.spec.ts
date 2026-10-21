@@ -61,3 +61,20 @@ describe('operator business details (FR-LOT-001, doc 03 O-03)', () => {
     expect(UpdateOperatorRequestSchema.safeParse({}).success).toBe(false);
   });
 });
+
+describe('KYB review request', () => {
+  it('needs a reason to reject, not to approve', async () => {
+    const { KybReviewRequestSchema } = await import('./admin-kyb.js');
+    expect(KybReviewRequestSchema.safeParse({ decision: 'APPROVE' }).success).toBe(true);
+    expect(KybReviewRequestSchema.safeParse({ decision: 'REJECT' }).success).toBe(false);
+    expect(KybReviewRequestSchema.safeParse({ decision: 'REJECT', reason: 'no' }).success).toBe(
+      false,
+    );
+    expect(
+      KybReviewRequestSchema.safeParse({
+        decision: 'REJECT',
+        reason: 'The CAC certificate is unreadable; upload a clearer scan.',
+      }).success,
+    ).toBe(true);
+  });
+});

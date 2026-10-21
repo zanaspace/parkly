@@ -29,7 +29,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** |
 | C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
 | D | Permit, rate plans, submit lot for verification | **Done** |
-| E | Admin review queues → subaccount on KYB approval → lot LIVE | To do |
+| E | Admin review queues → subaccount on KYB approval → lot LIVE | **E1 (KYB review) done**; E2 (lot review + go-live) to do |
 | F | Team invites; permit expiry job | To do |
 
 ### Slice A: what was built
@@ -64,6 +64,15 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Portal:** lot page gains Prices (naira in, kobo via `nairaToKobo`; shows live vs awaiting approval), LASPA permit (number, dates, scan; warns when < 30 days to expiry), and Submit for verification with the missing items.
 - **Tests:** +8 API (permit, prices, submit), +2 RBAC matrix rows, +2 contracts, +9 portal, +1 store contract. API: 426 tests, branches 86.9 %.
 
+### Slice E1: KYB review
+
+- **Permission** `kyb:review` (ADMIN_OPS, ADMIN_COMPLIANCE, SUPER_ADMIN; aal2).
+- **API:** queue, detail (decrypted details, documents, masked bank, owner; audited), 5-minute document links (audited), approve/reject. Approve creates the Paystack subaccount and saves its code before activating, so a retry after a failure never creates a second subaccount; then one transaction activates the operator, approves the documents and activates the payout account with the full account number erased (the DB CHECK refuses ACTIVE without a code). Reject requires a reason the owner sees.
+- **Admin console:** "KYB to review" queue and review page (details, open documents in a new tab, bank-name warning, approve / reject with reason). **Portal:** the KYB page shows the rejection reason.
+- **Checked against the dev database** (rolled back): queue, reject, resubmit clears the reason, approve refused without a subaccount code, approve, second approve refused.
+- **Also:** the API typecheck now covers `test/` (the RBAC matrix and integration tests were never type-checked).
+- **Tests:** +12 API (admin KYB), +2 RBAC matrix rows, +2 authz, +1 contracts, +1 store contract. API: 459 tests.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -88,6 +97,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Photo thumbnails in the portal | not specified | Not shown yet: photos are private until approved, and there is no signed-download endpoint for operators. The list shows count, size and review status. |
 | Price input | doc 00: money is integer kobo; "never compute prices on a client" | Operators type naira; the portal converts the typed amount to kobo with the domain's `nairaToKobo` (input parsing, not pricing). The API validates and stores kobo. |
 | Rate-plan endpoint | doc 02: `POST .../rate-plans` | `PUT`: a change replaces the product's pending plan rather than adding another, matching the one-pending-per-product constraint |
+| Operator email on KYB decision | doc 03 O-06: "Email when approved or rejected" | Not sent yet: notifications arrive in S6. The owner sees the status and the reason on the portal KYB page. |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 

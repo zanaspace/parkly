@@ -1461,6 +1461,19 @@
                         "REJECTED"
                       ]
                     },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "commissionBps": {
                       "type": "integer"
                     },
@@ -1481,6 +1494,8 @@
                     "contactPhone",
                     "status",
                     "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
                     "commissionBps",
                     "createdAt"
                   ]
@@ -1588,6 +1603,19 @@
                         "REJECTED"
                       ]
                     },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "commissionBps": {
                       "type": "integer"
                     },
@@ -1608,6 +1636,8 @@
                     "contactPhone",
                     "status",
                     "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
                     "commissionBps",
                     "createdAt"
                   ]
@@ -1768,6 +1798,19 @@
                         "REJECTED"
                       ]
                     },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "commissionBps": {
                       "type": "integer"
                     },
@@ -1788,6 +1831,8 @@
                     "contactPhone",
                     "status",
                     "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
                     "commissionBps",
                     "createdAt"
                   ]
@@ -2534,6 +2579,19 @@
                         "REJECTED"
                       ]
                     },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "commissionBps": {
                       "type": "integer"
                     },
@@ -2554,6 +2612,8 @@
                     "contactPhone",
                     "status",
                     "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
                     "commissionBps",
                     "createdAt"
                   ]
@@ -5883,6 +5943,626 @@
         "responses": {
           "204": {
             "description": "Sessions revoked"
+          }
+        }
+      }
+    },
+    "/v1/admin/operators": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_STARTED",
+                "SUBMITTED",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "required": false,
+            "name": "kybStatus",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KYB queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "legalName": {
+                            "type": "string"
+                          },
+                          "tradingName": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "HOTEL",
+                              "OFFICE",
+                              "COMMERCIAL_LOT",
+                              "EVENT_CENTRE",
+                              "OTHER"
+                            ]
+                          },
+                          "kybStatus": {
+                            "type": "string",
+                            "enum": [
+                              "NOT_STARTED",
+                              "SUBMITTED",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "kybSubmittedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "payoutNameMismatch": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "legalName",
+                          "tradingName",
+                          "type",
+                          "kybStatus",
+                          "kybSubmittedAt",
+                          "payoutNameMismatch"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/operators/{operatorId}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator for review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operator": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "legalName": {
+                          "type": "string"
+                        },
+                        "tradingName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "HOTEL",
+                            "OFFICE",
+                            "COMMERCIAL_LOT",
+                            "EVENT_CENTRE",
+                            "OTHER"
+                          ]
+                        },
+                        "cacNumber": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "tin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "addressLine": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "contactEmail": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "contactPhone": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ONBOARDING",
+                            "ACTIVE",
+                            "SUSPENDED",
+                            "OFFBOARDED"
+                          ]
+                        },
+                        "kybStatus": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "SUBMITTED",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "kybSubmittedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "kybRejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "commissionBps": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "legalName",
+                        "tradingName",
+                        "type",
+                        "cacNumber",
+                        "tin",
+                        "addressLine",
+                        "contactEmail",
+                        "contactPhone",
+                        "status",
+                        "kybStatus",
+                        "kybSubmittedAt",
+                        "kybRejectionReason",
+                        "commissionBps",
+                        "createdAt"
+                      ]
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "CAC_CERT",
+                              "DIRECTOR_ID",
+                              "UTILITY_BILL",
+                              "OTHER"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "SUBMITTED",
+                              "IN_REVIEW",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "mime": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "status",
+                          "mime",
+                          "sizeBytes",
+                          "uploadedAt",
+                          "rejectionReason"
+                        ]
+                      }
+                    },
+                    "payoutAccount": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "bankCode": {
+                          "type": "string"
+                        },
+                        "bankName": {
+                          "type": "string"
+                        },
+                        "accountNumberLast4": {
+                          "type": "string"
+                        },
+                        "accountName": {
+                          "type": "string"
+                        },
+                        "nameMatchesLegalName": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "VERIFIED",
+                            "ACTIVE",
+                            "DISABLED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bankCode",
+                        "bankName",
+                        "accountNumberLast4",
+                        "accountName",
+                        "nameMatchesLegalName",
+                        "status"
+                      ]
+                    },
+                    "owner": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "firstName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "lastName"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator",
+                    "documents",
+                    "payoutAccount",
+                    "owner"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "documentId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Short-lived link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSec": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "expiresInSec"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/operators/{operatorId}/kyb/review": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "decision": {
+                        "type": "string",
+                        "enum": [
+                          "APPROVE"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "decision"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "decision": {
+                        "type": "string",
+                        "enum": [
+                          "REJECT"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "decision",
+                      "reason"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reviewed operator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "tradingName": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "cacNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tin": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactEmail": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactPhone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "SUSPENDED",
+                        "OFFBOARDED"
+                      ]
+                    },
+                    "kybStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "SUBMITTED",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "commissionBps": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "legalName",
+                    "tradingName",
+                    "type",
+                    "cacNumber",
+                    "tin",
+                    "addressLine",
+                    "contactEmail",
+                    "contactPhone",
+                    "status",
+                    "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
+                    "commissionBps",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
           }
         }
       }
