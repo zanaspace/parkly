@@ -183,6 +183,7 @@ const permitColumns = {
   status: permits.status,
   rejectionReason: permits.rejectionReason,
   reviewNote: permits.reviewNote,
+  lastReminderDays: permits.lastReminderDays,
   createdAt: permits.createdAt,
 };
 
@@ -702,6 +703,46 @@ export function drizzleStore(db: Db): Store {
           .returning(permitColumns);
         if (!permit) throw new StaleVersionError();
         return permit as PermitRow;
+      },
+      async dueForExpiryCheck(today, limit) {
+        // Same buckets as the domain's permitExpiryAction: the nearest reminder not yet sent.
+        const daysLeft = sql`(${permits.expiresAt} - ${today}::date)`;
+        const rows = await db
+          .select(permitColumns)
+          .from(permits)
+          .where(
+            and(
+              eq(permits.status, 'APPROVED'),
+              sql`${daysLeft} <= 30`,
+              or(
+                sql`${daysLeft} <= 0`,
+                isNull(permits.lastReminderDays),
+                sql`${permits.lastReminderDays} > case when ${daysLeft} <= 1 then 1 when ${daysLeft} <= 7 then 7 when ${daysLeft} <= 14 then 14 else 30 end`,
+              ),
+            ),
+          )
+          .orderBy(asc(permits.expiresAt), asc(permits.id))
+          .limit(limit);
+        return rows as PermitRow[];
+      },
+      async markReminded(id, days) {
+        await db
+          .update(permits)
+          .set({ lastReminderDays: days })
+          .where(
+            and(
+              eq(permits.id, id),
+              or(isNull(permits.lastReminderDays), sql`${permits.lastReminderDays} > ${days}`),
+            ),
+          );
+      },
+      async expire(id) {
+        const rows = await db
+          .update(permits)
+          .set({ status: 'EXPIRED' })
+          .where(and(eq(permits.id, id), eq(permits.status, 'APPROVED')))
+          .returning({ id: permits.id });
+        return rows.length > 0;
       },
     },
 

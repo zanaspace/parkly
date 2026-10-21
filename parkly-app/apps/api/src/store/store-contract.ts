@@ -772,5 +772,87 @@ export function storeContract(
       expect(live.status).toBe('LIVE');
       expect((await store.lots.listByStatus('LIVE')).map((l) => l.id)).toContain(lot.id);
     });
+
+    it('finds permits due a reminder or expiry, records reminders and expires once', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'X Ltd',
+        tradingName: 'X',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'X Lot',
+        slug: `x-lot-${randomUUID().slice(0, 6)}`,
+        description: null,
+        addressLine: 'VI',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 10,
+        capacityBookable: 5,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      const reviewer = { reviewerId: owner, at: new Date('2026-10-01T10:00:00Z') };
+      const approved = async (expiresAt: string) => {
+        const p = await store.permits.create({
+          lotId: lot.id,
+          permitNumber: `LASPA/${expiresAt}`,
+          issuedAt: '2026-01-01',
+          expiresAt,
+          documentFileId: (
+            await store.files.create({
+              id: randomUUID(),
+              bucket: 'permits',
+              path: `x/${randomUUID()}`,
+              dataClass: 'C3',
+              retentionPolicy: 'permit_expiry_plus_6y',
+              ownerEntityType: 'lot',
+              ownerEntityId: lot.id,
+              uploadedBy: owner,
+              mime: 'application/pdf',
+              sizeBytes: 10,
+              sha256: Buffer.alloc(32, 7),
+              createdAt: new Date('2026-10-01T00:00:00Z'),
+            })
+          ).id,
+          submittedBy: owner,
+        });
+        return store.permits.approve(p.id, { ...reviewer, note: 'checked' });
+      };
+      // Far future dates keep other tests' permits out of the window.
+      const today = '2031-03-01';
+      const expired = await approved('2031-03-01');
+      const in10 = await approved('2031-03-11');
+      const in40 = await approved('2031-04-10');
+      const mine = (rows: { id: string }[]) =>
+        rows.map((r) => r.id).filter((id) => [expired.id, in10.id, in40.id].includes(id));
+
+      expect(mine(await store.permits.dueForExpiryCheck(today, 50))).toEqual([expired.id, in10.id]);
+      await store.permits.markReminded(in10.id, 14);
+      expect(mine(await store.permits.dueForExpiryCheck(today, 50))).toEqual([expired.id]);
+      await store.permits.markReminded(in10.id, 30); // never moves backwards
+      expect((await store.permits.find(in10.id))?.lastReminderDays).toBe(14);
+      expect(mine(await store.permits.dueForExpiryCheck('2031-03-05', 50))).toEqual([
+        expired.id,
+        in10.id,
+      ]);
+
+      expect(await store.permits.expire(expired.id)).toBe(true);
+      expect(await store.permits.expire(expired.id)).toBe(false);
+      expect((await store.permits.find(expired.id))?.status).toBe('EXPIRED');
+      expect(mine(await store.permits.dueForExpiryCheck(today, 50))).toEqual([]);
+    });
   });
 }

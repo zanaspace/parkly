@@ -30,7 +30,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
 | D | Permit, rate plans, submit lot for verification | **Done** |
 | E | Admin review queues → subaccount on KYB approval → lot LIVE | **Done** (E1 KYB review, E2 lot review + go-live) |
-| F | Team invites; permit expiry job | To do |
+| F | Team invites; permit expiry job | **F1 (permit expiry job) done**; F2 (team invites) to do |
 
 ### Slice A: what was built
 
@@ -82,6 +82,14 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Checked against the dev database** (rolled back): queue with operator name, permit approve once, price approve retires the old one, photo approval, visit with GPS round-trip, capacity lowered on approval, LIVE sets the verified badge.
 - **Tests:** +18 API (admin lots), +2 RBAC matrix rows (7 write routes covered in admin/lots.spec), +3 authz, +4 contracts, +1 store contract, +4 admin. API: 498 tests, branches 86.2 %.
 
+### Slice F1: permit expiry job
+
+- **Job** `permit-expiry-check` (FR-LOT-007, doc 01 §5.8), scheduled by migration `20261021200000_permit_expiry_cron.sql` at 06:00, 07:00 and 08:00 Lagos (the later runs only pick up leftovers). Per APPROVED permit: the nearest 30/14/7/1-day reminder not yet sent (a missed run never sends a burst); on the expiry date the permit becomes EXPIRED and a LIVE or PAUSED lot left without a valid permit is SUSPENDED by SYSTEM with a reason the operator sees (`lot.suspended`, `permit.expired` audited). A renewal that is already approved keeps the lot live; a replaced permit gets no reminders.
+- **Time travel for the demo:** outside production a signed call may pass `{"asOf": "YYYY-MM-DD"}` (doc 22 §2.5).
+- **Emails** go to the operator's contact email through a log-only sender until the email provider (Resend) and the notification outbox arrive in S6.
+- **Checked against the dev database** (rolled back): due list, reminder buckets, reminders never move backwards, expire once.
+- **Tests:** +8 job, +2 registry, +1 store contract. API: 509 tests.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -113,6 +121,8 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Four-eyes on visits | doc 03 §4.1: when ops headcount ≥ 2 (flag `four_eyes_verification`) | Enforced when the flag is on; a missing flag row reads as off (one ops person on dev). Turn it on in `feature_flags` before launch (doc 17). |
 | Suspend impact preview / bulk refund | doc 03 §4.3 | Bookings arrive in S4, so there is nothing to preview or refund yet; "honour existing bookings" is the only behaviour until then. |
 | Visit evidence photos | doc 02: `evidence_file_ids` per checklist item | Not collected yet (X-03 field use, S8); the checklist, count, GPS and notes are recorded. |
+| Permit reminder channels | doc 01 §5.8: email + SMS to owners/managers and ops; drivers with future bookings notified | Email to the operator's contact email only (logged until S6). SMS needs Termii, managers arrive with team invites (F2), and bookings with S4; the ops alert comes with notifications (S6). |
+| Expiry job schedule | doc 01: daily 06:00 | 06:00 plus two catch-up runs at 07:00 and 08:00 Lagos, because one run handles at most 100 permits and pg_cron does not re-call on "remaining". |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 
