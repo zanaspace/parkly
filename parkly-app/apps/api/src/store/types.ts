@@ -142,6 +142,8 @@ export type LotPhotoRow = {
   id: string;
   lotId: string;
   fileId: string;
+  /** The copy in `lot-photos-public`, made when the photo is approved. */
+  publicFileId: string | null;
   sort: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: Date;
@@ -158,8 +160,46 @@ export type PermitRow = {
   documentFileId: string | null;
   status: 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
   rejectionReason: string | null;
+  /** How ops checked it with LASPA (internal). */
+  reviewNote: string | null;
   createdAt: Date;
 };
+
+export type VerificationItemName =
+  | 'LASPA_PERMIT'
+  | 'GUARD_PRESENCE'
+  | 'LIGHTING'
+  | 'CCTV'
+  | 'ACCESS_CONTROL'
+  | 'CAPACITY_COUNT'
+  | 'OWNER_IDENTITY'
+  | 'ENTRANCE_SIGNAGE'
+  | 'FIRE_SAFETY';
+
+export type VerificationItemRow = {
+  item: VerificationItemName;
+  result: 'PASS' | 'FAIL' | 'NA';
+  comment: string | null;
+};
+
+export type VerificationRow = {
+  id: string;
+  lotId: string;
+  inspectorUserId: string;
+  inspectedAt: Date;
+  status: 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+  capacityCounted: number;
+  gps: { lat: number; lng: number } | null;
+  notes: string | null;
+  /** YYYY-MM-DD, Lagos calendar day. */
+  validUntil: string;
+  rejectionReason: string | null;
+  items: VerificationItemRow[];
+  createdAt: Date;
+};
+
+/** Who decided and when; a rejection carries the reason the operator sees. */
+export type Review = { reviewerId: string; at: Date };
 
 export type Product = 'HOURLY' | 'DAILY' | 'MONTHLY';
 
@@ -303,7 +343,13 @@ export type Store = {
     ): Promise<LotRow>;
     /** Scoped: another operator's lot is not found. */
     find(operatorId: string, id: string): Promise<LotRow | null>;
+    /** Unscoped, for Parkly staff. */
+    findById(id: string): Promise<LotRow | null>;
     list(operatorId: string): Promise<(LotRow & { photoCount: number })[]>;
+    /** Admin queue across operators, oldest first. */
+    listByStatus(
+      status: LotStatus,
+    ): Promise<(LotRow & { photoCount: number; operatorName: string })[]>;
     /** Optimistic concurrency: throws StaleVersionError unless `version` is current; bumps it. */
     update(
       operatorId: string,
@@ -311,7 +357,10 @@ export type Store = {
       version: number,
       patch: Partial<LotFields>,
     ): Promise<LotRow>;
-    /** Moves the lot only if it is still in `from` (StaleVersionError otherwise); bumps the version. */
+    /**
+     * Moves the lot only if it is still in `from` (StaleVersionError otherwise);
+     * bumps the version. The verified badge follows LIVE.
+     */
     setStatus(
       operatorId: string,
       id: string,
@@ -334,6 +383,10 @@ export type Store = {
     }): Promise<PermitRow>;
     /** The most recently submitted permit for the lot. */
     latest(lotId: string): Promise<PermitRow | null>;
+    find(id: string): Promise<PermitRow | null>;
+    /** From SUBMITTED or IN_REVIEW only (StaleVersionError otherwise). */
+    approve(id: string, review: Review & { note: string }): Promise<PermitRow>;
+    reject(id: string, review: Review & { reason: string }): Promise<PermitRow>;
   };
   ratePlans: {
     /** PENDING_APPROVAL; replaces this product's pending change if there is one. */
@@ -342,14 +395,48 @@ export type Store = {
     ): Promise<RatePlanRow>;
     /** ACTIVE and PENDING_APPROVAL plans, HOURLY → DAILY → MONTHLY. */
     current(lotId: string): Promise<RatePlanRow[]>;
+    find(id: string): Promise<RatePlanRow | null>;
+    /**
+     * PENDING_APPROVAL → ACTIVE from `at` (new bookings only), retiring the
+     * product's previous ACTIVE plan in the same transaction. StaleVersionError
+     * if it is no longer pending.
+     */
+    approve(id: string, review: Review): Promise<RatePlanRow>;
+    reject(id: string, review: Review & { reason: string }): Promise<RatePlanRow>;
   };
   lotPhotos: {
     create(row: { lotId: string; fileId: string; sort: number }): Promise<LotPhotoRow>;
     /** In display order, with the stored file size. */
     list(lotId: string): Promise<(LotPhotoRow & { sizeBytes: number })[]>;
     find(lotId: string, id: string): Promise<LotPhotoRow | null>;
+    findById(id: string): Promise<LotPhotoRow | null>;
+    /** From PENDING only (StaleVersionError otherwise); approval records the public copy. */
+    review(
+      id: string,
+      decision: { status: 'APPROVED'; publicFileId: string } | { status: 'REJECTED' },
+      review: Review,
+    ): Promise<LotPhotoRow>;
     /** Deletes the photo and marks its file REJECTED (DELETED). */
     remove(lotId: string, id: string): Promise<void>;
+  };
+  verifications: {
+    /** SUBMITTED, with its checklist items. */
+    create(
+      row: Omit<VerificationRow, 'id' | 'status' | 'rejectionReason' | 'createdAt'>,
+    ): Promise<VerificationRow>;
+    /** The most recent visit for the lot. */
+    latest(lotId: string): Promise<VerificationRow | null>;
+    find(id: string): Promise<VerificationRow | null>;
+    /**
+     * SUBMITTED/IN_REVIEW → APPROVED. In the same transaction a lower count on
+     * site replaces the lot's total (and caps what is bookable) — doc 03 §4.1.
+     */
+    approve(id: string, review: Review): Promise<VerificationRow>;
+    reject(id: string, review: Review & { reason: string }): Promise<VerificationRow>;
+  };
+  flags: {
+    /** A missing flag is off. */
+    enabled(key: string): Promise<boolean>;
   };
   audit: {
     write(entry: AuditEntry): Promise<void>;

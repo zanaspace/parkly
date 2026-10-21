@@ -64,6 +64,13 @@ const RULES = {
   },
   /** Review operator KYB: read details and documents, approve or reject (doc 02 §6.8). */
   'kyb:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
+  /** Lot review queue and detail, photo review, lot status changes (go-live, send back, suspend). */
+  'lot:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
+  /** LASPA permit review (doc 03 §4.2). */
+  'permit:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
+  /** Price changes and site verification are ops work (doc 02 §6.8). */
+  'rate-plan:review': { scope: 'platform', roles: ['ADMIN_OPS', 'SUPER_ADMIN'] },
+  'lot:verify': { scope: 'platform', roles: ['ADMIN_OPS', 'SUPER_ADMIN'] },
   'audit:read': { scope: 'platform', roles: ['ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   'user:sessions:revoke': { scope: 'platform', roles: ['SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;

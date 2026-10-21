@@ -1,6 +1,6 @@
 # Sprint 2 — Operators, lots, permits, verification: progress report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–D** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission).
+- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–E** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission; admin KYB review and lot review + go-live). Slice F (team invites, permit expiry job) remains.
 - **Updated:** 2026-10-21
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
 
@@ -29,7 +29,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** |
 | C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
 | D | Permit, rate plans, submit lot for verification | **Done** |
-| E | Admin review queues → subaccount on KYB approval → lot LIVE | **E1 (KYB review) done**; E2 (lot review + go-live) to do |
+| E | Admin review queues → subaccount on KYB approval → lot LIVE | **Done** (E1 KYB review, E2 lot review + go-live) |
 | F | Team invites; permit expiry job | To do |
 
 ### Slice A: what was built
@@ -73,6 +73,15 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Also:** the API typecheck now covers `test/` (the RBAC matrix and integration tests were never type-checked).
 - **Tests:** +12 API (admin KYB), +2 RBAC matrix rows, +2 authz, +1 contracts, +1 store contract. API: 459 tests.
 
+### Slice E2: lot review and go-live
+
+- **Permissions:** `lot:review` and `permit:review` (ops, compliance, super admin); `rate-plan:review` and `lot:verify` (ops, super admin). Status moves also go through the domain transition table, so only ops/super admin take a lot live or reinstate it; compliance can suspend.
+- **API:** lot queue + detail with the listing gate; permit scan link (audited) and review with the LASPA check note; price review (approval retires the previous live price in the same transaction); photo review (approval copies the photo to `lot-photos-public`); site visit checklist and review (required items, four-eyes flag, lower count replaces capacity); status moves (go live, send back, suspend, reinstate, archive) with reasons. New codes `VERIFICATION_CHECKLIST_FAILED`, `FOUR_EYES_REQUIRED`.
+- **Admin console:** "Lots to review" queue (waiting / live / suspended) and a review page: details, map link, permit (open scan, approve with note / reject), prices, photo thumbnails with approve/reject, site visit form (phone-friendly, "Use my location", Lagos time), go-live checklist, send back / suspend / reinstate / archive. CSP allows images from the Supabase host only for the signed photo links.
+- **Portal:** the lot page explains each status and shows the reason when Parkly sends a lot back or suspends it.
+- **Checked against the dev database** (rolled back): queue with operator name, permit approve once, price approve retires the old one, photo approval, visit with GPS round-trip, capacity lowered on approval, LIVE sets the verified badge.
+- **Tests:** +18 API (admin lots), +2 RBAC matrix rows (7 write routes covered in admin/lots.spec), +3 authz, +4 contracts, +1 store contract, +4 admin. API: 498 tests, branches 86.2 %.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -98,6 +107,12 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Price input | doc 00: money is integer kobo; "never compute prices on a client" | Operators type naira; the portal converts the typed amount to kobo with the domain's `nairaToKobo` (input parsing, not pricing). The API validates and stores kobo. |
 | Rate-plan endpoint | doc 02: `POST .../rate-plans` | `PUT`: a change replaces the product's pending plan rather than adding another, matching the one-pending-per-product constraint |
 | Operator email on KYB decision | doc 03 O-06: "Email when approved or rejected" | Not sent yet: notifications arrive in S6. The owner sees the status and the reason on the portal KYB page. |
+| Who takes a lot live | doc 02 §3.3 and the domain table: ADMIN_OPS (PENDING_VERIFICATION → LIVE); doc 03 §2.4: the operator presses "Go live" (O-13) after "ready to go live" | Ops take it live from the review page, following doc 02 and the domain rules. The operator's own go-live button (O-13), the "ready to go live" email and the ≥ 1 active attendant check come with notifications (S6) and team invites (slice F). |
+| Photos and go-live | FR-LOT-002 (3–10 photos); the listing gate does not mention photos | Photos are reviewed one by one; go-live does not wait for them. Only approved photos are copied to public storage for drivers (S3). |
+| Rejected price change | not specified | The rejection reason is audited and the pending price disappears from the lot; while a lot is waiting for review, ops send it back with a reason the operator sees. Showing rejected prices on the portal is a follow-up. |
+| Four-eyes on visits | doc 03 §4.1: when ops headcount ≥ 2 (flag `four_eyes_verification`) | Enforced when the flag is on; a missing flag row reads as off (one ops person on dev). Turn it on in `feature_flags` before launch (doc 17). |
+| Suspend impact preview / bulk refund | doc 03 §4.3 | Bookings arrive in S4, so there is nothing to preview or refund yet; "honour existing bookings" is the only behaviour until then. |
+| Visit evidence photos | doc 02: `evidence_file_ids` per checklist item | Not collected yet (X-03 field use, S8); the checklist, count, GPS and notes are recorded. |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 

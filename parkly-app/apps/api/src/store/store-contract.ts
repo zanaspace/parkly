@@ -617,5 +617,160 @@ export function storeContract(
         store.operators.approveKyb(op.id, { reviewerId: owner, at: new Date() }),
       ).rejects.toBeInstanceOf(StaleVersionError);
     });
+
+    it('reviews a lot: permit, prices, photos and the site visit, then lists by status', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'L Ltd',
+        tradingName: 'L',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'L Lot',
+        slug: `l-lot-${randomUUID().slice(0, 6)}`,
+        description: null,
+        addressLine: 'VI',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 40,
+        capacityBookable: 30,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      const file = (bucket: 'permits' | 'lot-photos' | 'lot-photos-public') =>
+        store.files.create({
+          id: randomUUID(),
+          bucket,
+          path: `lot/${lot.id}/${randomUUID()}`,
+          dataClass: bucket === 'lot-photos-public' ? 'C1' : 'C3',
+          retentionPolicy: 'lot_life',
+          ownerEntityType: 'lot',
+          ownerEntityId: lot.id,
+          uploadedBy: owner,
+          mime: 'image/webp',
+          sizeBytes: 10,
+          sha256: Buffer.alloc(32, 6),
+          createdAt: new Date('2026-10-21T12:00:00Z'),
+        });
+      const reviewer = { reviewerId: owner, at: new Date('2026-10-22T10:00:00Z') };
+
+      await store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
+      const queue = await store.lots.listByStatus('PENDING_VERIFICATION');
+      expect(queue.find((l) => l.id === lot.id)).toMatchObject({
+        operatorName: 'L Ltd',
+        photoCount: 0,
+      });
+      expect((await store.lots.findById(lot.id))?.operatorId).toBe(op.id);
+
+      // Permit: approve once, with the LASPA check note.
+      const permit = await store.permits.create({
+        lotId: lot.id,
+        permitNumber: 'LASPA/2026/0099',
+        issuedAt: '2026-01-10',
+        expiresAt: '2027-01-09',
+        documentFileId: (await file('permits')).id,
+        submittedBy: owner,
+      });
+      expect(
+        await store.permits.approve(permit.id, { ...reviewer, note: 'Phoned LASPA' }),
+      ).toMatchObject({ status: 'APPROVED', reviewNote: 'Phoned LASPA' });
+      await expect(
+        store.permits.reject(permit.id, { ...reviewer, reason: 'too late' }),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+
+      // Prices: approving a change retires the live price for that product.
+      const price = (hourlyRateKobo: number) =>
+        store.ratePlans.submit({
+          lotId: lot.id,
+          product: 'HOURLY',
+          hourlyRateKobo,
+          minMinutes: 60,
+          dailyCapKobo: null,
+          dailyRateKobo: null,
+          monthlyRateKobo: null,
+          submittedBy: owner,
+        });
+      const first = await price(50_000);
+      await store.ratePlans.approve(first.id, reviewer);
+      const second = await price(70_000);
+      expect(await store.ratePlans.approve(second.id, reviewer)).toMatchObject({
+        status: 'ACTIVE',
+      });
+      expect((await store.ratePlans.find(first.id))?.status).toBe('RETIRED');
+      const third = await price(90_000);
+      expect(
+        await store.ratePlans.reject(third.id, { ...reviewer, reason: 'Too steep' }),
+      ).toMatchObject({ status: 'REJECTED', rejectionReason: 'Too steep' });
+      await expect(store.ratePlans.approve(third.id, reviewer)).rejects.toBeInstanceOf(
+        StaleVersionError,
+      );
+      expect((await store.ratePlans.current(lot.id)).map((p) => p.hourlyRateKobo)).toEqual([
+        70_000,
+      ]);
+
+      // Photos: approval records the public copy, once.
+      const photo = await store.lotPhotos.create({
+        lotId: lot.id,
+        fileId: (await file('lot-photos')).id,
+        sort: 0,
+      });
+      const publicCopy = await file('lot-photos-public');
+      const approved = await store.lotPhotos.review(
+        photo.id,
+        { status: 'APPROVED', publicFileId: publicCopy.id },
+        reviewer,
+      );
+      expect(approved).toMatchObject({ status: 'APPROVED', publicFileId: publicCopy.id });
+      expect((await store.lotPhotos.findById(photo.id))?.lotId).toBe(lot.id);
+      await expect(
+        store.lotPhotos.review(photo.id, { status: 'REJECTED' }, reviewer),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+
+      // Site visit: a lower count on approval replaces the lot's capacity.
+      const visit = await store.verifications.create({
+        lotId: lot.id,
+        inspectorUserId: owner,
+        inspectedAt: new Date('2026-10-21T15:00:00Z'),
+        capacityCounted: 25,
+        gps: { lat: 6.4301, lng: 3.4202 },
+        notes: null,
+        validUntil: '2027-10-21',
+        items: [
+          { item: 'LASPA_PERMIT', result: 'PASS', comment: null },
+          { item: 'CCTV', result: 'NA', comment: 'None' },
+        ],
+      });
+      expect(visit).toMatchObject({ status: 'SUBMITTED', gps: { lat: 6.4301, lng: 3.4202 } });
+      const latest = await store.verifications.latest(lot.id);
+      expect(latest?.items.map((i) => i.item).sort()).toEqual(['CCTV', 'LASPA_PERMIT']);
+      expect(await store.verifications.approve(visit.id, reviewer)).toMatchObject({
+        status: 'APPROVED',
+        validUntil: '2027-10-21',
+      });
+      expect(await store.lots.findById(lot.id)).toMatchObject({
+        capacityTotal: 25,
+        capacityBookable: 25,
+      });
+      await expect(
+        store.verifications.reject(visit.id, { ...reviewer, reason: 'late' }),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+      expect(await store.flags.enabled('no_such_flag')).toBe(false);
+
+      const live = await store.lots.setStatus(op.id, lot.id, 'PENDING_VERIFICATION', 'LIVE', null);
+      expect(live.status).toBe('LIVE');
+      expect((await store.lots.listByStatus('LIVE')).map((l) => l.id)).toContain(lot.id);
+    });
   });
 }

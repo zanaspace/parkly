@@ -34,12 +34,14 @@ export default async function AdminHome({
   return (
     <main className="pk-page pk-page--wide">
       <Text variant="heading-xl">Welcome{me.firstName ? `, ${me.firstName}` : ''}</Text>
-      <Link className="pk-link" href="/kyb">
-        KYB to review
-      </Link>
-      <Text variant="body-sm" tone="tertiary">
-        Lot reviews (permits, prices, site visits, go-live) arrive next.
-      </Text>
+      <nav className="pk-row" aria-label="Reviews">
+        <Link className="pk-link" href="/kyb">
+          KYB to review
+        </Link>
+        <Link className="pk-link" href="/lots">
+          Lots to review
+        </Link>
+      </nav>
 
       <Text variant="heading-md" as="h2">
         Audit log

@@ -169,6 +169,18 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/admin/lots',
+    route: 'GET /v1/admin/lots',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/lots/${LOT_A}`,
+    route: 'GET /v1/admin/lots/{lotId}',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
@@ -214,6 +226,15 @@ const COVERED_ELSEWHERE = new Set([
   // Same kyb:review rule as the rows above; behaviour in admin/kyb.spec
   'GET /v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url',
   'POST /v1/admin/operators/{operatorId}/kyb/review',
+  // lot:review / permit:review / rate-plan:review / lot:verify (authz.spec); allowed and
+  // denied roles per decision in admin/lots.spec
+  'GET /v1/admin/permits/{permitId}/document-url',
+  'POST /v1/admin/permits/{permitId}/review',
+  'POST /v1/admin/rate-plans/{ratePlanId}/review',
+  'POST /v1/admin/lot-photos/{photoId}/review',
+  'POST /v1/admin/lots/{lotId}/verifications',
+  'POST /v1/admin/verifications/{verificationId}/review',
+  'POST /v1/admin/lots/{lotId}/status',
 ]);
 
 describe('RBAC matrix', () => {
