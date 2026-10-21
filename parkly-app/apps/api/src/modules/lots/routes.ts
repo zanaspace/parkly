@@ -2,6 +2,11 @@ import { randomBytes } from 'node:crypto';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
   CreateLotRequestSchema,
+  PermitSchema,
+  PresignPermitDocumentRequestSchema,
+  RatePlanSchema,
+  SetRatePlanRequestSchema,
+  SubmitPermitRequestSchema,
   LotListSchema,
   LotPhotoSchema,
   LotSchema,
@@ -11,9 +16,15 @@ import {
   UpdateLotRequestSchema,
   type Lot,
   type OpeningDay,
+  type Permit,
+  type RatePlan,
 } from '@parkly/contracts';
 import {
   checkCapacity,
+  checkLotTransition,
+  checkPermitDates,
+  submissionGaps,
+  validateRatePlan,
   isInLagosState,
   MAX_LOT_PHOTOS,
   slugify,
@@ -30,6 +41,8 @@ import {
   type LotPhotoRow,
   type LotRow,
   type OpeningHourRow,
+  type PermitRow,
+  type RatePlanRow,
 } from '../../store/types.js';
 import { completeUpload, presignUpload } from '../uploads/service.js';
 
@@ -86,7 +99,34 @@ const toPhoto = (p: LotPhotoRow & { sizeBytes: number }) => ({
   uploadedAt: p.createdAt.toISOString(),
 });
 
-/** Lots, opening hours and photos for operator owners and managers (FR-LOT-002, doc 02 §6.6). */
+const toPermit = (p: PermitRow): Permit => ({
+  id: p.id,
+  issuer: p.issuer,
+  permitNumber: p.permitNumber,
+  issuedAt: p.issuedAt,
+  expiresAt: p.expiresAt,
+  status: p.status,
+  rejectionReason: p.rejectionReason,
+  submittedAt: p.createdAt.toISOString(),
+});
+
+const toRatePlan = (r: RatePlanRow): RatePlan => ({
+  id: r.id,
+  product: r.product,
+  status: r.status,
+  hourlyRateKobo: r.hourlyRateKobo,
+  minMinutes: r.minMinutes,
+  dailyCapKobo: r.dailyCapKobo,
+  dailyRateKobo: r.dailyRateKobo,
+  monthlyRateKobo: r.monthlyRateKobo,
+  rejectionReason: r.rejectionReason,
+  submittedAt: r.createdAt.toISOString(),
+});
+
+/** A permit that still counts toward submission: not rejected or expired. */
+const LIVE_PERMIT = new Set<PermitRow['status']>(['SUBMITTED', 'IN_REVIEW', 'APPROVED']);
+
+/** Lots, hours, photos, permit, prices and submission (FR-LOT-002/003/005, doc 02 §6.6). */
 export function lotRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
   const secured = {
@@ -101,9 +141,11 @@ export function lotRoutes(deps: AppDeps) {
   };
 
   async function toLot(row: LotRow): Promise<Lot> {
-    const [hours, photos] = await Promise.all([
+    const [hours, photos, permit, plans] = await Promise.all([
       deps.store.lots.openingHours(row.id),
       deps.store.lotPhotos.list(row.id),
+      deps.store.permits.latest(row.id),
+      deps.store.ratePlans.current(row.id),
     ]);
     return {
       id: row.id,
@@ -126,6 +168,8 @@ export function lotRoutes(deps: AppDeps) {
       version: row.version,
       openingHours: hours.map(toDay),
       photos: photos.map(toPhoto),
+      permit: permit ? toPermit(permit) : null,
+      ratePlans: plans.map(toRatePlan),
       createdAt: row.createdAt.toISOString(),
     };
   }
@@ -422,6 +466,223 @@ export function lotRoutes(deps: AppDeps) {
         after: { photoId },
       });
       return c.body(null, 204);
+    },
+  );
+
+  // FR-LOT-003, step 1: signed upload URL for the permit scan (private `permits` bucket).
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/permits/document',
+      tags: ['lots'],
+      ...secured,
+      request: {
+        params: LotParams,
+        body: { ...json(PresignPermitDocumentRequestSchema), required: true },
+      },
+      responses: { 201: { description: 'Upload URL', ...json(PresignUploadResponseSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      await loadLot(c, operatorId, lotId, 'edit');
+      const body = c.req.valid('json');
+      const res = await presignUpload(uploadDeps, {
+        purpose: 'PERMIT_DOCUMENT',
+        owner: { type: 'lot', id: lotId },
+        uploadedBy: c.get('actor').userId,
+        declared: { mime: body.contentType, sizeBytes: body.sizeBytes, sha256: body.sha256 },
+      });
+      if (!res.ok) throw new ApiError('VALIDATION_FAILED', res.reason);
+      return c.json(
+        { fileId: res.fileId, uploadUrl: res.uploadUrl, expiresInSec: res.expiresInSec },
+        201,
+      );
+    },
+  );
+
+  // Step 2: permit details with the uploaded scan. Ops reviews it (slice E).
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/permits',
+      tags: ['lots'],
+      ...secured,
+      request: { params: LotParams, body: { ...json(SubmitPermitRequestSchema), required: true } },
+      responses: { 201: { description: 'Permit submitted', ...json(PermitSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      await loadLot(c, operatorId, lotId, 'edit');
+      const body = c.req.valid('json');
+      const dates = checkPermitDates({
+        issuedOn: body.issuedAt,
+        expiresOn: body.expiresAt,
+        now: deps.now(),
+      });
+      if (dates === 'PERMIT_EXPIRED') throw new ApiError('PERMIT_EXPIRED');
+      if (dates)
+        throw new ApiError('VALIDATION_FAILED', 'Check the permit dates', {
+          errors: [
+            {
+              path: 'expiresAt',
+              message:
+                'The expiry date must be after the issue date, and the issue date can’t be in the future.',
+            },
+          ],
+        });
+      const upload = await completeUpload(uploadDeps, {
+        fileId: body.fileId,
+        purpose: 'PERMIT_DOCUMENT',
+        owner: { type: 'lot', id: lotId },
+      });
+      if (!upload.ok) {
+        if (upload.reason === 'NOT_FOUND') throw new ApiError('NOT_FOUND');
+        if (upload.reason === 'NOT_UPLOADED') throw new ApiError('UPLOAD_NOT_RECEIVED');
+        throw new ApiError('UPLOAD_REJECTED', upload.reason);
+      }
+      const permit = await deps.store.permits.create({
+        lotId,
+        permitNumber: body.permitNumber,
+        issuedAt: body.issuedAt,
+        expiresAt: body.expiresAt,
+        documentFileId: body.fileId,
+        submittedBy: c.get('actor').userId,
+      });
+      await audit(c, deps, {
+        action: 'lot.permit_submitted',
+        entityType: 'lot',
+        entityId: lotId,
+        after: { permitId: permit.id, expiresAt: permit.expiresAt },
+      });
+      return c.json(toPermit(permit), 201);
+    },
+  );
+
+  // FR-LOT-005: every price change waits for admin approval and applies to new bookings only.
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/operators/{operatorId}/lots/{lotId}/rate-plans',
+      tags: ['lots'],
+      ...secured,
+      request: { params: LotParams, body: { ...json(SetRatePlanRequestSchema), required: true } },
+      responses: { 200: { description: 'Rate plan awaiting approval', ...json(RatePlanSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      await loadLot(c, operatorId, lotId, 'edit');
+      const body = c.req.valid('json');
+      const prices = {
+        hourlyRateKobo: body.product === 'HOURLY' ? body.hourlyRateKobo : null,
+        minMinutes: body.product === 'HOURLY' ? body.minMinutes : 60,
+        dailyCapKobo: body.product === 'HOURLY' ? (body.dailyCapKobo ?? null) : null,
+        dailyRateKobo: body.product === 'DAILY' ? body.dailyRateKobo : null,
+        monthlyRateKobo: body.product === 'MONTHLY' ? body.monthlyRateKobo : null,
+      };
+      const problems = validateRatePlan({ product: body.product, ...prices });
+      if (problems.length > 0)
+        throw new ApiError('RATE_PLAN_INVALID', 'Check the prices', {
+          errors: problems.map((p) => ({ path: p.field, message: p.message })),
+        });
+      const plan = await deps.store.ratePlans.submit({
+        lotId,
+        product: body.product,
+        ...prices,
+        submittedBy: c.get('actor').userId,
+      });
+      await audit(c, deps, {
+        action: 'lot.rate_plan_submitted',
+        entityType: 'lot',
+        entityId: lotId,
+        after: { ratePlanId: plan.id, product: plan.product, ...prices },
+      });
+      return c.json(toRatePlan(plan), 200);
+    },
+  );
+
+  // Doc 02 §3.3: DRAFT → PENDING_VERIFICATION once everything is in.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/submit',
+      tags: ['lots'],
+      ...secured,
+      request: { params: LotParams },
+      responses: { 200: { description: 'Lot submitted', ...json(LotSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      authorize(c, deps.logger, 'lot:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      const lot = await deps.store.lots.find(operatorId, lotId);
+      if (!lot) throw new ApiError('NOT_FOUND');
+
+      const [photos, hours, plans, permit, payout] = await Promise.all([
+        deps.store.lotPhotos.list(lotId),
+        deps.store.lots.openingHours(lotId),
+        deps.store.ratePlans.current(lotId),
+        deps.store.permits.latest(lotId),
+        deps.store.payoutAccounts.find(operatorId),
+      ]);
+      const permitUsable =
+        !!permit &&
+        LIVE_PERMIT.has(permit.status) &&
+        checkPermitDates({
+          issuedOn: permit.issuedAt,
+          expiresOn: permit.expiresAt,
+          now: deps.now(),
+        }) === null;
+      const isOwner = c
+        .get('actor')
+        .roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
+
+      const check = checkLotTransition({
+        from: lot.status,
+        to: 'PENDING_VERIFICATION',
+        actor: isOwner ? 'OPERATOR_OWNER' : 'OPERATOR_MANAGER',
+        facts: {
+          submissionGaps: submissionGaps({
+            profileComplete: true, // name, address, pin and capacity are required at creation
+            photoCount: photos.length,
+            hasOpeningHours: hours.length > 0,
+            hasRatePlan: plans.length > 0,
+            permitSubmitted: permitUsable,
+            payoutAccountVerified: payout?.status === 'VERIFIED' || payout?.status === 'ACTIVE',
+          }),
+          // Only the submission guard applies to this transition.
+          listability: { listable: false, problems: [] },
+          hasFutureBookings: false,
+        },
+      });
+      if (!check.ok) {
+        if (check.code === 'LOT_INCOMPLETE')
+          throw new ApiError('LOT_INCOMPLETE', 'Some items are missing', {
+            errors: (check.missing ?? []).map((m) => ({ path: m, message: m })),
+          });
+        throw new ApiError(check.code === 'FORBIDDEN' ? 'FORBIDDEN' : 'INVALID_STATE_TRANSITION');
+      }
+
+      let row: LotRow;
+      try {
+        row = await deps.store.lots.setStatus(
+          operatorId,
+          lotId,
+          'DRAFT',
+          'PENDING_VERIFICATION',
+          null,
+        );
+      } catch (err) {
+        if (err instanceof StaleVersionError) throw new ApiError('INVALID_STATE_TRANSITION');
+        throw err;
+      }
+      await audit(c, deps, {
+        action: 'lot.submitted',
+        entityType: 'lot',
+        entityId: lotId,
+        before: { status: 'DRAFT' },
+        after: { status: 'PENDING_VERIFICATION' },
+      });
+      return c.json(await toLot(row), 200);
     },
   );
 

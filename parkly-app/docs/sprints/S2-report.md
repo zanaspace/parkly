@@ -1,6 +1,6 @@
 # Sprint 2 — Operators, lots, permits, verification: progress report
 
-- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–C** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard).
+- **Status:** In progress. Stories 1–3 are done (domain rules, schema + migrations, providers + upload pipeline), plus **slices A–D** (operator sign-up + business details; KYB documents, payout account, KYB submission; lot wizard; permit, prices and lot submission).
 - **Updated:** 2026-10-21
 - **Entry check:** S1 was reviewed on 2026-10-21. Its gaps were closed or logged as carry-over (see `S1-report.md` § Review, doc 20 §6).
 
@@ -28,7 +28,7 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | A | Operator sign-up (email + confirmation) → business details → owner; edit details until KYB is submitted | **Done** |
 | B | KYB documents (upload pipeline) + payout account (bank resolve) + submit KYB | **Done** |
 | C | Lot wizard: details, map pin, capacity, amenities, hours, photos | **Done** |
-| D | Permit, rate plans, submit lot for verification | To do |
+| D | Permit, rate plans, submit lot for verification | **Done** |
 | E | Admin review queues → subaccount on KYB approval → lot LIVE | To do |
 | F | Team invites; permit expiry job | To do |
 
@@ -57,6 +57,13 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 - **Checked against the real dev database** (rolled-back transaction): map location round-trips exactly, other operators can't load the lot, stale edits are refused, overnight hours, duplicate slugs.
 - **Tests:** +13 API (lots) +1 cross-operator, +4 RBAC matrix rows, +27 domain, +2 authz, +5 contracts, +6 portal, +1 store contract.
 
+### Slice D: what was built
+
+- **API:** permit scan presign → browser upload → permit with dates checked (`PERMIT_EXPIRED` for an expired one) and the scan re-checked; prices per product (`PUT`, waits for approval, replaces the pending change, domain rules → `RATE_PLAN_INVALID`); submit DRAFT → PENDING_VERIFICATION through `checkLotTransition` + `submissionGaps`, with the missing items listed. The lot response now carries its latest permit and current prices.
+- **Store:** permits (create, latest), rate plans (submit/replace pending, current), `lots.setStatus` that only moves from the expected status.
+- **Portal:** lot page gains Prices (naira in, kobo via `nairaToKobo`; shows live vs awaiting approval), LASPA permit (number, dates, scan; warns when < 30 days to expiry), and Submit for verification with the missing items.
+- **Tests:** +8 API (permit, prices, submit), +2 RBAC matrix rows, +2 contracts, +9 portal, +1 store contract. API: 426 tests, branches 86.9 %.
+
 ## Decisions (where the docs disagree)
 
 | Topic | Docs | Decision |
@@ -79,6 +86,8 @@ After story 3 the remaining work is built as slices that each ship API + portal 
 | Map pin | doc 03 O-11: address autocomplete + drop a pin on a map | Needs a Google Maps key (S3). Until then: latitude/longitude fields, "Use my current location" (browser geolocation, for use at the entrance) and a "Check it on a map" link (OpenStreetMap). Checked against Lagos State bounds. |
 | Editing after submission | doc 02: PATCH with optimistic version, any status | Only DRAFT lots change until submission/verification (slice D) and booking capacity rules (S4, `LOT_CAPACITY_BELOW_COMMITTED`) exist |
 | Photo thumbnails in the portal | not specified | Not shown yet: photos are private until approved, and there is no signed-download endpoint for operators. The list shows count, size and review status. |
+| Price input | doc 00: money is integer kobo; "never compute prices on a client" | Operators type naira; the portal converts the typed amount to kobo with the domain's `nairaToKobo` (input parsing, not pricing). The API validates and stores kobo. |
+| Rate-plan endpoint | doc 02: `POST .../rate-plans` | `PUT`: a change replaces the product's pending plan rather than adding another, matching the one-pending-per-product constraint |
 | One operator per owner | not stated | MVP: a user owns at most one operator (`OPERATOR_DUPLICATE`); revisit for multi-business owners |
 | New error codes | FR-LOT-003 Gherkin names `LOT_PERMIT_INVALID` | Added `LOT_PERMIT_INVALID` (422) and `LOT_HAS_FUTURE_BOOKINGS` (409) to contracts and doc 02 §11 |
 

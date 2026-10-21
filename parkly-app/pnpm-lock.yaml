@@ -248,6 +248,9 @@ importers:
       '@parkly/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@parkly/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@parkly/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens

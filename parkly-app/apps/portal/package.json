@@ -20,7 +20,8 @@
     "react-dom": "19.2.3",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.3",
-    "@parkly/contracts": "workspace:*"
+    "@parkly/contracts": "workspace:*",
+    "@parkly/domain": "workspace:*"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "16.4.1",

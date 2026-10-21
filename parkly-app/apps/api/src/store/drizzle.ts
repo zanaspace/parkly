@@ -15,6 +15,8 @@ import {
   type LotPhotoRow,
   type LotRow,
   type OpeningHourRow,
+  type PermitRow,
+  type RatePlanRow,
   type PayoutAccountRow,
   type OperatorRow,
   type Store,
@@ -39,6 +41,8 @@ const {
   lots,
   lotOpeningHours,
   lotPhotos,
+  permits,
+  ratePlans,
 } = schema;
 
 const UNIQUE_VIOLATION = '23505';
@@ -159,6 +163,33 @@ const photoColumns = {
   sort: lotPhotos.sort,
   status: lotPhotos.status,
   createdAt: lotPhotos.createdAt,
+};
+
+const permitColumns = {
+  id: permits.id,
+  lotId: permits.lotId,
+  issuer: permits.issuer,
+  permitNumber: permits.permitNumber,
+  issuedAt: permits.issuedAt,
+  expiresAt: permits.expiresAt,
+  documentFileId: permits.documentFileId,
+  status: permits.status,
+  rejectionReason: permits.rejectionReason,
+  createdAt: permits.createdAt,
+};
+
+const ratePlanColumns = {
+  id: ratePlans.id,
+  lotId: ratePlans.lotId,
+  product: ratePlans.product,
+  status: ratePlans.status,
+  hourlyRateKobo: ratePlans.hourlyRateKobo,
+  minMinutes: ratePlans.minMinutes,
+  dailyCapKobo: ratePlans.dailyCapKobo,
+  dailyRateKobo: ratePlans.dailyRateKobo,
+  monthlyRateKobo: ratePlans.monthlyRateKobo,
+  rejectionReason: ratePlans.rejectionReason,
+  createdAt: ratePlans.createdAt,
 };
 
 /** Postgres returns `time` as HH:MM:SS; the API speaks HH:MM. */
@@ -514,6 +545,15 @@ export function drizzleStore(db: Db): Store {
         if (!lot) throw new StaleVersionError();
         return lot as LotRow;
       },
+      async setStatus(operatorId, id, from, to, reason) {
+        const [lot] = await db
+          .update(lots)
+          .set({ status: to, statusReason: reason, version: sql`${lots.version} + 1` })
+          .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId), eq(lots.status, from)))
+          .returning(lotColumns);
+        if (!lot) throw new StaleVersionError();
+        return lot as LotRow;
+      },
       async openingHours(lotId) {
         const rows = await db
           .select({
@@ -539,6 +579,70 @@ export function drizzleStore(db: Db): Store {
               .insert(lotOpeningHours)
               .values(days.map((d) => ({ id: uuidv7(), lotId, ...d })));
         });
+      },
+    },
+
+    permits: {
+      async create(row) {
+        const [permit] = await db
+          .insert(permits)
+          .values({ id: uuidv7(), ...row })
+          .returning(permitColumns);
+        if (!permit) throw new Error('insert failed');
+        return permit as PermitRow;
+      },
+      async latest(lotId) {
+        const [permit] = await db
+          .select(permitColumns)
+          .from(permits)
+          .where(eq(permits.lotId, lotId))
+          .orderBy(desc(permits.createdAt), desc(permits.id))
+          .limit(1);
+        return (permit as PermitRow | undefined) ?? null;
+      },
+    },
+
+    ratePlans: {
+      async submit({ submittedBy, ...row }) {
+        // One pending change per (lot, product): replace it rather than add a second.
+        const prices = {
+          hourlyRateKobo: row.hourlyRateKobo,
+          minMinutes: row.minMinutes,
+          dailyCapKobo: row.dailyCapKobo,
+          dailyRateKobo: row.dailyRateKobo,
+          monthlyRateKobo: row.monthlyRateKobo,
+        };
+        const [updated] = await db
+          .update(ratePlans)
+          .set({ ...prices, submittedBy })
+          .where(
+            and(
+              eq(ratePlans.lotId, row.lotId),
+              eq(ratePlans.product, row.product),
+              eq(ratePlans.status, 'PENDING_APPROVAL'),
+            ),
+          )
+          .returning(ratePlanColumns);
+        if (updated) return updated as RatePlanRow;
+        const [created] = await db
+          .insert(ratePlans)
+          .values({ id: uuidv7(), ...row, submittedBy, status: 'PENDING_APPROVAL' })
+          .returning(ratePlanColumns);
+        if (!created) throw new Error('insert failed');
+        return created as RatePlanRow;
+      },
+      async current(lotId) {
+        const rows = await db
+          .select(ratePlanColumns)
+          .from(ratePlans)
+          .where(
+            and(
+              eq(ratePlans.lotId, lotId),
+              inArray(ratePlans.status, ['ACTIVE', 'PENDING_APPROVAL']),
+            ),
+          )
+          .orderBy(asc(ratePlans.product), asc(ratePlans.createdAt));
+        return rows as RatePlanRow[];
       },
     },
 

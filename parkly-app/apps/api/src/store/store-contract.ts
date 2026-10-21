@@ -445,5 +445,117 @@ export function storeContract(
       expect(await store.lotPhotos.list(lot.id)).toEqual([]);
       expect((await store.files.find(file.id))?.status).toBe('REJECTED');
     });
+
+    it('stores permits and rate plans, and moves a lot’s status only from the expected one', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'P Ltd',
+        tradingName: 'P',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'P Lot',
+        slug: `p-lot-${randomUUID().slice(0, 6)}`,
+        description: null,
+        addressLine: 'VI',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 10,
+        capacityBookable: 5,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      const file = await store.files.create({
+        id: randomUUID(),
+        bucket: 'permits',
+        path: `lot/${lot.id}/permit`,
+        dataClass: 'C3',
+        retentionPolicy: 'permit_expiry_plus_6y',
+        ownerEntityType: 'lot',
+        ownerEntityId: lot.id,
+        uploadedBy: owner,
+        mime: 'application/pdf',
+        sizeBytes: 10,
+        sha256: Buffer.alloc(32, 5),
+        createdAt: new Date('2026-10-21T12:00:00Z'),
+      });
+      expect(await store.permits.latest(lot.id)).toBeNull();
+      const permit = await store.permits.create({
+        lotId: lot.id,
+        permitNumber: 'LASPA/2026/0012',
+        issuedAt: '2026-01-10',
+        expiresAt: '2027-01-09',
+        documentFileId: file.id,
+        submittedBy: owner,
+      });
+      expect(permit).toMatchObject({
+        status: 'SUBMITTED',
+        issuer: 'LASPA',
+        expiresAt: '2027-01-09',
+      });
+      expect((await store.permits.latest(lot.id))?.id).toBe(permit.id);
+
+      const hourly = await store.ratePlans.submit({
+        lotId: lot.id,
+        product: 'HOURLY',
+        hourlyRateKobo: 50_000,
+        minMinutes: 60,
+        dailyCapKobo: null,
+        dailyRateKobo: null,
+        monthlyRateKobo: null,
+        submittedBy: owner,
+      });
+      expect(hourly).toMatchObject({ status: 'PENDING_APPROVAL', hourlyRateKobo: 50_000 });
+      const changed = await store.ratePlans.submit({
+        lotId: lot.id,
+        product: 'HOURLY',
+        hourlyRateKobo: 60_000,
+        minMinutes: 60,
+        dailyCapKobo: null,
+        dailyRateKobo: null,
+        monthlyRateKobo: null,
+        submittedBy: owner,
+      });
+      await store.ratePlans.submit({
+        lotId: lot.id,
+        product: 'DAILY',
+        hourlyRateKobo: null,
+        minMinutes: 60,
+        dailyCapKobo: null,
+        dailyRateKobo: 250_000,
+        monthlyRateKobo: null,
+        submittedBy: owner,
+      });
+      const plans = await store.ratePlans.current(lot.id);
+      expect(plans.map((p) => [p.product, p.status, p.hourlyRateKobo ?? p.dailyRateKobo])).toEqual([
+        ['HOURLY', 'PENDING_APPROVAL', 60_000],
+        ['DAILY', 'PENDING_APPROVAL', 250_000],
+      ]);
+      expect(changed.id).toBe(hourly.id);
+
+      const moved = await store.lots.setStatus(
+        op.id,
+        lot.id,
+        'DRAFT',
+        'PENDING_VERIFICATION',
+        null,
+      );
+      expect(moved).toMatchObject({ status: 'PENDING_VERIFICATION', version: 2 });
+      await expect(
+        store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null),
+      ).rejects.toBeInstanceOf(StaleVersionError);
+    });
   });
 }
