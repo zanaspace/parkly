@@ -162,6 +162,8 @@ export type PermitRow = {
   rejectionReason: string | null;
   /** How ops checked it with LASPA (internal). */
   reviewNote: string | null;
+  /** The last expiry reminder sent (30/14/7/1 days before), FR-LOT-007. */
+  lastReminderDays: number | null;
   createdAt: Date;
 };
 
@@ -387,6 +389,16 @@ export type Store = {
     /** From SUBMITTED or IN_REVIEW only (StaleVersionError otherwise). */
     approve(id: string, review: Review & { note: string }): Promise<PermitRow>;
     reject(id: string, review: Review & { reason: string }): Promise<PermitRow>;
+    /**
+     * APPROVED permits the daily job must act on (FR-LOT-007): expired on or
+     * before `today` (Lagos date), or due a 30/14/7/1-day reminder not yet sent.
+     * Soonest expiry first.
+     */
+    dueForExpiryCheck(today: string, limit: number): Promise<PermitRow[]>;
+    /** Records the reminder; never moves backwards (30 → 14 → 7 → 1). */
+    markReminded(id: string, days: number): Promise<void>;
+    /** APPROVED → EXPIRED; false if it was not APPROVED any more. */
+    expire(id: string): Promise<boolean>;
   };
   ratePlans: {
     /** PENDING_APPROVAL; replaces this product's pending change if there is one. */

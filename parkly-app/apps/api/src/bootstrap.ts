@@ -7,7 +7,7 @@ import { createApp } from './app.js';
 import { supabaseTokenVerifier } from './auth/token.js';
 import { loadConfig } from './config/env.js';
 import { InMemoryReplayGuard, type ReplayGuard } from './jobs/replay-guard.js';
-import { jobs } from './jobs/registry.js';
+import { createJobs } from './jobs/registry.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
@@ -18,6 +18,7 @@ import {
   FakeStorageProvider,
 } from './providers/fakes.js';
 import type { SettlementProvider, SmsProvider, StorageProvider } from './providers/index.js';
+import { logOnlyEmail } from './providers/log-email.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
@@ -129,6 +130,15 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     sessions = new FakeSessionRevoker();
   }
 
+  const now = () => new Date();
+  const jobs = createJobs({
+    store,
+    email: logOnlyEmail(logger),
+    logger,
+    now,
+    appEnv: config.appEnv,
+  });
+
   const app = createApp({
     config,
     logger,
@@ -136,7 +146,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     rateLimiter,
     replayGuard,
     jobs,
-    now: () => new Date(),
+    now,
     store,
     verifyToken: supabaseTokenVerifier(config.supabase.url, {
       allowDevTokens: config.appEnv === 'local',

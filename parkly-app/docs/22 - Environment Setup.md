@@ -99,6 +99,15 @@ select vault.create_secret('https://<api-domain>', 'api_base_url');
 
 Until these exist, `fn_invoke_job` logs a warning and skips (no harm).
 
+**Run a job by hand** (same SQL editor, once the secrets exist). Outside production the permit expiry job accepts `asOf` to fast-forward the clock, which is how the S2 demo shows a lot being suspended:
+
+```sql
+select public.fn_invoke_job('permit-expiry-check');                          -- today
+select public.fn_invoke_job('permit-expiry-check', '{"asOf":"2027-01-09"}'); -- pretend it is 9 Jan 2027
+```
+
+The call is asynchronous: see the response in `net._http_response` and the API logs. Emails are only logged (`email not sent (log only)`) until the email provider arrives in S6.
+
 ### 2.6 The API's database role
 
 The API should connect as `parkly_api` (row-level policies per table), not `postgres`. In the SQL editor:

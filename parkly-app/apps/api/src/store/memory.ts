@@ -339,6 +339,7 @@ export class MemoryStore implements Store {
         status: 'SUBMITTED',
         rejectionReason: null,
         reviewNote: null,
+        lastReminderDays: null,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };
       this.permitRows.push(permit);
@@ -355,6 +356,32 @@ export class MemoryStore implements Store {
       this.decide(this.permitRows, id, { status: 'APPROVED', reviewNote: note }),
     reject: async (id, { reason }) =>
       this.decide(this.permitRows, id, { status: 'REJECTED', rejectionReason: reason }),
+    dueForExpiryCheck: async (today, limit) =>
+      this.permitRows
+        .filter((p) => {
+          if (p.status !== 'APPROVED') return false;
+          const daysLeft = Math.round(
+            (Date.parse(`${p.expiresAt}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5,
+          );
+          if (daysLeft <= 0) return true;
+          if (daysLeft > 30) return false;
+          const bucket = daysLeft <= 1 ? 1 : daysLeft <= 7 ? 7 : daysLeft <= 14 ? 14 : 30;
+          return p.lastReminderDays === null || p.lastReminderDays > bucket;
+        })
+        .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt) || a.id.localeCompare(b.id))
+        .slice(0, limit)
+        .map((p) => ({ ...p })),
+    markReminded: async (id, days) => {
+      const p = this.permitRows.find((r) => r.id === id);
+      if (p && (p.lastReminderDays === null || p.lastReminderDays > days))
+        p.lastReminderDays = days;
+    },
+    expire: async (id) => {
+      const p = this.permitRows.find((r) => r.id === id);
+      if (p?.status !== 'APPROVED') return false;
+      p.status = 'EXPIRED';
+      return true;
+    },
   };
 
   ratePlans: Store['ratePlans'] = {
