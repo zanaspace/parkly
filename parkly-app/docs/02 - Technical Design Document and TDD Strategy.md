@@ -544,10 +544,10 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | POST | `/operators/:operatorId/kyb/submit` | OWN | ✅ | needs business details, a VERIFIED CAC certificate, director ID and proof of address, and a verified payout account → KYB `SUBMITTED`, then details/documents/bank lock; audited `operator.kyb_submitted` | `KYB_INCOMPLETE` (422, `errors[].path` = missing items), `INVALID_STATE_TRANSITION` |
 | GET/POST | `/operators/:operatorId/members` | OWN (MGR may invite ATT) | ✅ | `{email|phone, role, lotIds}` | `MEMBER_EXISTS`, `FORBIDDEN_ROLE_GRANT` |
 | PATCH/DELETE | `/operators/:operatorId/members/:memberId` | OWN | — | revoke → revokes devices/tokens | |
-| GET/POST | `/operators/:operatorId/lots` | OWN, MGR | ✅ | create DRAFT lot | `VALIDATION_FAILED` |
-| GET/PATCH | `/operators/:operatorId/lots/:lotId` | OWN, MGR | — | optimistic `version` | `CONFLICT_STALE_VERSION`, `LOT_CAPACITY_BELOW_COMMITTED` |
-| PUT | `.../lots/:lotId/opening-hours` · POST `.../closures` | OWN, MGR | — | | |
-| POST | `.../lots/:lotId/photos` | OWN, MGR | ✅ | signed upload URL (bucket `lot-photos`); copied to `lot-photos-public` only after admin approval | |
+| GET/POST | `/operators/:operatorId/lots` | OWN, MGR | ✅ | create DRAFT lot (name, type, address, entrance `location {lat,lng}` inside Lagos State, capacity with bookable ≤ total, amenities, vehicle types); slug = name + 4 random base-36 characters; audited `lot.created`. List returns summaries with photo counts | `VALIDATION_FAILED` (`errors[].path` = field) |
+| GET/PATCH | `/operators/:operatorId/lots/:lotId` | OWN, MGR | — | GET includes opening hours and photos. PATCH needs the current `version` (bumped on save) and, until S2 slice D / S4, only DRAFT lots change; capacity is checked against the saved values | `CONFLICT_STALE_VERSION`, `INVALID_STATE_TRANSITION`, `LOT_CAPACITY_BELOW_COMMITTED` (S4) |
+| PUT | `.../lots/:lotId/opening-hours` · POST `.../closures` | OWN, MGR | — | PUT replaces the week: `{days: [{weekday 0–6, is24h} | {weekday, opensAt, closesAt}]}`, days left out are closed, overnight windows allowed. Closures: S2 slice F / FR-LOT-008 | `VALIDATION_FAILED` (`days.<weekday>`) |
+| POST | `.../lots/:lotId/photos` · `/photos/:fileId/complete` · DELETE `/photos/:photoId` | OWN, MGR | ✅ | signed upload URL into private bucket `lot-photos` (JPG/PNG/WebP ≤ 10 MB, max 10 per lot); complete re-encodes to WebP and strips metadata; photos stay `PENDING` until admin approval, then copied to `lot-photos-public` (S2 slice E) | `UPLOAD_REJECTED`, `UPLOAD_NOT_RECEIVED` |
 | POST | `.../lots/:lotId/permits` | OWN, MGR | ✅ | `{permitNumber, issuedAt, expiresAt}` + upload | `PERMIT_EXPIRED` |
 | POST | `.../lots/:lotId/rate-plans` | OWN, MGR | ✅ | → PENDING_APPROVAL | `RATE_PLAN_INVALID` |
 | POST | `.../lots/:lotId/submit` | OWN, MGR | ✅ | DRAFT → PENDING_VERIFICATION | `LOT_INCOMPLETE` (lists missing items) |

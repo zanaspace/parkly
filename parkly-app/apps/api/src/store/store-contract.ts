@@ -5,6 +5,8 @@ import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
   OperatorExistsError,
+  SlugTakenError,
+  StaleVersionError,
   type Store,
 } from './types.js';
 
@@ -356,6 +358,92 @@ export function storeContract(
 
       const submitted = await store.operators.submitKyb(op.id, new Date('2026-10-21T11:00:00Z'));
       expect(submitted.kybStatus).toBe('SUBMITTED');
+    });
+
+    it('stores lots scoped to their operator, with versioned edits, hours and photos', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'Eko Hotels Ltd',
+        tradingName: 'Eko Hotel',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const fields = {
+        operatorId: op.id,
+        type: 'HOTEL' as const,
+        name: 'Eko Hotel Car Park',
+        slug: `eko-hotel-car-park-${randomUUID().slice(0, 6)}`,
+        description: null,
+        addressLine: 'Adetokunbo Ademola St',
+        area: 'Victoria Island',
+        lga: null,
+        location: { lat: 6.4281, lng: 3.4219 },
+        entranceNotes: null,
+        capacityTotal: 300,
+        capacityBookable: 120,
+        amenities: ['GUARD', 'CCTV'],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      };
+      const lot = await store.lots.create(fields);
+      expect(lot).toMatchObject({ status: 'DRAFT', version: 1, capacityBookable: 120 });
+      expect(lot.location.lat).toBeCloseTo(6.4281, 6);
+      expect(lot.location.lng).toBeCloseTo(3.4219, 6);
+      await expect(store.lots.create({ ...fields, name: 'Copy' })).rejects.toBeInstanceOf(
+        SlugTakenError,
+      );
+
+      expect(await store.lots.find(randomUUID(), lot.id)).toBeNull();
+      const updated = await store.lots.update(op.id, lot.id, 1, {
+        capacityBookable: 150,
+        location: { lat: 6.43, lng: 3.42 },
+      });
+      expect(updated).toMatchObject({ version: 2, capacityBookable: 150 });
+      await expect(store.lots.update(op.id, lot.id, 1, { name: 'Stale' })).rejects.toBeInstanceOf(
+        StaleVersionError,
+      );
+
+      await store.lots.setOpeningHours(lot.id, [
+        { weekday: 1, is24h: false, opensAt: '07:00', closesAt: '22:00' },
+        { weekday: 0, is24h: true, opensAt: null, closesAt: null },
+      ]);
+      expect(await store.lots.openingHours(lot.id)).toEqual([
+        { weekday: 0, is24h: true, opensAt: null, closesAt: null },
+        { weekday: 1, is24h: false, opensAt: '07:00', closesAt: '22:00' },
+      ]);
+      await store.lots.setOpeningHours(lot.id, []);
+      expect(await store.lots.openingHours(lot.id)).toEqual([]);
+
+      const file = await store.files.create({
+        id: randomUUID(),
+        bucket: 'lot-photos',
+        path: `lot/${lot.id}/p1`,
+        dataClass: 'C3',
+        retentionPolicy: 'lot_life',
+        ownerEntityType: 'lot',
+        ownerEntityId: lot.id,
+        uploadedBy: owner,
+        mime: 'image/webp',
+        sizeBytes: 2048,
+        sha256: Buffer.alloc(32, 4),
+        createdAt: new Date('2026-10-21T12:00:00Z'),
+      });
+      const photo = await store.lotPhotos.create({ lotId: lot.id, fileId: file.id, sort: 0 });
+      expect(await store.lotPhotos.list(lot.id)).toEqual([
+        expect.objectContaining({ id: photo.id, sort: 0, status: 'PENDING', sizeBytes: 2048 }),
+      ]);
+      expect((await store.lots.list(op.id)).map((l) => [l.id, l.photoCount])).toEqual([
+        [lot.id, 1],
+      ]);
+      await store.lotPhotos.remove(lot.id, photo.id);
+      expect(await store.lotPhotos.list(lot.id)).toEqual([]);
+      expect((await store.files.find(file.id))?.status).toBe('REJECTED');
     });
   });
 }

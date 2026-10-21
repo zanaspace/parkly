@@ -29,6 +29,7 @@ const WHO: Who[] = [
 const OP_A = randomUUID();
 const OP_B = randomUUID();
 const TARGET_USER = randomUUID();
+const LOT_A = randomUUID();
 const EVERYONE_SIGNED_IN = Object.fromEntries(
   WHO.filter((w) => w !== 'anon').map((w) => [w, 200]),
 ) as Record<Who, number>;
@@ -119,6 +120,30 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}/lots`,
+    route: 'GET /v1/operators/{operatorId}/lots',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/lots`,
+    route: 'GET /v1/operators/{operatorId}/lots (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/lots/${LOT_A}`,
+    route: 'GET /v1/operators/{operatorId}/lots/{lotId}',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/lots/${LOT_A}`,
+    route: 'GET /v1/operators/{operatorId}/lots/{lotId} (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/audit-logs',
     route: 'GET /v1/admin/audit-logs',
     expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
@@ -150,6 +175,13 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/kyb-documents/{fileId}/complete',
   'DELETE /v1/operators/{operatorId}/kyb-documents/{documentId}',
   'PUT /v1/operators/{operatorId}/payout-account',
+  // Owner + manager, attendant 404, other operator 404, stale version 409: lots.spec
+  'POST /v1/operators/{operatorId}/lots',
+  'PATCH /v1/operators/{operatorId}/lots/{lotId}',
+  'PUT /v1/operators/{operatorId}/lots/{lotId}/opening-hours',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/photos',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/photos/{fileId}/complete',
+  'DELETE /v1/operators/{operatorId}/lots/{lotId}/photos/{photoId}',
 ]);
 
 describe('RBAC matrix', () => {
@@ -178,6 +210,27 @@ describe('RBAC matrix', () => {
     status: 'ONBOARDING',
     kybStatus: 'NOT_STARTED',
     commissionBps: 1200,
+    createdAt: new Date('2026-10-21T00:00:00Z'),
+  });
+  w.store.lotRows.set(LOT_A, {
+    id: LOT_A,
+    operatorId: OP_A,
+    slug: 'operator-a-lot-0000',
+    type: 'HOTEL',
+    name: 'Operator A Lot',
+    description: null,
+    addressLine: 'Victoria Island',
+    area: null,
+    lga: null,
+    location: { lat: 6.4281, lng: 3.4219 },
+    entranceNotes: null,
+    capacityTotal: 10,
+    capacityBookable: 5,
+    amenities: [],
+    vehicleTypes: ['CAR'],
+    status: 'DRAFT',
+    statusReason: null,
+    version: 1,
     createdAt: new Date('2026-10-21T00:00:00Z'),
   });
 

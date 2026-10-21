@@ -47,6 +47,9 @@ export default async function PortalHome() {
           <Link className="pk-link" href="/business">
             View or edit business details
           </Link>
+          <Link className="pk-link" href="/lots">
+            Your lots
+          </Link>
           <Link className="pk-link" href="/kyb">
             {operator.kybStatus === 'NOT_STARTED' || operator.kybStatus === 'REJECTED'
               ? 'Complete verification (KYB): documents and bank account'

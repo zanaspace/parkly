@@ -356,6 +356,9 @@ importers:
       '@parkly/config':
         specifier: workspace:*
         version: link:../config
+      '@parkly/domain':
+        specifier: workspace:*
+        version: link:../domain
       eslint:
         specifier: 10.12.0
         version: 10.12.0

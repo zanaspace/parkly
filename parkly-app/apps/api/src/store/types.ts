@@ -100,6 +100,51 @@ export type PayoutAccountRow = {
   verifiedAt: Date | null;
 };
 
+export type LotStatus =
+  'DRAFT' | 'PENDING_VERIFICATION' | 'LIVE' | 'PAUSED' | 'SUSPENDED' | 'ARCHIVED';
+
+export type LotFields = {
+  type: OperatorType;
+  name: string;
+  description: string | null;
+  addressLine: string;
+  area: string | null;
+  lga: string | null;
+  location: { lat: number; lng: number };
+  entranceNotes: string | null;
+  capacityTotal: number;
+  capacityBookable: number;
+  amenities: string[];
+  vehicleTypes: string[];
+};
+
+export type LotRow = LotFields & {
+  id: string;
+  operatorId: string;
+  slug: string;
+  status: LotStatus;
+  statusReason: string | null;
+  version: number;
+  createdAt: Date;
+};
+
+/** `HH:MM` in Africa/Lagos; both null when `is24h`. */
+export type OpeningHourRow = {
+  weekday: number;
+  is24h: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+};
+
+export type LotPhotoRow = {
+  id: string;
+  lotId: string;
+  fileId: string;
+  sort: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: Date;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -214,6 +259,33 @@ export type Store = {
     ): Promise<PayoutAccountRow>;
     find(operatorId: string): Promise<PayoutAccountRow | null>;
   };
+  lots: {
+    /** DRAFT, version 1. Throws SlugTakenError when the slug is in use. */
+    create(
+      row: LotFields & { operatorId: string; slug: string; createdBy: string },
+    ): Promise<LotRow>;
+    /** Scoped: another operator's lot is not found. */
+    find(operatorId: string, id: string): Promise<LotRow | null>;
+    list(operatorId: string): Promise<(LotRow & { photoCount: number })[]>;
+    /** Optimistic concurrency: throws StaleVersionError unless `version` is current; bumps it. */
+    update(
+      operatorId: string,
+      id: string,
+      version: number,
+      patch: Partial<LotFields>,
+    ): Promise<LotRow>;
+    openingHours(lotId: string): Promise<OpeningHourRow[]>;
+    /** Replaces the whole week (days left out are closed). */
+    setOpeningHours(lotId: string, days: OpeningHourRow[]): Promise<void>;
+  };
+  lotPhotos: {
+    create(row: { lotId: string; fileId: string; sort: number }): Promise<LotPhotoRow>;
+    /** In display order, with the stored file size. */
+    list(lotId: string): Promise<(LotPhotoRow & { sizeBytes: number })[]>;
+    find(lotId: string, id: string): Promise<LotPhotoRow | null>;
+    /** Deletes the photo and marks its file REJECTED (DELETED). */
+    remove(lotId: string, id: string): Promise<void>;
+  };
   audit: {
     write(entry: AuditEntry): Promise<void>;
     list(query: {
@@ -251,3 +323,5 @@ export type Store = {
 export class DuplicatePlateError extends Error {}
 export class DsrAlreadyOpenError extends Error {}
 export class OperatorExistsError extends Error {}
+export class SlugTakenError extends Error {}
+export class StaleVersionError extends Error {}

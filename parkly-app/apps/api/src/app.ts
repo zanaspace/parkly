@@ -17,6 +17,7 @@ import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
 import { sendSmsHook } from './modules/hooks/send-sms.js';
 import { meRoutes } from './modules/me/routes.js';
 import { kybRoutes } from './modules/kyb/routes.js';
+import { lotRoutes } from './modules/lots/routes.js';
 import { operatorRoutes } from './modules/operators/routes.js';
 import type {
   MalwareScanner,
@@ -97,6 +98,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', meRoutes(deps));
   app.route('/v1', operatorRoutes(deps));
   app.route('/v1', kybRoutes(deps));
+  app.route('/v1', lotRoutes(deps));
   app.route('/v1', adminRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));

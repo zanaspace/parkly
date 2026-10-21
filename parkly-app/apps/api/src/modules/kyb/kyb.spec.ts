@@ -281,3 +281,80 @@ describe('submit KYB (doc 03 O-06)', () => {
     expect([bank.status, bank.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
   });
 });
+
+describe('KYB edge cases', () => {
+  it('caches the bank list for an hour, so a provider blip does not empty the dropdown', async () => {
+    const ctx = await onboarded();
+    await ctx.w.call('GET', '/v1/banks', ctx.as(ctx.owner));
+    ctx.w.settlement.failNext = true;
+    const again = await ctx.w.call('GET', '/v1/banks', ctx.as(ctx.owner));
+    expect(again.status).toBe(200);
+  });
+
+  it('reports no payout account until one is set', async () => {
+    const ctx = await onboarded();
+    const none = await ctx.w.call(
+      'GET',
+      `/v1/operators/${ctx.operatorId}/payout-account`,
+      ctx.as(ctx.manager),
+    );
+    expect(none.body).toEqual({ account: null });
+    await ctx.w.call('PUT', `/v1/operators/${ctx.operatorId}/payout-account`, {
+      ...ctx.as(ctx.owner),
+      body: { bankCode: '058', accountNumber: '0123456789' },
+    });
+    const set = await ctx.w.call(
+      'GET',
+      `/v1/operators/${ctx.operatorId}/payout-account`,
+      ctx.as(ctx.manager),
+    );
+    expect(set.body?.account).toMatchObject({ accountNumberLast4: '6789' });
+  });
+
+  it('records a document once even if completion is retried', async () => {
+    const ctx = await onboarded();
+    const bytes = pdf('retry');
+    const presign = await ctx.w.call('POST', `/v1/operators/${ctx.operatorId}/kyb-documents`, {
+      ...ctx.as(ctx.owner),
+      body: {
+        type: 'CAC_CERT',
+        contentType: 'application/pdf',
+        sizeBytes: bytes.length,
+        sha256: sha(bytes),
+      },
+    });
+    const fileId = presign.body?.fileId as string;
+    const file = await ctx.w.store.files.find(fileId);
+    if (file) ctx.w.storage.put(file.bucket, file.path, bytes);
+    const complete = () =>
+      ctx.w.call('POST', `/v1/operators/${ctx.operatorId}/kyb-documents/${fileId}/complete`, {
+        ...ctx.as(ctx.owner),
+        body: { type: 'CAC_CERT' },
+      });
+    const first = await complete();
+    const retry = await complete();
+    expect(retry.body?.id).toBe(first.body?.id);
+    expect(ctx.w.store.kybDocRows).toHaveLength(1);
+  });
+
+  it('stops at 10 documents and 404s an unknown one on delete', async () => {
+    const ctx = await onboarded();
+    for (let i = 0; i < 10; i++) await uploadDoc(ctx, 'OTHER', pdf(`doc ${i}`));
+    const eleventh = await ctx.w.call('POST', `/v1/operators/${ctx.operatorId}/kyb-documents`, {
+      ...ctx.as(ctx.owner),
+      body: {
+        type: 'OTHER',
+        contentType: 'application/pdf',
+        sizeBytes: 10,
+        sha256: 'a'.repeat(64),
+      },
+    });
+    expect([eleventh.status, eleventh.body?.code]).toEqual([400, 'VALIDATION_FAILED']);
+    const del = await ctx.w.call(
+      'DELETE',
+      `/v1/operators/${ctx.operatorId}/kyb-documents/${randomUUID()}`,
+      ctx.as(ctx.owner),
+    );
+    expect(del.status).toBe(404);
+  });
+});
