@@ -20,7 +20,9 @@
     "react-dom": "19.2.3",
     "@parkly/contracts": "workspace:*",
     "@parkly/domain": "workspace:*",
-    "maplibre-gl": "6.13.0"
+    "maplibre-gl": "6.13.0",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.117.3"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "16.4.1",

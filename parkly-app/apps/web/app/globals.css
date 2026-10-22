@@ -360,3 +360,47 @@ body {
   color: var(--pk-color-text-tertiary);
   font-size: 0.875rem;
 }
+
+/* Sprint 4: booking pages */
+.pk-notice--info {
+  background: var(--pk-color-status-info-bg);
+  color: var(--pk-color-status-info-fg);
+}
+.pk-ticket {
+  align-items: center;
+  text-align: center;
+}
+.pk-ticket__code {
+  margin: 0;
+  font-family: var(--pk-type-code-lg-font-family);
+  font-size: var(--pk-type-code-lg-font-size);
+  font-weight: var(--pk-type-code-lg-font-weight);
+  letter-spacing: var(--pk-type-code-lg-letter-spacing);
+  line-height: var(--pk-type-code-lg-line-height);
+}
+.pk-booking-row {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: var(--pk-space-inline-md);
+  color: inherit;
+  text-decoration: none;
+}
+.pk-booking-row > span:last-child {
+  text-align: end;
+}
+.pk-link[aria-current='page'] {
+  font-weight: 700;
+  text-decoration: none;
+}
+.pk-link--button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+a.pk-button {
+  text-decoration: none;
+}

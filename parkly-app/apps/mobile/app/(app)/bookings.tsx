@@ -9,7 +9,7 @@ import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
-import { bookingWindowLabel, statusLabel } from '../../src/logic/booking';
+import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
 
 /** My bookings (FR-BOOK-004): upcoming first, then past. */

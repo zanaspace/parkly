@@ -20,9 +20,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Link className="pk-brand" href="/">
             Parkly
           </Link>
-          <Link className="pk-link" href="/search">
-            Find parking
-          </Link>
+          <nav className="pk-row">
+            <Link className="pk-link" href="/search">
+              Find parking
+            </Link>
+            <Link className="pk-link" href="/bookings">
+              My bookings
+            </Link>
+          </nav>
         </header>
         {children}
         <footer className="pk-footer">

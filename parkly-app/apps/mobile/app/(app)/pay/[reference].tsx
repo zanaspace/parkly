@@ -7,7 +7,7 @@ import { WebView } from 'react-native-webview';
 import { Notice } from '../../../src/components/Notice';
 import { ApiError } from '../../../src/lib/api';
 import { api } from '../../../src/lib/client';
-import { checkoutState, type CheckoutState } from '../../../src/logic/booking';
+import { checkoutState, type CheckoutState } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../../src/logic/errors';
 
 const POLL_MS = 3_000;
