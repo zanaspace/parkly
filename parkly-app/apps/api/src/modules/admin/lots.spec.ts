@@ -461,3 +461,71 @@ describe('go-live and admin status moves (doc 02 §3.3, X-06)', () => {
     expect([archive.status, archive.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
   });
 });
+
+describe('price changes on a live lot (FR-LOT-005)', () => {
+  async function liveLot() {
+    const ctx = await pendingLot();
+    await approvePermit(ctx);
+    await approvePrice(ctx);
+    await approvedVisit(ctx);
+    await goLive(ctx);
+    return ctx;
+  }
+  const setPrice = (ctx: Ctx, dailyRateKobo: number) =>
+    ctx.w.call('PUT', `${ctx.base}/rate-plans`, {
+      ...ctx.as(ctx.owner),
+      body: { product: 'DAILY', dailyRateKobo },
+    });
+
+  it('lets the operator submit a change that waits for approval while the old price stays live', async () => {
+    const ctx = await liveLot();
+    const res = await setPrice(ctx, 350_000);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'PENDING_APPROVAL', dailyRateKobo: 350_000 });
+    const lot = await ctx.w.call('GET', ctx.base, ctx.as(ctx.owner));
+    expect(
+      (lot.body?.ratePlans as { status: string; dailyRateKobo: number }[]).map((p) => [
+        p.status,
+        p.dailyRateKobo,
+      ]),
+    ).toEqual([
+      ['ACTIVE', 300_000],
+      ['PENDING_APPROVAL', 350_000],
+    ]);
+    const queue = await ctx.w.call('GET', '/v1/admin/lots?status=LIVE', ctx.as(ctx.ops));
+    expect(queue.body?.items).toEqual([expect.objectContaining({ pendingPriceCount: 1 })]);
+  });
+
+  it('shows a rejected change with its reason until a new one is submitted', async () => {
+    const ctx = await liveLot();
+    await setPrice(ctx, 900_000);
+    const pending = ctx.w.store.ratePlanRows.find((p) => p.status === 'PENDING_APPROVAL');
+    await ctx.w.call('POST', `/v1/admin/rate-plans/${pending?.id ?? ''}/review`, {
+      ...ctx.as(ctx.ops),
+      body: { decision: 'REJECT', reason: 'Three times the area average' },
+    });
+    const plans = async () =>
+      (
+        (await ctx.w.call('GET', ctx.base, ctx.as(ctx.owner))).body?.ratePlans as {
+          status: string;
+          rejectionReason: string | null;
+        }[]
+      ).map((p) => [p.status, p.rejectionReason]);
+    expect(await plans()).toEqual([
+      ['ACTIVE', null],
+      ['REJECTED', 'Three times the area average'],
+    ]);
+    await setPrice(ctx, 320_000);
+    expect(await plans()).toEqual([
+      ['ACTIVE', null],
+      ['PENDING_APPROVAL', null],
+    ]);
+  });
+
+  it('keeps prices fixed while a lot is suspended', async () => {
+    const ctx = await liveLot();
+    await goLive(ctx, { status: 'SUSPENDED', reason: 'Safety incident reported' });
+    const res = await setPrice(ctx, 350_000);
+    expect([res.status, res.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
+  });
+});

@@ -19,6 +19,7 @@ Drivers find verified lots near a destination and see accurate prices and availa
 | 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | To do |
 | 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | To do |
 | 7 | Places autocomplete + place details proxied through the API (Google key) | FR-LOT-101, task 4 | Waiting for the Google Maps key |
+| — | Fix: operators change prices on live lots; rejected changes show their reason | FR-LOT-005 | **Done** |
 
 ### Story 1: pricing engine
 
@@ -53,3 +54,14 @@ Drivers find verified lots near a destination and see accurate prices and availa
 - **Errors:** `SEARCH_INVALID_WINDOW`, `BOOKING_WINDOW_INVALID`, `BOOKING_OUTSIDE_OPENING_HOURS`, `PRICING_INVALID_DURATION`, `LOT_NOT_BOOKABLE` (product not sold), `LOT_NOT_FOUND`.
 - **Owner step:** apply `20261022010000_public_lot_photos.sql` on dev.
 - **Still to do for the exit criterion:** the k6 latency check (p95 < 800 ms with 500 seeded lots) needs the seed script (story 4).
+
+### Fix: price changes on live lots (FR-LOT-005)
+
+Found while testing search on dev: the "Testing" lot's hourly price had been rejected, and the operator could not submit a new one because prices were editable only on draft lots.
+
+- Prices can now change while a lot is DRAFT, LIVE or PAUSED (still not while under review, suspended or archived). On a live lot the current price stays live; the change waits for admin approval and then applies to new bookings only (approval retires the old price, S2 slice E2).
+- The operator's lot page shows a rejected change with its reason ("Not approved: …") until they submit a new one.
+- The admin lot queue shows "Price changes: N to review" on each lot, so changes on live lots are noticed.
+- **Checked against the dev database** (rolled back): the Testing lot's rejected hourly price is returned with its reason; a new change shows as 1 to review in the LIVE queue.
+- **Tests:** +3 API, +1 store contract. API: 543 tests.
+

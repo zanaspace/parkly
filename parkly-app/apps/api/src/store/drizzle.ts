@@ -623,9 +623,24 @@ export function drizzleStore(db: Db): Store {
           )
           .groupBy(lotPhotos.lotId);
         const byLot = new Map(counts.map((c) => [c.lotId, c.n]));
+        const pending = await db
+          .select({ lotId: ratePlans.lotId, n: sql<number>`count(*)::int` })
+          .from(ratePlans)
+          .where(
+            and(
+              inArray(
+                ratePlans.lotId,
+                rows.map((r) => r.id),
+              ),
+              eq(ratePlans.status, 'PENDING_APPROVAL'),
+            ),
+          )
+          .groupBy(ratePlans.lotId);
+        const pendingBy = new Map(pending.map((p) => [p.lotId, p.n]));
         return rows.map((r) => ({
           ...(r as LotRow & { operatorName: string }),
           photoCount: byLot.get(r.id) ?? 0,
+          pendingPriceCount: pendingBy.get(r.id) ?? 0,
         }));
       },
       async list(operatorId) {
@@ -886,6 +901,14 @@ export function drizzleStore(db: Db): Store {
             ),
           )
           .orderBy(asc(ratePlans.product), asc(ratePlans.createdAt));
+        return rows as RatePlanRow[];
+      },
+      async latestRejected(lotId) {
+        const rows = await db
+          .selectDistinctOn([ratePlans.product], ratePlanColumns)
+          .from(ratePlans)
+          .where(and(eq(ratePlans.lotId, lotId), eq(ratePlans.status, 'REJECTED')))
+          .orderBy(ratePlans.product, desc(ratePlans.createdAt));
         return rows as RatePlanRow[];
       },
       async activeFor(lotIds) {

@@ -720,6 +720,11 @@ export function storeContract(
       expect((await store.ratePlans.current(lot.id)).map((p) => p.hourlyRateKobo)).toEqual([
         70_000,
       ]);
+      expect((await store.ratePlans.latestRejected(lot.id)).map((p) => p.id)).toEqual([third.id]);
+      await price(95_000);
+      expect(
+        (await store.lots.listByStatus('PENDING_VERIFICATION')).find((l) => l.id === lot.id),
+      ).toMatchObject({ pendingPriceCount: 1 });
 
       // Photos: approval records the public copy, once.
       const photo = await store.lotPhotos.create({

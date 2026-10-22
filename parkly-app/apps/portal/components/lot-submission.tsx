@@ -201,6 +201,7 @@ export function PricesSection(props: { operatorId: string; lot: Lot; editable: b
         const plans = props.lot.ratePlans.filter((p) => p.product === product);
         const active = plans.find((p) => p.status === 'ACTIVE');
         const pending = plans.find((p) => p.status === 'PENDING_APPROVAL');
+        const rejected = plans.find((p) => p.status === 'REJECTED');
         return (
           <div key={product} className="pk-form">
             <Text variant="label-md" as="h4">
@@ -211,7 +212,13 @@ export function PricesSection(props: { operatorId: string; lot: Lot; editable: b
             </Text>
             {active && <Text>Live: {priceLabel(active)}</Text>}
             {pending && <Text tone="secondary">Awaiting approval: {priceLabel(pending)}</Text>}
-            {!active && !pending && <Text tone="secondary">Not offered.</Text>}
+            {rejected && (
+              <Notice tone="error">
+                Not approved: {priceLabel(rejected)}
+                {rejected.rejectionReason ? ` · ${rejected.rejectionReason}` : ''}
+              </Notice>
+            )}
+            {!active && !pending && !rejected && <Text tone="secondary">Not offered.</Text>}
             {props.editable && (
               <PriceForm operatorId={props.operatorId} lot={props.lot} product={product} editable />
             )}

@@ -49,6 +49,8 @@ export default async function LotPage({
     throw err;
   }
   const editable = lot.status === 'DRAFT';
+  // FR-LOT-005: prices may change on a live or paused lot too (each change is approved first).
+  const pricesEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
   const created = (await searchParams).created === '1';
 
   return (
@@ -88,7 +90,7 @@ export default async function LotPage({
       <Text variant="heading-md" as="h2">
         Prices
       </Text>
-      <PricesSection operatorId={operatorId} lot={lot} editable={editable} />
+      <PricesSection operatorId={operatorId} lot={lot} editable={pricesEditable} />
 
       <Text variant="heading-md" as="h2">
         LASPA permit

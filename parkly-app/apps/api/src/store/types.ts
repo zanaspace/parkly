@@ -385,7 +385,9 @@ export type Store = {
     /** Admin queue across operators, oldest first. */
     listByStatus(
       status: LotStatus,
-    ): Promise<(LotRow & { photoCount: number; operatorName: string })[]>;
+    ): Promise<
+      (LotRow & { photoCount: number; operatorName: string; pendingPriceCount: number })[]
+    >;
     /** Optimistic concurrency: throws StaleVersionError unless `version` is current; bumps it. */
     update(
       operatorId: string,
@@ -454,6 +456,8 @@ export type Store = {
     ): Promise<RatePlanRow>;
     /** ACTIVE and PENDING_APPROVAL plans, HOURLY → DAILY → MONTHLY. */
     current(lotId: string): Promise<RatePlanRow[]>;
+    /** The newest REJECTED plan per product (the operator sees why). */
+    latestRejected(lotId: string): Promise<RatePlanRow[]>;
     find(id: string): Promise<RatePlanRow | null>;
     /** ACTIVE plans of these lots. */
     activeFor(lotIds: string[]): Promise<RatePlanRow[]>;
