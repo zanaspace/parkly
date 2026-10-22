@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppDeps } from '../../app.js';
 import { ApiError } from '../../lib/errors.js';
+import { clientIp } from '../../middleware/rate-limit.js';
 import { verifyAndSettle } from '../bookings/settle.js';
 
 type PaystackEvent = {
@@ -28,6 +29,15 @@ export function webhookRoutes(deps: AppDeps) {
   const app = new Hono();
 
   app.post('/webhooks/paystack', async (c) => {
+    // Only Paystack's servers may call this (not checked when running locally).
+    const ip = clientIp(c.req.header('x-forwarded-for'));
+    if (deps.config.appEnv !== 'local' && !deps.config.paystackWebhookIps.includes(ip)) {
+      deps.logger.warn(
+        { event: 'webhook.ip_refused', provider: 'paystack' },
+        'webhook from unknown IP',
+      );
+      throw new ApiError('FORBIDDEN');
+    }
     const raw = await c.req.text();
     if (!deps.payments.verifyWebhook(raw, c.req.header('x-paystack-signature'))) {
       deps.logger.warn(

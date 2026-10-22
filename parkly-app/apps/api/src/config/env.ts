@@ -44,6 +44,11 @@ const EnvSchema = z
       .string()
       .regex(/^sk_(test|live)_[A-Za-z0-9]+$/, 'must be a Paystack secret key')
       .optional(),
+    /**
+     * Paystack's webhook senders (doc 02 §6.9). Defaults to the addresses Paystack
+     * publishes; set only if Paystack announces new ones.
+     */
+    PAYSTACK_WEBHOOK_IPS: z.string().optional(),
     /** Only the fake exists until ADR 0013 picks a hosted scanner. */
     MALWARE_SCANNER: z.enum(['fake']).default('fake'),
     /** Address search (ADR 0014). Without it, dev uses the fake place list. */
@@ -111,12 +116,17 @@ export type AppConfig = {
   storage: { provider: 'fake' } | { provider: 'supabase'; secretKey: string };
   malwareScanner: 'fake';
   maps: { provider: 'fake' } | { provider: 'locationiq'; apiKey: string };
+  /** Webhooks from other addresses are refused outside local. */
+  paystackWebhookIps: string[];
   upstash: { url: string; token: string } | undefined;
   sentryDsn: string | undefined;
   port: number;
 };
 
 /** Fails fast at boot. Error lists variable names only, never values. */
+/** Published by Paystack (docs: Webhooks → IP whitelisting). */
+const PAYSTACK_WEBHOOK_IPS = '52.31.139.75,52.49.173.169,52.214.14.220';
+
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const parsed = EnvSchema.safeParse(env);
   if (!parsed.success) {
@@ -163,6 +173,10 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
         ? { provider: 'supabase', secretKey: e.SUPABASE_SECRET_KEY }
         : { provider: 'fake' },
     malwareScanner: e.MALWARE_SCANNER,
+    paystackWebhookIps: (e.PAYSTACK_WEBHOOK_IPS ?? PAYSTACK_WEBHOOK_IPS)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
     maps: e.LOCATIONIQ_API_KEY
       ? { provider: 'locationiq', apiKey: e.LOCATIONIQ_API_KEY }
       : { provider: 'fake' },

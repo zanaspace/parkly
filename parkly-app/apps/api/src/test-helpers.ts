@@ -78,6 +78,7 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
   return {
     config: {
       appEnv: 'local',
+      paystackWebhookIps: ['52.31.139.75'],
       corsOrigins: ['http://localhost:3000'],
       jobHmacSecret: TEST_JOB_SECRET,
       smsHookSecret: TEST_HOOK_SECRET,

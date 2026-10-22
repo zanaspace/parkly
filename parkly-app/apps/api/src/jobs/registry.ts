@@ -1,7 +1,8 @@
 import type { Logger } from '../lib/logger.js';
-import type { EmailProvider } from '../providers/index.js';
+import type { EmailProvider, PaymentProvider } from '../providers/index.js';
 import type { Store } from '../store/types.js';
 import { permitExpiryJob } from './permit-expiry.js';
+import { settlePaymentsJob } from './settle-payments.js';
 import type { JobHandler } from './routes.js';
 
 /**
@@ -11,6 +12,7 @@ import type { JobHandler } from './routes.js';
 export function createJobs(deps: {
   store: Store;
   email: EmailProvider;
+  payments: PaymentProvider;
   logger: Logger;
   now: () => Date;
   appEnv: 'local' | 'dev' | 'staging' | 'prod';
@@ -18,5 +20,6 @@ export function createJobs(deps: {
   return {
     ping: async () => ({ processed: 0, remaining: 0 }),
     'permit-expiry-check': permitExpiryJob({ ...deps, allowTimeTravel: deps.appEnv !== 'prod' }),
+    'settle-payments': settlePaymentsJob(deps),
   };
 }

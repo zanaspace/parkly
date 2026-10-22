@@ -176,6 +176,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `SETTLEMENT_PROVIDER` | `paystack` | `paystack` | `paystack` | |
 | `LOCATIONIQ_API_KEY` | not set (fake place list) | LocationIQ access token | LocationIQ access token (required) | ✅ |
 | `PAYSTACK_SECRET_KEY` | `sk_test_…` | `sk_test_…` | `sk_live_…` (live only here) | ✅ |
+| `PAYSTACK_WEBHOOK_IPS` | not needed (not checked locally) | not set: Paystack's published IPs are built in | not set | |
 | `MALWARE_SCANNER` | `fake` | `fake` | real vendor (ADR 0013) | |
 | `SMS_PROVIDER` | `fake` | `termii` once approved | `termii` (required) | |
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | — | when approved | required | ✅ (key) |
