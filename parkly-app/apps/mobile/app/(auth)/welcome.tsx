@@ -10,7 +10,7 @@ export default function Welcome() {
   return (
     <Screen
       footer={
-        <Button label="Get started" size="lg" fullWidth onPress={() => router.push('/phone')} />
+        <Button label="Get started" size="lg" fullWidth onPress={() => router.push('/email')} />
       }
     >
       <View style={{ flex: 1, justifyContent: 'flex-end', gap: theme.space.stack.md }}>

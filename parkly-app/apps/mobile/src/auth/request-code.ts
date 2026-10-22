@@ -39,3 +39,23 @@ export async function requestCode(phone: string): Promise<RequestCodeResult> {
   }
   return { ok: true };
 }
+
+/**
+ * ADR 0015: sign in with a 6-digit code sent by email (until SMS is live).
+ * Supabase sends it; its email template must contain {{ .Token }} (doc 22).
+ */
+export async function requestEmailCode(email: string): Promise<RequestCodeResult> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true },
+  });
+  if (error) {
+    const code = mapSupabaseAuthError({ code: error.code, status: error.status });
+    return {
+      ok: false,
+      message: AUTH_ERROR_MESSAGES[code],
+      waitSeconds: code === 'OTP_RATE_LIMITED' || code === 'AUTH_OTP_LOCKED' ? 60 : null,
+    };
+  }
+  return { ok: true };
+}

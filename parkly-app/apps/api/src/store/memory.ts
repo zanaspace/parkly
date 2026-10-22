@@ -141,6 +141,10 @@ export class MemoryStore implements Store {
       this.roleRows
         .filter((r) => r.userId === id)
         .map(({ role, operatorId }) => ({ role, operatorId })),
+    addDriverRole: async (id) => {
+      if (!this.roleRows.some((r) => r.userId === id && r.role === 'DRIVER'))
+        this.roleRows.push({ userId: id, role: 'DRIVER', operatorId: null });
+    },
   };
 
   consents: Store['consents'] = {

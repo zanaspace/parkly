@@ -1,7 +1,7 @@
 'use client';
 
 import type { Vehicle } from '@parkly/contracts';
-import { Button, Input } from '@parkly/ui';
+import { Button, Input, ActionForm } from '@parkly/ui';
 import { useActionState } from 'react';
 import { addCar, startBooking, type BookState } from '../lib/booking-actions';
 
@@ -24,7 +24,7 @@ export function PayForm({
   const [state, action, pending] = useActionState<BookState, FormData>(startBooking, undefined);
   const preferred = vehicles.find((v) => v.isDefault) ?? vehicles[0];
   return (
-    <form action={action} className="pk-stack">
+    <ActionForm action={action} className="pk-stack">
       {Object.entries(window).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
@@ -54,14 +54,14 @@ export function PayForm({
       <Button type="submit" fullWidth disabled={pending}>
         {pending ? 'Opening Paystack…' : `Pay ${totalLabel}`}
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
 export function AddCarForm({ back }: { back: string }) {
   const [state, action, pending] = useActionState<BookState, FormData>(addCar, undefined);
   return (
-    <form action={action} className="pk-stack">
+    <ActionForm action={action} className="pk-stack">
       <input type="hidden" name="back" value={back} />
       <Input
         label="Plate number"
@@ -79,6 +79,6 @@ export function AddCarForm({ back }: { back: string }) {
       <Button type="submit" fullWidth disabled={pending}>
         {pending ? 'Saving…' : 'Add car'}
       </Button>
-    </form>
+    </ActionForm>
   );
 }

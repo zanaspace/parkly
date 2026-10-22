@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input, Select, Text } from '@parkly/ui';
+import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import { acceptInvite, inviteMember, removeMember } from '../lib/team/actions';
 import { whatsappShare } from '../lib/team/copy';
@@ -66,6 +66,10 @@ export function InviteForm(props: {
   lots: { id: string; name: string }[];
 }) {
   const [state, action, pending] = useActionState(inviteMember, undefined);
+  // A new invite link means success: start the next invite on a blank form.
+  // An error leaves the key as it was, so what was typed stays.
+  const [formKey, setFormKey] = useState('invite');
+  if (state?.link && state.link !== formKey) setFormKey(state.link);
   const [role, setRole] = useState<'MANAGER' | 'ATTENDANT'>(
     props.canInviteManager ? 'MANAGER' : 'ATTENDANT',
   );
@@ -80,7 +84,7 @@ export function InviteForm(props: {
       {state?.link && (
         <InviteLink link={state.link} name={state.name ?? ''} businessName={props.businessName} />
       )}
-      <form action={action} className="pk-form">
+      <ActionForm key={formKey} action={action} className="pk-form">
         <input type="hidden" name="operatorId" value={props.operatorId} />
         <Select
           label="Role"
@@ -134,7 +138,7 @@ export function InviteForm(props: {
         <Button type="submit" loading={pending}>
           Create invite link
         </Button>
-      </form>
+      </ActionForm>
     </>
   );
 }
@@ -142,26 +146,26 @@ export function InviteForm(props: {
 export function RemoveMemberButton(props: { operatorId: string; memberId: string; label: string }) {
   const [state, action, pending] = useActionState(removeMember, undefined);
   return (
-    <form action={action}>
+    <ActionForm action={action}>
       <input type="hidden" name="operatorId" value={props.operatorId} />
       <input type="hidden" name="memberId" value={props.memberId} />
       <Button type="submit" variant="ghost" size="sm" loading={pending}>
         {props.label}
       </Button>
       {state?.error && <Notice tone="error">{state.error}</Notice>}
-    </form>
+    </ActionForm>
   );
 }
 
 export function AcceptInviteForm({ inviteToken }: { inviteToken: string }) {
   const [state, action, pending] = useActionState(acceptInvite, undefined);
   return (
-    <form action={action} className="pk-form">
+    <ActionForm action={action} className="pk-form">
       <input type="hidden" name="inviteToken" value={inviteToken} />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       <Button type="submit" loading={pending} fullWidth>
         Accept invite
       </Button>
-    </form>
+    </ActionForm>
   );
 }

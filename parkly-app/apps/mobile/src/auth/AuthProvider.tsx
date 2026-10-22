@@ -74,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         deviceId: await getDeviceId(),
         platform: platformFor(Platform.OS),
         appVersion: config.appVersion,
+        // The driver app: an email sign-up becomes a driver (ADR 0015).
+        asDriver: true,
       });
       const [vehicles, skipped] = await Promise.all([api.vehicles(), readSkipped(user.id)]);
       setState((s) => ({

@@ -194,6 +194,9 @@
                   "appVersion": {
                     "type": "string",
                     "maxLength": 32
+                  },
+                  "asDriver": {
+                    "type": "boolean"
                   }
                 },
                 "required": [

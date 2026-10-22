@@ -333,6 +333,12 @@ export function drizzleStore(db: Db): Store {
           .from(userRoles)
           .where(eq(userRoles.userId, id))) as RoleGrant[];
       },
+      async addDriverRole(id) {
+        await db
+          .insert(userRoles)
+          .values({ id: uuidv7(), userId: id, role: 'DRIVER', operatorId: null })
+          .onConflictDoNothing();
+      },
     },
 
     consents: {

@@ -117,6 +117,7 @@ export default function Phone() {
         />
       ) : null}
       {error ? <Notice message={error} /> : null}
+      <Button label="Use email instead" variant="ghost" onPress={() => router.replace('/email')} />
     </Screen>
   );
 }

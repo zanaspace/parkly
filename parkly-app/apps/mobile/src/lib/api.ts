@@ -127,6 +127,7 @@ export function createApiClient(options: ApiClientOptions) {
       deviceId: string;
       platform: 'ANDROID' | 'IOS' | 'WEB';
       appVersion?: string;
+      asDriver?: boolean;
     }) => request<BootstrapResponse>('POST', '/v1/auth/bootstrap', input, BootstrapResponseSchema),
     me: () => request<Me>('GET', '/v1/me', undefined, MeSchema),
     updateMe: (patch: { firstName?: string; lastName?: string }) =>

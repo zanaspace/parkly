@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { isDevBypass } from '../../src/auth/dev-auth';
-import { requestCode } from '../../src/auth/request-code';
+import { requestCode, requestEmailCode } from '../../src/auth/request-code';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { useCountdown } from '../../src/hooks/useCountdown';
@@ -23,7 +23,8 @@ export default function Otp() {
   const theme = useTheme();
   const router = useRouter();
   const auth = useAuth();
-  const { phone } = useLocalSearchParams<{ phone?: string }>();
+  // One of the two: a phone (SMS) or an email address (ADR 0015).
+  const { phone, email } = useLocalSearchParams<{ phone?: string; email?: string }>();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +34,11 @@ export default function Otp() {
 
   useEffect(() => start(RESEND_AFTER_SEC), [start]);
 
-  if (!phone) {
+  if (!phone && !email) {
     return (
       <Screen>
-        <Notice message="Enter your phone number first." />
-        <Button label="Back" onPress={() => router.replace('/phone')} />
+        <Notice message="Enter your email address first." />
+        <Button label="Back" onPress={() => router.replace('/email')} />
       </Screen>
     );
   }
@@ -45,11 +46,11 @@ export default function Otp() {
   const signedIn = !!auth.session;
 
   async function verify(token: string) {
-    if (!phone || token.length !== OTP_LENGTH) return;
+    if ((!phone && !email) || token.length !== OTP_LENGTH) return;
     setBusy(true);
     setError(null);
     setInfo(null);
-    if (isDevBypass()) {
+    if (isDevBypass() && phone) {
       try {
         await auth.signInDev(phone);
       } catch (err) {
@@ -59,7 +60,9 @@ export default function Otp() {
       }
       return;
     }
-    const { error: err } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    const { error: err } = email
+      ? await supabase.auth.verifyOtp({ email, token, type: 'email' })
+      : await supabase.auth.verifyOtp({ phone: phone ?? '', token, type: 'sms' });
     setBusy(false);
     if (err) {
       setError(AUTH_ERROR_MESSAGES[mapSupabaseAuthError({ code: err.code, status: err.status })]);
@@ -68,9 +71,9 @@ export default function Otp() {
   }
 
   async function resendCode() {
-    if (!phone) return;
     setError(null);
-    const result = await requestCode(phone);
+    const result = email ? await requestEmailCode(email) : phone ? await requestCode(phone) : null;
+    if (!result) return;
     if (result.ok) {
       setInfo('A new code is on its way.');
       start(RESEND_AFTER_SEC);
@@ -133,7 +136,7 @@ export default function Otp() {
       }
     >
       <Text variant="heading.lg">Enter the code</Text>
-      <Text tone="secondary">{`We sent a 6-digit code to ${formatPhone(phone)}. It expires in 5 minutes.`}</Text>
+      <Text tone="secondary">{`We sent a 6-digit code to ${email ?? formatPhone(phone ?? '')}. It expires in ${email ? '1 hour' : '5 minutes'}.`}</Text>
       <Input
         label="6-digit code"
         value={code}
@@ -144,7 +147,7 @@ export default function Otp() {
         }}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
-        autoComplete="sms-otp"
+        autoComplete={email ? 'one-time-code' : 'sms-otp'}
         maxLength={OTP_LENGTH}
         autoFocus
         editable={!busy}

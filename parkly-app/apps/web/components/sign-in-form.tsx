@@ -1,49 +1,74 @@
 'use client';
 
-import { Button, Input } from '@parkly/ui';
-import { useActionState } from 'react';
-import { sendCode, verifyCode, type SignInState } from '../lib/auth/actions';
+import { Button, Input, ActionForm } from '@parkly/ui';
+import { useActionState, useState } from 'react';
+import { sendCode, verifyCode, type SignInMethod, type SignInState } from '../lib/auth/actions';
 
-/** D-01/D-02 on the web: phone, then the SMS code (doc 03 §1.1). */
+/** D-01/D-02 on the web: email (or phone), then the 6-digit code (doc 03 §1.1, ADR 0015). */
 export function SignInForm({ next }: { next: string }) {
-  const [phoneState, sendAction, sending] = useActionState<SignInState, FormData>(sendCode, {
-    step: 'phone',
+  const [method, setMethod] = useState<SignInMethod>('email');
+  const [sent, sendAction, sending] = useActionState<SignInState, FormData>(sendCode, {
+    step: 'start',
+    method: 'email',
   });
-  const [codeState, verifyAction, verifying] = useActionState<SignInState, FormData>(verifyCode, {
+  const [checked, verifyAction, verifying] = useActionState<SignInState, FormData>(verifyCode, {
     step: 'code',
+    method: 'email',
   });
-  const phone = codeState.phone ?? phoneState.phone;
-  const onCodeStep = phoneState.step === 'code' && codeState.step === 'code';
+  const contact = checked.contact ?? sent.contact;
+  const onCodeStep = sent.step === 'code' && checked.step === 'code';
+  const error = onCodeStep ? checked.error : (sent.error ?? checked.error);
 
   if (!onCodeStep)
     return (
-      <form action={sendAction} className="pk-stack">
-        <Input
-          label="Mobile number"
-          name="phone"
-          type="tel"
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="0803 123 4567"
-          required
-          defaultValue={phone ?? ''}
-        />
-        {(phoneState.error ?? codeState.error) && (
+      <ActionForm action={sendAction} className="pk-stack">
+        <input type="hidden" name="method" value={method} />
+        {method === 'email' ? (
+          <Input
+            key="email"
+            label="Email address"
+            name="contact"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            required
+          />
+        ) : (
+          <Input
+            key="phone"
+            label="Mobile number"
+            name="contact"
+            type="tel"
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="0803 123 4567"
+            required
+          />
+        )}
+        {error && (
           <p className="pk-notice pk-notice--error" role="alert">
-            {phoneState.error ?? codeState.error}
+            {error}
           </p>
         )}
         <Button type="submit" fullWidth disabled={sending}>
           {sending ? 'Sending…' : 'Send code'}
         </Button>
-      </form>
+        <button
+          type="button"
+          className="pk-link pk-link--button"
+          onClick={() => setMethod(method === 'email' ? 'phone' : 'email')}
+        >
+          {method === 'email' ? 'Use a phone number instead' : 'Use email instead'}
+        </button>
+      </ActionForm>
     );
 
   return (
-    <form action={verifyAction} className="pk-stack">
-      <input type="hidden" name="phone" value={phone ?? ''} />
+    <ActionForm action={verifyAction} className="pk-stack">
+      <input type="hidden" name="method" value={sent.method} />
+      <input type="hidden" name="contact" value={contact ?? ''} />
       <input type="hidden" name="next" value={next} />
-      <p>We sent a 6-digit code to {phone}.</p>
+      <p>We sent a 6-digit code to {contact}.</p>
       <Input
         label="Code"
         name="code"
@@ -57,14 +82,14 @@ export function SignInForm({ next }: { next: string }) {
         <input type="checkbox" name="terms" required /> I accept the Parkly Terms and Privacy
         Policy.
       </label>
-      {codeState.error && (
+      {error && (
         <p className="pk-notice pk-notice--error" role="alert">
-          {codeState.error}
+          {error}
         </p>
       )}
       <Button type="submit" fullWidth disabled={verifying}>
         {verifying ? 'Checking…' : 'Sign in'}
       </Button>
-    </form>
+    </ActionForm>
   );
 }

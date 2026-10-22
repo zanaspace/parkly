@@ -362,6 +362,8 @@ export type Store = {
     setStatus(id: string, status: UserStatus): Promise<void>;
     setMarketingOptIn(id: string, value: boolean): Promise<void>;
     roles(id: string): Promise<RoleGrant[]>;
+    /** Makes the user a driver (no-op if already). Self-service, like phone sign-up. */
+    addDriverRole(id: string): Promise<void>;
   };
   consents: {
     add(entry: {

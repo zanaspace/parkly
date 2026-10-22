@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input, Text } from '@parkly/ui';
+import { Button, Input, Text, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import {
   changeLotStatus,
@@ -88,7 +88,7 @@ function Decision(props: {
   const [rejecting, setRejecting] = useState(false);
   return (
     <div className="pk-form">
-      <form action={action} className="pk-form">
+      <ActionForm action={action} className="pk-form">
         <Hidden fields={{ ...props.fields, decision: 'APPROVE' }} />
         {props.approveExtra}
         {!rejecting && (
@@ -101,9 +101,9 @@ function Decision(props: {
             </Button>
           </div>
         )}
-      </form>
+      </ActionForm>
       {rejecting && (
-        <form action={action} className="pk-form">
+        <ActionForm action={action} className="pk-form">
           <Hidden fields={{ ...props.fields, decision: 'REJECT' }} />
           <label className="pk-field__label" htmlFor={`${props.idPrefix}-reason`}>
             Reason (the operator sees this)
@@ -125,7 +125,7 @@ function Decision(props: {
               Cancel
             </Button>
           </div>
-        </form>
+        </ActionForm>
       )}
       <Result state={state} />
     </div>
@@ -218,7 +218,7 @@ export function VisitForm({ lotId, capacityTotal }: { lotId: string; capacityTot
     );
   }
   return (
-    <form action={action} className="pk-form">
+    <ActionForm action={action} className="pk-form">
       <Hidden fields={{ lotId }} />
       <Input
         label="Visit date and time (Lagos)"
@@ -304,7 +304,7 @@ export function VisitForm({ lotId, capacityTotal }: { lotId: string; capacityTot
         Record visit
       </Button>
       <Result state={state} />
-    </form>
+    </ActionForm>
   );
 }
 
@@ -320,7 +320,7 @@ export function StatusAction(props: {
   const [state, action, pending] = useActionState(changeLotStatus, undefined);
   const id = `status-${props.status}`;
   return (
-    <form action={action} className="pk-form">
+    <ActionForm action={action} className="pk-form">
       <Hidden
         fields={{
           lotId: props.lotId,
@@ -353,6 +353,6 @@ export function StatusAction(props: {
         {props.label}
       </Button>
       <Result state={state} />
-    </form>
+    </ActionForm>
   );
 }

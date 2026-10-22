@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkPlate,
+  emailFromInput,
   formatPhone,
   nameError,
   phoneFromInput,
   platformFor,
   sanitiseOtp,
 } from './forms';
+
+describe('emailFromInput (ADR 0015)', () => {
+  it('trims and lower-cases a valid address', () => {
+    expect(emailFromInput('  Ada@Example.COM ')).toBe('ada@example.com');
+  });
+  it.each(['', 'ada', 'ada@', 'ada@example', 'a b@example.com', '@example.com'])(
+    'rejects %j',
+    (input) => {
+      expect(emailFromInput(input)).toBeNull();
+    },
+  );
+});
 
 describe('phoneFromInput (D-02, +234 prefix shown)', () => {
   it.each([

@@ -42,6 +42,12 @@ export const BootstrapRequestSchema = z.object({
   deviceId: z.uuid(),
   platform: PlatformSchema,
   appVersion: z.string().max(32).optional(),
+  /**
+   * Driver apps send true: an email sign-up (ADR 0015) becomes a driver here,
+   * as phone sign-ups do in the database. Operators sign up by email too, so
+   * the role is never given from the email alone.
+   */
+  asDriver: z.boolean().optional(),
 });
 
 export const SessionRevokeRequestSchema = z.object({

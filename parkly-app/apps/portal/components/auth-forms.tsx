@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input, Text } from '@parkly/ui';
+import { Button, Input, Text, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import {
   confirmEnrollment,
@@ -24,7 +24,7 @@ function Notice({ tone, children }: { tone: 'error' | 'info'; children: string }
 export function SignInForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(signIn, undefined);
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <input type="hidden" name="next" value={next} />
       <Input label="Email address" name="email" type="email" autoComplete="username" required />
       <Input
@@ -38,14 +38,14 @@ export function SignInForm({ next }: { next: string }) {
       <Button type="submit" loading={pending} fullWidth>
         Sign in
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
 export function MfaVerifyForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(verifyMfa, undefined);
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <input type="hidden" name="next" value={next} />
       <Input
         label="6-digit code"
@@ -61,7 +61,7 @@ export function MfaVerifyForm({ next }: { next: string }) {
       <Button type="submit" loading={pending} fullWidth>
         Verify
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -130,7 +130,7 @@ export function MfaEnrollFlow({ existingFactors }: { existingFactors: number }) 
   }
 
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <Text>1. Scan this QR code with your authenticator app.</Text>
       {/* Supabase returns the QR as an SVG data URI; next/image adds nothing for it. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -158,28 +158,28 @@ export function MfaEnrollFlow({ existingFactors }: { existingFactors: number }) 
       <Button type="submit" loading={pending} fullWidth>
         Turn on two-step sign-in
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
 export function ResetRequestForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, undefined);
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <Input label="Email address" name="email" type="email" autoComplete="username" required />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       {state?.message && <Notice tone="info">{state.message}</Notice>}
       <Button type="submit" loading={pending} fullWidth>
         Send reset link
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
 export function UpdatePasswordForm() {
   const [state, action, pending] = useActionState(updatePassword, undefined);
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <Input
         label="New password"
         name="password"
@@ -200,6 +200,6 @@ export function UpdatePasswordForm() {
       <Button type="submit" loading={pending} fullWidth>
         Save password
       </Button>
-    </form>
+    </ActionForm>
   );
 }
