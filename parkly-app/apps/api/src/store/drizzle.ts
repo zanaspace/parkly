@@ -14,6 +14,7 @@ import {
   type FileRow,
   type KybDocumentRow,
   type LotPhotoRow,
+  type LiveLotRow,
   type LotRow,
   type MemberRow,
   type OpeningHourRow,
@@ -240,6 +241,24 @@ const verificationColumns = {
 };
 
 const REVIEWABLE = ['SUBMITTED', 'IN_REVIEW'] as const;
+
+/**
+ * Doc 00 non-negotiable 2: drivers see a lot only while it is LIVE, its
+ * operator is active with KYB approved, and it has an APPROVED permit and an
+ * APPROVED verification both still valid on the Lagos date `today`.
+ */
+const listable = (today: string) => sql`${lots.status} = 'LIVE'
+  and ${operators.status} = 'ACTIVE' and ${operators.kybStatus} = 'APPROVED'
+  and exists (select 1 from public.permits p where p.lot_id = ${lots.id}
+    and p.status = 'APPROVED' and p.expires_at > ${today}::date)
+  and exists (select 1 from public.verification_records v where v.lot_id = ${lots.id}
+    and v.status = 'APPROVED' and v.valid_until > ${today}::date)`;
+
+const liveColumns = {
+  ...lotColumns,
+  operatorName: operators.tradingName,
+  commissionBps: operators.commissionBps,
+};
 
 /** Postgres returns `time` as HH:MM:SS; the API speaks HH:MM. */
 const hhmm = (t: string | null) => (t === null ? null : t.slice(0, 5));
@@ -655,6 +674,48 @@ export function drizzleStore(db: Db): Store {
         if (!lot) throw new StaleVersionError();
         return lot as LotRow;
       },
+      async openingHoursFor(lotIds) {
+        if (lotIds.length === 0) return [];
+        const rows = await db
+          .select({
+            lotId: lotOpeningHours.lotId,
+            weekday: lotOpeningHours.weekday,
+            is24h: lotOpeningHours.is24h,
+            opensAt: lotOpeningHours.opensAt,
+            closesAt: lotOpeningHours.closesAt,
+          })
+          .from(lotOpeningHours)
+          .where(inArray(lotOpeningHours.lotId, lotIds));
+        return rows.map((r) => ({ ...r, opensAt: hhmm(r.opensAt), closesAt: hhmm(r.closesAt) }));
+      },
+      async searchLive({ lat, lng, radiusM, today, limit }) {
+        const point = sql`extensions.st_setsrid(extensions.st_makepoint(${lng}, ${lat}), 4326)::extensions.geography`;
+        const distance = sql<number>`round(extensions.st_distance(${lots.location}, ${point}))::int`;
+        const rows = await db
+          .select({ ...liveColumns, distanceM: distance })
+          .from(lots)
+          .innerJoin(operators, eq(operators.id, lots.operatorId))
+          .where(
+            and(
+              listable(today),
+              sql`extensions.st_dwithin(${lots.location}, ${point}, ${radiusM})`,
+            ),
+          )
+          .orderBy(asc(distance), asc(lots.id))
+          .limit(limit);
+        return rows as (LiveLotRow & { distanceM: number })[];
+      },
+      async findLive(idOrSlug, today) {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          idOrSlug,
+        );
+        const [row] = await db
+          .select(liveColumns)
+          .from(lots)
+          .innerJoin(operators, eq(operators.id, lots.operatorId))
+          .where(and(isUuid ? eq(lots.id, idOrSlug) : eq(lots.slug, idOrSlug), listable(today)));
+        return (row as LiveLotRow | undefined) ?? null;
+      },
       async openingHours(lotId) {
         const rows = await db
           .select({
@@ -703,6 +764,21 @@ export function drizzleStore(db: Db): Store {
       },
       async find(id) {
         const [permit] = await db.select(permitColumns).from(permits).where(eq(permits.id, id));
+        return (permit as PermitRow | undefined) ?? null;
+      },
+      async currentApproved(lotId, today) {
+        const [permit] = await db
+          .select(permitColumns)
+          .from(permits)
+          .where(
+            and(
+              eq(permits.lotId, lotId),
+              eq(permits.status, 'APPROVED'),
+              sql`${permits.expiresAt} > ${today}::date`,
+            ),
+          )
+          .orderBy(desc(permits.expiresAt))
+          .limit(1);
         return (permit as PermitRow | undefined) ?? null;
       },
       async approve(id, { reviewerId, at, note }) {
@@ -812,6 +888,14 @@ export function drizzleStore(db: Db): Store {
           .orderBy(asc(ratePlans.product), asc(ratePlans.createdAt));
         return rows as RatePlanRow[];
       },
+      async activeFor(lotIds) {
+        if (lotIds.length === 0) return [];
+        const rows = await db
+          .select(ratePlanColumns)
+          .from(ratePlans)
+          .where(and(inArray(ratePlans.lotId, lotIds), eq(ratePlans.status, 'ACTIVE')));
+        return rows as RatePlanRow[];
+      },
       async find(id) {
         const [plan] = await db.select(ratePlanColumns).from(ratePlans).where(eq(ratePlans.id, id));
         return (plan as RatePlanRow | undefined) ?? null;
@@ -888,6 +972,15 @@ export function drizzleStore(db: Db): Store {
         const [photo] = await db.select(photoColumns).from(lotPhotos).where(eq(lotPhotos.id, id));
         return (photo as LotPhotoRow | undefined) ?? null;
       },
+      async publicFor(lotIds) {
+        if (lotIds.length === 0) return [];
+        return db
+          .select({ lotId: lotPhotos.lotId, path: files.path, sort: lotPhotos.sort })
+          .from(lotPhotos)
+          .innerJoin(files, eq(files.id, lotPhotos.publicFileId))
+          .where(and(inArray(lotPhotos.lotId, lotIds), eq(lotPhotos.status, 'APPROVED')))
+          .orderBy(asc(lotPhotos.sort), asc(lotPhotos.createdAt));
+      },
       async review(id, decision, { reviewerId, at }) {
         const [photo] = await db
           .update(lotPhotos)
@@ -943,6 +1036,21 @@ export function drizzleStore(db: Db): Store {
           .select(verificationColumns)
           .from(verificationRecords)
           .where(eq(verificationRecords.id, id));
+        return record ? withItems(record as Omit<VerificationRow, 'items'>) : null;
+      },
+      async currentApproved(lotId, today) {
+        const [record] = await db
+          .select(verificationColumns)
+          .from(verificationRecords)
+          .where(
+            and(
+              eq(verificationRecords.lotId, lotId),
+              eq(verificationRecords.status, 'APPROVED'),
+              sql`${verificationRecords.validUntil} > ${today}::date`,
+            ),
+          )
+          .orderBy(desc(verificationRecords.inspectedAt))
+          .limit(1);
         return record ? withItems(record as Omit<VerificationRow, 'items'>) : null;
       },
       async approve(id, { reviewerId, at }) {

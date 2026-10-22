@@ -11,6 +11,7 @@ import {
   type FileRow,
   type KybDocumentRow,
   type LotPhotoRow,
+  type LiveLotRow,
   type LotRow,
   type MemberRow,
   type OpeningHourRow,
@@ -329,6 +330,21 @@ export class MemoryStore implements Store {
       Object.assign(lot, { status: to, statusReason: reason, version: lot.version + 1 });
       return { ...lot };
     },
+    openingHoursFor: async (lotIds) =>
+      lotIds.flatMap((lotId) => (this.hourRows.get(lotId) ?? []).map((h) => ({ ...h, lotId }))),
+    searchLive: async ({ lat, lng, radiusM, today, limit }) =>
+      [...this.lotRows.values()]
+        .map((l) => ({ lot: this.live(l, today), distanceM: haversineM(l.location, { lat, lng }) }))
+        .filter(
+          (r): r is { lot: LiveLotRow; distanceM: number } => !!r.lot && r.distanceM <= radiusM,
+        )
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, limit)
+        .map(({ lot, distanceM }) => ({ ...lot, distanceM: Math.round(distanceM) })),
+    findLive: async (idOrSlug, today) => {
+      const lot = [...this.lotRows.values()].find((l) => l.id === idOrSlug || l.slug === idOrSlug);
+      return lot ? this.live(lot, today) : null;
+    },
     openingHours: async (lotId) =>
       [...(this.hourRows.get(lotId) ?? [])].sort((a, b) => a.weekday - b.weekday),
     setOpeningHours: async (lotId, days) => {
@@ -361,6 +377,12 @@ export class MemoryStore implements Store {
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
       ),
     find: async (id) => this.copy(this.permitRows.find((p) => p.id === id)),
+    currentApproved: async (lotId, today) =>
+      this.copy(
+        this.permitRows
+          .filter((p) => p.lotId === lotId && p.status === 'APPROVED' && p.expiresAt > today)
+          .sort((a, b) => b.expiresAt.localeCompare(a.expiresAt))[0],
+      ),
     approve: async (id, { note }) =>
       this.decide(this.permitRows, id, { status: 'APPROVED', reviewNote: note }),
     reject: async (id, { reason }) =>
@@ -426,6 +448,10 @@ export class MemoryStore implements Store {
         )
         .map(({ effectiveFrom: _e, ...p }) => p);
     },
+    activeFor: async (lotIds) =>
+      this.ratePlanRows
+        .filter((p) => lotIds.includes(p.lotId) && p.status === 'ACTIVE')
+        .map(({ effectiveFrom: _e, ...p }) => p),
     find: async (id) => {
       const plan = this.ratePlanRows.find((p) => p.id === id);
       if (!plan) return null;
@@ -471,6 +497,15 @@ export class MemoryStore implements Store {
     find: async (lotId, id) =>
       this.copy(this.photoRows.find((p) => p.lotId === lotId && p.id === id)),
     findById: async (id) => this.copy(this.photoRows.find((p) => p.id === id)),
+    publicFor: async (lotIds) =>
+      this.photoRows
+        .filter((p) => lotIds.includes(p.lotId) && p.status === 'APPROVED' && p.publicFileId)
+        .sort((a, b) => a.sort - b.sort || a.createdAt.getTime() - b.createdAt.getTime())
+        .map((p) => ({
+          lotId: p.lotId,
+          path: this.mustFile(p.publicFileId as string).path,
+          sort: p.sort,
+        })),
     review: async (id, decision) => {
       const photo = this.photoRows.find((p) => p.id === id);
       if (photo?.status !== 'PENDING') throw new StaleVersionError();
@@ -510,6 +545,12 @@ export class MemoryStore implements Store {
     },
     find: async (id) => {
       const record = this.verificationRows.find((v) => v.id === id);
+      return record ? this.copyVerification(record) : null;
+    },
+    currentApproved: async (lotId, today) => {
+      const record = this.verificationRows
+        .filter((v) => v.lotId === lotId && v.status === 'APPROVED' && v.validUntil > today)
+        .sort((a, b) => b.inspectedAt.getTime() - a.inspectedAt.getTime())[0];
       return record ? this.copyVerification(record) : null;
     },
     approve: async (id) => {
@@ -789,6 +830,29 @@ export class MemoryStore implements Store {
     return row ? { ...row } : null;
   }
 
+  /** The listing gate, as the SQL in DrizzleStore applies it. */
+  private live(l: LotRow, today: string): LiveLotRow | null {
+    const op = this.operatorRows.get(l.operatorId);
+    const listable =
+      l.status === 'LIVE' &&
+      op?.status === 'ACTIVE' &&
+      op.kybStatus === 'APPROVED' &&
+      this.permitRows.some(
+        (p) => p.lotId === l.id && p.status === 'APPROVED' && p.expiresAt > today,
+      ) &&
+      this.verificationRows.some(
+        (v) => v.lotId === l.id && v.status === 'APPROVED' && v.validUntil > today,
+      );
+    return listable && op
+      ? {
+          ...l,
+          location: { ...l.location },
+          operatorName: op.tradingName,
+          commissionBps: op.commissionBps,
+        }
+      : null;
+  }
+
   private member(m: MemberRow): MemberRow {
     return {
       id: m.id,
@@ -821,6 +885,16 @@ export class MemoryStore implements Store {
     Object.assign(row, patch);
     return { ...row };
   }
+}
+
+/** Great-circle distance in metres; PostGIS geography distance in DrizzleStore. */
+function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_008.8 * Math.asin(Math.sqrt(h));
 }
 
 function strip(v: VehicleRow & { deleted: boolean; seq: number }): VehicleRow {

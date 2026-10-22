@@ -1,6 +1,6 @@
 # Sprint 3 — Lot discovery: progress report
 
-- **Status:** In progress. Stories 1 (pricing engine) and 2 (availability) are done.
+- **Status:** In progress. Stories 1–3 are done (pricing engine, availability, driver lot API).
 - **Updated:** 2026-10-22
 - **Entry check:** S2 is done (code complete); its open items are in `S2-report.md` § Carried over and doc 20 §6. The Google Maps key is being created by the owner (PRD §12: needed by S3); work that needs it comes last.
 
@@ -14,7 +14,7 @@ Drivers find verified lots near a destination and see accurate prices and availa
 |---|---|---|---|
 | 1 | Pricing engine (`packages/domain/pricing`): hourly (minimum stay + 15-min blocks, daily cap per Lagos day), daily, monthly, service fee, commission split, extension and overstay | FR-BOOK-002, task 1 | **Done** |
 | 2 | Availability: `lot_slot_inventory` table + read path (`availableCount` for a window), booking window limits, opening hours | task 2 | **Done** |
-| 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | To do |
+| 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | **Done** |
 | 4 | Seed script with realistic Victoria Island lots | task 7 | To do |
 | 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | To do |
 | 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | To do |
@@ -38,3 +38,18 @@ Drivers find verified lots near a destination and see accurate prices and availa
 - **Checked against the dev database** (rolled back): both migrations apply, RLS on, the window query returns the right rows, off-grid slots and over-capacity counts are refused.
 - **Tests:** +13 domain (availability), +1 schema. ADR 0006 stays Proposed until `fn_hold_booking` (S4).
 - **Owner step:** apply the two migrations on dev in the SQL editor, as before.
+
+### Story 3: driver lot API
+
+- **Endpoints** (public, no sign-in; doc 02 §6.3):
+  - `GET /v1/lots/search?lat&lng&radiusM(≤5000, default 2000)&startAt&endAt&product(HOURLY|DAILY)&amenities&sort(distance|price)`: up to 50 lots, nearest first (PostGIS `ST_DWithin` / `ST_Distance` on `geography`), each with the server quote for the window, free spaces, "closed at that time" and the first public photo. A lot that doesn't sell the product, or whose minimum stay is longer than the search, is left out.
+  - `GET /v1/lots/{idOrSlug}`: the public lot page (no operator internals): hours, amenities, approved photos (up to 8), ACTIVE prices, and the verified sheet (permit number's last 4, visit date, checks passed). `cache-control: public, s-maxage=60`.
+  - `GET /v1/lots/{lotId}/availability` and `POST /v1/lots/{lotId}/quote` (HOURLY, DAILY, MONTHLY).
+- **Listing gate in SQL** (doc 00 non-negotiable 2): LIVE, operator ACTIVE with KYB APPROVED, an APPROVED permit and an APPROVED verification both valid on today's Lagos date. Search, the lot page, availability and quotes all use it, so a permit that expires before the 06:00 job runs is already hidden.
+- **Prices** come only from the domain engine with the operator's commission and `platform_settings` fees; responses carry price, fee, total and lines, never commission or the operator's share.
+- **Public photos:** migration `20261022010000_public_lot_photos` makes `lot-photos-public` a public bucket (doc 06: C1, "public read"); links are permanent CDN URLs built by `StorageProvider.publicUrl`. Only approved, EXIF-stripped WebP copies are ever written there.
+- **Checked against the dev database** (rolled back): the 2 km search finds only the near lot with its distance, 5 km finds both in order, a lot without a permit is never shown, an expired date hides lots, lookups by id and slug, prices, hours, current permit and visit.
+- **Tests:** +15 API (discovery, incl. the PRD Gherkin scenario and a check against the domain engine), +1 storage adapter, +3 contracts. API: 540 tests, branches 86.4 %.
+- **Errors:** `SEARCH_INVALID_WINDOW`, `BOOKING_WINDOW_INVALID`, `BOOKING_OUTSIDE_OPENING_HOURS`, `PRICING_INVALID_DURATION`, `LOT_NOT_BOOKABLE` (product not sold), `LOT_NOT_FOUND`.
+- **Owner step:** apply `20261022010000_public_lot_photos.sql` on dev.
+- **Still to do for the exit criterion:** the k6 latency check (p95 < 800 ms with 500 seeded lots) needs the seed script (story 4).

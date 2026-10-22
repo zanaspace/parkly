@@ -9180,6 +9180,945 @@
           }
         }
       }
+    },
+    "/v1/lots/search": {
+      "get": {
+        "tags": [
+          "lots"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": -90,
+              "maximum": 90
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": -180,
+              "maximum": 180
+            },
+            "required": false,
+            "name": "lng",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 5000,
+              "default": 2000
+            },
+            "required": false,
+            "name": "radiusM",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true,
+            "name": "startAt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true,
+            "name": "endAt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HOURLY",
+                "DAILY"
+              ],
+              "default": "HOURLY"
+            },
+            "required": false,
+            "name": "product",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "amenities",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "distance",
+                "price"
+              ],
+              "default": "distance"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lots near the point",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "HOTEL",
+                              "OFFICE",
+                              "COMMERCIAL_LOT",
+                              "EVENT_CENTRE",
+                              "OTHER"
+                            ]
+                          },
+                          "addressLine": {
+                            "type": "string"
+                          },
+                          "area": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "distanceM": {
+                            "type": "integer"
+                          },
+                          "amenities": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "GUARD",
+                                "CCTV",
+                                "LIGHTING",
+                                "COVERED",
+                                "EV",
+                                "ACCESS_CONTROL",
+                                "TOILET"
+                              ]
+                            }
+                          },
+                          "photoUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uri"
+                          },
+                          "isOpen": {
+                            "type": "boolean"
+                          },
+                          "availableCount": {
+                            "type": "integer"
+                          },
+                          "isAvailable": {
+                            "type": "boolean"
+                          },
+                          "quote": {
+                            "type": "object",
+                            "properties": {
+                              "product": {
+                                "type": "string",
+                                "enum": [
+                                  "HOURLY",
+                                  "DAILY",
+                                  "MONTHLY"
+                                ]
+                              },
+                              "priceKobo": {
+                                "type": "integer"
+                              },
+                              "serviceFeeKobo": {
+                                "type": "integer"
+                              },
+                              "totalKobo": {
+                                "type": "integer"
+                              },
+                              "lines": {
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "HOURLY_DAY"
+                                          ]
+                                        },
+                                        "date": {
+                                          "type": "string",
+                                          "format": "date"
+                                        },
+                                        "minutes": {
+                                          "type": "integer"
+                                        },
+                                        "amountKobo": {
+                                          "type": "integer"
+                                        },
+                                        "capped": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "date",
+                                        "minutes",
+                                        "amountKobo",
+                                        "capped"
+                                      ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "DAY"
+                                          ]
+                                        },
+                                        "date": {
+                                          "type": "string",
+                                          "format": "date"
+                                        },
+                                        "amountKobo": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "date",
+                                        "amountKobo"
+                                      ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "MONTH"
+                                          ]
+                                        },
+                                        "periodStart": {
+                                          "type": "string",
+                                          "format": "date"
+                                        },
+                                        "periodEnd": {
+                                          "type": "string",
+                                          "format": "date"
+                                        },
+                                        "amountKobo": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "periodStart",
+                                        "periodEnd",
+                                        "amountKobo"
+                                      ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "SERVICE_FEE"
+                                          ]
+                                        },
+                                        "amountKobo": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "amountKobo"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "product",
+                              "priceKobo",
+                              "serviceFeeKobo",
+                              "totalKobo",
+                              "lines"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "type",
+                          "addressLine",
+                          "area",
+                          "location",
+                          "distanceM",
+                          "amenities",
+                          "photoUrl",
+                          "isOpen",
+                          "availableCount",
+                          "isAvailable",
+                          "quote"
+                        ]
+                      }
+                    },
+                    "radiusM": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "radiusM"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lots/{idOrSlug}": {
+      "get": {
+        "tags": [
+          "lots"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "required": true,
+            "name": "idOrSlug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public lot page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "operatorName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string"
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      }
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      }
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "url"
+                        ]
+                      }
+                    },
+                    "prices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "product",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo"
+                        ]
+                      }
+                    },
+                    "verification": {
+                      "type": "object",
+                      "properties": {
+                        "permitNumberLast4": {
+                          "type": "string"
+                        },
+                        "verifiedOn": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "checksPassed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "LASPA_PERMIT",
+                              "GUARD_PRESENCE",
+                              "LIGHTING",
+                              "CCTV",
+                              "ACCESS_CONTROL",
+                              "CAPACITY_COUNT",
+                              "OWNER_IDENTITY",
+                              "ENTRANCE_SIGNAGE",
+                              "FIRE_SAFETY"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "permitNumberLast4",
+                        "verifiedOn",
+                        "checksPassed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "type",
+                    "operatorName",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "openingHours",
+                    "photos",
+                    "prices",
+                    "verification"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lots/{lotId}/availability": {
+      "get": {
+        "tags": [
+          "lots"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true,
+            "name": "startAt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true,
+            "name": "endAt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HOURLY",
+                "DAILY"
+              ],
+              "default": "HOURLY"
+            },
+            "required": false,
+            "name": "product",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Free spaces",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "isOpen": {
+                      "type": "boolean"
+                    },
+                    "availableCount": {
+                      "type": "integer"
+                    },
+                    "isAvailable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "isOpen",
+                    "availableCount",
+                    "isAvailable"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lots/{lotId}/quote": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product": {
+                    "type": "string",
+                    "enum": [
+                      "HOURLY",
+                      "DAILY",
+                      "MONTHLY"
+                    ]
+                  },
+                  "startAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "product",
+                  "startAt",
+                  "endAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Price for the window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "product": {
+                      "type": "string",
+                      "enum": [
+                        "HOURLY",
+                        "DAILY",
+                        "MONTHLY"
+                      ]
+                    },
+                    "priceKobo": {
+                      "type": "integer"
+                    },
+                    "serviceFeeKobo": {
+                      "type": "integer"
+                    },
+                    "totalKobo": {
+                      "type": "integer"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "HOURLY_DAY"
+                                ]
+                              },
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "minutes": {
+                                "type": "integer"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              },
+                              "capped": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "date",
+                              "minutes",
+                              "amountKobo",
+                              "capped"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "DAY"
+                                ]
+                              },
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "date",
+                              "amountKobo"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "MONTH"
+                                ]
+                              },
+                              "periodStart": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "periodEnd": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "periodStart",
+                              "periodEnd",
+                              "amountKobo"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "SERVICE_FEE"
+                                ]
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "amountKobo"
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "product",
+                    "priceKobo",
+                    "serviceFeeKobo",
+                    "totalKobo",
+                    "lines"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

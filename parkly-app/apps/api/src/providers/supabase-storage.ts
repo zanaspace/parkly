@@ -38,6 +38,9 @@ export function supabaseStorage(options: {
     new Error(`storage ${op} ${bucket} failed: HTTP ${res.status}`);
 
   return {
+    publicUrl({ bucket, path }) {
+      return `${base}/object/public/${bucket}/${encodePath(path)}`;
+    },
     async createSignedUploadUrl({ bucket, path }) {
       const res = await request(`${base}/object/upload/sign/${bucket}/${encodePath(path)}`, {
         method: 'POST',
