@@ -7,7 +7,8 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | S0 | Foundations: monorepo, API skeleton, database, jobs, design tokens, app skeletons, CI | **Done**, platform items carried over (staging/prod, CI secrets, Sentry, external accounts) | [S0-report.md](S0-report.md) |
 | S1 | Identity and access: driver phone OTP, operator/admin password + MFA, RBAC, audit log, vehicles | **Done**; attendant sign-in → S5, real-number OTP → Termii | [S1-report.md](S1-report.md) |
 | S2 | Operators, lots, permits, verification: operator onboarding + KYB, lot wizard, admin review and go-live, permit expiry job, team invites | **Done (code complete)**; dev demo run and staging pending | [S2-report.md](S2-report.md) |
-| S3 | Lot discovery: drivers search near a destination and see prices and availability (mobile + web) | **In progress** (pricing, availability, search API, demo data, website done); mobile and Google Maps next | [S3-report.md](S3-report.md) |
+| S3 | Lot discovery: drivers search near a destination and see prices and availability (mobile + web) | **Done (code complete)**; LocationIQ key to add on Vercel | [S3-report.md](S3-report.md) |
+| S4 | Booking, availability holds and payments (Paystack) | Next | — |
 
 ## What exists on dev today
 

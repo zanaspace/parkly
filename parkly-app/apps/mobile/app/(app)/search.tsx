@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../../src/components/Chip';
+import { LotsMap } from '../../src/components/LotsMap';
 import { Notice } from '../../src/components/Notice';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
@@ -140,6 +141,24 @@ export default function Results() {
     void load(2000, true);
   }, [load]);
 
+  // Stable inputs so the map WebView only reloads when the results change.
+  const pins = useMemo(
+    () =>
+      (result?.items ?? []).map((lot) => ({
+        id: lot.id,
+        lat: lot.location.lat,
+        lng: lot.location.lng,
+        label: formatNaira(lot.quote.totalKobo),
+      })),
+    [result],
+  );
+  const centre = useMemo(() => ({ lat: point.lat, lng: point.lng }), [point]);
+  const openLot = (id: string) => {
+    const lot = result?.items.find((l) => l.id === id);
+    if (lot)
+      router.push({ pathname: '/lot/[slug]', params: { slug: lot.slug, ...toParams(search) } });
+  };
+
   const header = (
     <View style={{ gap: theme.space.stack.sm, paddingBottom: theme.space.stack.sm }}>
       <Text variant="heading.lg">Parking near {point.place}</Text>
@@ -163,6 +182,7 @@ export default function Results() {
           {radiusM / 1000} km · totals include Parkly’s service fee
         </Text>
       ) : null}
+      {pins.length > 0 ? <LotsMap pins={pins} centre={centre} showCentre onOpen={openLot} /> : null}
     </View>
   );
 

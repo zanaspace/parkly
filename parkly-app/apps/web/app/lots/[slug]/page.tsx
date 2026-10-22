@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import { LotsMap } from '../../../components/lots-map';
 import { SearchForm } from '../../../components/search-form';
 import { api, ApiProblem } from '../../../lib/api';
 import { AMENITY_LABEL, CHECK_LABEL, priceLine, problemText } from '../../../lib/copy';
@@ -219,6 +220,19 @@ export default async function LotPage({
             <Text variant="heading-md" as="h2" id="getting-there">
               Getting there
             </Text>
+            <LotsMap
+              centre={lot.location}
+              height="14rem"
+              pins={[
+                {
+                  id: lot.id,
+                  lat: lot.location.lat,
+                  lng: lot.location.lng,
+                  label: 'P',
+                  title: lot.name,
+                },
+              ]}
+            />
             {lot.entranceNotes && <Text>{lot.entranceNotes}</Text>}
             <a className="pk-link" href={directions} target="_blank" rel="noopener noreferrer">
               Get directions (Google Maps)

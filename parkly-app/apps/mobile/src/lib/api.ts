@@ -3,6 +3,7 @@ import {
   DeletionRequestResponseSchema,
   LotAvailabilitySchema,
   LotSearchResponseSchema,
+  PlacesResponseSchema,
   MeSchema,
   PublicLotSchema,
   QuoteSchema,
@@ -11,6 +12,7 @@ import {
   type LotAvailability,
   type LotSearchResponse,
   type Me,
+  type PlaceSuggestion,
   type PublicLot,
   type Quote,
   type Vehicle,
@@ -165,6 +167,16 @@ export function createApiClient(options: ApiClientOptions) {
       lotId: string,
       body: { product: 'HOURLY' | 'DAILY' | 'MONTHLY'; startAt: string; endAt: string },
     ) => request<Quote>('POST', `/v1/lots/${encodeURIComponent(lotId)}/quote`, body, QuoteSchema),
+    /** D-11 destination search (ADR 0014); the provider key stays on the server. */
+    places: async (q: string): Promise<PlaceSuggestion[]> =>
+      (
+        await request(
+          'GET',
+          '/v1/places/autocomplete?' + new URLSearchParams({ q }).toString(),
+          undefined,
+          PlacesResponseSchema,
+        )
+      ).items,
     availability: (
       lotId: string,
       w: { startAt: string; endAt: string; product: 'HOURLY' | 'DAILY' },

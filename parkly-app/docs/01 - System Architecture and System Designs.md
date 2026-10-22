@@ -33,7 +33,7 @@ flowchart LR
   sms2[(Secondary SMS provider)]
   fcm[(Expo Push / FCM / APNs)]
   resend[(Resend email)]
-  gmaps[(Google Maps Platform)]
+  gmaps[(LocationIQ search + OpenFreeMap tiles, ADR 0014)]
   laspa[(LASPA<br/>manual permit checks in MVP)]
 
   driver -->|search, book, pay, check-in QR| parkly

@@ -141,3 +141,21 @@ describe('driver discovery', () => {
     });
   });
 });
+
+describe('place search', () => {
+  it('asks the API (never the provider) and returns suggestions with coordinates', async () => {
+    const { fetch, calls } = fakeFetch([
+      {
+        status: 200,
+        body: {
+          items: [
+            { id: 'p1', label: 'Eko Hotel', detail: 'Victoria Island', lat: 6.4247, lng: 3.4284 },
+          ],
+        },
+      },
+    ]);
+    const items = await client(fetch).places('eko hotel');
+    expect(items[0]).toMatchObject({ label: 'Eko Hotel', lat: 6.4247 });
+    expect(calls[0]?.url).toBe('http://api.test/v1/places/autocomplete?q=eko+hotel');
+  });
+});

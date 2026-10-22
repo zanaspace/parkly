@@ -23,7 +23,9 @@ import { lotRoutes } from './modules/lots/routes.js';
 import { operatorRoutes } from './modules/operators/routes.js';
 import { teamRoutes } from './modules/team/routes.js';
 import { discoveryRoutes } from './modules/discovery/routes.js';
+import { placesRoutes } from './modules/places/routes.js';
 import type {
+  MapsProvider,
   MalwareScanner,
   SettlementProvider,
   SmsProvider,
@@ -48,6 +50,7 @@ export type AppDeps = {
   settlement: SettlementProvider;
   storage: StorageProvider;
   scanner: MalwareScanner;
+  maps: MapsProvider;
   /** Sentry in deployed envs; omitted locally and in tests. */
   reportError?: (err: unknown, ctx: { requestId: string | undefined; path: string }) => void;
 };
@@ -108,6 +111,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminLotRoutes(deps));
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', discoveryRoutes(deps));
+  app.route('/v1', placesRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));
   app.onError((err, c) => {

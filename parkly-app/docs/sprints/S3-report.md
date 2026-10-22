@@ -1,6 +1,6 @@
-# Sprint 3 — Lot discovery: progress report
+# Sprint 3 — Lot discovery: report
 
-- **Status:** In progress. Stories 1–6 are done (pricing engine, availability, driver lot API, demo data + latency check, driver website, mobile screens). Story 7 (Google Places + map) waits for the Maps key.
+- **Status:** **Done (code complete)** on 2026-10-22. All seven stories are built; address search goes live on dev when `LOCATIONIQ_API_KEY` is added on Vercel (until then a short list of Lagos places answers).
 - **Updated:** 2026-10-22
 - **Entry check:** S2 is done (code complete); its open items are in `S2-report.md` § Carried over and doc 20 §6. The Google Maps key is being created by the owner (PRD §12: needed by S3); work that needs it comes last.
 
@@ -17,8 +17,8 @@ Drivers find verified lots near a destination and see accurate prices and availa
 | 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | **Done** |
 | 4 | Seed script with realistic Victoria Island lots; latency check | task 7, exit criterion | **Done** |
 | 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | **Done** |
-| 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | **Done** (map view with story 7) |
-| 7 | Places autocomplete + place details proxied through the API (Google key) | FR-LOT-101, task 4 | Waiting for the Google Maps key |
+| 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | **Done** (map with story 7) |
+| 7 | Address search through the API + maps (ADR 0014: LocationIQ, MapLibre + OpenFreeMap instead of Google) | FR-LOT-101, task 4 | **Done** |
 | — | Fix: operators change prices on live lots; rejected changes show their reason | FR-LOT-005 | **Done** |
 
 ### Story 1: pricing engine
@@ -94,3 +94,28 @@ Found while testing search on dev: the "Testing" lot's hourly price had been rej
 - **Fixed on the way:** the mobile app had spec files but no `test` script, so `pnpm test` never ran them (since S1). It now runs them (54 existing + 7 new).
 - **Checks:** typecheck, lint, 61 mobile tests, and an Android production bundle export. The map view (D-12 map toggle) needs the Google Maps key (story 7).
 - **Tests:** +6 domain (discovery), +5 mobile search state, +2 mobile API client; web tests trimmed to what remains web-only (URL reading).
+
+### Story 7: maps and address search (ADR 0014)
+
+- **Why not Google:** Google Maps asked for a prepayment for a Nigerian billing account (2026-10-22). ADR 0014 records the switch; doc 00 §3 and doc 01 are updated. Everything still goes through `MapsProvider`, so a Google adapter can be added later.
+- **Maps:** MapLibre with OpenFreeMap vector tiles (free, no key, no account). Website: results map with a price pin per car park (opens the lot) and the searched point; a small map on each lot page (MapLibre 6.13.0; its worker is copied into `public/` at dev/build; CSP allows the tile host and blob workers). App: the same map inside a WebView, which works in Expo Go (MapLibre 5.24.0 pinned with subresource integrity; pins open the lot; labels are embedded so they can't break out of the page script).
+- **Address search:** `GET /v1/places/autocomplete?q=` calls LocationIQ (Nigeria + Lagos State, 6 suggestions with coordinates) with the key on the server only; 60 requests a minute per IP; cached at the edge for a day. Without the key (local/dev) a short fake list of Lagos places answers; production refuses to start without it. Website: "Search a place" box with suggestions (through a same-origin `/api/places` proxy), the area list stays as a no-JavaScript fallback; the chosen place's name carries through to results and lot pages. App: the same search box on Home, with the picked place shown as a chip.
+- **Checked in a real browser** (headless Chrome, local API + website): typing "eko" suggests Eko Hotel; picking it gives "Parking near Eko Hotel" with the map centred there and 8 car parks within 2 km; results and lot maps render Victoria Island streets at desktop and phone width; the app's map page renders the same with its pinned library. Android production bundle export succeeds.
+- **Tests:** +3 LocationIQ adapter, +4 places endpoint (incl. rate limit and provider failure), +1 web, +3 mobile map page, +2 mobile search state, +1 mobile API client.
+- **Owner step:** add `LOCATIONIQ_API_KEY` on Vercel (parkly-api, Sensitive) to switch dev from the fake list to real suggestions.
+
+## Exit criteria (doc 20 S3)
+
+| Criterion | Status |
+|---|---|
+| Search p95 < 800 ms with 500 seeded lots | **Met:** p95 508 ms with 512 lots on dev, from Lagos, network included (story 4) |
+| Prices match the domain engine on all clients; clients display the server quote only | **Met:** the API prices with `@parkly/domain/pricing`; website and app show the API's quote and lines and only format kobo; a test compares a search result with the engine (story 3) |
+
+**Demo** (doc 20 S3): "driver searches 'Eko Hotel' for tomorrow 08:00–18:00 → sees lots, verified badges, prices → opens lot → sees breakdown." Works on the website and in the app with the fake place list today, and with real suggestions once the LocationIQ key is added.
+
+## Carried over and notes
+
+- **Deployments:** the Vercel Hobby limit (100 a day) was hit on 2026-10-22; the four apps now deploy from `main` only (doc 22). The website pages go live with the next deployment of `main`.
+- **Local API env:** `apps/api/.env` on the development PC has an invalid `ENC_KEY_CURRENT` (must be `v1` or `v2`); the local API was run with an override for checks. Owner to fix the file.
+- **Geocoding cache table** (doc 01 §9, `geocode_cache`): the edge cache (`s-maxage=86400`) covers it for now.
+

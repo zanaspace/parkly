@@ -55,7 +55,8 @@ export function readSearch(
   return {
     lat: useCoords ? lat : area.lat,
     lng: useCoords ? lng : area.lng,
-    place: useCoords ? 'your location' : area.label,
+    // A place picked from suggestions keeps its name; bare coordinates are "your location".
+    place: useCoords ? pick(params.place)?.trim().slice(0, 80) || 'your location' : area.label,
     date,
     time,
     duration,
@@ -69,7 +70,13 @@ export function searchQuery(s: SearchInput, change: Partial<SearchInput> = {}): 
   const next = { ...s, ...change };
   const area = AREAS.find((a) => a.label === next.place);
   const params = new URLSearchParams({
-    ...(area ? { area: area.key } : { lat: String(next.lat), lng: String(next.lng) }),
+    ...(area
+      ? { area: area.key }
+      : {
+          lat: String(next.lat),
+          lng: String(next.lng),
+          ...(next.place !== 'your location' ? { place: next.place } : {}),
+        }),
     date: next.date,
     time: next.time,
     duration: String(next.duration),

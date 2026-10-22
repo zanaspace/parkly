@@ -7,6 +7,7 @@ import { ScrollView, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
+import { PlaceSearch } from '../../src/components/PlaceSearch';
 import { Screen } from '../../src/components/Screen';
 import {
   dayChoices,
@@ -52,7 +53,11 @@ export default function Home() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      set({ area: null, coords: { lat: pos.coords.latitude, lng: pos.coords.longitude } });
+      set({
+        area: null,
+        coords: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+        placeLabel: null,
+      });
     } catch {
       setLocError('We couldn’t get your location. Pick an area instead.');
     } finally {
@@ -95,10 +100,18 @@ export default function Home() {
 
       <View style={section}>
         <Text variant="label.lg">Where</Text>
+        <PlaceSearch
+          onPick={(p) =>
+            set({ area: null, coords: { lat: p.lat, lng: p.lng }, placeLabel: p.label })
+          }
+        />
         <Row>
+          {search.placeLabel ? (
+            <Chip label={search.placeLabel} selected onPress={() => undefined} />
+          ) : null}
           <Chip
             label={locating ? 'Finding you…' : 'Near me'}
-            selected={search.coords !== null}
+            selected={search.coords !== null && search.placeLabel === null}
             onPress={() => void nearMe()}
           />
           {AREAS.map((a) => (
@@ -106,7 +119,7 @@ export default function Home() {
               key={a.key}
               label={a.label}
               selected={search.coords === null && search.area === a.key}
-              onPress={() => set({ area: a.key, coords: null })}
+              onPress={() => set({ area: a.key, coords: null, placeLabel: null })}
             />
           ))}
         </Row>

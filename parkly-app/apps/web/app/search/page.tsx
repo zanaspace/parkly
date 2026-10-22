@@ -3,6 +3,7 @@ import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { LotsMap } from '../../components/lots-map';
 import { SearchForm } from '../../components/search-form';
 import { api, ApiProblem } from '../../lib/api';
 import { AMENITY_LABEL, problemText } from '../../lib/copy';
@@ -159,6 +160,18 @@ export default async function SearchPage({
               )}
             </nav>
           </div>
+          <LotsMap
+            centre={{ lat: search.lat, lng: search.lng }}
+            showCentre
+            pins={result.items.map((lot) => ({
+              id: lot.id,
+              lat: lot.location.lat,
+              lng: lot.location.lng,
+              label: formatNaira(lot.quote.totalKobo),
+              title: `${lot.name}, ${formatNaira(lot.quote.totalKobo)} total`,
+              href: `/lots/${lot.slug}?${searchQuery(search)}`,
+            }))}
+          />
           <ul className="pk-results">
             {result.items.map((lot) => (
               <ResultCard key={lot.id} lot={lot} search={search} />

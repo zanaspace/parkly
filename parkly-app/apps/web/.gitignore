@@ -3,3 +3,6 @@
 
 # Templates are committed; real env files are not.
 !.env.example
+
+# Copied from node_modules by scripts/copy-maplibre-worker.mjs
+/public/maplibre/

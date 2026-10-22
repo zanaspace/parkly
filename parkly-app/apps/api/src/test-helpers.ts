@@ -9,6 +9,7 @@ import { createLogger } from './lib/logger.js';
 import { allowAllRateLimiter, MemoryRateLimiter } from './middleware/rate-limit.js';
 import {
   FakeMalwareScanner,
+  FakeMapsProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
@@ -98,6 +99,7 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     settlement: new FakeSettlementProvider(),
     storage: new FakeStorageProvider(),
     scanner: new FakeMalwareScanner(),
+    maps: new FakeMapsProvider(),
     ...overrides,
   };
 }

@@ -507,7 +507,7 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET | `/lots/:idOrSlug` | PUB/DRV | listable lots only: profile, hours, amenities, up to 8 public photo URLs, ACTIVE prices, verified sheet `{permitNumberLast4, verifiedOn, checksPassed}` (no document); `cache-control: public, s-maxage=60` | `LOT_NOT_FOUND` |
 | GET | `/lots/:id/availability` | PUB/DRV | `startAt,endAt,product` → `{isOpen, availableCount, isAvailable}` (minimum over the window's slots; 0 when closed) | `SEARCH_INVALID_WINDOW`, `LOT_NOT_FOUND` |
 | POST | `/lots/:id/quote` | PUB/DRV | `{product, startAt, endAt}` → `{product, priceKobo, serviceFeeKobo, totalKobo, lines}`; MONTHLY runs 30 days from the start date | `PRICING_INVALID_DURATION`, `BOOKING_OUTSIDE_OPENING_HOURS`, `BOOKING_WINDOW_INVALID`, `LOT_NOT_BOOKABLE` (product not sold), `LOT_NOT_FOUND` |
-| GET | `/places/autocomplete` · `/places/:placeId` | PUB/DRV | proxied Google Places (keys never in clients other than map SDK key restricted to app) | `MAPS_UNAVAILABLE` |
+| GET | `/places/autocomplete?q=` | PUB/DRV | ADR 0014: LocationIQ through `MapsProvider` (key server-side only), Nigeria + Lagos State only, `q` 2–100 chars → `{items[{id, label, detail, lat, lng}]}`; rate limited 60/min per IP; `cache-control: public, s-maxage=86400`. Without `LOCATIONIQ_API_KEY` (dev) a fake list of Lagos places answers; prod requires the key | `MAPS_UNAVAILABLE`, `RATE_LIMITED` |
 
 ### 6.4 Bookings (driver)
 | Method | Path | Role | Idem | Request → Response | Errors |

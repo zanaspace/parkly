@@ -61,11 +61,22 @@ export interface EmailProvider {
   }): Promise<{ providerMessageId: string }>;
 }
 
+/** A place suggestion; providers that return coordinates up front include them. */
+export type PlaceSuggestion = {
+  placeId: string;
+  /** Main line, e.g. "Eko Hotel". */
+  label: string;
+  /** Second line, e.g. "Adetokunbo Ademola Street, Victoria Island". */
+  detail: string;
+  location: { lat: number; lng: number } | null;
+};
+
+/**
+ * Address search (ADR 0014: LocationIQ now; a Google adapter can implement
+ * the same interface). Suggestions stay within Lagos State.
+ */
 export interface MapsProvider {
-  autocomplete(input: {
-    query: string;
-    sessionToken: string;
-  }): Promise<{ placeId: string; description: string }[]>;
+  autocomplete(input: { query: string; sessionToken: string }): Promise<PlaceSuggestion[]>;
   placeDetails(input: { placeId: string; sessionToken: string }): Promise<{
     lat: number;
     lng: number;

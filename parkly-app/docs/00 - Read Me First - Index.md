@@ -67,7 +67,7 @@ Explicitly **not** in scope (yet): on-street parking, peer-to-peer driveways, **
 | SMS / OTP | **Termii** (primary, DND-route for OTP), secondary provider behind `SmsProvider` interface |
 | Push | Expo Notifications (FCM on Android, APNs on iOS) |
 | Email | Resend (receipts, operator statements; also Supabase Auth SMTP) |
-| Maps / geocoding | Google Maps Platform (Places Autocomplete, Geocoding, Maps SDK for Android/JS) |
+| Maps / geocoding | MapLibre with OpenFreeMap tiles (web and app); LocationIQ address search through the API (ADR 0014, replaces Google Maps Platform) |
 | Hosting / region | Vercel projects `parkly-api`, `parkly-web`, `parkly-portal`, `parkly-admin` (admin: own domain, IP allowlist). Supabase region nearest Lagos available at creation, default **Ireland (`eu-west-1`)**; Vercel Functions pinned to the **same region as the DB** (`dub1`). Cross-border transfer basis to be confirmed by counsel under NDPA 2023 (see doc 05). |
 | Secrets | Vercel environment variables (Sensitive), per environment; Supabase Vault for SQL-side secrets. Supabase secret/service key never in any client. |
 | Config as code | `supabase/config.toml` + `supabase/migrations/`, `vercel.json` per app. No Terraform in MVP. |

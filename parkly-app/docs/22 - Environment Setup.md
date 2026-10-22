@@ -174,6 +174,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `ENC_KEY_CURRENT` | `v1` | `v1` | `v1` | |
 | `STORAGE_PROVIDER` | `supabase` | `supabase` | `supabase` | |
 | `SETTLEMENT_PROVIDER` | `paystack` | `paystack` | `paystack` | |
+| `LOCATIONIQ_API_KEY` | not set (fake place list) | LocationIQ access token | LocationIQ access token (required) | ✅ |
 | `PAYSTACK_SECRET_KEY` | `sk_test_…` | `sk_test_…` | `sk_live_…` (live only here) | ✅ |
 | `MALWARE_SCANNER` | `fake` | `fake` | real vendor (ADR 0013) | |
 | `SMS_PROVIDER` | `fake` | `termii` once approved | `termii` (required) | |

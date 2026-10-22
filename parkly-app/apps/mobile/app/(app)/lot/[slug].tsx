@@ -10,8 +10,9 @@ import {
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, ScrollView, View } from 'react-native';
+import { LotsMap } from '../../../src/components/LotsMap';
 import { Notice } from '../../../src/components/Notice';
 import { Screen } from '../../../src/components/Screen';
 import { ApiError } from '../../../src/lib/api';
@@ -52,6 +53,15 @@ function priceLine(p: PublicPrice): string {
     case 'MONTHLY':
       return `${formatNaira(p.monthlyRateKobo ?? 0)} a month (30-day pass)`;
   }
+}
+
+/** The lot's pin on a map; memoised so the WebView loads once. */
+function LotLocationMap({ lot }: { lot: PublicLot }) {
+  const pins = useMemo(
+    () => [{ id: lot.id, lat: lot.location.lat, lng: lot.location.lng, label: 'P' }],
+    [lot],
+  );
+  return <LotsMap pins={pins} centre={lot.location} height={180} />;
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -195,6 +205,7 @@ export default function LotScreen() {
       </Card>
 
       <Card title="Getting there">
+        <LotLocationMap lot={lot} />
         {lot.entranceNotes ? <Text>{lot.entranceNotes}</Text> : null}
         <Button
           label="Get directions"
