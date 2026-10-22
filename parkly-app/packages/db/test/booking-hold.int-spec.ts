@@ -273,6 +273,58 @@ describe('ledger and history invariants (doc 02 §2.6–2.7)', () => {
   });
 });
 
+describe('fn_expire_holds (doc 02 §9)', () => {
+  it('expires unpaid holds, abandons stale checkouts, purges old keys, once', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 1, '7');
+      const driver = await newDriver(tx);
+      const id = await hold(tx, lot, driver);
+      await tx`update public.bookings set hold_expires_at = now() - interval '1 minute' where id = ${id}`;
+      const [op] = await tx`select operator_id from public.lots where id = ${lot.lotId}`;
+      await tx`
+        insert into public.payments (id, kind, booking_id, payer_user_id, provider,
+          provider_reference, amount_kobo, platform_amount_kobo, operator_amount_kobo,
+          operator_id, status, created_at)
+        values
+          (gen_random_uuid(), 'BOOKING', ${id}, ${driver.driverId}, 'FAKE', gen_random_uuid()::text,
+           110000, 22000, 88000, ${must(op).operator_id}, 'INITIATED', now()),
+          (gen_random_uuid(), 'BOOKING', ${id}, ${driver.driverId}, 'FAKE', gen_random_uuid()::text,
+           110000, 22000, 88000, ${must(op).operator_id}, 'PENDING', now() - interval '31 minutes')`;
+      await tx`
+        insert into public.idempotency_keys (actor_id, key, method, path, request_hash, expires_at)
+        values (${driver.driverId}, 'old-key-1', 'POST', '/v1/bookings', repeat('a', 64),
+                now() - interval '1 hour')`;
+
+      const [first] = await tx`select public.fn_expire_holds() as r`;
+      // Other suites may share the database: check our rows, and at-least counts.
+      expect(must(first).r).toMatchObject({
+        expired: expect.any(Number),
+        abandoned: expect.any(Number),
+        purged: expect.any(Number),
+      });
+      for (const n of Object.values(must(first).r as Record<string, number>))
+        expect(n).toBeGreaterThanOrEqual(1);
+      const [booking] = await tx`select status from public.bookings where id = ${id}`;
+      expect(must(booking).status).toBe('EXPIRED');
+      const payments = await tx`
+        select status::text from public.payments where booking_id = ${id} order by status::text`;
+      expect(payments.map((p) => p.status)).toEqual(['ABANDONED', 'FAILED']);
+      expect(await counts(tx, lot.lotId)).toEqual([
+        { slots: 8, min_held: 0, max_held: 0, min_booked: 0, max_booked: 0 },
+      ]);
+      await tx`select public.fn_expire_holds()`;
+      const history = await tx`
+        select 1 from public.booking_status_history where booking_id = ${id} and to_status = 'EXPIRED'`;
+      expect(history).toHaveLength(1);
+    });
+  });
+
+  it('is scheduled every minute', async () => {
+    const [job] = await sql`select schedule, command from cron.job where jobname = 'expire-holds'`;
+    expect(job).toEqual({ schedule: '* * * * *', command: 'select public.fn_expire_holds()' });
+  });
+});
+
 // Commits rows, so it runs only against a throwaway local database (CI's `supabase start`).
 const isLocal = /@(127\.0\.0\.1|localhost):/.test(url);
 
