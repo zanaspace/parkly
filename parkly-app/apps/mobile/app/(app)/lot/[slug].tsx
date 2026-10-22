@@ -10,7 +10,7 @@ import {
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, ScrollView, View } from 'react-native';
 import { Notice } from '../../../src/components/Notice';
 import { Screen } from '../../../src/components/Screen';
@@ -78,7 +78,10 @@ export default function LotScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ slug: string }>();
-  const search = useMemo(() => fromParams(params, new Date()), [params]);
+  // Read the search once: the params object can change identity on every render,
+  // which would re-run the loading effect in a loop.
+  const [search] = useState(() => fromParams(params, new Date()));
+  const slug = params.slug;
   const [lot, setLot] = useState<PublicLot | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [availability, setAvailability] = useState<LotAvailability | null>(null);
@@ -89,7 +92,7 @@ export default function LotScreen() {
     let live = true;
     (async () => {
       try {
-        const found = await api.lot(params.slug);
+        const found = await api.lot(slug);
         if (!live) return;
         setLot(found);
         const window = searchWindow(search);
@@ -112,7 +115,7 @@ export default function LotScreen() {
     return () => {
       live = false;
     };
-  }, [params.slug, search]);
+  }, [slug, search]);
 
   if (error)
     return (
