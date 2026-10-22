@@ -11,9 +11,11 @@ const tables = (Object.values(schema) as unknown[]).filter((v): v is PgTable => 
 describe('schema conventions (doc 02 §1)', () => {
   it('finds the tables', () => {
     expect(tables.map((t) => getTableConfig(t).name).sort()).toEqual([
+      'attendant_sync_batches',
       'audit_logs',
       'booking_status_history',
       'bookings',
+      'checkin_events',
       'consents',
       'data_subject_requests',
       'devices',
@@ -27,6 +29,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'lot_photos',
       'lot_signing_keys',
       'lot_slot_inventory',
+      'lot_walk_ins',
       'lots',
       'operator_kyb_documents',
       'operator_members',
@@ -37,6 +40,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'platform_settings',
       'rate_plans',
       'refunds',
+      'sessions',
       'user_roles',
       'users',
       'vehicles',
