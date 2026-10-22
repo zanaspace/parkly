@@ -325,6 +325,56 @@ describe('fn_expire_holds (doc 02 §9)', () => {
   });
 });
 
+describe('fn_mark_no_shows and fn_rebook_no_show (doc 02 §3.1)', () => {
+  it('marks a paid booking nobody checked in, keeps past slots, and re-books a late car', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 1, '8');
+      const [floor] = await tx`select public.fn_slot_floor(now()) - interval '60 minutes' as s`;
+      const start = must(floor).s as Date;
+      const end = new Date(start.getTime() + 2 * 3600_000);
+      const id = await hold(tx, lot, await newDriver(tx), {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      await tx`select public.fn_convert_hold(${id})`;
+      await tx`update public.bookings set status = 'CONFIRMED' where id = ${id}`;
+
+      await tx`select public.fn_mark_no_shows()`;
+      const [booking] = await tx`select status from public.bookings where id = ${id}`;
+      expect(must(booking).status).toBe('NO_SHOW');
+      const future = await tx`
+        select booked from public.lot_slot_inventory
+         where lot_id = ${lot.lotId} and slot_start >= public.fn_slot_floor(now())`;
+      expect(future.every((r) => r.booked === 0)).toBe(true);
+      const [past] = await tx`
+        select booked from public.lot_slot_inventory
+         where lot_id = ${lot.lotId} and slot_start = ${start}`;
+      expect(must(past).booked).toBe(1);
+
+      await tx`select public.fn_mark_no_shows()`;
+      const history = await tx`
+        select 1 from public.booking_status_history where booking_id = ${id} and to_status = 'NO_SHOW'`;
+      expect(history).toHaveLength(1);
+
+      const [rebooked] = await tx`select public.fn_rebook_no_show(${id}, now()) as ok`;
+      expect(must(rebooked).ok).toBe(true);
+      const again = await tx`
+        select booked from public.lot_slot_inventory
+         where lot_id = ${lot.lotId} and slot_start >= public.fn_slot_floor(now())`;
+      expect(again.every((r) => r.booked === 1)).toBe(true);
+    });
+  });
+
+  it('keeps check-in events append-only and the job is scheduled', async () => {
+    const [row] = await sql`
+      select has_table_privilege('parkly_api', 'public.checkin_events', 'UPDATE') as upd,
+             has_table_privilege('parkly_api', 'public.checkin_events', 'DELETE') as del`;
+    expect(row).toEqual({ upd: false, del: false });
+    const [job] = await sql`select schedule from cron.job where jobname = 'mark-no-shows'`;
+    expect(job).toEqual({ schedule: '*/5 * * * *' });
+  });
+});
+
 // Commits rows, so it runs only against a throwaway local database (CI's `supabase start`).
 const isLocal = /@(127\.0\.0\.1|localhost):/.test(url);
 

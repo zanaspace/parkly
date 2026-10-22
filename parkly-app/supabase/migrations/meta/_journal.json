@@ -50,6 +50,13 @@
       "when": 1792688193695,
       "tag": "20261022200000_lot_signing_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792704200084,
+      "tag": "20261023090000_sessions_checkin_events",
+      "breakpoints": true
     }
   ]
 }
