@@ -20,6 +20,11 @@ export const AttendDeviceSchema = z.object({
   revoked: z.boolean(),
 });
 
+/** `GET /v1/attend/lots`: the lots this person may work (LIVE or PAUSED). */
+export const AttendLotListSchema = z.object({
+  items: z.array(z.object({ id: z.uuid(), name: z.string(), status: z.string() })),
+});
+
 /** One booking as the gate needs it. */
 export const ManifestBookingSchema = z.object({
   id: z.uuid(),

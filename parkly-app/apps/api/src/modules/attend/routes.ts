@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
   AttendDeviceSchema,
+  AttendLotListSchema,
   DeviceDecisionSchema,
   ManifestSchema,
   OperatorDeviceListSchema,
@@ -11,6 +12,7 @@ import {
   type AttendDevice,
   type OperatorDevice,
 } from '@parkly/contracts';
+import { can } from '@parkly/domain/authz';
 import { toBase64Url } from '@parkly/domain/qr';
 import { overstayCharge } from '@parkly/domain/pricing';
 import type { AppDeps } from '../../app.js';
@@ -72,6 +74,36 @@ export function attendRoutes(deps: AppDeps) {
     if (!device?.approvedAt || device.lotId !== lotId) throw new ApiError('DEVICE_NOT_APPROVED');
     return device;
   }
+
+  // A-01 lot picker: attendants see the lots they are assigned (all when none
+  // are listed); owners and managers every lot of their operator.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/attend/lots',
+      tags: ['attend'],
+      ...secured,
+      responses: {
+        200: { description: 'Lots this person may work', ...json(AttendLotListSchema) },
+      },
+    }),
+    async (c) => {
+      const actor = c.get('actor');
+      const operatorIds = [
+        ...new Set(
+          actor.roles
+            .filter((g) => g.operatorId && g.role.startsWith('OPERATOR_'))
+            .map((g) => g.operatorId as string),
+        ),
+      ];
+      const lots = (await Promise.all(operatorIds.map((id) => deps.store.lots.list(id)))).flat();
+      const items = lots
+        .filter((l) => l.status === 'LIVE' || l.status === 'PAUSED')
+        .filter((l) => can(actor, 'lot:checkin', { operatorId: l.operatorId, lotId: l.id }))
+        .map((l) => ({ id: l.id, name: l.name, status: l.status }));
+      return c.json({ items }, 200);
+    },
+  );
 
   app.openapi(
     createRoute({

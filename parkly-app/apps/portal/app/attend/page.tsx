@@ -1,19 +1,22 @@
-import { Button, Text } from '@parkly/ui';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { AttendApp } from '../../components/attend/attend-app';
+import { ServiceWorker } from '../../components/attend/service-worker';
+import { loadSession } from '../../lib/auth/session';
 
-export const metadata: Metadata = { title: 'Parkly Attendant' };
+export const metadata: Metadata = {
+  title: 'Parkly Attendant',
+  manifest: '/attend.webmanifest',
+};
+// Brand teal-600; the manifest and browser chrome cannot read CSS tokens.
+export const viewport: Viewport = { themeColor: '#137066', width: 'device-width', initialScale: 1 };
 
-// The offline-first attendant PWA (QR scan, manifest sync) arrives in Sprint 5 (doc 20).
-export default function AttendPage() {
+/** Doc 03 §3, ADR 0005: the attendant app. Installable; runs offline once set up. */
+export default async function AttendPage() {
+  const session = await loadSession();
   return (
     <main className="pk-page" data-density="large">
-      <Text variant="heading-xl">Attendant check-in</Text>
-      <Text tone="secondary">
-        Coming in Sprint 5: scan tickets and check cars in, even with no network.
-      </Text>
-      <Button size="lg" fullWidth disabled>
-        Scan ticket
-      </Button>
+      <ServiceWorker />
+      <AttendApp signedIn={session.signedIn} />
     </main>
   );
 }

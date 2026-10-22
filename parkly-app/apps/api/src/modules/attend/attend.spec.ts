@@ -242,6 +242,18 @@ describe('attendant phones (doc 05 §4.4)', () => {
   });
 });
 
+describe('lot picker (A-01)', () => {
+  it('lists the lots an attendant works, and nothing for others', async () => {
+    const t = await setup();
+    const mine = await t.call('GET', '/v1/attend/lots', { as: t.attendant });
+    expect(mine.body?.items).toEqual([
+      { id: t.lot.id, name: 'Eko Hotel Car Park', status: 'LIVE' },
+    ]);
+    const driver = await t.call('GET', '/v1/attend/lots', { as: t.user() });
+    expect(driver.body?.items).toEqual([]);
+  });
+});
+
 describe('manifest (doc 01 §7)', () => {
   it('has today’s paid bookings, the lot key, rules and the server time', async () => {
     const t = await setup();
