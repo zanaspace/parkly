@@ -158,4 +158,56 @@ describe('place search', () => {
     expect(items[0]).toMatchObject({ label: 'Eko Hotel', lat: 6.4247 });
     expect(calls[0]?.url).toBe('http://api.test/v1/places/autocomplete?q=eko+hotel');
   });
+
+  it('sends the Idempotency-Key when booking and asks the server to verify payment', async () => {
+    const booking = {
+      id: '0199f0a0-0000-7000-8000-0000000000b1',
+      code: 'PK-7HQ4MZ',
+      status: 'PENDING_PAYMENT',
+      product: 'HOURLY',
+      startAt: '2026-10-20T07:00:00.000Z',
+      endAt: '2026-10-20T09:00:00.000Z',
+      holdExpiresAt: '2026-10-19T08:10:00.000Z',
+      lot: {
+        id: '0199f0a0-0000-7000-8000-0000000000a1',
+        slug: 'eko',
+        name: 'Eko Hotel Car Park',
+        addressLine: 'VI',
+      },
+      vehicle: { id: vehicle.id, plate: 'LND123AB' },
+      priceKobo: 100000,
+      serviceFeeKobo: 10000,
+      totalKobo: 110000,
+      lines: [],
+      createdAt: '2026-10-19T08:00:00.000Z',
+    };
+    const payment = {
+      reference: '0199f0a0-0000-7000-8000-0000000000c1',
+      status: 'PENDING',
+      authorizationUrl: 'https://checkout.paystack.com/x',
+      expiresAt: '2026-10-19T08:10:00.000Z',
+    };
+    const { fetch, calls } = fakeFetch([
+      { status: 201, body: { booking, payment } },
+      { status: 200, body: { booking, payment } },
+    ]);
+    const c = client(fetch);
+    const created = await c.createBooking(
+      {
+        lotId: booking.lot.id,
+        vehicleId: vehicle.id,
+        product: 'HOURLY',
+        startAt: booking.startAt,
+        endAt: booking.endAt,
+      },
+      'key-123456',
+    );
+    expect(created.payment.authorizationUrl).toBe('https://checkout.paystack.com/x');
+    expect((calls[0]?.init.headers as Record<string, string>)['idempotency-key']).toBe(
+      'key-123456',
+    );
+    await c.verifyPayment(payment.reference);
+    expect(calls[1]?.url).toBe(`http://api.test/v1/payments/${payment.reference}/verify`);
+    expect(calls[1]?.init.method).toBe('POST');
+  });
 });

@@ -24,7 +24,14 @@ const COPY: Partial<Record<ErrorCode, string>> = {
   BOOKING_OUTSIDE_OPENING_HOURS:
     'The car park is closed for part of that time. Check its opening hours.',
   PRICING_INVALID_DURATION: 'That stay is shorter than this car park’s minimum.',
-  LOT_NOT_BOOKABLE: 'This car park doesn’t sell that option.',
+  LOT_NOT_BOOKABLE: 'This car park can’t take bookings for that right now.',
+  BOOKING_SLOT_UNAVAILABLE: 'Sorry, that time just filled up. Try another time or car park.',
+  BOOKING_OVERLAP_SAME_VEHICLE: 'This car already has a booking at that time. See My bookings.',
+  BOOKING_NOT_FOUND: 'We couldn’t find that booking.',
+  PAYMENT_NOT_FOUND: 'We couldn’t find that payment.',
+  PAYMENT_PROVIDER_UNAVAILABLE:
+    'Payments aren’t reachable right now. Nothing was charged. Please try again.',
+  IDEMPOTENCY_IN_PROGRESS: 'We’re still working on your booking. One moment.',
   INTERNAL_ERROR: 'Something went wrong on our side. Please try again.',
   SERVICE_UNAVAILABLE: 'Parkly is temporarily unavailable. Please try again shortly.',
 };
