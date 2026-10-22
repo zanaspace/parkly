@@ -1,5 +1,13 @@
 import {
+  BookingListSchema,
+  BookingSchema,
   BootstrapResponseSchema,
+  CreateBookingResponseSchema,
+  VerifyPaymentResponseSchema,
+  type Booking,
+  type CreateBookingRequest,
+  type CreateBookingResponse,
+  type VerifyPaymentResponse,
   DeletionRequestResponseSchema,
   LotAvailabilitySchema,
   LotSearchResponseSchema,
@@ -73,8 +81,9 @@ export function createApiClient(options: ApiClientOptions) {
     path: string,
     body?: unknown,
     parser?: Parser<T>,
+    extraHeaders: Record<string, string> = {},
   ): Promise<T> {
-    const headers: Record<string, string> = { accept: 'application/json' };
+    const headers: Record<string, string> = { accept: 'application/json', ...extraHeaders };
     const token = await options.getAccessToken();
     if (token) headers.authorization = `Bearer ${token}`;
     if (body !== undefined) headers['content-type'] = 'application/json';
@@ -186,6 +195,24 @@ export function createApiClient(options: ApiClientOptions) {
         `/v1/lots/${encodeURIComponent(lotId)}/availability?${new URLSearchParams(w).toString()}`,
         undefined,
         LotAvailabilitySchema,
+      ),
+
+    // Bookings (doc 02 §6.4). The key makes a retried tap safe: same key, same booking.
+    createBooking: (body: CreateBookingRequest, idempotencyKey: string) =>
+      request<CreateBookingResponse>('POST', '/v1/bookings', body, CreateBookingResponseSchema, {
+        'idempotency-key': idempotencyKey,
+      }),
+    bookings: async (status: 'upcoming' | 'past'): Promise<Booking[]> =>
+      (await request('GET', `/v1/bookings?status=${status}`, undefined, BookingListSchema)).items,
+    booking: (id: string) =>
+      request<Booking>('GET', `/v1/bookings/${encodeURIComponent(id)}`, undefined, BookingSchema),
+    /** Asks the server to check the payment with Paystack; never trusts the app's word. */
+    verifyPayment: (reference: string) =>
+      request<VerifyPaymentResponse>(
+        'POST',
+        `/v1/payments/${encodeURIComponent(reference)}/verify`,
+        undefined,
+        VerifyPaymentResponseSchema,
       ),
   };
 }

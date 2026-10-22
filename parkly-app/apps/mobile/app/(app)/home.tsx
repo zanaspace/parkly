@@ -77,6 +77,12 @@ export default function Home() {
             onPress={() => router.push({ pathname: '/search', params: toParams(search) })}
           />
           <Button
+            label="My bookings"
+            variant="secondary"
+            fullWidth
+            onPress={() => router.push('/bookings')}
+          />
+          <Button
             label="Account"
             variant="ghost"
             fullWidth

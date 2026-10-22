@@ -18,7 +18,7 @@ import { Screen } from '../../../src/components/Screen';
 import { ApiError } from '../../../src/lib/api';
 import { api } from '../../../src/lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../../../src/logic/errors';
-import { fromParams } from '../../../src/logic/search';
+import { fromParams, toParams } from '../../../src/logic/search';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const AMENITY: Record<string, string> = {
@@ -147,7 +147,17 @@ export default function LotScreen() {
     <Screen
       footer={
         <>
-          <Button label="Booking opens soon" fullWidth disabled />
+          <Button
+            label={quote ? `Book for ${formatNaira(quote.totalKobo)}` : 'Book'}
+            fullWidth
+            disabled={!quote || !availability?.isOpen || availability.availableCount < 1}
+            onPress={() =>
+              router.push({
+                pathname: '/book/[lotId]',
+                params: { ...toParams(search), lotId: lot.id },
+              })
+            }
+          />
           <Button label="Back to results" variant="ghost" fullWidth onPress={() => router.back()} />
         </>
       }
