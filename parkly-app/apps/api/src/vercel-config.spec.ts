@@ -30,3 +30,17 @@ describe('vercel.json build command', () => {
     expect(vercel.buildCommand).not.toMatch(/@parkly\/api/);
   });
 });
+
+/**
+ * Vercel Hobby allows 100 deployments a day, and every push used to deploy all
+ * four apps as previews. Only `main` deploys (a branch matching several rules
+ * deploys if any rule is true, so `main` wins over `**`).
+ */
+describe('vercel.json deployments', () => {
+  it.each(['api', 'web', 'portal', 'admin'])('%s deploys from main only', (app) => {
+    const config = JSON.parse(
+      readFileSync(new URL(`../../${app}/vercel.json`, import.meta.url), 'utf8'),
+    ) as { git?: { deploymentEnabled?: Record<string, boolean> } };
+    expect(config.git?.deploymentEnabled).toEqual({ main: true, '**': false });
+  });
+});

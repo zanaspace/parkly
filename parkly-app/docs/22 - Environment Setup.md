@@ -257,3 +257,18 @@ pnpm --filter @parkly/api seed:demo -- --confirm-dev --dry-run   # do it, then r
 ```
 
 It uses `DATABASE_URL` from `apps/api/.env` and needs one admin user (demo site visits name an inspector). Dev currently has the 12 demo lots (loaded 2026-10-22).
+
+## Vercel deployments and the Hobby limit
+
+The Vercel Hobby plan allows **100 deployments a day** per account. Previously every push deployed all four apps as previews and every merge deployed all four again, so a busy day hit the limit ("Deployment rate limited — retry in 24 hours", 2026-10-22).
+
+Each app's `vercel.json` now deploys from `main` only:
+
+```json
+"git": { "deploymentEnabled": { "main": true, "**": false } }
+```
+
+- Branches and pull requests no longer get preview deployments; check work locally (`pnpm --filter @parkly/<app> dev`) and on the dev sites after merging.
+- A merge to `main` deploys the four apps (at most 4 deployments per merge).
+- An "Ignored Build Step" would not help: Vercel counts canceled builds toward the daily limit.
+- To get previews back, move the team to Vercel Pro (6,000 deployments a day) and remove the `**` rule. A test (`apps/api/src/vercel-config.spec.ts`) keeps the four files in step.
