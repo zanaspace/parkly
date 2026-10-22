@@ -351,6 +351,21 @@ export function drizzleAttend(db: Db): {
         return row ?? null;
       },
 
+      async sessionsForBookings(ids) {
+        if (ids.length === 0) return new Map();
+        const rows = await db
+          .select({
+            bookingId: sessions.bookingId,
+            checkInAt: sessions.checkInAt,
+            checkOutAt: sessions.checkOutAt,
+            overstayMinutes: sessions.overstayMinutes,
+            overstayAmountKobo: sessions.overstayAmountKobo,
+          })
+          .from(sessions)
+          .where(inArray(sessions.bookingId, ids));
+        return new Map(rows.map(({ bookingId, ...rest }) => [bookingId, rest]));
+      },
+
       async setOverstay(sessionId, minutes, amountKobo) {
         await db
           .update(sessions)

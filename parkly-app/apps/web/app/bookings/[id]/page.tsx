@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { QrCode } from '../../../components/qr-code';
+import { StayTimer } from '../../../components/stay-timer';
 import { apiAs, ApiProblem } from '../../../lib/api';
 import { lineLabel } from '../../../lib/search';
 import { requireDriver } from '../../../lib/session';
@@ -34,7 +35,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
       <Text variant="heading-xl" as="h1">
         {confirmed ? 'You’re booked' : 'Booking'}
       </Text>
-      {confirmed && (
+      <StayTimer booking={booking} />
+      {confirmed && !booking.stay?.checkedOutAt && (
         <section className="pk-card pk-stack pk-ticket" aria-label="Booking code">
           <Text tone="secondary">Show this at the gate</Text>
           {booking.qrToken && (
@@ -42,6 +44,12 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
           )}
           <p className="pk-ticket__code">{booking.code}</p>
           <code>{booking.vehicle.plate}</code>
+          {booking.overstay && (
+            <Text variant="body-sm" tone="secondary">
+              Overstay: {formatNaira(booking.overstay.per15Kobo)} per 15 min after{' '}
+              {booking.overstay.graceMin} min grace
+            </Text>
+          )}
         </section>
       )}
       {booking.status === 'PENDING_PAYMENT' && (

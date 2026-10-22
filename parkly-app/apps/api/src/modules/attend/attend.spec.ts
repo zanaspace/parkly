@@ -162,7 +162,8 @@ async function setup() {
         clientDeviceId: opts.clientDeviceId ?? device,
         lotId: lot.id,
         batchId: opts.batchId ?? randomUUID(),
-        deviceSentAt: TEST_NOW.toISOString(),
+        // The phone and server clocks agree (drift correction is tested in attend-plan.spec).
+        deviceSentAt: w.deps.now().toISOString(),
         events,
       },
     });
@@ -414,5 +415,48 @@ describe('sync (doc 01 §5.3)', () => {
       true,
     );
     expect(t.store.attending.eventRows).toHaveLength(20);
+  });
+});
+
+describe('driver timer data (ADR 0016)', () => {
+  it('shows the overstay price, the check-in time and a live, then final, overstay', async () => {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    await t.readyDevice();
+    const view = () => t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+
+    // ₦500 an hour → ₦125 per 15 minutes after a 10-minute grace.
+    expect((await view()).body).toMatchObject({
+      overstay: { graceMin: 10, per15Kobo: 12_500 },
+      stay: null,
+    });
+
+    await t.sync([checkIn(paid.id, min(55))]);
+    expect((await view()).body?.stay).toEqual({
+      checkedInAt: min(55),
+      checkedOutAt: null,
+      overstayMinutes: 0,
+      overstayKobo: 0,
+    });
+
+    // 12:40 Lagos, still parked: 40 min past the end, 10 min grace → 30 min so far.
+    t.deps.now = () => new Date(min(220));
+    expect((await view()).body?.stay).toMatchObject({ overstayMinutes: 30, overstayKobo: 25_000 });
+
+    const out = {
+      type: 'CHECK_OUT',
+      clientEventId: randomUUID(),
+      bookingId: paid.id,
+      method: 'QR',
+      deviceTime: min(226),
+    };
+    await t.sync([out]);
+    t.deps.now = () => new Date(min(300));
+    expect((await view()).body?.stay).toEqual({
+      checkedInAt: min(55),
+      checkedOutAt: min(226),
+      overstayMinutes: 45,
+      overstayKobo: 37_500,
+    });
   });
 });

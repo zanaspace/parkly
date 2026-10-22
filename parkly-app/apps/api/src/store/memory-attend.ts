@@ -243,6 +243,21 @@ export class MemoryAttend {
       };
     },
 
+    sessionsForBookings: async (ids) =>
+      new Map(
+        this.sessionRows
+          .filter((s) => ids.includes(s.bookingId))
+          .map((s) => [
+            s.bookingId,
+            {
+              checkInAt: s.checkInAt,
+              checkOutAt: s.checkOutAt,
+              overstayMinutes: s.overstayMinutes,
+              overstayAmountKobo: s.overstayAmountKobo,
+            },
+          ]),
+      ),
+
     setOverstay: async (sessionId, minutes, amountKobo) => {
       const s = this.sessionRows.find((r) => r.id === sessionId);
       if (s) Object.assign(s, { overstayMinutes: minutes, overstayAmountKobo: amountKobo });

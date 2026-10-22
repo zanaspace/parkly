@@ -22,6 +22,8 @@ const booking = (id: string, qrToken: string | null) => ({
   totalKobo: 110000,
   lines: [],
   qrToken,
+  overstay: null,
+  stay: null,
   createdAt: '2026-10-22T16:41:26.000Z',
 });
 

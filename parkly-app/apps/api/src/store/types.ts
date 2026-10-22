@@ -386,6 +386,13 @@ export type AttendEventResult = {
   reason: string | null;
 };
 
+export type StaySummary = {
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+  overstayMinutes: number;
+  overstayAmountKobo: number;
+};
+
 export type AttendBatch = {
   id: string;
   deviceId: string;
@@ -802,6 +809,8 @@ export type Store = {
       checkOutAt: Date | null;
     } | null>;
     setOverstay(sessionId: string, minutes: number, amountKobo: number): Promise<void>;
+    /** Stay times and recorded overstay for these bookings (driver timer, ADR 0016). */
+    sessionsForBookings(bookingIds: string[]): Promise<Map<string, StaySummary>>;
   };
   lotKeys: {
     /** The lot's ACTIVE QR signing key, if it has one yet. */

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Notice } from '../../../src/components/Notice';
 import { QrCode } from '../../../src/components/QrCode';
+import { StayTimer } from '../../../src/components/StayTimer';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { Screen } from '../../../src/components/Screen';
 import { ApiError } from '../../../src/lib/api';
@@ -15,8 +16,10 @@ import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../../src/logic/errors';
 
 const POLL_MS = 3_000;
+/** While waiting for the gate or parked: pick up check-in, check-out and live overstay. */
+const STAY_POLL_MS = 30_000;
 
-/** D-17 Booking confirmed (doc 03 §1.4; QR arrives with check-in, S5): the code the attendant asks for, where and when, what was paid. */
+/** D-17 ticket and D-18 timer (doc 03 §1.4, ADR 0016): QR and code for the gate, the live stay, what was paid. */
 export default function BookingScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -39,6 +42,8 @@ export default function BookingScreen() {
         if (userId && b.qrToken) void tickets.put(userId, b).catch(() => undefined);
         // A webhook may still be confirming it; keep looking while it waits.
         if (b.status === 'PENDING_PAYMENT') timer = setTimeout(() => void load(), POLL_MS);
+        else if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'NO_SHOW')
+          timer = setTimeout(() => void load(), STAY_POLL_MS);
       } catch (err) {
         if (!live) return;
         // No signal at the gate: show the ticket saved when it was last online.
@@ -106,7 +111,8 @@ export default function BookingScreen() {
           message="You’re offline. This is the ticket saved on your phone; it still works at the gate."
         />
       ) : null}
-      {confirmed ? (
+      <StayTimer booking={booking} />
+      {confirmed && !booking.stay?.checkedOutAt ? (
         <View style={[card, { alignItems: 'center' }]}>
           <Text tone="secondary">Show this at the gate</Text>
           {booking.qrToken ? (
@@ -123,6 +129,11 @@ export default function BookingScreen() {
             {booking.code}
           </Text>
           <Text variant="code.md">{booking.vehicle.plate}</Text>
+          {booking.overstay ? (
+            <Text variant="body.sm" tone="secondary">
+              {`Overstay: ${formatNaira(booking.overstay.per15Kobo)} per 15 min after ${booking.overstay.graceMin} min grace`}
+            </Text>
+          ) : null}
         </View>
       ) : null}
       {booking.status === 'PENDING_PAYMENT' ? (

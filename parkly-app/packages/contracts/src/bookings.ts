@@ -53,6 +53,25 @@ export const BookingSchema = z.object({
    * CHECKED_IN. Show it as a QR code, with the booking code beside it.
    */
   qrToken: z.string().nullable(),
+  /**
+   * The overstay price for this car park (ADR 0016), shown on the ticket:
+   * per started 15 minutes after the grace. Null when the lot has no
+   * hourly or daily price to base it on.
+   */
+  overstay: z.object({ graceMin: z.number().int(), per15Kobo: z.number().int() }).nullable(),
+  /**
+   * The car's stay, once the gate has checked it in (driver timer, ADR 0016).
+   * Overstay is the server's figure: live while the car is still in after
+   * end + grace, final after check-out. Clients only display it.
+   */
+  stay: z
+    .object({
+      checkedInAt: z.iso.datetime().nullable(),
+      checkedOutAt: z.iso.datetime().nullable(),
+      overstayMinutes: z.number().int(),
+      overstayKobo: z.number().int(),
+    })
+    .nullable(),
   createdAt: z.iso.datetime(),
 });
 

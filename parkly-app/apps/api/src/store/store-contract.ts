@@ -1300,6 +1300,14 @@ export function storeContract(
         const s = await store.attend.session(out.checkedOut[0] ?? '');
         expect(s).toMatchObject({ bookingId: booking.id, commissionBps: 1200 });
         await store.attend.setOverstay(out.checkedOut[0] ?? '', 30, 25_000);
+        const stays = await store.attend.sessionsForBookings([booking.id, randomUUID()]);
+        expect(stays.get(booking.id)).toEqual({
+          checkInAt: new Date('2027-01-05T07:05:00Z'),
+          checkOutAt: new Date('2027-01-05T09:40:00Z'),
+          overstayMinutes: 30,
+          overstayAmountKobo: 25_000,
+        });
+        expect(stays.size).toBe(1);
 
         const manifest = await store.attend.manifest(lot.lotId, START, END);
         expect(manifest).toEqual([

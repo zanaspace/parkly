@@ -10486,6 +10486,58 @@
                             "null"
                           ]
                         },
+                        "overstay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "graceMin": {
+                              "type": "integer"
+                            },
+                            "per15Kobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "graceMin",
+                            "per15Kobo"
+                          ]
+                        },
+                        "stay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "checkedInAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "checkedOutAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "overstayMinutes": {
+                              "type": "integer"
+                            },
+                            "overstayKobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "checkedInAt",
+                            "checkedOutAt",
+                            "overstayMinutes",
+                            "overstayKobo"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -10506,6 +10558,8 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
+                        "overstay",
+                        "stay",
                         "createdAt"
                       ]
                     },
@@ -10801,6 +10855,58 @@
                               "null"
                             ]
                           },
+                          "overstay": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "graceMin": {
+                                "type": "integer"
+                              },
+                              "per15Kobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "graceMin",
+                              "per15Kobo"
+                            ]
+                          },
+                          "stay": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "checkedInAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              },
+                              "checkedOutAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              },
+                              "overstayMinutes": {
+                                "type": "integer"
+                              },
+                              "overstayKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "checkedInAt",
+                              "checkedOutAt",
+                              "overstayMinutes",
+                              "overstayKobo"
+                            ]
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -10821,6 +10927,8 @@
                           "totalKobo",
                           "lines",
                           "qrToken",
+                          "overstay",
+                          "stay",
                           "createdAt"
                         ]
                       }
@@ -11068,6 +11176,58 @@
                         "null"
                       ]
                     },
+                    "overstay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "graceMin": {
+                          "type": "integer"
+                        },
+                        "per15Kobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "graceMin",
+                        "per15Kobo"
+                      ]
+                    },
+                    "stay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "checkedInAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "checkedOutAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "overstayMinutes": {
+                          "type": "integer"
+                        },
+                        "overstayKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "checkedInAt",
+                        "checkedOutAt",
+                        "overstayMinutes",
+                        "overstayKobo"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -11088,6 +11248,8 @@
                     "totalKobo",
                     "lines",
                     "qrToken",
+                    "overstay",
+                    "stay",
                     "createdAt"
                   ]
                 }
@@ -11373,6 +11535,58 @@
                             "null"
                           ]
                         },
+                        "overstay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "graceMin": {
+                              "type": "integer"
+                            },
+                            "per15Kobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "graceMin",
+                            "per15Kobo"
+                          ]
+                        },
+                        "stay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "checkedInAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "checkedOutAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "overstayMinutes": {
+                              "type": "integer"
+                            },
+                            "overstayKobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "checkedInAt",
+                            "checkedOutAt",
+                            "overstayMinutes",
+                            "overstayKobo"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -11393,6 +11607,8 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
+                        "overstay",
+                        "stay",
                         "createdAt"
                       ]
                     }
