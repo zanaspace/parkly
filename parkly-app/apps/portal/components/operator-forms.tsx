@@ -1,7 +1,7 @@
 'use client';
 
 import type { Operator } from '@parkly/contracts';
-import { Button, Input, Select } from '@parkly/ui';
+import { Button, Input, Select, ActionForm } from '@parkly/ui';
 import { useActionState } from 'react';
 import { signUp } from '../lib/auth/actions';
 import { MIN_PASSWORD_LENGTH } from '../lib/auth/messages';
@@ -21,7 +21,7 @@ export function SignUpForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(signUp, undefined);
   if (state?.message) return <Notice tone="info">{state.message}</Notice>;
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       {next && <input type="hidden" name="next" value={next} />}
       <Input label="Email address" name="email" type="email" autoComplete="email" required />
       <Input
@@ -44,7 +44,7 @@ export function SignUpForm({ next }: { next?: string }) {
       <Button type="submit" loading={pending} fullWidth>
         Create account
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -80,7 +80,7 @@ export function BusinessForm(
   const key = state?.saved ? 'saved' : 'form';
 
   return (
-    <form action={action} className="pk-form" noValidate key={key}>
+    <ActionForm action={action} className="pk-form" noValidate key={key}>
       {props.mode === 'edit' && <input type="hidden" name="operatorId" value={props.operator.id} />}
       <Input
         label="Registered business name"
@@ -178,6 +178,6 @@ export function BusinessForm(
           {props.mode === 'create' ? 'Create operator account' : 'Save changes'}
         </Button>
       )}
-    </form>
+    </ActionForm>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input } from '@parkly/ui';
+import { Button, Input, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import { sendCode, verifyCode, type SignInMethod, type SignInState } from '../lib/auth/actions';
 
@@ -21,7 +21,7 @@ export function SignInForm({ next }: { next: string }) {
 
   if (!onCodeStep)
     return (
-      <form action={sendAction} className="pk-stack">
+      <ActionForm action={sendAction} className="pk-stack">
         <input type="hidden" name="method" value={method} />
         {method === 'email' ? (
           <Input
@@ -60,11 +60,11 @@ export function SignInForm({ next }: { next: string }) {
         >
           {method === 'email' ? 'Use a phone number instead' : 'Use email instead'}
         </button>
-      </form>
+      </ActionForm>
     );
 
   return (
-    <form action={verifyAction} className="pk-stack">
+    <ActionForm action={verifyAction} className="pk-stack">
       <input type="hidden" name="method" value={sent.method} />
       <input type="hidden" name="contact" value={contact ?? ''} />
       <input type="hidden" name="next" value={next} />
@@ -90,6 +90,6 @@ export function SignInForm({ next }: { next: string }) {
       <Button type="submit" fullWidth disabled={verifying}>
         {verifying ? 'Checking…' : 'Sign in'}
       </Button>
-    </form>
+    </ActionForm>
   );
 }

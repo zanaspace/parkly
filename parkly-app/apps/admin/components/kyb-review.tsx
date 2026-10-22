@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Text } from '@parkly/ui';
+import { Button, Text, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import { kybDocumentLink, reviewKyb } from '../lib/kyb/actions';
 
@@ -50,7 +50,7 @@ export function KybReviewForm({ operatorId }: { operatorId: string }) {
       <Text variant="label-lg" as="h2" id="decision-heading">
         Decision
       </Text>
-      <form action={action} className="pk-form">
+      <ActionForm action={action} className="pk-form">
         <input type="hidden" name="operatorId" value={operatorId} />
         <input type="hidden" name="decision" value="APPROVE" />
         <Text variant="body-sm" tone="tertiary">
@@ -60,8 +60,8 @@ export function KybReviewForm({ operatorId }: { operatorId: string }) {
         <Button type="submit" loading={pending}>
           Approve KYB
         </Button>
-      </form>
-      <form action={action} className="pk-form">
+      </ActionForm>
+      <ActionForm action={action} className="pk-form">
         <input type="hidden" name="operatorId" value={operatorId} />
         <input type="hidden" name="decision" value="REJECT" />
         <label className="pk-field__label" htmlFor="reject-reason">
@@ -78,7 +78,7 @@ export function KybReviewForm({ operatorId }: { operatorId: string }) {
         <Button type="submit" variant="secondary" loading={pending}>
           Reject KYB
         </Button>
-      </form>
+      </ActionForm>
       {state?.error && <Notice tone="error">{state.error}</Notice>}
     </section>
   );

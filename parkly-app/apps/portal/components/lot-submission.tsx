@@ -1,7 +1,7 @@
 'use client';
 
 import type { Lot, Product } from '@parkly/contracts';
-import { Button, Input, Select, Text } from '@parkly/ui';
+import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useRouter } from 'next/navigation';
 import { useActionState, useRef, useState } from 'react';
 import { putToSignedUrl, sha256Hex } from '../lib/browser-upload';
@@ -137,7 +137,7 @@ const PRODUCTS: { product: Product; title: string; hint: string }[] = [
 function PriceForm(props: { operatorId: string; lot: Lot; product: Product; editable: boolean }) {
   const [state, action, pending] = useActionState(saveRatePlan, undefined);
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <input type="hidden" name="operatorId" value={props.operatorId} />
       <input type="hidden" name="lotId" value={props.lot.id} />
       <input type="hidden" name="product" value={props.product} />
@@ -182,7 +182,7 @@ function PriceForm(props: { operatorId: string; lot: Lot; product: Product; edit
       <Button type="submit" variant="secondary" size="sm" loading={pending}>
         Send price for approval
       </Button>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -241,7 +241,7 @@ export function SubmitLotSection(props: { operatorId: string; lot: Lot }) {
       </Text>
     );
   return (
-    <form action={action} className="pk-form">
+    <ActionForm action={action} className="pk-form">
       <input type="hidden" name="operatorId" value={props.operatorId} />
       <input type="hidden" name="lotId" value={props.lot.id} />
       {state?.error && (
@@ -259,6 +259,6 @@ export function SubmitLotSection(props: { operatorId: string; lot: Lot }) {
       <Button type="submit" loading={pending} fullWidth>
         Submit lot for verification
       </Button>
-    </form>
+    </ActionForm>
   );
 }

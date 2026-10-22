@@ -1,7 +1,7 @@
 'use client';
 
 import type { Bank, KybDocument, KybDocumentType, PayoutAccount } from '@parkly/contracts';
-import { Button, Input, Select, Text } from '@parkly/ui';
+import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useRouter } from 'next/navigation';
 import { useActionState, useRef, useState } from 'react';
 import {
@@ -151,7 +151,7 @@ export function PayoutForm(props: {
         </>
       )}
       {props.editable && (
-        <form action={action} className="pk-form" noValidate>
+        <ActionForm action={action} className="pk-form" noValidate>
           <input type="hidden" name="operatorId" value={props.operatorId} />
           <Select
             label="Bank"
@@ -174,7 +174,7 @@ export function PayoutForm(props: {
           <Button type="submit" loading={pending}>
             {account ? 'Change bank account' : 'Check account'}
           </Button>
-        </form>
+        </ActionForm>
       )}
     </section>
   );
@@ -183,7 +183,7 @@ export function PayoutForm(props: {
 export function SubmitKyb({ operatorId }: { operatorId: string }) {
   const [state, action, pending] = useActionState(submitKyb, undefined);
   return (
-    <form action={action} className="pk-form">
+    <ActionForm action={action} className="pk-form">
       <input type="hidden" name="operatorId" value={operatorId} />
       {state?.error && (
         <Notice tone="error">
@@ -200,6 +200,6 @@ export function SubmitKyb({ operatorId }: { operatorId: string }) {
       <Button type="submit" loading={pending} fullWidth>
         Submit for review
       </Button>
-    </form>
+    </ActionForm>
   );
 }

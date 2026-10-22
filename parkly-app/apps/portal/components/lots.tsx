@@ -1,7 +1,7 @@
 'use client';
 
 import type { Lot, OpeningDay } from '@parkly/contracts';
-import { Button, Input, Select, Text } from '@parkly/ui';
+import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useRouter } from 'next/navigation';
 import { useActionState, useRef, useState } from 'react';
 import { putToSignedUrl, sha256Hex } from '../lib/browser-upload';
@@ -98,7 +98,7 @@ export function LotForm(props: { operatorId: string; lot?: Lot; editable: boolea
       : null;
 
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <input type="hidden" name="operatorId" value={props.operatorId} />
       {lot && (
         <>
@@ -246,7 +246,7 @@ export function LotForm(props: { operatorId: string; lot?: Lot; editable: boolea
           {lot ? 'Save details' : 'Create lot and continue'}
         </Button>
       )}
-    </form>
+    </ActionForm>
   );
 }
 
@@ -261,7 +261,7 @@ export function HoursEditor(props: { operatorId: string; lot: Lot; editable: boo
   const err = state?.fieldErrors ?? {};
 
   return (
-    <form action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form" noValidate>
       <input type="hidden" name="operatorId" value={props.operatorId} />
       <input type="hidden" name="lotId" value={props.lot.id} />
       {WEEKDAYS.map((day, i) => {
@@ -311,7 +311,7 @@ export function HoursEditor(props: { operatorId: string; lot: Lot; editable: boo
           Save opening hours
         </Button>
       )}
-    </form>
+    </ActionForm>
   );
 }
 
