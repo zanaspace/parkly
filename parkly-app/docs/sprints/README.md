@@ -8,7 +8,8 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | S1 | Identity and access: driver phone OTP, operator/admin password + MFA, RBAC, audit log, vehicles | **Done**; attendant sign-in → S5, real-number OTP → Termii | [S1-report.md](S1-report.md) |
 | S2 | Operators, lots, permits, verification: operator onboarding + KYB, lot wizard, admin review and go-live, permit expiry job, team invites | **Done (code complete)**; dev demo run and staging pending | [S2-report.md](S2-report.md) |
 | S3 | Lot discovery: drivers search near a destination and see prices and availability (mobile + web) | **Done (code complete)**; LocationIQ key to add on Vercel | [S3-report.md](S3-report.md) |
-| S4 | Booking, availability holds and payments (Paystack) | Next | — |
+| S4 | Booking, availability holds and payments (Paystack): book and pay in the app and on the web, webhooks, ledger, signed QR ticket | **Done (code complete)**; staging sign-off and k6 run wait for staging | [S4-report.md](S4-report.md) |
+| S5 | QR ticket check-in and the offline attendant PWA | Next | — |
 
 ## What exists on dev today
 
@@ -17,7 +18,7 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | API | https://parkly-api-six.vercel.app | Every app; `pg_cron` jobs |
 | Operator portal | https://parkly-portal.vercel.app | Operator owners and managers |
 | Admin console | https://parkly-khaki.vercel.app | Parkly staff |
-| Driver web | https://parkly-web-two.vercel.app | Drivers: search, results and lot pages (booking from S4) |
-| Driver mobile app | Expo / EAS Android test builds | Drivers (sign-in, profile, vehicles until S3) |
+| Driver web | https://parkly-web-two.vercel.app | Drivers: search, lot pages, phone sign-in, book and pay, My bookings with the QR ticket |
+| Driver mobile app | Expo Go / EAS Android test builds | Drivers: sign-in, search, book and pay, My bookings, QR ticket (offline) |
 
 Environments, variables and secrets: [doc 22](../22%20-%20Environment%20Setup.md).
