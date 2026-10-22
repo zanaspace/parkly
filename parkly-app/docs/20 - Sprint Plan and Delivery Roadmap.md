@@ -401,6 +401,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 **Tests:** rating eligibility (only completed, once); threshold rules; photo upload security.
 **Exit:** ratings visible on lot detail; flag rule creates ops task in staging.
 **Demo:** complete session → rate 2★ "unsafe" ×20 (seeded) → lot flagged.
+**Also (owner request 2026-10-23, not started):** a **Premium security** badge that Parkly awards after extra checks (24 h guard, CCTV recording, gated, insurance), shown in results and on the lot page; and a **Best secured** sort in search that ranks lots by verified facilities plus ratings. Operators already set their own prices (doc 02 §2.5), so better-equipped lots can charge more; these help drivers see why.
 
 ### Sprint 12 — Claims workflow and insurer integration
 **Goal:** Damage/theft claims handled end to end with an insurer, within caps.
