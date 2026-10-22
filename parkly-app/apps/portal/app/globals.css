@@ -107,3 +107,77 @@ body {
   flex-direction: column;
   gap: var(--pk-space-stack-xs);
 }
+
+/* Attendant app (A-01…A-06): large, high-contrast gate screens (doc 03 §3, doc 04). */
+.pk-attend-video {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--pk-radius-md);
+  background: var(--pk-color-bg-surface);
+}
+.pk-attend-counters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--pk-space-inline-sm);
+  text-align: center;
+}
+.pk-attend-counters strong {
+  display: block;
+  font-size: var(--pk-type-heading-lg-font-size);
+}
+.pk-attend-badge {
+  padding: var(--pk-space-inset-xs) var(--pk-space-inset-sm);
+  border-radius: var(--pk-radius-md);
+  background: var(--pk-color-status-success-bg);
+  color: var(--pk-color-status-success-fg);
+}
+.pk-attend-badge--offline {
+  background: var(--pk-color-status-warning-bg);
+  color: var(--pk-color-status-warning-fg);
+}
+.pk-attend-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-xs);
+  padding: var(--pk-space-inset-lg);
+  border-radius: var(--pk-radius-md);
+  text-align: center;
+}
+.pk-attend-result--green {
+  background: var(--pk-color-status-success-bg);
+  color: var(--pk-color-status-success-fg);
+}
+.pk-attend-result--amber {
+  background: var(--pk-color-status-warning-bg);
+  color: var(--pk-color-status-warning-fg);
+}
+.pk-attend-result--red {
+  background: var(--pk-color-status-danger-bg);
+  color: var(--pk-color-status-danger-fg);
+}
+.pk-attend-result__label {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.pk-attend-result__plate {
+  font-family: var(--pk-type-code-lg-font-family);
+  font-size: var(--pk-type-display-lg-font-size, var(--pk-type-heading-xl-font-size));
+}
+.pk-chip {
+  padding: var(--pk-space-inset-sm) var(--pk-space-inset-md);
+  border: 1px solid var(--pk-color-border-default);
+  border-radius: var(--pk-radius-full, 999px);
+  background: var(--pk-color-bg-surface);
+  color: inherit;
+  font: inherit;
+}
+.pk-chip--on {
+  border-color: var(--pk-color-action-primary-bg);
+  background: var(--pk-color-action-primary-bg);
+  color: var(--pk-color-action-primary-fg);
+}
+
+a.pk-button {
+  text-decoration: none;
+}

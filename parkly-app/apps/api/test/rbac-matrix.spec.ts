@@ -219,6 +219,7 @@ const COVERED_ELSEWHERE = new Set([
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
   // Drivers only (owner 403), other driver's booking or payment → 404, idempotency: bookings.spec
   // Lot-scoped attendant routes, device approval and the device checks: attend.spec
+  'GET /v1/attend/lots',
   'POST /v1/attend/devices',
   'GET /v1/attend/lots/{lotId}/manifest',
   'POST /v1/attend/sync',

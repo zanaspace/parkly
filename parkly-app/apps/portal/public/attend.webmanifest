@@ -1,0 +1,13 @@
+{
+  "name": "Parkly Attendant",
+  "short_name": "Parkly Gate",
+  "start_url": "/attend",
+  "scope": "/attend",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#137066",
+  "icons": [
+    { "src": "/attend-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
