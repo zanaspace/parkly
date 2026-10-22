@@ -1,6 +1,6 @@
 # Sprint 3 — Lot discovery: progress report
 
-- **Status:** In progress. Stories 1–3 are done (pricing engine, availability, driver lot API).
+- **Status:** In progress. Stories 1–4 are done (pricing engine, availability, driver lot API, demo data + latency check).
 - **Updated:** 2026-10-22
 - **Entry check:** S2 is done (code complete); its open items are in `S2-report.md` § Carried over and doc 20 §6. The Google Maps key is being created by the owner (PRD §12: needed by S3); work that needs it comes last.
 
@@ -15,7 +15,7 @@ Drivers find verified lots near a destination and see accurate prices and availa
 | 1 | Pricing engine (`packages/domain/pricing`): hourly (minimum stay + 15-min blocks, daily cap per Lagos day), daily, monthly, service fee, commission split, extension and overstay | FR-BOOK-002, task 1 | **Done** |
 | 2 | Availability: `lot_slot_inventory` table + read path (`availableCount` for a window), booking window limits, opening hours | task 2 | **Done** |
 | 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | **Done** |
-| 4 | Seed script with realistic Victoria Island lots | task 7 | To do |
+| 4 | Seed script with realistic Victoria Island lots; latency check | task 7, exit criterion | **Done** |
 | 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | To do |
 | 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | To do |
 | 7 | Places autocomplete + place details proxied through the API (Google key) | FR-LOT-101, task 4 | Waiting for the Google Maps key |
@@ -53,7 +53,6 @@ Drivers find verified lots near a destination and see accurate prices and availa
 - **Tests:** +15 API (discovery, incl. the PRD Gherkin scenario and a check against the domain engine), +1 storage adapter, +3 contracts. API: 540 tests, branches 86.4 %.
 - **Errors:** `SEARCH_INVALID_WINDOW`, `BOOKING_WINDOW_INVALID`, `BOOKING_OUTSIDE_OPENING_HOURS`, `PRICING_INVALID_DURATION`, `LOT_NOT_BOOKABLE` (product not sold), `LOT_NOT_FOUND`.
 - **Owner step:** apply `20261022010000_public_lot_photos.sql` on dev.
-- **Still to do for the exit criterion:** the k6 latency check (p95 < 800 ms with 500 seeded lots) needs the seed script (story 4).
 
 ### Fix: price changes on live lots (FR-LOT-005)
 
@@ -65,3 +64,12 @@ Found while testing search on dev: the "Testing" lot's hourly price had been rej
 - **Checked against the dev database** (rolled back): the Testing lot's rejected hourly price is returned with its reason; a new change shows as 1 to review in the LIVE queue.
 - **Tests:** +3 API, +1 store contract. API: 543 tests.
 
+### Story 4: demo data and the latency check
+
+- **Script** `pnpm --filter @parkly/api seed:demo -- --confirm-dev` (`apps/api/scripts/seed-demo.ts`): 12 demo car parks on real street names in Victoria Island (8), Ikoyi (2) and Lekki Phase 1 (2), each with its own operator named "… (demo)" (KYB approved), an approved permit, an approved site visit, live prices, hours and amenities, so they are LIVE and listable. No real business names; descriptions say "Not a real Parkly partner".
+  - `--perf 500` adds 500 synthetic lots for the latency check; `--remove` deletes every demo lot and operator; `--dry-run` does the work and rolls it back.
+  - Safety: needs `--confirm-dev`, refuses `APP_ENV=prod`/`staging`, data only (never schema), idempotent (existing slugs are skipped), batched inserts.
+  - The data is checked by tests: inside Lagos State, unique `demo-` slugs, prices and hours the domain accepts, centred on Victoria Island (doc 00 Q1).
+- **On dev now:** the 12 demo lots are loaded. A 5 km search around Victoria Island returns 10 of them (the two Lekki lots are just over 5 km away).
+- **Latency** (exit criterion: p95 < 800 ms with 500 lots): with 512 lots loaded on dev, 40 searches from Lagos against the live dev API (5 km radius, 50 results each) took **p50 325 ms, p95 508 ms, max 665 ms**, network included. The 500 extra lots were then removed. `tests/load/search.js` is the k6 scenario of doc 02 §12.9 (100 users, p95 < 500 ms) for staging before launch.
+- **Tests:** +3 (demo data).
