@@ -9,3 +9,4 @@ export * from './operator/index.js';
 export * from './pricing/index.js';
 export * from './availability/index.js';
 export * from './discovery/index.js';
+export * from './booking/index.js';
