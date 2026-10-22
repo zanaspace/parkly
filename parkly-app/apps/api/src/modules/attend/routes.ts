@@ -1,0 +1,312 @@
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import {
+  AttendDeviceSchema,
+  DeviceDecisionSchema,
+  ManifestSchema,
+  OperatorDeviceListSchema,
+  OperatorDeviceSchema,
+  RegisterDeviceRequestSchema,
+  SyncRequestSchema,
+  SyncResponseSchema,
+  type AttendDevice,
+  type OperatorDevice,
+} from '@parkly/contracts';
+import { toBase64Url } from '@parkly/domain/qr';
+import { overstayCharge } from '@parkly/domain/pricing';
+import type { AppDeps } from '../../app.js';
+import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import { audit } from '../../lib/audit.js';
+import { ApiError } from '../../lib/errors.js';
+import type { AttendDeviceRow, AttendEventInput } from '../../store/types.js';
+
+const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const toDevice = (d: AttendDeviceRow): AttendDevice => ({
+  id: d.id,
+  lotId: d.lotId,
+  approved: !!d.approvedAt && !d.revokedAt,
+  revoked: !!d.revokedAt,
+});
+
+/**
+ * Attendant app (doc 02 §6.7, ADR 0005): register the phone, download the
+ * manifest for 24 h offline, sync queued events. Lot-scoped: attendants see
+ * only the lots they work; owners and managers every lot of their operator.
+ */
+export function attendRoutes(deps: AppDeps) {
+  const app = new OpenAPIHono<AuthEnv>();
+  const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
+  const secured = { security: [{ bearerAuth: [] }], middleware };
+
+  async function settingNumber(key: string, fallback: number) {
+    return (await deps.store.settings.get<number>(key)) ?? fallback;
+  }
+
+  /** The lot, if this person may work its gate (404 otherwise: no enumeration). */
+  async function gateLot(c: Parameters<typeof authorize>[0], lotId: string) {
+    const lot = await deps.store.lots.findById(lotId);
+    if (!lot) throw new ApiError('LOT_NOT_FOUND');
+    try {
+      authorize(
+        c,
+        deps.logger,
+        'lot:checkin',
+        { operatorId: lot.operatorId, lotId },
+        {
+          denyAs: 'NOT_FOUND',
+        },
+      );
+    } catch (err) {
+      // Same answer as a lot that does not exist.
+      if (err instanceof ApiError && err.code === 'NOT_FOUND') throw new ApiError('LOT_NOT_FOUND');
+      throw err;
+    }
+    return lot;
+  }
+
+  /** The approved, unblocked phone for this lot (doc 05 §4.4). */
+  async function approvedDevice(userId: string, clientDeviceId: string, lotId: string) {
+    const device = await deps.store.attend.device(userId, clientDeviceId);
+    if (device?.revokedAt) throw new ApiError('DEVICE_REVOKED');
+    if (!device?.approvedAt || device.lotId !== lotId) throw new ApiError('DEVICE_NOT_APPROVED');
+    return device;
+  }
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/attend/devices',
+      tags: ['attend'],
+      ...secured,
+      request: { body: { ...json(RegisterDeviceRequestSchema), required: true } },
+      responses: { 200: { description: 'This phone for this lot', ...json(AttendDeviceSchema) } },
+    }),
+    async (c) => {
+      const body = c.req.valid('json');
+      const lot = await gateLot(c, body.lotId);
+      const actor = c.get('actor');
+      // Owners' and managers' own phones need no approval; attendants' do.
+      const isManager = actor.roles.some(
+        (g) =>
+          g.operatorId === lot.operatorId &&
+          (g.role === 'OPERATOR_OWNER' || g.role === 'OPERATOR_MANAGER'),
+      );
+      const device = await deps.store.attend.registerDevice({
+        userId: actor.userId,
+        clientDeviceId: body.clientDeviceId,
+        operatorId: lot.operatorId,
+        lotId: lot.id,
+        approve: isManager,
+        at: deps.now(),
+      });
+      return c.json(toDevice(device), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/attend/lots/{lotId}/manifest',
+      tags: ['attend'],
+      ...secured,
+      request: {
+        params: z.object({ lotId: z.uuid() }),
+        query: z.object({ clientDeviceId: z.uuid() }),
+      },
+      responses: { 200: { description: 'Gate data for 24 h offline', ...json(ManifestSchema) } },
+    }),
+    async (c) => {
+      const { lotId } = c.req.valid('param');
+      const lot = await gateLot(c, lotId);
+      await approvedDevice(c.get('actor').userId, c.req.valid('query').clientDeviceId, lotId);
+      const now = deps.now();
+      const [rows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
+        await Promise.all([
+          deps.store.attend.manifest(
+            lotId,
+            new Date(now.getTime() - DAY_MS),
+            new Date(now.getTime() + DAY_MS),
+          ),
+          deps.store.lotKeys.forManifest(lotId),
+          deps.store.attend.walkIns(lotId),
+          settingNumber('booking.early_arrival_min', 30),
+          settingNumber('booking.no_show_grace_min', 30),
+          settingNumber('session.overstay_grace_min', 10),
+        ]);
+      return c.json(
+        {
+          serverTime: now.toISOString(),
+          lot: { id: lot.id, name: lot.name, capacityBookable: lot.capacityBookable },
+          rules: { earlyArrivalMin, noShowGraceMin, overstayGraceMin },
+          keys: keys.valid.map((k) => ({
+            kid: k.kid,
+            publicKey: toBase64Url(new Uint8Array(k.publicKey)),
+            status: k.status === 'RETIRING' ? ('RETIRING' as const) : ('ACTIVE' as const),
+          })),
+          revokedKids: keys.revokedKids,
+          bookings: rows.map((b) => ({
+            id: b.id,
+            code: b.code,
+            plateNorm: b.plateNorm,
+            startAt: b.startAt.toISOString(),
+            endAt: b.endAt.toISOString(),
+            status: b.status,
+            checkedInAt: b.checkedInAt?.toISOString() ?? null,
+            checkedOutAt: b.checkedOutAt?.toISOString() ?? null,
+          })),
+          walkIns,
+        },
+        200,
+      );
+    },
+  );
+
+  // Doc 01 §5.3: idempotent per event (clientEventId) and per batch (batchId).
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/attend/sync',
+      tags: ['attend'],
+      ...secured,
+      request: { body: { ...json(SyncRequestSchema), required: true } },
+      responses: { 200: { description: 'A verdict per event', ...json(SyncResponseSchema) } },
+    }),
+    async (c) => {
+      const body = c.req.valid('json');
+      const lot = await gateLot(c, body.lotId);
+      const actor = c.get('actor');
+      const device = await approvedDevice(actor.userId, body.clientDeviceId, lot.id);
+      const receivedAt = deps.now();
+      const events: AttendEventInput[] = body.events.map((e) => {
+        const deviceTime = new Date(e.deviceTime);
+        switch (e.type) {
+          case 'CHECK_IN':
+            return {
+              ...e,
+              deviceTime,
+              plateSeen: e.plateSeen ?? null,
+              overrideReason: e.overrideReason ?? null,
+            };
+          case 'CHECK_OUT':
+            return { ...e, deviceTime };
+          case 'WALK_IN':
+            return { ...e, deviceTime };
+          case 'ISSUE':
+            return { ...e, deviceTime, bookingId: e.bookingId ?? null };
+        }
+      });
+      const { results, checkedOut } = await deps.store.attend.applyBatch(
+        {
+          id: body.batchId,
+          deviceId: device.id,
+          lotId: lot.id,
+          attendantId: actor.userId,
+          deviceSentAt: new Date(body.deviceSentAt),
+          receivedAt,
+        },
+        events,
+      );
+
+      // Overstay is worked out by the server (doc 03 §3.6); payment comes in S6.
+      if (checkedOut.length > 0) {
+        const [plans, graceMin] = await Promise.all([
+          deps.store.ratePlans.activeFor([lot.id]),
+          settingNumber('session.overstay_grace_min', 10),
+        ]);
+        for (const id of checkedOut) {
+          const s = await deps.store.attend.session(id);
+          if (!s?.checkOutAt || s.checkOutAt.getTime() <= s.endAt.getTime() + graceMin * 60_000)
+            continue;
+          try {
+            const q = overstayCharge({
+              ratePlans: plans,
+              endAt: s.endAt,
+              checkOutAt: s.checkOutAt,
+              graceMin,
+              commissionBps: s.commissionBps,
+            });
+            const minutes = q.lines[0]?.kind === 'OVERSTAY' ? q.lines[0].minutes : 0;
+            await deps.store.attend.setOverstay(id, minutes, q.priceKobo);
+          } catch (err) {
+            deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');
+          }
+        }
+      }
+      deps.logger.info(
+        { event: 'attend.synced', lotId: lot.id, events: results.length },
+        'attendant sync',
+      );
+      return c.json({ serverTime: receivedAt.toISOString(), results }, 200);
+    },
+  );
+
+  // O-20: the owner's and managers' view of attendant phones.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/operators/{operatorId}/devices',
+      tags: ['operators'],
+      ...secured,
+      request: { params: z.object({ operatorId: z.uuid() }) },
+      responses: { 200: { description: 'Attendant phones', ...json(OperatorDeviceListSchema) } },
+    }),
+    async (c) => {
+      const { operatorId } = c.req.valid('param');
+      authorize(c, deps.logger, 'operator:members:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      const rows = await deps.store.attend.operatorDevices(operatorId);
+      const items: OperatorDevice[] = rows.map((d) => ({
+        ...toDevice(d),
+        lotName: d.lotName,
+        attendantName: d.attendantName,
+        lastSeenAt: d.lastSeenAt.toISOString(),
+      }));
+      return c.json({ items }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/devices/{deviceId}',
+      tags: ['operators'],
+      ...secured,
+      request: {
+        params: z.object({ operatorId: z.uuid(), deviceId: z.uuid() }),
+        body: { ...json(DeviceDecisionSchema), required: true },
+      },
+      responses: { 200: { description: 'Approved or blocked', ...json(OperatorDeviceSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, deviceId } = c.req.valid('param');
+      authorize(c, deps.logger, 'operator:members:invite', { operatorId }, { denyAs: 'NOT_FOUND' });
+      const { decision } = c.req.valid('json');
+      const d = await deps.store.attend.decideDevice({
+        operatorId,
+        deviceId,
+        decision,
+        by: c.get('actor').userId,
+        at: deps.now(),
+      });
+      if (!d) throw new ApiError('NOT_FOUND');
+      await audit(c, deps, {
+        action: decision === 'approve' ? 'attendant_device.approve' : 'attendant_device.revoke',
+        entityType: 'device',
+        entityId: d.id,
+        after: { lotId: d.lotId, approved: decision === 'approve' },
+      });
+      const row = (await deps.store.attend.operatorDevices(operatorId)).find((x) => x.id === d.id);
+      return c.json(
+        {
+          ...toDevice(d),
+          lotName: row?.lotName ?? '',
+          attendantName: row?.attendantName ?? null,
+          lastSeenAt: d.lastSeenAt.toISOString(),
+        },
+        200,
+      );
+    },
+  );
+
+  return app;
+}

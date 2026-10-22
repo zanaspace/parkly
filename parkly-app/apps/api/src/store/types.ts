@@ -331,6 +331,70 @@ export type IdempotencyBegin =
   | { state: 'in_progress' }
   | { state: 'mismatch' };
 
+/** An attendant phone (the `devices` row with operator and lot set). */
+export type AttendDeviceRow = {
+  id: string;
+  userId: string;
+  clientDeviceId: string;
+  operatorId: string;
+  lotId: string;
+  approvedAt: Date | null;
+  revokedAt: Date | null;
+  lastSeenAt: Date;
+};
+
+export type ManifestRow = {
+  id: string;
+  code: string;
+  plateNorm: string;
+  startAt: Date;
+  endAt: Date;
+  status: BookingStatus;
+  checkedInAt: Date | null;
+  checkedOutAt: Date | null;
+};
+
+export type AttendEventInput =
+  | {
+      type: 'CHECK_IN';
+      clientEventId: string;
+      deviceTime: Date;
+      bookingId: string;
+      method: 'QR' | 'CODE' | 'PLATE';
+      plateSeen: string | null;
+      overrideReason: string | null;
+    }
+  | {
+      type: 'CHECK_OUT';
+      clientEventId: string;
+      deviceTime: Date;
+      bookingId: string;
+      method: 'QR' | 'CODE' | 'PLATE';
+    }
+  | { type: 'WALK_IN'; clientEventId: string; deviceTime: Date; delta: 1 | -1 }
+  | {
+      type: 'ISSUE';
+      clientEventId: string;
+      deviceTime: Date;
+      note: string;
+      bookingId: string | null;
+    };
+
+export type AttendEventResult = {
+  clientEventId: string;
+  result: 'APPLIED' | 'DUPLICATE' | 'CONFLICT' | 'REJECTED';
+  reason: string | null;
+};
+
+export type AttendBatch = {
+  id: string;
+  deviceId: string;
+  lotId: string;
+  attendantId: string;
+  deviceSentAt: Date;
+  receivedAt: Date;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -689,6 +753,56 @@ export type Store = {
       limit: number;
     }): Promise<{ id: string; reference: string | null }[]>;
   };
+  attend: {
+    /** This user's attendant phone, by the id the PWA generated. */
+    device(userId: string, clientDeviceId: string): Promise<AttendDeviceRow | null>;
+    /**
+     * Registers (or re-points) this phone to a lot. Never clears a manager's
+     * block. `approve` is for owners and managers, whose phones need no approval.
+     */
+    registerDevice(input: {
+      userId: string;
+      clientDeviceId: string;
+      operatorId: string;
+      lotId: string;
+      approve: boolean;
+      at: Date;
+    }): Promise<AttendDeviceRow>;
+    operatorDevices(
+      operatorId: string,
+    ): Promise<(AttendDeviceRow & { lotName: string; attendantName: string | null })[]>;
+    /** Approve or block one of this operator's phones; null if it is not theirs. */
+    decideDevice(input: {
+      operatorId: string;
+      deviceId: string;
+      decision: 'approve' | 'revoke';
+      by: string;
+      at: Date;
+    }): Promise<AttendDeviceRow | null>;
+    /** Paid bookings (and cancelled ones, to show red) overlapping [from, to). */
+    manifest(lotId: string, from: Date, to: Date): Promise<ManifestRow[]>;
+    walkIns(lotId: string): Promise<number>;
+    /**
+     * Applies one sync batch (doc 01 §5.3) with the shared event plan, one
+     * event at a time under row locks. A repeated batch or event changes
+     * nothing and answers DUPLICATE. Returns each event's verdict and the
+     * sessions whose check-out was applied (for the overstay check).
+     */
+    applyBatch(
+      batch: AttendBatch,
+      events: AttendEventInput[],
+    ): Promise<{ results: AttendEventResult[]; checkedOut: string[] }>;
+    /** Session times and the booking's end and lot, for the overstay check. */
+    session(id: string): Promise<{
+      id: string;
+      bookingId: string;
+      lotId: string;
+      endAt: Date;
+      commissionBps: number;
+      checkOutAt: Date | null;
+    } | null>;
+    setOverstay(sessionId: string, minutes: number, amountKobo: number): Promise<void>;
+  };
   lotKeys: {
     /** The lot's ACTIVE QR signing key, if it has one yet. */
     active(lotId: string): Promise<LotKeyRow | null>;
@@ -697,6 +811,8 @@ export type Store = {
      * per lot), returns that one instead, so every ticket uses the same key.
      */
     createActive(row: Omit<LotKeyRow, 'status'>): Promise<LotKeyRow>;
+    /** ACTIVE and RETIRING keys (for the manifest), and REVOKED kids. */
+    forManifest(lotId: string): Promise<{ valid: LotKeyRow[]; revokedKids: string[] }>;
   };
   idempotency: {
     /** Claims (actor, key) for this request, or says how a repeat should be answered. */

@@ -24,6 +24,7 @@ import { operatorRoutes } from './modules/operators/routes.js';
 import { teamRoutes } from './modules/team/routes.js';
 import { discoveryRoutes } from './modules/discovery/routes.js';
 import { placesRoutes } from './modules/places/routes.js';
+import { attendRoutes } from './modules/attend/routes.js';
 import { bookingRoutes } from './modules/bookings/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
 import type {
@@ -121,6 +122,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', discoveryRoutes(deps));
   app.route('/v1', placesRoutes(deps));
   app.route('/v1', bookingRoutes(deps));
+  app.route('/v1', attendRoutes(deps));
   app.route('/v1', webhookRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));

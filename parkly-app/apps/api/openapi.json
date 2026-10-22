@@ -11407,6 +11407,727 @@
           }
         }
       }
+    },
+    "/v1/attend/devices": {
+      "post": {
+        "tags": [
+          "attend"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientDeviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lotId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "clientDeviceId",
+                  "lotId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "This phone for this lot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "approved": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "lotId",
+                    "approved",
+                    "revoked"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/attend/lots/{lotId}/manifest": {
+      "get": {
+        "tags": [
+          "attend"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "clientDeviceId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gate data for 24 h offline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "serverTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lot": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "capacityBookable": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "capacityBookable"
+                      ]
+                    },
+                    "rules": {
+                      "type": "object",
+                      "properties": {
+                        "earlyArrivalMin": {
+                          "type": "integer"
+                        },
+                        "noShowGraceMin": {
+                          "type": "integer"
+                        },
+                        "overstayGraceMin": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "earlyArrivalMin",
+                        "noShowGraceMin",
+                        "overstayGraceMin"
+                      ]
+                    },
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kid": {
+                            "type": "string"
+                          },
+                          "publicKey": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "RETIRING"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kid",
+                          "publicKey",
+                          "status"
+                        ]
+                      }
+                    },
+                    "revokedKids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "bookings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "plateNorm": {
+                            "type": "string"
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_PAYMENT",
+                              "CONFIRMED",
+                              "CHECKED_IN",
+                              "COMPLETED",
+                              "CANCELLED",
+                              "EXPIRED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "checkedInAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "checkedOutAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "plateNorm",
+                          "startAt",
+                          "endAt",
+                          "status",
+                          "checkedInAt",
+                          "checkedOutAt"
+                        ]
+                      }
+                    },
+                    "walkIns": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "serverTime",
+                    "lot",
+                    "rules",
+                    "keys",
+                    "revokedKids",
+                    "bookings",
+                    "walkIns"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/attend/sync": {
+      "post": {
+        "tags": [
+          "attend"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientDeviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lotId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "batchId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "deviceSentAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "clientEventId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "deviceTime": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "CHECK_IN"
+                              ]
+                            },
+                            "bookingId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "method": {
+                              "type": "string",
+                              "enum": [
+                                "QR",
+                                "CODE",
+                                "PLATE"
+                              ]
+                            },
+                            "plateSeen": {
+                              "type": "string",
+                              "maxLength": 12
+                            },
+                            "overrideReason": {
+                              "type": "string",
+                              "maxLength": 200
+                            }
+                          },
+                          "required": [
+                            "clientEventId",
+                            "deviceTime",
+                            "type",
+                            "bookingId",
+                            "method"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "clientEventId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "deviceTime": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "CHECK_OUT"
+                              ]
+                            },
+                            "bookingId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "method": {
+                              "type": "string",
+                              "enum": [
+                                "QR",
+                                "CODE",
+                                "PLATE"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "clientEventId",
+                            "deviceTime",
+                            "type",
+                            "bookingId",
+                            "method"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "clientEventId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "deviceTime": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "WALK_IN"
+                              ]
+                            },
+                            "delta": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    -1
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "clientEventId",
+                            "deviceTime",
+                            "type",
+                            "delta"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "clientEventId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "deviceTime": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ISSUE"
+                              ]
+                            },
+                            "note": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "bookingId": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "required": [
+                            "clientEventId",
+                            "deviceTime",
+                            "type",
+                            "note"
+                          ]
+                        }
+                      ]
+                    },
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "clientDeviceId",
+                  "lotId",
+                  "batchId",
+                  "deviceSentAt",
+                  "events"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A verdict per event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "serverTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "clientEventId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "result": {
+                            "type": "string",
+                            "enum": [
+                              "APPLIED",
+                              "DUPLICATE",
+                              "CONFLICT",
+                              "REJECTED"
+                            ]
+                          },
+                          "reason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "clientEventId",
+                          "result",
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "serverTime",
+                    "results"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/devices": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendant phones",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "attendantName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "approved": {
+                            "type": "boolean"
+                          },
+                          "revoked": {
+                            "type": "boolean"
+                          },
+                          "lastSeenAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "lotId",
+                          "lotName",
+                          "attendantName",
+                          "approved",
+                          "revoked",
+                          "lastSeenAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/devices/{deviceId}": {
+      "post": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "revoke"
+                    ]
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved or blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotName": {
+                      "type": "string"
+                    },
+                    "attendantName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "approved": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    },
+                    "lastSeenAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "lotId",
+                    "lotName",
+                    "attendantName",
+                    "approved",
+                    "revoked",
+                    "lastSeenAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}
