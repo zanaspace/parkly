@@ -461,7 +461,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S1 | Attendant sign-in: phone OTP + lot PIN, device registration (task 4) | Attendant flow lives in the `/attend` PWA built in S5; lot assignments only exist from S2 | S5 |
 | S1 | OTP delivered on a real Nigerian number in staging; Send SMS + Custom Access Token hooks enabled on hosted projects | Termii sender ID / DND approval; hosted dashboard access | When Termii approves; fake SMS + test numbers until then |
 | S2 | Lot closures and operator pause/resume | Only matter once drivers can book; not built in S4 | S5 |
-| S2 | Operator "Go live" button (O-13), "ready to go live" email, ≥ 1 active attendant in the go-live gate | Ops take lots live (doc 02 §3.3); notifications S6; attendants sign in from S5 | S5/S6 |
+| S2 | Operator "Go live" button (O-13), "ready to go live" email | Ops take lots live (doc 02 §3.3); notifications S6. The "≥ 1 active attendant" rule is **dropped**: owners and managers can work the gate themselves (owner decision, 2026-10-23) | S6 |
 | S2 | Emails (permit reminders, suspension, KYB decision) and SMS invites | Email provider + notification outbox are S6; SMS needs Termii | S6 |
 | S2 | Suspend impact preview, bulk cancel/refund; site-visit evidence photos | No bookings until S4; X-03 field use | S8 |
 | S2 | Rejected price changes shown on the portal | Ops send the lot back with a reason meanwhile | **Done in S3** (with price changes on live lots) |
