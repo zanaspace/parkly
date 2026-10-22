@@ -194,12 +194,20 @@ export default async function LotPage({
                     {spacesLabel(priced.availability.availableCount, priced.availability.isOpen)}
                   </Text>
                 )}
-                <Button type="button" disabled fullWidth>
-                  Booking opens soon
-                </Button>
+                {priced.availability?.isOpen && priced.availability.availableCount > 0 ? (
+                  <Link
+                    className="pk-button pk-button--primary pk-button--full"
+                    href={`/book/${lot.id}?${searchQuery(priced.search)}`}
+                  >
+                    Book for {formatNaira(priced.quote.totalKobo)}
+                  </Link>
+                ) : (
+                  <Button type="button" disabled fullWidth>
+                    No space at that time
+                  </Button>
+                )}
                 <Text variant="body-sm" tone="tertiary">
-                  Online booking and payment are coming next. The price above is exactly what you
-                  will pay.
+                  The price above is exactly what you will pay.
                 </Text>
               </>
             )}

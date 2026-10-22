@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingWindowLabel, checkoutState, statusLabel } from './booking';
+import { bookingWindowLabel, checkoutState, statusLabel } from './display.js';
 
 describe('booking words', () => {
   it('names every status the way drivers read it', () => {

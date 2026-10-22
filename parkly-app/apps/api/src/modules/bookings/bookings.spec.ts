@@ -508,3 +508,21 @@ describe('booking edge cases', () => {
     expect(t.store.booking.webhookRows.at(-1)?.status).toBe('FAILED');
   });
 });
+
+describe('booking from the website', () => {
+  it('sends Paystack back to our own site only', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const ok = await t.book(driver, undefined, {
+      source: 'WEB',
+      returnTo: 'http://localhost:3000/bookings/paid',
+    });
+    expect(ok.status).toBe(201);
+    expect(t.payments.initialized[0]?.callbackUrl).toBe('http://localhost:3000/bookings/paid');
+    expect(t.store.booking.bookingRows[0]?.source).toBe('WEB');
+    const other = await t.newDriver();
+    const evil = await t.book(other, undefined, { returnTo: 'https://evil.example/steal' });
+    expect(evil.status).toBe(400);
+    expect(evil.body?.code).toBe('VALIDATION_FAILED');
+  });
+});

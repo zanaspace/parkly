@@ -1,5 +1,7 @@
-import type { BookingStatus } from '@parkly/contracts';
-import { dayLabel } from '@parkly/domain/discovery';
+import { dayLabel } from '../discovery/discovery.js';
+import type { BookingStatus } from './booking.js';
+
+/** Words for bookings shared by the app and the website. */
 
 const STATUS: Record<BookingStatus, string> = {
   PENDING_PAYMENT: 'Waiting for payment',

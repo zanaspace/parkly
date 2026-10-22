@@ -198,6 +198,14 @@ export function bookingRoutes(deps: AppDeps) {
     if (!subaccountCode && deps.config.appEnv === 'prod')
       throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
 
+    // No open redirects: Paystack may only send drivers back to our own sites.
+    let callbackUrl: string | null = null;
+    if (body.returnTo) {
+      if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin))
+        throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+      callbackUrl = body.returnTo;
+    }
+
     const holdMinutes = (await deps.store.settings.get<number>('booking.hold_minutes')) ?? 10;
     const bookingId = uuidv7();
     const paymentId = uuidv7();
@@ -221,7 +229,7 @@ export function bookingRoutes(deps: AppDeps) {
             commissionBps: lot.commissionBps,
             ratePlanId: plan.id,
             pricingBreakdown: q.lines,
-            source: 'MOBILE',
+            source: body.source,
           },
           {
             id: paymentId,
@@ -250,7 +258,7 @@ export function bookingRoutes(deps: AppDeps) {
         email: checkoutEmail(driverId),
         subaccountCode,
         platformShareKobo: split.platformAmountKobo,
-        callbackUrl: null,
+        callbackUrl,
         metadata: { bookingCode: held.booking.code, bookingId },
       });
       payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());

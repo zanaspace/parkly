@@ -19,6 +19,12 @@ export const CreateBookingRequestSchema = z.object({
   product: z.enum(['HOURLY', 'DAILY']).default('HOURLY'),
   startAt: z.iso.datetime(),
   endAt: z.iso.datetime(),
+  source: z.enum(['MOBILE', 'WEB']).default('MOBILE'),
+  /**
+   * Website only: where Paystack sends the driver back after paying. Must be
+   * on one of Parkly's own sites (the API's allowed origins).
+   */
+  returnTo: z.url().max(500).optional(),
 });
 
 /** A driver's booking. Prices are the server's snapshot taken when it was made. */
@@ -82,7 +88,8 @@ export const VerifyPaymentResponseSchema = z.object({
 });
 
 export type BookingStatus = z.infer<typeof BookingStatusSchema>;
-export type CreateBookingRequest = z.infer<typeof CreateBookingRequestSchema>;
+/** What a client sends (defaults applied by the API). */
+export type CreateBookingRequest = z.input<typeof CreateBookingRequestSchema>;
 export type Booking = z.infer<typeof BookingSchema>;
 export type Checkout = z.infer<typeof CheckoutSchema>;
 export type CreateBookingResponse = z.infer<typeof CreateBookingResponseSchema>;

@@ -10244,6 +10244,19 @@
                   "endAt": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "MOBILE",
+                      "WEB"
+                    ],
+                    "default": "MOBILE"
+                  },
+                  "returnTo": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
                   }
                 },
                 "required": [
