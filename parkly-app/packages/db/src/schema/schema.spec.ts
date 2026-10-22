@@ -19,6 +19,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'lot_closures',
       'lot_opening_hours',
       'lot_photos',
+      'lot_slot_inventory',
       'lots',
       'operator_kyb_documents',
       'operator_members',
@@ -47,12 +48,14 @@ describe('schema conventions (doc 02 §1)', () => {
     },
   );
 
-  it.each(tables.map((t) => [getTableConfig(t).name, t] as const))(
-    '%s has created_at',
-    (_name, table) => {
-      expect(getTableConfig(table).columns.map((c) => c.name)).toContain('created_at');
-    },
-  );
+  // lot_slot_inventory is high-volume and keyed by (lot, slot): no id or timestamps (doc 02 §2.5).
+  it.each(
+    tables
+      .filter((t) => getTableConfig(t).name !== 'lot_slot_inventory')
+      .map((t) => [getTableConfig(t).name, t] as const),
+  )('%s has created_at', (_name, table) => {
+    expect(getTableConfig(table).columns.map((c) => c.name)).toContain('created_at');
+  });
 });
 
 describe('enums match the domain (no silent drift)', () => {

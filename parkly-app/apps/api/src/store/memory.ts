@@ -16,6 +16,7 @@ import {
   type OpeningHourRow,
   type PermitRow,
   type RatePlanRow,
+  type SlotRow,
   type PayoutAccountRow,
   type OperatorRow,
   type ConsentType,
@@ -53,6 +54,7 @@ export class MemoryStore implements Store {
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
   readonly verificationRows: VerificationRow[] = [];
   readonly flagRows = new Map<string, boolean>();
+  readonly slotRows: SlotRow[] = [];
   readonly memberRows: (MemberRow & {
     inviteePhoneHash: Buffer | null;
     inviteeEmailHash: Buffer | null;
@@ -637,6 +639,18 @@ export class MemoryStore implements Store {
                 .filter((l) => l.operatorId === m.operatorId)
                 .map((l) => l.id),
         ),
+  };
+
+  inventory: Store['inventory'] = {
+    slots: async (lotIds, from, to) =>
+      this.slotRows
+        .filter(
+          (r) =>
+            lotIds.includes(r.lotId) &&
+            r.slotStart.getTime() >= from.getTime() &&
+            r.slotStart.getTime() < to.getTime(),
+        )
+        .map((r) => ({ ...r })),
   };
 
   flags: Store['flags'] = {

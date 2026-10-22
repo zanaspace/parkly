@@ -238,6 +238,17 @@ export type MemberRow = {
   createdAt: Date;
 };
 
+/** One lot_slot_inventory row (doc 02 §2.5). */
+export type SlotRow = {
+  lotId: string;
+  slotStart: Date;
+  capacity: number;
+  booked: number;
+  held: number;
+  passReserved: number;
+  blocked: number;
+};
+
 export type AuditEntry = {
   actorUserId: string | null;
   actorRole: string | null;
@@ -500,6 +511,10 @@ export type Store = {
     remove(operatorId: string, id: string, at: Date): Promise<MemberRow>;
     /** Lots an attendant may work: their explicit list, or every lot of the operator when empty. */
     attendantLotIds(userId: string): Promise<string[]>;
+  };
+  inventory: {
+    /** Existing inventory rows for these lots with slot_start in [from, to). */
+    slots(lotIds: string[], from: Date, to: Date): Promise<SlotRow[]>;
   };
   flags: {
     /** A missing flag is off. */
