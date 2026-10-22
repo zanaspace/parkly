@@ -20,7 +20,7 @@ const secureStore: KeyValueStore = {
  * so it keeps the session in memory only (lost on reload) rather than in
  * localStorage.
  */
-const storage = chunkedStorage(Platform.OS === 'web' ? memoryStore() : secureStore);
+export const storage = chunkedStorage(Platform.OS === 'web' ? memoryStore() : secureStore);
 
 export const supabase = createClient(
   // Placeholders keep the client constructible when env is missing; the root

@@ -179,6 +179,7 @@ describe('place search', () => {
       serviceFeeKobo: 10000,
       totalKobo: 110000,
       lines: [],
+      qrToken: null,
       createdAt: '2026-10-19T08:00:00.000Z',
     };
     const payment = {

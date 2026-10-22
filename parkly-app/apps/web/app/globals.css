@@ -404,3 +404,8 @@ body {
 a.pk-button {
   text-decoration: none;
 }
+
+.pk-qr {
+  width: min(100%, 16rem);
+  height: auto;
+}

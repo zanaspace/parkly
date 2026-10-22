@@ -679,6 +679,15 @@ export type Store = {
       at: Date,
     ): Promise<void>;
   };
+  lotKeys: {
+    /** The lot's ACTIVE QR signing key, if it has one yet. */
+    active(lotId: string): Promise<LotKeyRow | null>;
+    /**
+     * Saves a new ACTIVE key. If another request saved one first (one ACTIVE
+     * per lot), returns that one instead, so every ticket uses the same key.
+     */
+    createActive(row: Omit<LotKeyRow, 'status'>): Promise<LotKeyRow>;
+  };
   idempotency: {
     /** Claims (actor, key) for this request, or says how a repeat should be answered. */
     begin(key: {
@@ -768,3 +777,14 @@ export class BookingHoldError extends Error {
   }
 }
 export class BookingCodeTakenError extends Error {}
+
+/** A lot's Ed25519 QR signing key (ADR 0007); the private key is FieldCrypto ciphertext. */
+export type LotKeyRow = {
+  id: string;
+  lotId: string;
+  kid: string;
+  publicKey: Buffer;
+  privateKeyCiphertext: string;
+  status: 'ACTIVE' | 'RETIRING' | 'REVOKED';
+  activatedAt: Date;
+};

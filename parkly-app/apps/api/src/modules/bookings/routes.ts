@@ -20,6 +20,7 @@ import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { ApiError } from '../../lib/errors.js';
 import { idempotent } from '../../lib/idempotency.js';
+import { qrTickets } from '../../lib/qr-tickets.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
@@ -48,6 +49,7 @@ export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
 export function toBooking(
   b: BookingRow,
   lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine'>,
+  qrToken: string | null = null,
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
   return {
@@ -72,6 +74,7 @@ export function toBooking(
       operatorAmountKobo: 0,
       lines,
     }).lines,
+    qrToken,
     createdAt: b.createdAt.toISOString(),
   };
 }
@@ -85,6 +88,7 @@ export function bookingRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
   const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const secured = { security: [{ bearerAuth: [] }], middleware };
+  const ticketFor = qrTickets(deps);
 
   async function lotOf(lotId: string) {
     const lot = await deps.store.lots.findById(lotId);
@@ -291,7 +295,10 @@ export function bookingRoutes(deps: AppDeps) {
       );
       const lots = new Map<string, LotRow>();
       for (const id of new Set(rows.map((r) => r.lotId))) lots.set(id, await lotOf(id));
-      return c.json({ items: rows.map((r) => toBooking(r, lots.get(r.lotId) as LotRow)) }, 200);
+      const items = await Promise.all(
+        rows.map(async (r) => toBooking(r, lots.get(r.lotId) as LotRow, await ticketFor(r))),
+      );
+      return c.json({ items }, 200);
     },
   );
 
@@ -306,7 +313,7 @@ export function bookingRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const booking = await ownBooking(c, c.req.valid('param').id);
-      return c.json(toBooking(booking, await lotOf(booking.lotId)), 200);
+      return c.json(toBooking(booking, await lotOf(booking.lotId), await ticketFor(booking)), 200);
     },
   );
 
@@ -344,7 +351,7 @@ export function bookingRoutes(deps: AppDeps) {
       return c.json(
         {
           payment: toCheckout(current, booking),
-          booking: toBooking(booking, await lotOf(booking.lotId)),
+          booking: toBooking(booking, await lotOf(booking.lotId), await ticketFor(booking)),
         },
         200,
       );

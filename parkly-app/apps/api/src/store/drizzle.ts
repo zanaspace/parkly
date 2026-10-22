@@ -53,7 +53,18 @@ const {
   verificationItems,
   featureFlags,
   lotSlotInventory,
+  lotSigningKeys,
 } = schema;
+
+const lotKeyColumns = {
+  id: lotSigningKeys.id,
+  lotId: lotSigningKeys.lotId,
+  kid: lotSigningKeys.kid,
+  publicKey: lotSigningKeys.publicKey,
+  privateKeyCiphertext: lotSigningKeys.privateKeyCiphertext,
+  status: lotSigningKeys.status,
+  activatedAt: lotSigningKeys.activatedAt,
+};
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -1474,6 +1485,31 @@ export function drizzleStore(db: Db): Store {
     },
 
     ...drizzleBookings(db),
+
+    lotKeys: {
+      async active(lotId) {
+        const [row] = await db
+          .select(lotKeyColumns)
+          .from(lotSigningKeys)
+          .where(and(eq(lotSigningKeys.lotId, lotId), eq(lotSigningKeys.status, 'ACTIVE')));
+        return row ?? null;
+      },
+      async createActive(row) {
+        const inserted = await db
+          .insert(lotSigningKeys)
+          .values({ ...row, status: 'ACTIVE' })
+          .onConflictDoNothing()
+          .returning(lotKeyColumns);
+        if (inserted[0]) return inserted[0];
+        // Another request made the lot's key first: use that one.
+        const [existing] = await db
+          .select(lotKeyColumns)
+          .from(lotSigningKeys)
+          .where(and(eq(lotSigningKeys.lotId, row.lotId), eq(lotSigningKeys.status, 'ACTIVE')));
+        if (!existing) throw new Error('lot signing key not saved');
+        return existing;
+      },
+    },
 
     settings: {
       async get<T>(key: string) {

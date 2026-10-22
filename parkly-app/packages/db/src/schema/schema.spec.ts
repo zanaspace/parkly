@@ -25,6 +25,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'lot_closures',
       'lot_opening_hours',
       'lot_photos',
+      'lot_signing_keys',
       'lot_slot_inventory',
       'lots',
       'operator_kyb_documents',

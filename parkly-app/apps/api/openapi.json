@@ -10477,6 +10477,12 @@
                             ]
                           }
                         },
+                        "qrToken": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -10496,6 +10502,7 @@
                         "serviceFeeKobo",
                         "totalKobo",
                         "lines",
+                        "qrToken",
                         "createdAt"
                       ]
                     },
@@ -10785,6 +10792,12 @@
                               ]
                             }
                           },
+                          "qrToken": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -10804,6 +10817,7 @@
                           "serviceFeeKobo",
                           "totalKobo",
                           "lines",
+                          "qrToken",
                           "createdAt"
                         ]
                       }
@@ -11045,6 +11059,12 @@
                         ]
                       }
                     },
+                    "qrToken": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -11064,6 +11084,7 @@
                     "serviceFeeKobo",
                     "totalKobo",
                     "lines",
+                    "qrToken",
                     "createdAt"
                   ]
                 }
@@ -11343,6 +11364,12 @@
                             ]
                           }
                         },
+                        "qrToken": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -11362,6 +11389,7 @@
                         "serviceFeeKobo",
                         "totalKobo",
                         "lines",
+                        "qrToken",
                         "createdAt"
                       ]
                     }

@@ -5,6 +5,7 @@ import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { QrCode } from '../../../components/qr-code';
 import { apiAs, ApiProblem } from '../../../lib/api';
 import { lineLabel } from '../../../lib/search';
 import { requireDriver } from '../../../lib/session';
@@ -35,7 +36,10 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
       </Text>
       {confirmed && (
         <section className="pk-card pk-stack pk-ticket" aria-label="Booking code">
-          <Text tone="secondary">Show this code at the gate</Text>
+          <Text tone="secondary">Show this at the gate</Text>
+          {booking.qrToken && (
+            <QrCode value={booking.qrToken} label={`QR ticket for booking ${booking.code}`} />
+          )}
           <p className="pk-ticket__code">{booking.code}</p>
           <code>{booking.vehicle.plate}</code>
         </section>

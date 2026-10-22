@@ -21,6 +21,7 @@ import {
   type PayoutAccountRow,
   type OperatorRow,
   type ConsentType,
+  type LotKeyRow,
   type Store,
   type UserRow,
   type VehicleRow,
@@ -75,6 +76,20 @@ export class MemoryStore implements Store {
   readonly payments: Store['payments'] = this.booking.payments;
   readonly webhooks: Store['webhooks'] = this.booking.webhooks;
   readonly idempotency: Store['idempotency'] = this.booking.idempotency;
+  readonly lotKeyRows: LotKeyRow[] = [];
+  readonly lotKeys: Store['lotKeys'] = {
+    active: async (lotId) => {
+      const k = this.lotKeyRows.find((r) => r.lotId === lotId && r.status === 'ACTIVE');
+      return k ? { ...k } : null;
+    },
+    createActive: async (row) => {
+      const existing = this.lotKeyRows.find((r) => r.lotId === row.lotId && r.status === 'ACTIVE');
+      if (existing) return { ...existing };
+      const created = { ...row, status: 'ACTIVE' as const };
+      this.lotKeyRows.push(created);
+      return { ...created };
+    },
+  };
 
   /** Test helper: what the on_auth_user_created trigger does. */
   seedUser(

@@ -48,6 +48,11 @@ export const BookingSchema = z.object({
   serviceFeeKobo: z.number().int(),
   totalKobo: z.number().int(),
   lines: z.array(QuoteLineSchema),
+  /**
+   * Signed offline ticket for the gate (doc 01 §7), only while CONFIRMED or
+   * CHECKED_IN. Show it as a QR code, with the booking code beside it.
+   */
+  qrToken: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });
 

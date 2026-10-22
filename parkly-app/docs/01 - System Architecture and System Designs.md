@@ -622,7 +622,7 @@ Numbering follows [ADR 0001](decisions/0001-record-architecture-decisions.md).
 | 0004 | Paystack split payments; no stored balances; Flutterwave fallback | Accepted, pending counsel (Q3) |
 | 0005 | Attendant app as offline-first PWA instead of native | Accepted |
 | 0006 | Slot-row inventory with `SELECT FOR UPDATE` in `fn_hold_booking` | Proposed (accept in S4) |
-| 0007 | Offline QR: per-lot Ed25519 signed tokens + manifest sync | To write (§7) |
+| 0007 | Offline QR: per-lot Ed25519 signed tokens + manifest sync | Accepted (static QR, no rotating code) |
 | 0008 | Transactional outbox + `pgmq` for async side effects | To write (§4.1) |
 | 0009 | Capacity-count model (no numbered bays) for MVP | To write |
 | 0010 | Idempotency-key storage and replay semantics | To write |

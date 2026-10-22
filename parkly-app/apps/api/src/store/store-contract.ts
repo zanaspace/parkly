@@ -1215,5 +1215,58 @@ export function storeContract(
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
       });
     });
+
+    it('keeps one active QR signing key per lot', async () => {
+      const owner = await newUser([]);
+      const op = await store.operators.create({
+        legalName: 'Key Ltd',
+        tradingName: 'Key',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'Key lot',
+        slug: `key-${randomUUID()}`,
+        description: null,
+        addressLine: '1 Road',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 2,
+        capacityBookable: 1,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      expect(await store.lotKeys.active(lot.id)).toBeNull();
+      const key = (kid: string) => ({
+        id: randomUUID(),
+        lotId: lot.id,
+        kid,
+        publicKey: Buffer.alloc(32, 1),
+        privateKeyCiphertext: 'v1:ciphertext',
+        activatedAt: new Date('2027-01-04T10:00:00Z'),
+      });
+      const first = await store.lotKeys.createActive(key(`kid-${randomUUID()}`));
+      const second = await store.lotKeys.createActive(key(`kid-${randomUUID()}`));
+      expect(second.kid).toBe(first.kid);
+      expect(await store.lotKeys.active(lot.id)).toMatchObject({
+        kid: first.kid,
+        status: 'ACTIVE',
+        privateKeyCiphertext: 'v1:ciphertext',
+      });
+      expect(Buffer.from((await store.lotKeys.active(lot.id))?.publicKey ?? [])).toEqual(
+        Buffer.alloc(32, 1),
+      );
+    });
   });
 }
