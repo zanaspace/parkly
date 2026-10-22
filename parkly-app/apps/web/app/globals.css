@@ -315,3 +315,48 @@ body {
   background: var(--pk-color-status-info-icon);
   border: 2px solid var(--pk-color-bg-surface);
 }
+
+/* Place suggestions (ADR 0014) */
+.pk-places {
+  position: relative;
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-xs);
+}
+.pk-places .pk-input {
+  width: 100%;
+}
+.pk-places__list {
+  margin: 0;
+  padding: var(--pk-space-1) 0;
+  list-style: none;
+  border: 1px solid var(--pk-color-border-default);
+  border-radius: var(--pk-radius-md);
+  background: var(--pk-color-bg-surface-raised);
+  box-shadow: var(--pk-shadow-md);
+}
+.pk-places__item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--pk-space-2) var(--pk-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--pk-color-text-primary);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.pk-places__item:hover,
+.pk-places__item:focus-visible {
+  background: var(--pk-color-bg-subtle);
+}
+.pk-places__label {
+  font-weight: 600;
+}
+.pk-places__detail {
+  color: var(--pk-color-text-tertiary);
+  font-size: 0.875rem;
+}

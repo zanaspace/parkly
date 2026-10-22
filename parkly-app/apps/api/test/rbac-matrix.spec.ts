@@ -245,6 +245,7 @@ const COVERED_ELSEWHERE = new Set([
   'GET /v1/lots/{idOrSlug}',
   'GET /v1/lots/{lotId}/availability',
   'POST /v1/lots/{lotId}/quote',
+  'GET /v1/places/autocomplete', // public, rate limited; places.spec
 ]);
 
 describe('RBAC matrix', () => {

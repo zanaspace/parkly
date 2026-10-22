@@ -95,12 +95,22 @@ export class FakeEmailProvider implements EmailProvider {
 export class FakeMapsProvider implements MapsProvider {
   readonly places = new Map([
     ['fake-vi', { lat: 6.4281, lng: 3.4219, formattedAddress: 'Victoria Island, Lagos' }],
+    [
+      'fake-eko',
+      { lat: 6.4247, lng: 3.4284, formattedAddress: 'Eko Hotel, Victoria Island, Lagos' },
+    ],
+    ['fake-ikoyi', { lat: 6.452, lng: 3.435, formattedAddress: 'Ikoyi, Lagos' }],
+    ['fake-lekki', { lat: 6.4474, lng: 3.472, formattedAddress: 'Lekki Phase 1, Lagos' }],
+    ['fake-ikeja', { lat: 6.5806, lng: 3.3567, formattedAddress: 'Ikeja GRA, Lagos' }],
   ]);
   async autocomplete(input: { query: string }) {
     const q = input.query.toLowerCase();
     return [...this.places.entries()]
       .filter(([, p]) => p.formattedAddress.toLowerCase().includes(q))
-      .map(([placeId, p]) => ({ placeId, description: p.formattedAddress }));
+      .map(([placeId, p]) => {
+        const [label = '', ...rest] = p.formattedAddress.split(', ');
+        return { placeId, label, detail: rest.join(', '), location: { lat: p.lat, lng: p.lng } };
+      });
   }
   async placeDetails(input: { placeId: string }) {
     const place = this.places.get(input.placeId);

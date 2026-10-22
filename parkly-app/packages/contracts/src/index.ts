@@ -10,3 +10,4 @@ export * from './admin-kyb.js';
 export * from './admin-lots.js';
 export * from './team.js';
 export * from './discovery.js';
+export * from './places.js';

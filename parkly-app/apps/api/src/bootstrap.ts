@@ -13,12 +13,14 @@ import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
 import {
   FakeMalwareScanner,
+  FakeMapsProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
 import type { SettlementProvider, SmsProvider, StorageProvider } from './providers/index.js';
 import { logOnlyEmail } from './providers/log-email.js';
+import { locationIqMaps } from './providers/locationiq.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
@@ -161,6 +163,10 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     settlement,
     storage,
     scanner: new FakeMalwareScanner(),
+    maps:
+      config.maps.provider === 'locationiq'
+        ? locationIqMaps({ apiKey: config.maps.apiKey })
+        : new FakeMapsProvider(),
     ...(config.sentryDsn
       ? {
           reportError: (err: unknown, ctx: { requestId: string | undefined; path: string }) =>

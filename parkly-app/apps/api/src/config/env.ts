@@ -46,6 +46,8 @@ const EnvSchema = z
       .optional(),
     /** Only the fake exists until ADR 0013 picks a hosted scanner. */
     MALWARE_SCANNER: z.enum(['fake']).default('fake'),
+    /** Address search (ADR 0014). Without it, dev uses the fake place list. */
+    LOCATIONIQ_API_KEY: z.string().min(10).optional(),
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     SENTRY_DSN: z.url().optional(),
@@ -80,6 +82,7 @@ const EnvSchema = z
       if (!liveKey) issue('PAYSTACK_SECRET_KEY', 'prod needs a live key');
       if (env.MALWARE_SCANNER === 'fake')
         issue('MALWARE_SCANNER', 'the fake scanner is not allowed in prod');
+      required('LOCATIONIQ_API_KEY');
     } else if (liveKey) {
       issue('PAYSTACK_SECRET_KEY', 'live keys are only allowed in prod');
     }
@@ -107,6 +110,7 @@ export type AppConfig = {
   settlement: { provider: 'fake' } | { provider: 'paystack'; secretKey: string };
   storage: { provider: 'fake' } | { provider: 'supabase'; secretKey: string };
   malwareScanner: 'fake';
+  maps: { provider: 'fake' } | { provider: 'locationiq'; apiKey: string };
   upstash: { url: string; token: string } | undefined;
   sentryDsn: string | undefined;
   port: number;
@@ -159,6 +163,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
         ? { provider: 'supabase', secretKey: e.SUPABASE_SECRET_KEY }
         : { provider: 'fake' },
     malwareScanner: e.MALWARE_SCANNER,
+    maps: e.LOCATIONIQ_API_KEY
+      ? { provider: 'locationiq', apiKey: e.LOCATIONIQ_API_KEY }
+      : { provider: 'fake' },
     upstash:
       e.UPSTASH_REDIS_REST_URL && e.UPSTASH_REDIS_REST_TOKEN
         ? { url: e.UPSTASH_REDIS_REST_URL, token: e.UPSTASH_REDIS_REST_TOKEN }

@@ -48,3 +48,14 @@ describe('reading a search from the URL', () => {
     expect(searchQuery(near, { sort: 'price' })).toContain('lat=6.5');
   });
 });
+
+describe('a place picked from suggestions', () => {
+  it('keeps its name through links, and is capped in length', () => {
+    const s = readSearch({ lat: '6.4247', lng: '3.4284', place: 'Eko Hotel' }, NOW);
+    expect(s).toMatchObject({ lat: 6.4247, lng: 3.4284, place: 'Eko Hotel' });
+    expect(readSearch(Object.fromEntries(new URLSearchParams(searchQuery(s))), NOW)).toEqual(s);
+    expect(readSearch({ lat: '6.4', lng: '3.4', place: 'x'.repeat(200) }, NOW).place).toHaveLength(
+      80,
+    );
+  });
+});

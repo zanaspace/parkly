@@ -13,6 +13,8 @@ export type SearchState = {
   /** An area key, or null when searching near the device's location. */
   area: string | null;
   coords: { lat: number; lng: number } | null;
+  /** Name of a place picked from suggestions; null for "Near me". */
+  placeLabel: string | null;
   date: string;
   time: string;
   duration: Duration;
@@ -21,7 +23,14 @@ export type SearchState = {
 
 export function initialSearch(now: Date): SearchState {
   const start = defaultStart(now);
-  return { area: AREAS[0].key, coords: null, ...start, duration: 2, sort: 'distance' };
+  return {
+    area: AREAS[0].key,
+    coords: null,
+    placeLabel: null,
+    ...start,
+    duration: 2,
+    sort: 'distance',
+  };
 }
 
 /** The next 7 Lagos days as chips: "Today", "Tomorrow", then "Sat 24 Oct". */
@@ -46,7 +55,7 @@ export function durationLabel(d: Duration): string {
 
 /** Where the search is centred, and how to describe it. */
 export function searchPoint(s: SearchState): { lat: number; lng: number; place: string } {
-  if (s.coords) return { ...s.coords, place: 'your location' };
+  if (s.coords) return { ...s.coords, place: s.placeLabel ?? 'your location' };
   const area = AREAS.find((a) => a.key === s.area) ?? AREAS[0];
   return { lat: area.lat, lng: area.lng, place: area.label };
 }
@@ -55,7 +64,11 @@ export function searchPoint(s: SearchState): { lat: number; lng: number; place: 
 export function toParams(s: SearchState): Record<string, string> {
   return {
     ...(s.coords
-      ? { lat: String(s.coords.lat), lng: String(s.coords.lng) }
+      ? {
+          lat: String(s.coords.lat),
+          lng: String(s.coords.lng),
+          ...(s.placeLabel ? { place: s.placeLabel } : {}),
+        }
       : { area: s.area ?? AREAS[0].key }),
     date: s.date,
     time: s.time,
@@ -78,6 +91,7 @@ export function fromParams(
   return {
     area: hasCoords ? null : area,
     coords: hasCoords ? { lat, lng } : null,
+    placeLabel: hasCoords ? one(p.place)?.trim().slice(0, 80) || null : null,
     date: /^\d{4}-\d{2}-\d{2}$/.test(one(p.date) ?? '') ? (one(p.date) as string) : base.date,
     time: /^([01]\d|2[0-3]):(00|15|30|45)$/.test(one(p.time) ?? '')
       ? (one(p.time) as string)
