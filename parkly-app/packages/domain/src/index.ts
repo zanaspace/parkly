@@ -11,3 +11,4 @@ export * from './availability/index.js';
 export * from './discovery/index.js';
 export * from './booking/index.js';
 export * from './qr/index.js';
+export * from './checkin/index.js';

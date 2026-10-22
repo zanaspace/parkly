@@ -60,6 +60,10 @@
     "./qr": {
       "types": "./dist/qr/index.d.ts",
       "default": "./dist/qr/index.js"
+    },
+    "./checkin": {
+      "types": "./dist/checkin/index.d.ts",
+      "default": "./dist/checkin/index.js"
     }
   },
   "scripts": {
