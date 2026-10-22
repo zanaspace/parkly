@@ -14,7 +14,7 @@ import {
 import { Platform } from 'react-native';
 import { platformFor } from '../logic/forms';
 import { ApiError } from '../lib/api';
-import { api } from '../lib/client';
+import { api, tickets } from '../lib/client';
 import { config } from '../lib/config';
 import { getDeviceId } from '../lib/device';
 import { supabase } from '../lib/supabase';
@@ -158,6 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Best effort: still clear the local session so the user is signed out on this device.
         }
         await clearDevSession();
+        // Tickets carry the plate: never leave them behind for the next person.
+        if (state.me) await tickets.clear(state.me.id).catch(() => undefined);
         await supabase.auth.signOut({ scope: 'local' });
         setState((s) => ({
           ...s,

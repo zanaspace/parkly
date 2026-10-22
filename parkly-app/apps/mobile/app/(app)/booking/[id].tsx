@@ -6,9 +6,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Notice } from '../../../src/components/Notice';
+import { QrCode } from '../../../src/components/QrCode';
+import { useAuth } from '../../../src/auth/AuthProvider';
 import { Screen } from '../../../src/components/Screen';
 import { ApiError } from '../../../src/lib/api';
-import { api } from '../../../src/lib/client';
+import { api, tickets } from '../../../src/lib/client';
 import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../../src/logic/errors';
 
@@ -19,8 +21,11 @@ export default function BookingScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { me } = useAuth();
+  const userId = me?.id;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -30,10 +35,21 @@ export default function BookingScreen() {
         const b = await api.booking(id);
         if (!live) return;
         setBooking(b);
+        setOffline(false);
+        if (userId && b.qrToken) void tickets.put(userId, b).catch(() => undefined);
         // A webhook may still be confirming it; keep looking while it waits.
         if (b.status === 'PENDING_PAYMENT') timer = setTimeout(() => void load(), POLL_MS);
       } catch (err) {
-        if (live) setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+        if (!live) return;
+        // No signal at the gate: show the ticket saved when it was last online.
+        const saved =
+          err instanceof ApiError && err.status === 0 && userId
+            ? await tickets.find(userId, id).catch(() => null)
+            : null;
+        if (saved) {
+          setBooking(saved);
+          setOffline(true);
+        } else setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       }
     };
     void load();
@@ -41,7 +57,7 @@ export default function BookingScreen() {
       live = false;
       if (timer) clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, userId]);
 
   const footer = (
     <>
@@ -84,9 +100,22 @@ export default function BookingScreen() {
             : 'Booking'}
       </Text>
 
+      {offline ? (
+        <Notice
+          kind="info"
+          message="You’re offline. This is the ticket saved on your phone; it still works at the gate."
+        />
+      ) : null}
       {confirmed ? (
         <View style={[card, { alignItems: 'center' }]}>
-          <Text tone="secondary">Show this code at the gate</Text>
+          <Text tone="secondary">Show this at the gate</Text>
+          {booking.qrToken ? (
+            <QrCode
+              value={booking.qrToken}
+              size={280}
+              label={`QR ticket for booking ${booking.code}`}
+            />
+          ) : null}
           <Text
             variant="heading.xl"
             accessibilityLabel={`Booking code ${booking.code.split('').join(' ')}`}

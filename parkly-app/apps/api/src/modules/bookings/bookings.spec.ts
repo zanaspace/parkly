@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { verifyQrToken } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
 import type { AppDeps } from '../../app.js';
@@ -524,5 +525,45 @@ describe('booking from the website', () => {
     const evil = await t.book(other, undefined, { returnTo: 'https://evil.example/steal' });
     expect(evil.status).toBe(400);
     expect(evil.body?.code).toBe('VALIDATION_FAILED');
+  });
+});
+
+describe('QR ticket (doc 01 §7, ADR 0007)', () => {
+  it('signs a ticket only once paid, with one key per lot, stored encrypted', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    const pending = await t.call('GET', `/v1/bookings/${created.booking.id}`, { as: driver.id });
+    expect(pending.body?.qrToken).toBeNull();
+
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const paid = await t.call('GET', `/v1/bookings/${created.booking.id}`, { as: driver.id });
+    const token = paid.body?.qrToken as string;
+    expect(token).toMatch(/^PK1\./);
+
+    const [key] = t.store.lotKeyRows;
+    expect(t.store.lotKeyRows).toHaveLength(1);
+    expect(key?.privateKeyCiphertext).not.toContain(token.split('.')[3] ?? '');
+    const check = await verifyQrToken(token, {
+      publicKeys: { [key?.kid ?? '']: new Uint8Array(key?.publicKey ?? []) },
+      lotId: t.lot.id,
+      now: new Date('2026-10-20T07:10:00Z'),
+      earlyArrivalMin: 30,
+      overstayAllowanceMin: 240,
+    });
+    expect(check).toMatchObject({
+      ok: true,
+      claims: { b: created.booking.id, p: 'LND123AB', c: created.booking.code },
+    });
+
+    // A second paid booking at the same lot uses the same key.
+    const other = await t.newDriver();
+    const second = (await t.book(other)).body as unknown as Created;
+    t.payments.pay(second.payment.reference);
+    await t.call('POST', `/v1/payments/${second.payment.reference}/verify`, { as: other.id });
+    const list = await t.call('GET', '/v1/bookings', { as: other.id });
+    expect((list.body?.items as { qrToken: string }[])[0]?.qrToken).toMatch(/^PK1\./);
+    expect(t.store.lotKeyRows).toHaveLength(1);
   });
 });

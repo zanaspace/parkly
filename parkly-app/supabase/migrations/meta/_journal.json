@@ -43,6 +43,13 @@
       "when": 1792681045408,
       "tag": "20261022145725_bookings_payments_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792688193695,
+      "tag": "20261022200000_lot_signing_keys",
+      "breakpoints": true
     }
   ]
 }

@@ -139,7 +139,7 @@ Indexes: GIST `location`; `(status)`; `(operator_id)`; `slug` unique.
 
 **`lot_photos`** — `id`, `lot_id`, `file_id` → `files` (bucket `lot-photos`), `public_file_id` → `files` (copy in `lot-photos-public` after approval), `sort`, `caption`, `status (PENDING, APPROVED, REJECTED)`, `reviewed_by`, `reviewed_at`. Public after approval (C1). 3–10 per lot (PRD FR-LOT-002).
 
-**`lot_signing_keys`** — `id`, `lot_id`, `kid text UNIQUE`, `public_key bytea` (C1), `private_key_ciphertext bytea` (C4, app-level envelope-encrypted with `ENC_KEY_V<n>`), `status enum (ACTIVE, RETIRING, REVOKED)`, `activated_at`, `retire_after`. At most one ACTIVE per lot (partial unique index).
+**`lot_signing_keys`** — `id`, `lot_id`, `kid text UNIQUE`, `public_key bytea` (C1), `private_key_ciphertext text` (C4, FieldCrypto envelope ciphertext with `ENC_KEY_V<n>`; ADR 0007), `status enum (ACTIVE, RETIRING, REVOKED)`, `activated_at`, `retire_after`. At most one ACTIVE per lot (partial unique index).
 
 **`permits`**
 | Column | Type | Notes | Class |

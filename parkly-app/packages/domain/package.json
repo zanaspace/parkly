@@ -56,6 +56,10 @@
     "./booking": {
       "types": "./dist/booking/index.d.ts",
       "default": "./dist/booking/index.js"
+    },
+    "./qr": {
+      "types": "./dist/qr/index.d.ts",
+      "default": "./dist/qr/index.js"
     }
   },
   "scripts": {
@@ -70,5 +74,9 @@
     "eslint": "10.12.0",
     "typescript": "5.9.3",
     "vitest": "5.0.4"
+  },
+  "dependencies": {
+    "@noble/ed25519": "3.0.1",
+    "qrcode-generator": "2.0.4"
   }
 }

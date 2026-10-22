@@ -8,7 +8,8 @@ import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
-import { api } from '../../src/lib/client';
+import { api, tickets } from '../../src/lib/client';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
 
@@ -19,21 +20,39 @@ export default function MyBookings() {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [items, setItems] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
+  const { me } = useAuth();
+  const userId = me?.id;
 
   useEffect(() => {
     let live = true;
     setItems(null);
     setError(null);
+    setOffline(false);
     api
       .bookings(tab)
-      .then((rows) => live && setItems(rows))
-      .catch((err: unknown) => {
-        if (live) setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      .then((rows) => {
+        if (!live) return;
+        setItems(rows);
+        if (tab === 'upcoming' && userId) void tickets.save(userId, rows).catch(() => undefined);
+      })
+      .catch(async (err: unknown) => {
+        if (!live) return;
+        // Offline: the upcoming tab falls back to the tickets saved on the phone.
+        if (err instanceof ApiError && err.status === 0 && tab === 'upcoming' && userId) {
+          const saved = await tickets.all(userId).catch(() => []);
+          if (saved.length > 0) {
+            setItems(saved);
+            setOffline(true);
+            return;
+          }
+        }
+        setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       });
     return () => {
       live = false;
     };
-  }, [tab]);
+  }, [tab, userId]);
 
   return (
     <Screen
@@ -44,6 +63,9 @@ export default function MyBookings() {
         <Chip label="Upcoming" selected={tab === 'upcoming'} onPress={() => setTab('upcoming')} />
         <Chip label="Past" selected={tab === 'past'} onPress={() => setTab('past')} />
       </View>
+      {offline ? (
+        <Notice kind="info" message="You’re offline. Showing the tickets saved on your phone." />
+      ) : null}
       {error ? <Notice message={error} /> : null}
       {!items && !error ? <ActivityIndicator accessibilityLabel="Loading bookings" /> : null}
       {items && items.length === 0 ? (
