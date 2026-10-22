@@ -1,22 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '../lib/logger.js';
-import { FakeEmailProvider } from '../providers/fakes.js';
+import { FakeEmailProvider, FakePaymentProvider } from '../providers/fakes.js';
 import { logOnlyEmail } from '../providers/log-email.js';
 import { MemoryStore } from '../store/memory.js';
 import { createJobs } from './registry.js';
 
 describe('job registry', () => {
-  it('registers the ping and permit expiry jobs', async () => {
+  it('registers the ping, permit expiry and payment safety-net jobs', async () => {
     const jobs = createJobs({
       store: new MemoryStore(),
       email: new FakeEmailProvider(),
+      payments: new FakePaymentProvider(),
       logger: createLogger({ level: 'silent' }),
       now: () => new Date('2026-10-19T05:00:00Z'),
       appEnv: 'prod',
     });
-    expect(Object.keys(jobs).sort()).toEqual(['permit-expiry-check', 'ping']);
+    expect(Object.keys(jobs).sort()).toEqual(['permit-expiry-check', 'ping', 'settle-payments']);
     const deadline = new Date('2100-01-01T00:00:00Z');
     expect(await jobs['permit-expiry-check']?.({ payload: {}, deadline })).toEqual({
+      processed: 0,
+      remaining: 0,
+    });
+    expect(await jobs['settle-payments']?.({ payload: {}, deadline })).toEqual({
       processed: 0,
       remaining: 0,
     });

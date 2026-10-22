@@ -1,7 +1,7 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import { accountType, confirmDecision, isBalanced, type JournalLine } from '@parkly/domain/booking';
-import { and, asc, desc, eq, gt, inArray, lte, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { settlePlan, type SettlePlan } from './settle-plan.js';
 import {
@@ -343,6 +343,22 @@ export function drizzleBookings(
         });
       },
 
+      async unsettled({ from, to, limit }) {
+        const rows = await db
+          .select({ id: payments.id })
+          .from(payments)
+          .where(
+            and(
+              eq(payments.status, 'PENDING'),
+              gte(payments.createdAt, from),
+              lt(payments.createdAt, to),
+            ),
+          )
+          .orderBy(asc(payments.createdAt))
+          .limit(limit);
+        return rows.map((r) => r.id);
+      },
+
       async refundRequested(refundId, providerRefundId) {
         await db.update(refunds).set({ providerRefundId }).where(eq(refunds.id, refundId));
       },
@@ -384,6 +400,22 @@ export function drizzleBookings(
             attempts: sql`${webhookEvents.attempts} + 1`,
           })
           .where(eq(webhookEvents.id, id));
+      },
+
+      async retryable({ before, maxAttempts, limit }) {
+        return db
+          .select({ id: webhookEvents.id, reference: webhookEvents.reference })
+          .from(webhookEvents)
+          .where(
+            and(
+              eq(webhookEvents.eventType, 'charge.success'),
+              inArray(webhookEvents.processingStatus, ['PENDING', 'FAILED']),
+              lt(webhookEvents.attempts, maxAttempts),
+              lt(webhookEvents.receivedAt, before),
+            ),
+          )
+          .orderBy(asc(webhookEvents.receivedAt))
+          .limit(limit);
       },
     },
 

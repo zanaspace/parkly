@@ -38,7 +38,10 @@ import type { SessionRevoker } from './providers/supabase-sessions.js';
 import type { Store } from './store/types.js';
 
 export type AppDeps = {
-  config: Pick<AppConfig, 'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret'>;
+  config: Pick<
+    AppConfig,
+    'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret' | 'paystackWebhookIps'
+  >;
   logger: Logger;
   readinessChecks: Record<string, ReadinessCheck>;
   rateLimiter: RateLimiter;

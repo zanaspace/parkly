@@ -3,7 +3,8 @@ import { verifyQrToken } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
 import type { AppDeps } from '../../app.js';
-import { testDeps, world } from '../../test-helpers.js';
+import { settlePaymentsJob } from '../../jobs/settle-payments.js';
+import { TEST_NOW, testDeps, world } from '../../test-helpers.js';
 
 // TEST_NOW is Monday 2026-10-19 09:00 Lagos. Tomorrow 08:00–10:00 Lagos:
 const START = '2026-10-20T07:00:00.000Z';
@@ -565,5 +566,99 @@ describe('QR ticket (doc 01 §7, ADR 0007)', () => {
     const list = await t.call('GET', '/v1/bookings', { as: other.id });
     expect((list.body?.items as { qrToken: string }[])[0]?.qrToken).toMatch(/^PK1\./);
     expect(t.store.lotKeyRows).toHaveLength(1);
+  });
+});
+
+describe('settle-payments job (doc 02 §7.6)', () => {
+  const deadline = new Date('2100-01-01T00:00:00Z');
+  const later = (min: number) => () => new Date(TEST_NOW.getTime() + min * 60_000);
+
+  it('confirms a paid checkout whose webhook never came', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    const job = settlePaymentsJob({ ...t.deps, now: later(1) });
+    // Too early: the driver may still be on the Paystack page.
+    expect(await job({ payload: {}, deadline })).toEqual({ processed: 0, remaining: 0 });
+    const run = await settlePaymentsJob({ ...t.deps, now: later(3) })({ payload: {}, deadline });
+    expect(run).toEqual({ processed: 1, remaining: 0 });
+    expect(t.store.booking.bookingRows[0]?.status).toBe('CONFIRMED');
+  });
+
+  it('retries a failed webhook, at most five times', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    const original = t.payments.verify.bind(t.payments);
+    t.payments.verify = () => Promise.reject(new Error('down'));
+    await t.app.request('/v1/webhooks/paystack', {
+      method: 'POST',
+      headers: { 'x-paystack-signature': 'valid' },
+      body: JSON.stringify({
+        event: 'charge.success',
+        data: { id: 9, reference: created.payment.reference },
+      }),
+    });
+    const row = t.store.booking.webhookRows[0];
+    expect(row).toMatchObject({ status: 'FAILED', attempts: 1 });
+    const job = settlePaymentsJob({ ...t.deps, now: later(2) });
+    for (let i = 0; i < 6; i++) await job({ payload: {}, deadline });
+    expect(row?.attempts).toBe(5);
+    t.payments.verify = original;
+    // Recovered on the safety-net pass (open checkout), even though the event gave up.
+    await settlePaymentsJob({ ...t.deps, now: later(3) })({ payload: {}, deadline });
+    expect(t.store.booking.bookingRows[0]?.status).toBe('CONFIRMED');
+  });
+
+  it('marks a retried event for an unknown payment as ignored', async () => {
+    const t = await setup();
+    t.store.booking.webhookRows.push({
+      id: randomUUID(),
+      key: 'PAYSTACK:x',
+      eventType: 'charge.success',
+      reference: randomUUID(),
+      receivedAt: TEST_NOW,
+      attempts: 0,
+      status: 'PENDING',
+      error: null,
+    });
+    await settlePaymentsJob({ ...t.deps, now: later(2) })({ payload: {}, deadline });
+    expect(t.store.booking.webhookRows[0]).toMatchObject({
+      status: 'IGNORED',
+      error: 'unknown reference',
+    });
+  });
+
+  it('stops at the deadline and says what is left', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    await t.book(driver);
+    const run = await settlePaymentsJob({ ...t.deps, now: later(3) })({
+      payload: {},
+      deadline: new Date(0),
+    });
+    expect(run).toEqual({ processed: 0, remaining: 1 });
+  });
+});
+
+describe('Paystack webhook sender check (doc 02 §6.9)', () => {
+  it('outside local, accepts only Paystack’s addresses', async () => {
+    const config = { ...testDeps().config, appEnv: 'dev' as const };
+    const t = await setup({}, { config });
+    const send = (ip?: string) =>
+      t.app.request('/v1/webhooks/paystack', {
+        method: 'POST',
+        headers: {
+          'x-paystack-signature': 'valid',
+          ...(ip ? { 'x-forwarded-for': `${ip}, 10.0.0.1` } : {}),
+        },
+        body: JSON.stringify({ event: 'transfer.success', data: { id: 1, reference: 'x' } }),
+      });
+    expect((await send()).status).toBe(403);
+    expect((await send('203.0.113.9')).status).toBe(403);
+    expect(t.store.booking.webhookRows).toEqual([]);
+    expect((await send('52.31.139.75')).status).toBe(200);
   });
 });

@@ -28,7 +28,16 @@ type Refund = {
   reason: string;
   providerRefundId: string | null;
 };
-type Webhook = { id: string; key: string; status: string; error: string | null };
+type Webhook = {
+  id: string;
+  key: string;
+  eventType: string;
+  reference: string | null;
+  receivedAt: Date;
+  attempts: number;
+  status: string;
+  error: string | null;
+};
 type IdemKey = {
   method: string;
   path: string;
@@ -279,6 +288,12 @@ export class MemoryBookings {
       };
     },
 
+    unsettled: async ({ from, to, limit }) =>
+      this.paymentRows
+        .filter((p) => p.status === 'PENDING' && p.createdAt >= from && p.createdAt < to)
+        .slice(0, limit)
+        .map((p) => p.id),
+
     refundRequested: async (refundId, providerRefundId) => {
       const r = this.refundRows.find((x) => x.id === refundId);
       if (r) r.providerRefundId = providerRefundId;
@@ -290,14 +305,34 @@ export class MemoryBookings {
       const key = `${e.provider}:${e.dedupeKey}`;
       const existing = this.webhookRows.find((w) => w.key === key);
       if (existing) return { id: existing.id, duplicate: true };
-      const row = { id: randomUUID(), key, status: 'PENDING', error: null };
+      const row = {
+        id: randomUUID(),
+        key,
+        eventType: e.eventType,
+        reference: e.reference,
+        receivedAt: e.at,
+        attempts: 0,
+        status: 'PENDING',
+        error: null,
+      };
       this.webhookRows.push(row);
       return { id: row.id, duplicate: false };
     },
     finish: async (id, status, error) => {
       const w = this.webhookRows.find((r) => r.id === id);
-      if (w) Object.assign(w, { status, error });
+      if (w) Object.assign(w, { status, error, attempts: w.attempts + 1 });
     },
+    retryable: async (q) =>
+      this.webhookRows
+        .filter(
+          (w) =>
+            w.eventType === 'charge.success' &&
+            (w.status === 'PENDING' || w.status === 'FAILED') &&
+            w.attempts < q.maxAttempts &&
+            w.receivedAt < q.before,
+        )
+        .slice(0, q.limit)
+        .map((w) => ({ id: w.id, reference: w.reference })),
   };
 
   readonly idempotency: Store['idempotency'] = {

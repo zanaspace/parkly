@@ -661,6 +661,8 @@ export type Store = {
     settle(id: string, charge: VerifiedCharge, at: Date): Promise<SettleResult>;
     /** Records the provider's id for a refund we asked for. */
     refundRequested(refundId: string, providerRefundId: string): Promise<void>;
+    /** Checkouts still open (PENDING) that were started in [from, to): the job asks the provider. */
+    unsettled(window: { from: Date; to: Date; limit: number }): Promise<string[]>;
   };
   webhooks: {
     /** Stores a provider event once; a repeat of the same dedupe key is `duplicate`. */
@@ -678,6 +680,12 @@ export type Store = {
       error: string | null,
       at: Date,
     ): Promise<void>;
+    /** charge.success events left PENDING or FAILED, received before `before`, under `maxAttempts`. */
+    retryable(q: {
+      before: Date;
+      maxAttempts: number;
+      limit: number;
+    }): Promise<{ id: string; reference: string | null }[]>;
   };
   lotKeys: {
     /** The lot's ACTIVE QR signing key, if it has one yet. */

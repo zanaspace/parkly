@@ -147,6 +147,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
   const jobs = createJobs({
     store,
     email: logOnlyEmail(logger),
+    payments,
     logger,
     now,
     appEnv: config.appEnv,
