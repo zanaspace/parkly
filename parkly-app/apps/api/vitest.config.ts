@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 // Doc 02 §12.2: apps/api coverage gate is 85%.
 export default defineConfig({
   test: {
-    include: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'test/**/*.spec.ts', 'scripts/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

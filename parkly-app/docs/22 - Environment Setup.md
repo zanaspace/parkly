@@ -244,3 +244,16 @@ Every local env file is git-ignored. Copy from the `.env.example` next to each.
 ## 7. Costs to expect (confirm on the vendors' pricing pages)
 
 Supabase **Pro** per project (staging, prod; prod adds PITR), Vercel **Pro** per seat, Upstash (pay-per-request, small), Sentry (free or Team), Termii (per SMS), Paystack (per transaction, no monthly fee), the malware-scanning vendor (ADR 0013). The Free plans are enough for **local + dev** only.
+
+## Demo data (dev and local only)
+
+Twelve demo car parks in Victoria Island, Ikoyi and Lekki Phase 1 make driver search usable before real operators go live. Each is LIVE with its own "… (demo)" operator, an approved permit and site visit, prices and hours. Data only, never schema; refused when `APP_ENV` is `staging` or `prod`.
+
+```bash
+pnpm --filter @parkly/api seed:demo -- --confirm-dev             # add (skips lots already there)
+pnpm --filter @parkly/api seed:demo -- --confirm-dev --perf 500  # also 500 synthetic lots, for latency checks
+pnpm --filter @parkly/api seed:demo -- --confirm-dev --remove    # delete every demo lot and operator
+pnpm --filter @parkly/api seed:demo -- --confirm-dev --dry-run   # do it, then roll back
+```
+
+It uses `DATABASE_URL` from `apps/api/.env` and needs one admin user (demo site visits name an inspector). Dev currently has the 12 demo lots (loaded 2026-10-22).
