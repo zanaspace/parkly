@@ -460,3 +460,30 @@ describe('driver timer data (ADR 0016)', () => {
     });
   });
 });
+
+describe('live occupancy (doc 03 §2.4)', () => {
+  it('counts parked cars, walk-ins and who is still expected', async () => {
+    const t = await setup();
+    const a = await t.paidBooking('LND 111 AB');
+    await t.paidBooking('LND 222 AB');
+    await t.readyDevice();
+    await t.sync([
+      checkIn(a.id, min(55)),
+      { type: 'WALK_IN', clientEventId: randomUUID(), delta: 1, deviceTime: min(56) },
+    ]);
+    const res = await t.call('GET', `/v1/operators/${t.operatorId}/occupancy`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.body?.items).toEqual([
+      {
+        lotId: t.lot.id,
+        name: 'Eko Hotel Car Park',
+        capacityTotal: 10,
+        parked: 1,
+        walkIns: 1,
+        expected: 1,
+      },
+    ]);
+  });
+});

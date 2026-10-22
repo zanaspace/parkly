@@ -1,7 +1,7 @@
-import type { LotSummary, Operator, TeamMember } from '@parkly/contracts';
+import type { LotSummary, Operator, OperatorDevice, TeamMember } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
-import { InviteForm, RemoveMemberButton } from '../../../components/team';
+import { DeviceDecisionButton, InviteForm, RemoveMemberButton } from '../../../components/team';
 import { apiFetch } from '../../../lib/api';
 import { requireAccess } from '../../../lib/auth/session';
 import { publicEnv } from '../../../lib/env';
@@ -24,10 +24,11 @@ export default async function TeamPage() {
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
   const api = publicEnv().apiUrl;
   const base = `/v1/operators/${operatorId}`;
-  const [operator, team, lots] = await Promise.all([
+  const [operator, team, lots, devices] = await Promise.all([
     apiFetch<Operator>(api, base, accessToken),
     apiFetch<{ items: TeamMember[] }>(api, `${base}/members`, accessToken),
     apiFetch<{ items: LotSummary[] }>(api, `${base}/lots`, accessToken),
+    apiFetch<{ items: OperatorDevice[] }>(api, `${base}/devices`, accessToken),
   ]);
   const lotName = new Map(lots.items.map((l) => [l.id, l.name]));
 
@@ -85,6 +86,60 @@ export default async function TeamPage() {
       <Text variant="body-sm" tone="tertiary">
         Removing someone signs them out of Parkly everywhere straight away.
       </Text>
+
+      <Text variant="heading-md" as="h2">
+        Attendant phones
+      </Text>
+      <Text tone="secondary">
+        Attendants use the gate app (this portal's /attend page) on their phone. Approve a new phone
+        before it can check cars in. Blocking a phone signs it out of the gate app and wipes its
+        data. Your own phone and your managers' phones need no approval.
+      </Text>
+      {devices.items.length === 0 ? (
+        <Text tone="tertiary">No attendant phones yet.</Text>
+      ) : (
+        <div className="pk-table-wrap">
+          <table className="pk-table">
+            <thead>
+              <tr>
+                <th scope="col">Who</th>
+                <th scope="col">Lot</th>
+                <th scope="col">Status</th>
+                <th scope="col">Last seen</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {devices.items.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.attendantName ?? '—'}</td>
+                  <td>{d.lotName}</td>
+                  <td>
+                    {d.revoked ? 'Blocked' : d.approved ? 'Approved' : 'Waiting for approval'}
+                  </td>
+                  <td>{lagos.format(new Date(d.lastSeenAt))}</td>
+                  <td>
+                    {!d.approved && (
+                      <DeviceDecisionButton
+                        operatorId={operatorId}
+                        deviceId={d.id}
+                        decision="approve"
+                      />
+                    )}
+                    {!d.revoked && (
+                      <DeviceDecisionButton
+                        operatorId={operatorId}
+                        deviceId={d.id}
+                        decision="revoke"
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Text variant="heading-md" as="h2">
         Invite someone

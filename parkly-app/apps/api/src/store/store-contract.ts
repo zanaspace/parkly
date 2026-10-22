@@ -1280,6 +1280,11 @@ export function storeContract(
         expect(first.results.map((r) => r.result)).toEqual(['APPLIED', 'APPLIED']);
         expect((await store.bookings.find(booking.id))?.status).toBe('CHECKED_IN');
         expect(await store.attend.walkIns(lot.lotId)).toBe(1);
+        expect(
+          (await store.attend.occupancy([lot.lotId], new Date('2027-01-05T07:30:00Z'))).get(
+            lot.lotId,
+          ),
+        ).toEqual({ parked: 1, expected: 0 });
         expect((await store.attend.applyBatch(b1, [inEvent])).results[0]?.result).toBe('DUPLICATE');
         expect((await store.attend.applyBatch(batch(), [inEvent])).results[0]?.result).toBe(
           'DUPLICATE',

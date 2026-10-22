@@ -115,6 +115,23 @@ export const OperatorDeviceSchema = z.object({
 export const OperatorDeviceListSchema = z.object({ items: z.array(OperatorDeviceSchema) });
 export const DeviceDecisionSchema = z.object({ decision: z.enum(['approve', 'revoke']) });
 
+/** Portal home: who is in each lot now (doc 03 §2.4 live occupancy). */
+export const OccupancySchema = z.object({
+  items: z.array(
+    z.object({
+      lotId: z.uuid(),
+      name: z.string(),
+      capacityTotal: z.number().int(),
+      /** Parkly cars checked in and not yet out. */
+      parked: z.number().int(),
+      walkIns: z.number().int(),
+      /** Paid bookings due in the next 24 h that have not arrived. */
+      expected: z.number().int(),
+    }),
+  ),
+});
+
+export type Occupancy = z.infer<typeof OccupancySchema>;
 export type ManifestBooking = z.infer<typeof ManifestBookingSchema>;
 export type Manifest = z.infer<typeof ManifestSchema>;
 export type AttendEvent = z.infer<typeof AttendEventSchema>;

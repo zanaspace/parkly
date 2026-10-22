@@ -8809,6 +8809,11 @@
                         "minLength": 7,
                         "maxLength": 20
                       },
+                      "email": {
+                        "type": "string",
+                        "maxLength": 254,
+                        "format": "email"
+                      },
                       "lotIds": {
                         "type": "array",
                         "items": {
@@ -8821,8 +8826,7 @@
                     },
                     "required": [
                       "role",
-                      "name",
-                      "phone"
+                      "name"
                     ]
                   }
                 ]
@@ -12201,6 +12205,81 @@
                   "required": [
                     "serverTime",
                     "results"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/occupancy": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Who is parked now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "capacityTotal": {
+                            "type": "integer"
+                          },
+                          "parked": {
+                            "type": "integer"
+                          },
+                          "walkIns": {
+                            "type": "integer"
+                          },
+                          "expected": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "lotId",
+                          "name",
+                          "capacityTotal",
+                          "parked",
+                          "walkIns",
+                          "expected"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
                   ]
                 }
               }

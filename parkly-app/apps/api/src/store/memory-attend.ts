@@ -243,6 +243,26 @@ export class MemoryAttend {
       };
     },
 
+    occupancy: async (lotIds, now) => {
+      const out = new Map<string, { parked: number; expected: number }>();
+      for (const lotId of lotIds) out.set(lotId, { parked: 0, expected: 0 });
+      const soon = now.getTime() + 24 * 60 * 60_000;
+      for (const b of this.deps.bookings.bookingRows) {
+        const o = out.get(b.lotId);
+        if (!o) continue;
+        const s = this.sessionRows.find((r) => r.bookingId === b.id);
+        if (s?.checkInAt && !s.checkOutAt) o.parked += 1;
+        else if (
+          !s?.checkInAt &&
+          (b.status === 'CONFIRMED' || b.status === 'NO_SHOW') &&
+          b.endAt > now &&
+          b.startAt.getTime() < soon
+        )
+          o.expected += 1;
+      }
+      return out;
+    },
+
     sessionsForBookings: async (ids) =>
       new Map(
         this.sessionRows

@@ -4,6 +4,7 @@ import {
   AttendLotListSchema,
   DeviceDecisionSchema,
   ManifestSchema,
+  OccupancySchema,
   OperatorDeviceListSchema,
   OperatorDeviceSchema,
   RegisterDeviceRequestSchema,
@@ -270,6 +271,43 @@ export function attendRoutes(deps: AppDeps) {
         'attendant sync',
       );
       return c.json({ serverTime: receivedAt.toISOString(), results }, 200);
+    },
+  );
+
+  // Portal home: live occupancy for each of the operator's lots (doc 03 §2.4).
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/operators/{operatorId}/occupancy',
+      tags: ['operators'],
+      ...secured,
+      request: { params: z.object({ operatorId: z.uuid() }) },
+      responses: { 200: { description: 'Who is parked now', ...json(OccupancySchema) } },
+    }),
+    async (c) => {
+      const { operatorId } = c.req.valid('param');
+      authorize(c, deps.logger, 'operator:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      const lots = (await deps.store.lots.list(operatorId)).filter(
+        (l) => l.status === 'LIVE' || l.status === 'PAUSED',
+      );
+      const ids = lots.map((l) => l.id);
+      const [counts, walkIns] = await Promise.all([
+        deps.store.attend.occupancy(ids, deps.now()),
+        Promise.all(ids.map((id) => deps.store.attend.walkIns(id))),
+      ]);
+      return c.json(
+        {
+          items: lots.map((l, i) => ({
+            lotId: l.id,
+            name: l.name,
+            capacityTotal: l.capacityTotal,
+            parked: counts.get(l.id)?.parked ?? 0,
+            walkIns: walkIns[i] ?? 0,
+            expected: counts.get(l.id)?.expected ?? 0,
+          })),
+        },
+        200,
+      );
     },
   );
 

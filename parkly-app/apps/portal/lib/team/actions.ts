@@ -39,13 +39,22 @@ export async function inviteMember(_prev: InviteState, form: FormData): Promise<
   if (!contact)
     return {
       fieldErrors: {
-        contact: role === 'MANAGER' ? 'Enter their email address.' : 'Enter their phone number.',
+        contact:
+          role === 'MANAGER'
+            ? 'Enter their email address.'
+            : 'Enter their email address or phone number.',
       },
     };
   const body =
     role === 'MANAGER'
       ? { role, name, email: contact.toLowerCase() }
-      : { role: 'ATTENDANT', name, phone: contact, lotIds: form.getAll('lotIds').map(String) };
+      : {
+          role: 'ATTENDANT',
+          name,
+          // ADR 0015: email while SMS is not live; a phone number still works.
+          ...(contact.includes('@') ? { email: contact.toLowerCase() } : { phone: contact }),
+          lotIds: form.getAll('lotIds').map(String),
+        };
   try {
     const res = await apiFetch<InviteMemberResponse>(
       publicEnv().apiUrl,
@@ -65,7 +74,7 @@ export async function inviteMember(_prev: InviteState, form: FormData): Promise<
               contact:
                 role === 'MANAGER'
                   ? 'Enter a valid email address.'
-                  : 'Enter a Nigerian mobile number, e.g. 0803 123 4567.',
+                  : 'Enter a valid email address or a Nigerian mobile number.',
             },
           };
     }
@@ -84,6 +93,25 @@ export async function removeMember(_prev: SimpleState, form: FormData): Promise<
       `${membersPath(operatorId)}/${encodeURIComponent(memberId)}`,
       await token(),
       { method: 'DELETE' },
+    );
+  } catch (err) {
+    return { error: teamMessage(err instanceof ApiProblem ? err.code : undefined) };
+  }
+  revalidatePath('/team');
+  return undefined;
+}
+
+/** O-20: approve or block an attendant phone (audited by the API). */
+export async function decideDevice(_prev: SimpleState, form: FormData): Promise<SimpleState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const deviceId = String(form.get('deviceId') ?? '');
+  const decision = form.get('decision') === 'approve' ? 'approve' : 'revoke';
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `/v1/operators/${encodeURIComponent(operatorId)}/devices/${encodeURIComponent(deviceId)}`,
+      await token(),
+      { method: 'POST', body: { decision } },
     );
   } catch (err) {
     return { error: teamMessage(err instanceof ApiProblem ? err.code : undefined) };
