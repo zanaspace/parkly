@@ -173,6 +173,7 @@ describe('place search', () => {
         slug: 'eko',
         name: 'Eko Hotel Car Park',
         addressLine: 'VI',
+        selfCheckIn: false,
       },
       vehicle: { id: vehicle.id, plate: 'LND123AB' },
       priceKobo: 100000,

@@ -1,4 +1,4 @@
-import type { Lot } from '@parkly/contracts';
+import type { Lot, SelfCheckinSetting } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -8,6 +8,7 @@ import {
   SubmitLotSection,
 } from '../../../../components/lot-submission';
 import { HoursEditor, LotForm, PhotoUploader } from '../../../../components/lots';
+import { SelfCheckinSection } from '../../../../components/self-checkin';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
 import { publicEnv } from '../../../../lib/env';
@@ -37,13 +38,16 @@ export default async function LotPage({
   const operatorId = lotOperatorId(me);
   if (!operatorId) return null;
   const { lotId } = await params;
+  const base = `/v1/operators/${operatorId}/lots/${encodeURIComponent(lotId)}`;
   let lot: Lot;
+  let selfCheckin: SelfCheckinSetting | null;
   try {
-    lot = await apiFetch<Lot>(
-      publicEnv().apiUrl,
-      `/v1/operators/${operatorId}/lots/${encodeURIComponent(lotId)}`,
-      accessToken,
-    );
+    [lot, selfCheckin] = await Promise.all([
+      apiFetch<Lot>(publicEnv().apiUrl, base, accessToken),
+      apiFetch<SelfCheckinSetting>(publicEnv().apiUrl, `${base}/self-check-in`, accessToken).catch(
+        () => null,
+      ),
+    ]);
   } catch (err) {
     if (err instanceof ApiProblem && (err.status === 404 || err.status === 400)) notFound();
     throw err;
@@ -52,6 +56,7 @@ export default async function LotPage({
   // FR-LOT-005: prices may change on a live or paused lot too (each change is approved first).
   const pricesEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
   const created = (await searchParams).created === '1';
+  const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
 
   return (
     <main className="pk-page">
@@ -96,6 +101,20 @@ export default async function LotPage({
         LASPA permit
       </Text>
       <PermitSection operatorId={operatorId} lot={lot} editable={editable} />
+
+      {selfCheckin && (
+        <>
+          <Text variant="heading-md" as="h2">
+            Self check-in
+          </Text>
+          <SelfCheckinSection
+            operatorId={operatorId}
+            lotId={lot.id}
+            enabled={selfCheckin.enabled}
+            isOwner={isOwner}
+          />
+        </>
+      )}
 
       <Text variant="heading-md" as="h2">
         Details

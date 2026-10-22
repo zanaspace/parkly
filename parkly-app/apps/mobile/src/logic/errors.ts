@@ -34,6 +34,12 @@ const COPY: Partial<Record<ErrorCode, string>> = {
   IDEMPOTENCY_IN_PROGRESS: 'We’re still working on your booking. One moment.',
   INTERNAL_ERROR: 'Something went wrong on our side. Please try again.',
   SERVICE_UNAVAILABLE: 'Parkly is temporarily unavailable. Please try again shortly.',
+  // Self check-in (ADR 0016)
+  SELF_CHECKIN_OFF: 'This car park doesn’t allow self check-in. Show your ticket at the gate.',
+  SELF_CHECKIN_TOO_FAR: 'You need to be at the car park to check in. Try again at the entrance.',
+  QR_WRONG_LOT: 'That’s not this car park’s poster. Scan the Parkly poster at the entrance.',
+  QR_OUTSIDE_WINDOW: 'It’s too early or too late for this booking. Check your booking time.',
+  BOOKING_NOT_ACTIVE: 'This booking can’t be checked in or out right now.',
 };
 
 export const NETWORK_ERROR_MESSAGE = 'You seem to be offline. Check your connection and try again.';

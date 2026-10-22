@@ -1354,6 +1354,43 @@ export function storeContract(
       });
     });
 
+    it('keeps the owner’s self check-in switch per lot', async () => {
+      const owner = await newUser([]);
+      const op = await store.operators.create({
+        legalName: 'Self Ltd',
+        tradingName: 'Self',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'Self lot',
+        slug: `self-${randomUUID()}`,
+        description: null,
+        addressLine: '1 Road',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 2,
+        capacityBookable: 1,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      expect(lot.selfCheckinEnabled).toBe(false);
+      expect((await store.lots.setSelfCheckin(op.id, lot.id, true))?.selfCheckinEnabled).toBe(true);
+      expect((await store.lots.findById(lot.id))?.selfCheckinEnabled).toBe(true);
+      expect(await store.lots.setSelfCheckin(randomUUID(), lot.id, false)).toBeNull();
+    });
+
     it('keeps one active QR signing key per lot', async () => {
       const owner = await newUser([]);
       const op = await store.operators.create({

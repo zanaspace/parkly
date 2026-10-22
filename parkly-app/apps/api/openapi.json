@@ -10343,13 +10343,17 @@
                             },
                             "addressLine": {
                               "type": "string"
+                            },
+                            "selfCheckIn": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine"
+                            "addressLine",
+                            "selfCheckIn"
                           ]
                         },
                         "vehicle": {
@@ -10712,13 +10716,17 @@
                               },
                               "addressLine": {
                                 "type": "string"
+                              },
+                              "selfCheckIn": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "id",
                               "slug",
                               "name",
-                              "addressLine"
+                              "addressLine",
+                              "selfCheckIn"
                             ]
                           },
                           "vehicle": {
@@ -11033,13 +11041,17 @@
                         },
                         "addressLine": {
                           "type": "string"
+                        },
+                        "selfCheckIn": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "id",
                         "slug",
                         "name",
-                        "addressLine"
+                        "addressLine",
+                        "selfCheckIn"
                       ]
                     },
                     "vehicle": {
@@ -11392,13 +11404,17 @@
                             },
                             "addressLine": {
                               "type": "string"
+                            },
+                            "selfCheckIn": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine"
+                            "addressLine",
+                            "selfCheckIn"
                           ]
                         },
                         "vehicle": {
@@ -12205,6 +12221,328 @@
                   "required": [
                     "serverTime",
                     "results"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/self-check-in": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Self check-in switch and poster code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "gateCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "lotId",
+                    "enabled",
+                    "gateCode"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Switched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "gateCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "lotId",
+                    "enabled",
+                    "gateCode"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}/self-check-in": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientEventId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "lng": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                },
+                "required": [
+                  "clientEventId",
+                  "code",
+                  "lat",
+                  "lng"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked in (or already in)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "APPLIED",
+                        "DUPLICATE",
+                        "CONFLICT",
+                        "REJECTED"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result",
+                    "reason"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}/self-check-out": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientEventId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "lng": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                },
+                "required": [
+                  "clientEventId",
+                  "code",
+                  "lat",
+                  "lng"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked out (or already out)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "APPLIED",
+                        "DUPLICATE",
+                        "CONFLICT",
+                        "REJECTED"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result",
+                    "reason"
                   ]
                 }
               }

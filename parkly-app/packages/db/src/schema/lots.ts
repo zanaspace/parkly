@@ -93,6 +93,8 @@ export const lots = pgTable(
     /** Derived: true while the lot passes the listing gate (doc 00 §3.6). */
     verifiedBadge: boolean('verified_badge').notNull().default(false),
     timezone: varchar('timezone', { length: 40 }).notNull().default('Africa/Lagos'),
+    /** Drivers may check themselves in with the entrance QR (ADR 0016); the owner decides. */
+    selfCheckinEnabled: boolean('self_checkin_enabled').notNull().default(false),
     /** Optimistic concurrency for PATCH (CONFLICT_STALE_VERSION). */
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),

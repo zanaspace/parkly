@@ -19,9 +19,16 @@
       "expo-splash-screen",
       "expo-secure-store",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Parkly uses the camera to scan the check-in poster at a car park.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Parkly uses your location to find car parks near you."
+          "locationWhenInUsePermission": "Parkly uses your location to find car parks near you and to check you are at the car park when you check yourself in."
         }
       ]
     ],

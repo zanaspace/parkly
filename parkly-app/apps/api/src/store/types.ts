@@ -127,6 +127,8 @@ export type LotRow = LotFields & {
   slug: string;
   status: LotStatus;
   statusReason: string | null;
+  /** Drivers may check themselves in with the entrance QR (ADR 0016). */
+  selfCheckinEnabled: boolean;
   version: number;
   createdAt: Date;
 };
@@ -360,7 +362,8 @@ export type AttendEventInput =
       clientEventId: string;
       deviceTime: Date;
       bookingId: string;
-      method: 'QR' | 'CODE' | 'PLATE';
+      /** SELF: the driver scanned the entrance QR (ADR 0016). */
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
       plateSeen: string | null;
       overrideReason: string | null;
     }
@@ -369,7 +372,8 @@ export type AttendEventInput =
       clientEventId: string;
       deviceTime: Date;
       bookingId: string;
-      method: 'QR' | 'CODE' | 'PLATE';
+      /** SELF: the driver scanned the entrance QR (ADR 0016). */
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
     }
   | { type: 'WALK_IN'; clientEventId: string; deviceTime: Date; delta: 1 | -1 }
   | {
@@ -554,6 +558,8 @@ export type Store = {
       to: LotStatus,
       reason: string | null,
     ): Promise<LotRow>;
+    /** The owner's self check-in switch (ADR 0016); null if the lot is not this operator's. */
+    setSelfCheckin(operatorId: string, id: string, enabled: boolean): Promise<LotRow | null>;
     openingHours(lotId: string): Promise<OpeningHourRow[]>;
     openingHoursFor(lotIds: string[]): Promise<(OpeningHourRow & { lotId: string })[]>;
     /** Listable lots within `radiusM` of the point, nearest first. */

@@ -52,7 +52,7 @@ export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
 
 export function toBooking(
   b: BookingRow,
-  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine'>,
+  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine' | 'selfCheckinEnabled'>,
   extra: { qrToken?: string | null; overstay?: Booking['overstay']; stay?: Booking['stay'] } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
@@ -64,7 +64,13 @@ export function toBooking(
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     holdExpiresAt: b.status === 'PENDING_PAYMENT' ? (b.holdExpiresAt?.toISOString() ?? null) : null,
-    lot: { id: lot.id, slug: lot.slug, name: lot.name, addressLine: lot.addressLine },
+    lot: {
+      id: lot.id,
+      slug: lot.slug,
+      name: lot.name,
+      addressLine: lot.addressLine,
+      selfCheckIn: lot.selfCheckinEnabled,
+    },
     vehicle: { id: b.vehicleId, plate: b.plateNorm },
     priceKobo: b.priceKobo,
     serviceFeeKobo: b.serviceFeeKobo,

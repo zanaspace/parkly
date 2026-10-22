@@ -24,6 +24,7 @@ Drivers pay in advance for a booked window (ADR 0004). Some don't know how long 
    - it is accepted only near the lot (phone location within about 150 m) and only inside the booking window (30 min early allowed)
    - self check-ins are marked `SELF` for the operator
    - the gate phone (owner, manager or attendant) keeps working as before
+   - *as built (S5):* the poster's QR holds `PKG1.<lotId>` (not secret: being there, in time, with your own paid booking is what counts); the owner switches it on the lot page and prints the poster from `/lots/:lotId/poster`; the driver app shows "Check in yourself" / "Check out yourself" on the ticket; the server applies it as a normal check-in event with method `SELF`, so overstay pricing and occupancy are the same; the phone's position is checked and not stored
 
 ## Consequences
 

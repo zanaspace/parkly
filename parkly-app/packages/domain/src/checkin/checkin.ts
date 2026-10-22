@@ -211,3 +211,71 @@ export function applyWalkIn(count: number, delta: 1 | -1): { count: number; clam
   const next = count + delta;
   return next < 0 ? { count: 0, clamped: true } : { count: next, clamped: false };
 }
+
+// --- self check-in (ADR 0016) ---------------------------------------------------
+
+/** How close the driver's phone must be to the lot's pin. */
+export const SELF_CHECKIN_RADIUS_M = 150;
+const GATE_PREFIX = 'PKG1.';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** What the entrance poster's QR says: the lot, nothing secret (location + booking time do the checking). */
+export const gateCodeFor = (lotId: string) => `${GATE_PREFIX}${lotId}`;
+
+export function parseGateCode(text: string): string | null {
+  const t = text.trim();
+  if (!t.toUpperCase().startsWith(GATE_PREFIX)) return null;
+  const lotId = t.slice(GATE_PREFIX.length).toLowerCase();
+  return UUID.test(lotId) ? lotId : null;
+}
+
+/** Great-circle distance in metres. */
+export function distanceM(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_008.8 * Math.asin(Math.sqrt(h));
+}
+
+export type SelfCheck =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | 'SELF_CHECKIN_OFF'
+        | 'QR_WRONG_LOT'
+        | 'TOO_FAR'
+        | 'QR_OUTSIDE_WINDOW'
+        | 'BOOKING_NOT_ACTIVE';
+    };
+
+/**
+ * May the driver check themselves in (ADR 0016)? The owner turned it on, the
+ * scanned poster is this lot's, the phone is at the lot, and the booking is
+ * paid and inside its time (from early arrival until the end).
+ */
+export function checkSelf(input: {
+  enabled: boolean;
+  code: string;
+  lotId: string;
+  lotLocation: { lat: number; lng: number };
+  position: { lat: number; lng: number };
+  booking: GateBooking;
+  now: Date;
+  rules: GateRules;
+}): SelfCheck {
+  if (!input.enabled) return { ok: false, code: 'SELF_CHECKIN_OFF' };
+  if (parseGateCode(input.code) !== input.lotId) return { ok: false, code: 'QR_WRONG_LOT' };
+  if (distanceM(input.lotLocation, input.position) > SELF_CHECKIN_RADIUS_M)
+    return { ok: false, code: 'TOO_FAR' };
+  const d = gateDecision({ booking: input.booking, now: input.now, rules: input.rules });
+  if (d.reason === 'CANCELLED' || (d.reason === 'ENDED' && input.booking.status === 'COMPLETED'))
+    return { ok: false, code: 'BOOKING_NOT_ACTIVE' };
+  if (d.reason === 'EARLY' || d.reason === 'ENDED') return { ok: false, code: 'QR_OUTSIDE_WINDOW' };
+  return { ok: true };
+}

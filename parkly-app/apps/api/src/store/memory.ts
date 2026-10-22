@@ -328,6 +328,7 @@ export class MemoryStore implements Store {
         id: randomUUID(),
         status: 'DRAFT',
         statusReason: null,
+        selfCheckinEnabled: false,
         version: 1,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };
@@ -362,6 +363,12 @@ export class MemoryStore implements Store {
       if (lot.version !== version) throw new StaleVersionError();
       Object.assign(lot, patch, { version: lot.version + 1 });
       return { ...lot };
+    },
+    setSelfCheckin: async (operatorId, id, enabled) => {
+      const lot = this.lotRows.get(id);
+      if (!lot || lot.operatorId !== operatorId) return null;
+      lot.selfCheckinEnabled = enabled;
+      return { ...lot, location: { ...lot.location } };
     },
     setStatus: async (operatorId, id, from, to, reason) => {
       const lot = this.lotRows.get(id);

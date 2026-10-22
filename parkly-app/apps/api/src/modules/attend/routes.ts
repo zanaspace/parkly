@@ -5,6 +5,10 @@ import {
   DeviceDecisionSchema,
   ManifestSchema,
   OccupancySchema,
+  SelfCheckinSettingSchema,
+  SelfCheckinUpdateSchema,
+  SelfCheckRequestSchema,
+  SelfCheckResultSchema,
   OperatorDeviceListSchema,
   OperatorDeviceSchema,
   RegisterDeviceRequestSchema,
@@ -14,6 +18,13 @@ import {
   type OperatorDevice,
 } from '@parkly/contracts';
 import { can } from '@parkly/domain/authz';
+import {
+  checkSelf,
+  distanceM,
+  gateCodeFor,
+  parseGateCode,
+  SELF_CHECKIN_RADIUS_M,
+} from '@parkly/domain/checkin';
 import { toBase64Url } from '@parkly/domain/qr';
 import { overstayCharge } from '@parkly/domain/pricing';
 import type { AppDeps } from '../../app.js';
@@ -66,6 +77,33 @@ export function attendRoutes(deps: AppDeps) {
       throw err;
     }
     return lot;
+  }
+
+  /** Overstay is worked out by the server (doc 03 §3.6); payment comes in S6. */
+  async function priceOverstay(lotId: string, sessionIds: string[]) {
+    if (sessionIds.length === 0) return;
+    const [plans, graceMin] = await Promise.all([
+      deps.store.ratePlans.activeFor([lotId]),
+      settingNumber('session.overstay_grace_min', 10),
+    ]);
+    for (const id of sessionIds) {
+      const s = await deps.store.attend.session(id);
+      if (!s?.checkOutAt || s.checkOutAt.getTime() <= s.endAt.getTime() + graceMin * 60_000)
+        continue;
+      try {
+        const q = overstayCharge({
+          ratePlans: plans,
+          endAt: s.endAt,
+          checkOutAt: s.checkOutAt,
+          graceMin,
+          commissionBps: s.commissionBps,
+        });
+        const minutes = q.lines[0]?.kind === 'OVERSTAY' ? q.lines[0].minutes : 0;
+        await deps.store.attend.setOverstay(id, minutes, q.priceKobo);
+      } catch (err) {
+        deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');
+      }
+    }
   }
 
   /** The approved, unblocked phone for this lot (doc 05 §4.4). */
@@ -241,37 +279,220 @@ export function attendRoutes(deps: AppDeps) {
         events,
       );
 
-      // Overstay is worked out by the server (doc 03 §3.6); payment comes in S6.
-      if (checkedOut.length > 0) {
-        const [plans, graceMin] = await Promise.all([
-          deps.store.ratePlans.activeFor([lot.id]),
-          settingNumber('session.overstay_grace_min', 10),
-        ]);
-        for (const id of checkedOut) {
-          const s = await deps.store.attend.session(id);
-          if (!s?.checkOutAt || s.checkOutAt.getTime() <= s.endAt.getTime() + graceMin * 60_000)
-            continue;
-          try {
-            const q = overstayCharge({
-              ratePlans: plans,
-              endAt: s.endAt,
-              checkOutAt: s.checkOutAt,
-              graceMin,
-              commissionBps: s.commissionBps,
-            });
-            const minutes = q.lines[0]?.kind === 'OVERSTAY' ? q.lines[0].minutes : 0;
-            await deps.store.attend.setOverstay(id, minutes, q.priceKobo);
-          } catch (err) {
-            deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');
-          }
-        }
-      }
+      await priceOverstay(lot.id, checkedOut);
       deps.logger.info(
         { event: 'attend.synced', lotId: lot.id, events: results.length },
         'attendant sync',
       );
       return c.json({ serverTime: receivedAt.toISOString(), results }, 200);
     },
+  );
+
+  // --- self check-in (ADR 0016) --------------------------------------------------
+
+  async function ownLot(
+    c: Parameters<typeof authorize>[0],
+    operatorId: string,
+    lotId: string,
+    write: boolean,
+  ) {
+    authorize(
+      c,
+      deps.logger,
+      write ? 'operator:update' : 'lot:read',
+      { operatorId },
+      {
+        denyAs: 'NOT_FOUND',
+      },
+    );
+    const lot = await deps.store.lots.find(operatorId, lotId);
+    if (!lot) throw new ApiError('LOT_NOT_FOUND');
+    return lot;
+  }
+
+  const lotPath = z.object({ operatorId: z.uuid(), lotId: z.uuid() });
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/operators/{operatorId}/lots/{lotId}/self-check-in',
+      tags: ['operators'],
+      ...secured,
+      request: { params: lotPath },
+      responses: {
+        200: {
+          description: 'Self check-in switch and poster code',
+          ...json(SelfCheckinSettingSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      const lot = await ownLot(c, operatorId, lotId, false);
+      return c.json({ lotId, enabled: lot.selfCheckinEnabled, gateCode: gateCodeFor(lotId) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/self-check-in',
+      tags: ['operators'],
+      ...secured,
+      request: { params: lotPath, body: { ...json(SelfCheckinUpdateSchema), required: true } },
+      responses: { 200: { description: 'Switched', ...json(SelfCheckinSettingSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      await ownLot(c, operatorId, lotId, true);
+      const { enabled } = c.req.valid('json');
+      const lot = await deps.store.lots.setSelfCheckin(operatorId, lotId, enabled);
+      if (!lot) throw new ApiError('LOT_NOT_FOUND');
+      await audit(c, deps, {
+        action: enabled ? 'lot.self_checkin_on' : 'lot.self_checkin_off',
+        entityType: 'lot',
+        entityId: lotId,
+        after: { selfCheckinEnabled: enabled },
+      });
+      return c.json({ lotId, enabled, gateCode: gateCodeFor(lotId) }, 200);
+    },
+  );
+
+  const SELF_ERRORS = {
+    SELF_CHECKIN_OFF: 'SELF_CHECKIN_OFF',
+    QR_WRONG_LOT: 'QR_WRONG_LOT',
+    TOO_FAR: 'SELF_CHECKIN_TOO_FAR',
+    QR_OUTSIDE_WINDOW: 'QR_OUTSIDE_WINDOW',
+    BOOKING_NOT_ACTIVE: 'BOOKING_NOT_ACTIVE',
+  } as const;
+
+  /** The driver scans the entrance QR to check in, or to check out (doc 01 §5.3 rules apply). */
+  async function selfCheck(
+    c: Parameters<typeof authorize>[0],
+    bookingId: string,
+    type: 'CHECK_IN' | 'CHECK_OUT',
+  ) {
+    const body = SelfCheckRequestSchema.parse(await c.req.json().catch(() => ({})));
+    const booking = await deps.store.bookings.find(bookingId);
+    if (!booking) throw new ApiError('BOOKING_NOT_FOUND');
+    try {
+      authorize(
+        c,
+        deps.logger,
+        'booking:read:own',
+        { ownerUserId: booking.driverId },
+        { denyAs: 'NOT_FOUND' },
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'NOT_FOUND')
+        throw new ApiError('BOOKING_NOT_FOUND');
+      throw err;
+    }
+    const lot = await deps.store.lots.findById(booking.lotId);
+    if (!lot) throw new ApiError('LOT_NOT_FOUND');
+    const now = deps.now();
+    const stay = (await deps.store.attend.sessionsForBookings([booking.id])).get(booking.id);
+    const rules = {
+      earlyArrivalMin: await settingNumber('booking.early_arrival_min', 30),
+      noShowGraceMin: await settingNumber('booking.no_show_grace_min', 30),
+    };
+    const check =
+      type === 'CHECK_IN'
+        ? checkSelf({
+            enabled: lot.selfCheckinEnabled,
+            code: body.code,
+            lotId: lot.id,
+            lotLocation: lot.location,
+            position: { lat: body.lat, lng: body.lng },
+            booking: {
+              id: booking.id,
+              code: booking.code,
+              plateNorm: booking.plateNorm,
+              startAt: booking.startAt,
+              endAt: booking.endAt,
+              status: booking.status,
+              checkedInAt: null,
+            },
+            now,
+            rules,
+          })
+        : !lot.selfCheckinEnabled
+          ? ({ ok: false, code: 'SELF_CHECKIN_OFF' } as const)
+          : parseGateCode(body.code) !== lot.id
+            ? ({ ok: false, code: 'QR_WRONG_LOT' } as const)
+            : distanceM(lot.location, { lat: body.lat, lng: body.lng }) > SELF_CHECKIN_RADIUS_M
+              ? ({ ok: false, code: 'TOO_FAR' } as const)
+              : !stay?.checkInAt
+                ? ({ ok: false, code: 'BOOKING_NOT_ACTIVE' } as const)
+                : ({ ok: true } as const);
+    if (!check.ok) throw new ApiError(SELF_ERRORS[check.code]);
+
+    const actor = c.get('actor');
+    const { results, checkedOut } = await deps.store.attend.applyBatch(
+      {
+        id: crypto.randomUUID(),
+        // The driver's own phone is the "device" for a self check-in.
+        deviceId: actor.userId,
+        lotId: lot.id,
+        attendantId: actor.userId,
+        deviceSentAt: now,
+        receivedAt: now,
+      },
+      [
+        type === 'CHECK_IN'
+          ? {
+              type,
+              clientEventId: body.clientEventId,
+              deviceTime: now,
+              bookingId: booking.id,
+              method: 'SELF',
+              plateSeen: null,
+              overrideReason: null,
+            }
+          : {
+              type,
+              clientEventId: body.clientEventId,
+              deviceTime: now,
+              bookingId: booking.id,
+              method: 'SELF',
+            },
+      ],
+    );
+    await priceOverstay(lot.id, checkedOut);
+    const r = results[0];
+    deps.logger.info(
+      { event: 'attend.self', type, bookingId: booking.id, result: r?.result },
+      'self check',
+    );
+    return { result: r?.result ?? 'REJECTED', reason: r?.reason ?? null };
+  }
+
+  const bookingPath = z.object({ id: z.uuid() });
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/self-check-in',
+      tags: ['bookings'],
+      ...secured,
+      request: { params: bookingPath, body: { ...json(SelfCheckRequestSchema), required: true } },
+      responses: { 200: { description: 'Checked in (or already in)', ...json(SelfCheckResultSchema) } },
+    }),
+    async (c) => c.json(await selfCheck(c, c.req.valid('param').id, 'CHECK_IN'), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/self-check-out',
+      tags: ['bookings'],
+      ...secured,
+      request: { params: bookingPath, body: { ...json(SelfCheckRequestSchema), required: true } },
+      responses: {
+        200: { description: 'Checked out (or already out)', ...json(SelfCheckResultSchema) },
+      },
+    }),
+    async (c) => c.json(await selfCheck(c, c.req.valid('param').id, 'CHECK_OUT'), 200),
   );
 
   // Portal home: live occupancy for each of the operator's lots (doc 03 §2.4).

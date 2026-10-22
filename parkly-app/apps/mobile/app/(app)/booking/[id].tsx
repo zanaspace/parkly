@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Notice } from '../../../src/components/Notice';
 import { QrCode } from '../../../src/components/QrCode';
+import { SelfCheck } from '../../../src/components/SelfCheck';
 import { StayTimer } from '../../../src/components/StayTimer';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { Screen } from '../../../src/components/Screen';
@@ -29,6 +30,8 @@ export default function BookingScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  /** Bumped after a self check-in so the screen reloads straight away. */
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -62,7 +65,7 @@ export default function BookingScreen() {
       live = false;
       if (timer) clearTimeout(timer);
     };
-  }, [id, userId]);
+  }, [id, userId, reload]);
 
   const footer = (
     <>
@@ -112,6 +115,7 @@ export default function BookingScreen() {
         />
       ) : null}
       <StayTimer booking={booking} />
+      {offline ? null : <SelfCheck booking={booking} onDone={() => setReload((n) => n + 1)} />}
       {confirmed && !booking.stay?.checkedOutAt ? (
         <View style={[card, { alignItems: 'center' }]}>
           <Text tone="secondary">Show this at the gate</Text>

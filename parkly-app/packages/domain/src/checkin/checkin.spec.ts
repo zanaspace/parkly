@@ -6,6 +6,10 @@ import {
   resolveCheckIn,
   resolveCheckOut,
   applyWalkIn,
+  checkSelf,
+  distanceM,
+  gateCodeFor,
+  parseGateCode,
   type GateBooking,
 } from './checkin.js';
 
@@ -214,5 +218,55 @@ describe('sync rules (doc 01 §5.3, doc 03 §3.8)', () => {
   it('never lets the walk-in count go below zero', () => {
     expect(applyWalkIn(3, 1)).toEqual({ count: 4, clamped: false });
     expect(applyWalkIn(0, -1)).toEqual({ count: 0, clamped: true });
+  });
+});
+
+describe('self check-in (ADR 0016)', () => {
+  const LOT = '01a162b3-dcae-740c-a25a-e148a6951c2e';
+  const lot = { lat: 6.4281, lng: 3.4219 };
+
+  it('reads only Parkly entrance codes', () => {
+    expect(gateCodeFor(LOT)).toBe(`PKG1.${LOT}`);
+    expect(parseGateCode(`PKG1.${LOT}`)).toBe(LOT);
+    expect(parseGateCode(` PKG1.${LOT.toUpperCase()} `)).toBe(LOT);
+    expect(parseGateCode('PK1.abc.def.ghi')).toBeNull();
+    expect(parseGateCode('PKG1.not-a-uuid')).toBeNull();
+  });
+
+  it('measures how far the phone is from the lot', () => {
+    expect(distanceM(lot, lot)).toBe(0);
+    // ~111 m per 0.001° of latitude.
+    expect(Math.round(distanceM(lot, { lat: 6.4291, lng: 3.4219 }))).toBe(111);
+  });
+
+  it('allows it only at the lot, for that lot, inside the booking time', () => {
+    const base = { lotId: LOT, lotLocation: lot, enabled: true, now: at(5), rules };
+    const here = { code: `PKG1.${LOT}`, position: { lat: 6.4282, lng: 3.422 } };
+    expect(checkSelf({ ...base, ...here, booking: booking() })).toEqual({ ok: true });
+    expect(checkSelf({ ...base, ...here, enabled: false, booking: booking() })).toEqual({
+      ok: false,
+      code: 'SELF_CHECKIN_OFF',
+    });
+    expect(
+      checkSelf({
+        ...base,
+        ...here,
+        code: 'PKG1.01a162b3-dcae-740c-a25a-e148a6951c2f',
+        booking: booking(),
+      }),
+    ).toEqual({ ok: false, code: 'QR_WRONG_LOT' });
+    expect(
+      checkSelf({ ...base, ...here, position: { lat: 6.44, lng: 3.4219 }, booking: booking() }),
+    ).toEqual({ ok: false, code: 'TOO_FAR' });
+    expect(checkSelf({ ...base, ...here, now: at(-45), booking: booking() })).toEqual({
+      ok: false,
+      code: 'QR_OUTSIDE_WINDOW',
+    });
+    expect(checkSelf({ ...base, ...here, booking: booking({ status: 'CANCELLED' }) })).toEqual({
+      ok: false,
+      code: 'BOOKING_NOT_ACTIVE',
+    });
+    // A late arrival (after the grace) may still check in before the end.
+    expect(checkSelf({ ...base, ...here, now: at(60), booking: booking() })).toEqual({ ok: true });
   });
 });

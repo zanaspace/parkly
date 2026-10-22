@@ -229,6 +229,11 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/attend/devices',
   'GET /v1/attend/lots/{lotId}/manifest',
   'POST /v1/attend/sync',
+  // Self check-in: owner switch (attendant 404), driver's own booking only (others 404): attend.spec
+  'GET /v1/operators/{operatorId}/lots/{lotId}/self-check-in',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/self-check-in',
+  'POST /v1/bookings/{id}/self-check-in',
+  'POST /v1/bookings/{id}/self-check-out',
   'POST /v1/operators/{operatorId}/devices/{deviceId}',
   'POST /v1/bookings',
   'GET /v1/bookings/{id}',
@@ -324,6 +329,7 @@ describe('RBAC matrix', () => {
     vehicleTypes: ['CAR'],
     status: 'DRAFT',
     statusReason: null,
+    selfCheckinEnabled: false,
     version: 1,
     createdAt: new Date('2026-10-21T00:00:00Z'),
   });

@@ -522,6 +522,8 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET | `/bookings/:id/receipt` | DRV | — | JSON + `?format=pdf` | |
 | POST | `/payments/:reference/verify` | DRV | ○ | client-triggered verify (§01 5.2) → `{status, booking}` | `PAYMENT_NOT_FOUND` |
 | GET | `/sessions/:id/overstay` · POST `/sessions/:id/overstay/pay` | DRV | ✅ | pay overstay | `OVERSTAY_NOT_DUE` |
+| POST | `/bookings/:id/self-check-in` · `/self-check-out` | DRV(owner) | ✅ (clientEventId) | ADR 0016: `{clientEventId, code: "PKG1.<lotId>", lat, lng}` → `{result: APPLIED|DUPLICATE|CONFLICT|REJECTED, reason}`; the position is checked, never stored | `SELF_CHECKIN_OFF`, `QR_WRONG_LOT`, `SELF_CHECKIN_TOO_FAR` (>150 m), `QR_OUTSIDE_WINDOW`, `BOOKING_NOT_ACTIVE` |
+| GET · POST | `/operators/:operatorId/lots/:lotId/self-check-in` | OWN (POST, audited) · OWN/MGR (GET) | — | `{enabled}` → `{lotId, enabled, gateCode}`; `lots.self_checkin_enabled`, default off | `LOT_NOT_FOUND` |
 
 ### 6.5 Passes
 | Method | Path | Role | Idem | Notes | Errors |

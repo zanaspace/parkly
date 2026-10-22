@@ -17,7 +17,8 @@ import { bookings } from './bookings.js';
 import { users } from './identity.js';
 import { lots } from './lots.js';
 
-export const entryMethodEnum = pgEnum('entry_method', ['QR', 'CODE', 'PLATE', 'ADMIN']);
+// SELF: the driver scanned the entrance QR (ADR 0016). Never reorder; add at the end.
+export const entryMethodEnum = pgEnum('entry_method', ['QR', 'CODE', 'PLATE', 'ADMIN', 'SELF']);
 export const overstayStatusEnum = pgEnum('overstay_status', [
   'NONE',
   'DUE',

@@ -42,6 +42,8 @@ export const BookingSchema = z.object({
     slug: z.string(),
     name: z.string(),
     addressLine: z.string(),
+    /** The owner allows drivers to check themselves in here (ADR 0016). */
+    selfCheckIn: z.boolean(),
   }),
   vehicle: z.object({ id: z.uuid(), plate: z.string() }),
   priceKobo: z.number().int(),
