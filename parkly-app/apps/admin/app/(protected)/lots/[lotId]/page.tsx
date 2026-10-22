@@ -1,4 +1,4 @@
-import type { AdminLotDetail } from '@parkly/contracts';
+import type { AdminLotDetail, RatePlan } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -24,6 +24,14 @@ const PRICE_REVIEWERS = VERIFIERS;
 const REINSTATERS = VERIFIERS;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** The lot lists live prices, changes waiting for approval and the latest rejected change. */
+const PRICE_STATUS: Record<RatePlan['status'], string> = {
+  ACTIVE: 'live',
+  PENDING_APPROVAL: 'awaiting approval',
+  REJECTED: 'not approved',
+  RETIRED: 'retired',
+  DRAFT: 'draft',
+};
 const lagos = new Intl.DateTimeFormat('en-NG', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -171,8 +179,13 @@ export default async function LotReviewPage({ params }: { params: Promise<{ lotI
             <li key={p.id} className="pk-form">
               <Text>
                 {p.product.toLowerCase()}: {describePrice(p)} ·{' '}
-                <strong>{p.status === 'ACTIVE' ? 'live' : 'awaiting approval'}</strong>
+                <strong>{PRICE_STATUS[p.status]}</strong>
               </Text>
+              {p.status === 'REJECTED' && p.rejectionReason && (
+                <Text variant="body-sm" tone="secondary">
+                  Reason given: {p.rejectionReason}. The operator can submit a new price.
+                </Text>
+              )}
               {p.status === 'PENDING_APPROVAL' && canPrice && (
                 <PriceDecision lotId={lot.id} ratePlanId={p.id} />
               )}
