@@ -44,6 +44,8 @@ export type BookingFacts = {
   lotMatches: boolean;
   /** A space was taken again for the rest of the window (late arrival only). */
   capacityReacquired: boolean;
+  /** The provider declined the charge, or checkout could not start: the hold ends now. */
+  paymentFailed?: boolean;
 };
 
 export type BookingSettings = {
@@ -79,7 +81,9 @@ const confirmed: Guard = ({ facts }) => {
 };
 
 const holdRunOut: Guard = ({ now, facts }) =>
-  facts.holdExpiresAt && isHoldExpired(facts.holdExpiresAt, now) ? null : 'HOLD_NOT_EXPIRED';
+  facts.paymentFailed || (facts.holdExpiresAt && isHoldExpired(facts.holdExpiresAt, now))
+    ? null
+    : 'HOLD_NOT_EXPIRED';
 
 const checkInWindow: Guard = ({ now, facts, settings }) => {
   if (!facts.lotMatches) return 'QR_WRONG_LOT';

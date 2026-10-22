@@ -17,8 +17,10 @@ export default defineConfig({
         'src/providers/**',
         // DB adapter: covered by the store contract in test/integration against real Postgres.
         'src/store/drizzle.ts',
+        'src/store/drizzle-bookings.ts',
         // Test doubles and helpers.
         'src/store/memory.ts',
+        'src/store/memory-bookings.ts',
         'src/store/store-contract.ts',
         'src/test-helpers.ts',
       ],

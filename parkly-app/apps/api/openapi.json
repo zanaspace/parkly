@@ -10193,6 +10193,1176 @@
           }
         }
       }
+    },
+    "/v1/bookings": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lotId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "vehicleId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "product": {
+                    "type": "string",
+                    "enum": [
+                      "HOURLY",
+                      "DAILY"
+                    ],
+                    "default": "HOURLY"
+                  },
+                  "startAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "lotId",
+                  "vehicleId",
+                  "startAt",
+                  "endAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Space held; pay to confirm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_PAYMENT",
+                            "CONFIRMED",
+                            "CHECKED_IN",
+                            "COMPLETED",
+                            "CANCELLED",
+                            "EXPIRED",
+                            "NO_SHOW"
+                          ]
+                        },
+                        "product": {
+                          "type": "string",
+                          "enum": [
+                            "HOURLY",
+                            "DAILY"
+                          ]
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "holdExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lot": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "addressLine": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slug",
+                            "name",
+                            "addressLine"
+                          ]
+                        },
+                        "vehicle": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "plate": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "plate"
+                          ]
+                        },
+                        "priceKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "totalKobo": {
+                          "type": "integer"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "HOURLY_DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "minutes": {
+                                    "type": "integer"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  },
+                                  "capped": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "minutes",
+                                  "amountKobo",
+                                  "capped"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "MONTH"
+                                    ]
+                                  },
+                                  "periodStart": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "periodEnd": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "periodStart",
+                                  "periodEnd",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SERVICE_FEE"
+                                    ]
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "amountKobo"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "product",
+                        "startAt",
+                        "endAt",
+                        "holdExpiresAt",
+                        "lot",
+                        "vehicle",
+                        "priceKobo",
+                        "serviceFeeKobo",
+                        "totalKobo",
+                        "lines",
+                        "createdAt"
+                      ]
+                    },
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "reference": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "INITIATED",
+                            "PENDING",
+                            "SUCCEEDED",
+                            "FAILED",
+                            "ABANDONED",
+                            "PARTIALLY_REFUNDED",
+                            "REFUNDED"
+                          ]
+                        },
+                        "authorizationUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri"
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "reference",
+                        "status",
+                        "authorizationUrl",
+                        "expiresAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "booking",
+                    "payment"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "past"
+              ],
+              "default": "upcoming"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "My bookings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_PAYMENT",
+                              "CONFIRMED",
+                              "CHECKED_IN",
+                              "COMPLETED",
+                              "CANCELLED",
+                              "EXPIRED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY"
+                            ]
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "holdExpiresAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "lot": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "addressLine": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "slug",
+                              "name",
+                              "addressLine"
+                            ]
+                          },
+                          "vehicle": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "plate": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "plate"
+                            ]
+                          },
+                          "priceKobo": {
+                            "type": "integer"
+                          },
+                          "serviceFeeKobo": {
+                            "type": "integer"
+                          },
+                          "totalKobo": {
+                            "type": "integer"
+                          },
+                          "lines": {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "HOURLY_DAY"
+                                      ]
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "minutes": {
+                                      "type": "integer"
+                                    },
+                                    "amountKobo": {
+                                      "type": "integer"
+                                    },
+                                    "capped": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "date",
+                                    "minutes",
+                                    "amountKobo",
+                                    "capped"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "DAY"
+                                      ]
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "amountKobo": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "date",
+                                    "amountKobo"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "MONTH"
+                                      ]
+                                    },
+                                    "periodStart": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "periodEnd": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "amountKobo": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "periodStart",
+                                    "periodEnd",
+                                    "amountKobo"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "SERVICE_FEE"
+                                      ]
+                                    },
+                                    "amountKobo": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "amountKobo"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "status",
+                          "product",
+                          "startAt",
+                          "endAt",
+                          "holdExpiresAt",
+                          "lot",
+                          "vehicle",
+                          "priceKobo",
+                          "serviceFeeKobo",
+                          "totalKobo",
+                          "lines",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "CHECKED_IN",
+                        "COMPLETED",
+                        "CANCELLED",
+                        "EXPIRED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "product": {
+                      "type": "string",
+                      "enum": [
+                        "HOURLY",
+                        "DAILY"
+                      ]
+                    },
+                    "startAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "holdExpiresAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "lot": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "addressLine": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "addressLine"
+                      ]
+                    },
+                    "vehicle": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "plate": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "plate"
+                      ]
+                    },
+                    "priceKobo": {
+                      "type": "integer"
+                    },
+                    "serviceFeeKobo": {
+                      "type": "integer"
+                    },
+                    "totalKobo": {
+                      "type": "integer"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "HOURLY_DAY"
+                                ]
+                              },
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "minutes": {
+                                "type": "integer"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              },
+                              "capped": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "date",
+                              "minutes",
+                              "amountKobo",
+                              "capped"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "DAY"
+                                ]
+                              },
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "date",
+                              "amountKobo"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "MONTH"
+                                ]
+                              },
+                              "periodStart": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "periodEnd": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "periodStart",
+                              "periodEnd",
+                              "amountKobo"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "SERVICE_FEE"
+                                ]
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "amountKobo"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "status",
+                    "product",
+                    "startAt",
+                    "endAt",
+                    "holdExpiresAt",
+                    "lot",
+                    "vehicle",
+                    "priceKobo",
+                    "serviceFeeKobo",
+                    "totalKobo",
+                    "lines",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{reference}/verify": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "reference",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment and booking now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payment": {
+                      "type": "object",
+                      "properties": {
+                        "reference": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "INITIATED",
+                            "PENDING",
+                            "SUCCEEDED",
+                            "FAILED",
+                            "ABANDONED",
+                            "PARTIALLY_REFUNDED",
+                            "REFUNDED"
+                          ]
+                        },
+                        "authorizationUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri"
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "reference",
+                        "status",
+                        "authorizationUrl",
+                        "expiresAt"
+                      ]
+                    },
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_PAYMENT",
+                            "CONFIRMED",
+                            "CHECKED_IN",
+                            "COMPLETED",
+                            "CANCELLED",
+                            "EXPIRED",
+                            "NO_SHOW"
+                          ]
+                        },
+                        "product": {
+                          "type": "string",
+                          "enum": [
+                            "HOURLY",
+                            "DAILY"
+                          ]
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "holdExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lot": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "addressLine": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slug",
+                            "name",
+                            "addressLine"
+                          ]
+                        },
+                        "vehicle": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "plate": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "plate"
+                          ]
+                        },
+                        "priceKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "totalKobo": {
+                          "type": "integer"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "HOURLY_DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "minutes": {
+                                    "type": "integer"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  },
+                                  "capped": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "minutes",
+                                  "amountKobo",
+                                  "capped"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "MONTH"
+                                    ]
+                                  },
+                                  "periodStart": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "periodEnd": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "periodStart",
+                                  "periodEnd",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SERVICE_FEE"
+                                    ]
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "amountKobo"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "product",
+                        "startAt",
+                        "endAt",
+                        "holdExpiresAt",
+                        "lot",
+                        "vehicle",
+                        "priceKobo",
+                        "serviceFeeKobo",
+                        "totalKobo",
+                        "lines",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "payment",
+                    "booking"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

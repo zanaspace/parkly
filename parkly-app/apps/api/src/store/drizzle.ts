@@ -28,6 +28,7 @@ import {
   type VehicleRow,
   type VerificationRow,
 } from './types.js';
+import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
   users,
@@ -1471,6 +1472,8 @@ export function drizzleStore(db: Db): Store {
           );
       },
     },
+
+    ...drizzleBookings(db),
 
     settings: {
       async get<T>(key: string) {

@@ -26,6 +26,7 @@ import {
   type VehicleRow,
   type VerificationRow,
 } from './types.js';
+import { MemoryBookings } from './memory-bookings.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -68,6 +69,12 @@ export class MemoryStore implements Store {
     ['fees.commission_bps_default', 1200],
   ]);
   private seq = 0;
+  /** Bookings, payments, webhooks and idempotency keys (Sprint 4). */
+  readonly booking = new MemoryBookings(this.lotRows, this.slotRows);
+  readonly bookings: Store['bookings'] = this.booking.bookings;
+  readonly payments: Store['payments'] = this.booking.payments;
+  readonly webhooks: Store['webhooks'] = this.booking.webhooks;
+  readonly idempotency: Store['idempotency'] = this.booking.idempotency;
 
   /** Test helper: what the on_auth_user_created trigger does. */
   seedUser(

@@ -47,6 +47,9 @@ const RULES = {
   'operator:create': { scope: 'own', roles: 'signed-in' },
   'vehicle:manage:own': { scope: 'own', roles: ['DRIVER'] },
   'account:delete:own': { scope: 'own', roles: ['DRIVER'] },
+  /** Book and pay for parking; see and pay for one's own bookings (doc 02 §6.4). */
+  'booking:create:own': { scope: 'own', roles: ['DRIVER'] },
+  'booking:read:own': { scope: 'own', roles: ['DRIVER'] },
   'operator:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:update': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
   'operator:kyb:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },

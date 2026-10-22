@@ -6,11 +6,11 @@ import type {
   MalwareScanner,
   MapsProvider,
   PaymentProvider,
-  PaymentStatus,
   PushProvider,
   SettlementProvider,
   SmsProvider,
   StorageProvider,
+  VerifiedCharge,
 } from './index.js';
 
 /** In-memory fakes. They record calls so tests can assert on side effects. */
@@ -29,33 +29,46 @@ export class FakePaymentProvider implements PaymentProvider {
   readonly name = 'fake' as const;
   readonly initialized: Parameters<PaymentProvider['initialize']>[0][] = [];
   readonly refunds: { reference: string; amountKobo: number }[] = [];
-  /** Tests set the outcome a later verify() should report. */
-  readonly outcomes = new Map<string, PaymentStatus>();
-  webhookSecretValid = true;
+  /** Tests set what a later verify() reports; unset references are 'ongoing'. */
+  readonly outcomes = new Map<string, Partial<VerifiedCharge>>();
+  failInitialize = false;
 
   async initialize(input: Parameters<PaymentProvider['initialize']>[0]) {
+    if (this.failInitialize) throw new Error('fake initialize failure');
     this.initialized.push(input);
     return {
       authorizationUrl: `https://checkout.fake/${input.reference}`,
       accessCode: `ac_${input.reference}`,
-      reference: input.reference,
     };
   }
-  async verify(reference: string) {
+  /** Marks a reference as paid in full, as Paystack would report it. */
+  pay(reference: string, over: Partial<VerifiedCharge> = {}) {
+    this.outcomes.set(reference, { status: 'success', ...over });
+  }
+  async verify(reference: string): Promise<VerifiedCharge | null> {
     const init = this.initialized.find((i) => i.reference === reference);
-    const status = this.outcomes.get(reference) ?? 'PENDING';
+    if (!init) return null;
+    const outcome = this.outcomes.get(reference) ?? {};
+    const status = outcome.status ?? 'ongoing';
     return {
       status,
-      amountKobo: init?.amountKobo ?? 0,
-      paidAt: status === 'SUCCEEDED' ? new Date(0) : null,
+      amountKobo: init.amountKobo,
+      currency: 'NGN',
+      paidAt: status === 'success' ? new Date(0) : null,
+      feesKobo: status === 'success' ? 1_500 : null,
+      channel: status === 'success' ? 'card' : null,
+      cardLast4: status === 'success' ? '4081' : null,
+      cardBrand: status === 'success' ? 'visa' : null,
+      ...outcome,
     };
   }
   async refund(input: { reference: string; amountKobo: number }) {
     this.refunds.push(input);
     return { refundId: `rf_${this.refunds.length}`, status: 'PENDING' as const };
   }
+  /** Signature "valid" is accepted; anything else is not. */
   verifyWebhook(_rawBody: string, signature: string | undefined) {
-    return this.webhookSecretValid && signature === 'valid';
+    return signature === 'valid';
   }
 }
 

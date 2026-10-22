@@ -24,9 +24,12 @@ import { operatorRoutes } from './modules/operators/routes.js';
 import { teamRoutes } from './modules/team/routes.js';
 import { discoveryRoutes } from './modules/discovery/routes.js';
 import { placesRoutes } from './modules/places/routes.js';
+import { bookingRoutes } from './modules/bookings/routes.js';
+import { webhookRoutes } from './modules/webhooks/routes.js';
 import type {
   MapsProvider,
   MalwareScanner,
+  PaymentProvider,
   SettlementProvider,
   SmsProvider,
   StorageProvider,
@@ -48,6 +51,8 @@ export type AppDeps = {
   sms: { primary: SmsProvider; secondary?: SmsProvider };
   sessions: SessionRevoker;
   settlement: SettlementProvider;
+  /** Paystack checkout, verify and refunds (same key as settlement). */
+  payments: PaymentProvider;
   storage: StorageProvider;
   scanner: MalwareScanner;
   maps: MapsProvider;
@@ -112,6 +117,8 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', discoveryRoutes(deps));
   app.route('/v1', placesRoutes(deps));
+  app.route('/v1', bookingRoutes(deps));
+  app.route('/v1', webhookRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));
   app.onError((err, c) => {
