@@ -1,10 +1,18 @@
 import {
   BootstrapResponseSchema,
   DeletionRequestResponseSchema,
+  LotAvailabilitySchema,
+  LotSearchResponseSchema,
   MeSchema,
+  PublicLotSchema,
+  QuoteSchema,
   VehicleListSchema,
   VehicleSchema,
+  type LotAvailability,
+  type LotSearchResponse,
   type Me,
+  type PublicLot,
+  type Quote,
   type Vehicle,
 } from '@parkly/contracts';
 import { retryAfterSeconds } from '../logic/countdown';
@@ -32,6 +40,16 @@ export type ApiClientOptions = {
   getAccessToken: () => Promise<string | null>;
   fetch?: typeof fetch;
   now?: () => Date;
+};
+
+export type LotSearchParams = {
+  lat: number;
+  lng: number;
+  radiusM: number;
+  startAt: string;
+  endAt: string;
+  product: 'HOURLY' | 'DAILY';
+  sort: 'distance' | 'price';
 };
 
 export type BootstrapResponse = { user: Me; isNewUser: boolean };
@@ -123,6 +141,40 @@ export function createApiClient(options: ApiClientOptions) {
     revokeSessions: (scope: 'device' | 'all') =>
       request<undefined>('POST', '/v1/auth/sessions/revoke', { scope }),
     requestDeletion: () => request('DELETE', '/v1/me', undefined, DeletionRequestResponseSchema),
+
+    // Driver discovery (doc 02 §6.3): public endpoints, prices always from the server.
+    searchLots: (q: LotSearchParams) => {
+      const query = new URLSearchParams(
+        Object.fromEntries(Object.entries(q).map(([k, v]) => [k, String(v)])),
+      );
+      return request<LotSearchResponse>(
+        'GET',
+        `/v1/lots/search?${query.toString()}`,
+        undefined,
+        LotSearchResponseSchema,
+      );
+    },
+    lot: (idOrSlug: string) =>
+      request<PublicLot>(
+        'GET',
+        `/v1/lots/${encodeURIComponent(idOrSlug)}`,
+        undefined,
+        PublicLotSchema,
+      ),
+    quote: (
+      lotId: string,
+      body: { product: 'HOURLY' | 'DAILY' | 'MONTHLY'; startAt: string; endAt: string },
+    ) => request<Quote>('POST', `/v1/lots/${encodeURIComponent(lotId)}/quote`, body, QuoteSchema),
+    availability: (
+      lotId: string,
+      w: { startAt: string; endAt: string; product: 'HOURLY' | 'DAILY' },
+    ) =>
+      request<LotAvailability>(
+        'GET',
+        `/v1/lots/${encodeURIComponent(lotId)}/availability?${new URLSearchParams(w).toString()}`,
+        undefined,
+        LotAvailabilitySchema,
+      ),
   };
 }
 

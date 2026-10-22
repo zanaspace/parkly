@@ -91,3 +91,53 @@ describe('api client', () => {
     await expect(client(fetch).vehicles()).rejects.toThrow();
   });
 });
+
+describe('driver discovery', () => {
+  const quote = {
+    product: 'HOURLY',
+    priceKobo: 500_000,
+    serviceFeeKobo: 10_000,
+    totalKobo: 510_000,
+    lines: [{ kind: 'SERVICE_FEE', amountKobo: 10_000 }],
+  };
+
+  it('searches with the window in the query and parses results', async () => {
+    const { fetch, calls } = fakeFetch([{ status: 200, body: { items: [], radiusM: 2000 } }]);
+    const res = await client(fetch).searchLots({
+      lat: 6.4281,
+      lng: 3.4219,
+      radiusM: 2000,
+      startAt: '2026-10-23T07:00:00.000Z',
+      endAt: '2026-10-23T17:00:00.000Z',
+      product: 'HOURLY',
+      sort: 'distance',
+    });
+    expect(res).toEqual({ items: [], radiusM: 2000 });
+    const url = new URL(calls[0]?.url ?? '');
+    expect(url.pathname).toBe('/v1/lots/search');
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      lat: '6.4281',
+      radiusM: '2000',
+      product: 'HOURLY',
+    });
+  });
+
+  it('asks the server for the price and shows its errors in plain words', async () => {
+    const { fetch, calls } = fakeFetch([
+      { status: 200, body: quote },
+      { status: 422, body: { code: 'BOOKING_OUTSIDE_OPENING_HOURS' } },
+    ]);
+    const api = client(fetch);
+    const window = {
+      product: 'HOURLY' as const,
+      startAt: '2026-10-23T07:00:00.000Z',
+      endAt: '2026-10-23T17:00:00.000Z',
+    };
+    expect((await api.quote('lot-1', window)).totalKobo).toBe(510_000);
+    expect(calls[0]?.url).toBe('http://api.test/v1/lots/lot-1/quote');
+    await expect(api.quote('lot-1', window)).rejects.toMatchObject({
+      code: 'BOOKING_OUTSIDE_OPENING_HOURS',
+      message: 'The car park is closed for part of that time. Check its opening hours.',
+    });
+  });
+});

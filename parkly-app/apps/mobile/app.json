@@ -13,7 +13,18 @@
       "bundleIdentifier": "com.parkly.app",
       "supportsTablet": false
     },
-    "plugins": ["expo-router", "expo-font", "expo-splash-screen", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Parkly uses your location to find car parks near you."
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },

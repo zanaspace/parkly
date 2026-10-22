@@ -45,6 +45,10 @@
       "types": "./dist/availability/index.d.ts",
       "default": "./dist/availability/index.js"
     },
+    "./discovery": {
+      "types": "./dist/discovery/index.d.ts",
+      "default": "./dist/discovery/index.js"
+    },
     "./pricing": {
       "types": "./dist/pricing/index.d.ts",
       "default": "./dist/pricing/index.js"

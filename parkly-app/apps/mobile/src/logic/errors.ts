@@ -18,6 +18,13 @@ const COPY: Partial<Record<ErrorCode, string>> = {
   DSR_ALREADY_OPEN: 'You already have a deletion request in progress.',
   ACCOUNT_HAS_OBLIGATIONS: 'Finish or cancel your active bookings before deleting your account.',
   NOT_FOUND: 'We couldn’t find that. It may have been removed.',
+  LOT_NOT_FOUND: 'This car park isn’t listed right now. Search again for others nearby.',
+  SEARCH_INVALID_WINDOW: 'Pick a start time from now up to 30 days ahead, for at most 24 hours.',
+  BOOKING_WINDOW_INVALID: 'Pick a start time from now up to 30 days ahead, for at most 24 hours.',
+  BOOKING_OUTSIDE_OPENING_HOURS:
+    'The car park is closed for part of that time. Check its opening hours.',
+  PRICING_INVALID_DURATION: 'That stay is shorter than this car park’s minimum.',
+  LOT_NOT_BOOKABLE: 'This car park doesn’t sell that option.',
   INTERNAL_ERROR: 'Something went wrong on our side. Please try again.',
   SERVICE_UNAVAILABLE: 'Parkly is temporarily unavailable. Please try again shortly.',
 };

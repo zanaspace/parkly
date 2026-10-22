@@ -1,6 +1,6 @@
 # Sprint 3 — Lot discovery: progress report
 
-- **Status:** In progress. Stories 1–5 are done (pricing engine, availability, driver lot API, demo data + latency check, driver website).
+- **Status:** In progress. Stories 1–6 are done (pricing engine, availability, driver lot API, demo data + latency check, driver website, mobile screens). Story 7 (Google Places + map) waits for the Maps key.
 - **Updated:** 2026-10-22
 - **Entry check:** S2 is done (code complete); its open items are in `S2-report.md` § Carried over and doc 20 §6. The Google Maps key is being created by the owner (PRD §12: needed by S3); work that needs it comes last.
 
@@ -17,7 +17,7 @@ Drivers find verified lots near a destination and see accurate prices and availa
 | 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | **Done** |
 | 4 | Seed script with realistic Victoria Island lots; latency check | task 7, exit criterion | **Done** |
 | 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | **Done** |
-| 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | To do |
+| 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | **Done** (map view with story 7) |
 | 7 | Places autocomplete + place details proxied through the API (Google key) | FR-LOT-101, task 4 | Waiting for the Google Maps key |
 | — | Fix: operators change prices on live lots; rejected changes show their reason | FR-LOT-005 | **Done** |
 
@@ -83,3 +83,14 @@ Found while testing search on dev: the "Testing" lot's hourly price had been rej
 - **Checked against the live dev API** (local run): Victoria Island returns 9 demo car parks with totals and spaces; Ikeja widens to 3 km and shows the empty state; the lot page prices 10 hours at ₦5,000 + ₦100 fee = ₦5,100; unknown lots return 404; a past date shows a plain message.
 - **Until the Google Maps key is ready** there is no interactive map and no typed-address search (story 7); the area list and "Near me" cover search.
 - **Tests:** +11 (web search helpers: defaults, Lagos time, full days, links, labels).
+
+### Story 6: mobile search and lot screens (`apps/mobile`)
+
+- **Home (D-10/D-11)** replaces the "coming soon" placeholder: area chips or **Near me** (device location via `expo-location`, permission text in `app.json`), day chips (Today, Tomorrow, then the next five days), duration chips (1–12 h or Full day) and arrival time in quarter-hour steps; **Find parking**.
+- **Results (D-12)** `/search`: verified car parks nearest or cheapest first, each with photo or placeholder, area and distance, Verified badge and facilities, spaces band and the server's total; pull to refresh; empty within 2 km widens to 3 km, then offers 5 km; errors show plain words with "Try again".
+- **Lot (D-13)** `/lot/[slug]`: photos, the server's price breakdown and total for the chosen time, free spaces, directions (opens Google Maps), entrance notes, rate card, opening hours with today highlighted, facilities, the verified panel and policies; "Booking opens soon" (S4).
+- **Shared rules:** the search areas, Lagos time window, spaces bands and quote-line words moved to `@parkly/domain/discovery`, used by both the website and the app (the website was refactored onto it). Prices still come only from the API.
+- **API client:** `searchLots`, `lot`, `quote`, `availability`, each response checked against the contract schemas; new error copy for search and quote problems.
+- **Fixed on the way:** the mobile app had spec files but no `test` script, so `pnpm test` never ran them (since S1). It now runs them (54 existing + 7 new).
+- **Checks:** typecheck, lint, 61 mobile tests, and an Android production bundle export. The map view (D-12 map toggle) needs the Google Maps key (story 7).
+- **Tests:** +6 domain (discovery), +5 mobile search state, +2 mobile API client; web tests trimmed to what remains web-only (URL reading).
