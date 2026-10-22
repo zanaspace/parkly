@@ -30,13 +30,13 @@ describe('Paystack split (doc 01 §5.2, ADR 0004)', () => {
     }
   });
 
-  it('rejects a commission outside 10–15%', () => {
-    expect(() => paymentSplit({ priceKobo: 1000, serviceFeeKobo: 0, commissionBps: 999 })).toThrow(
+  it('rejects a commission outside 0–100%', () => {
+    expect(() => paymentSplit({ priceKobo: 1000, serviceFeeKobo: 0, commissionBps: -1 })).toThrow(
       RangeError,
     );
-    expect(() => paymentSplit({ priceKobo: 1000, serviceFeeKobo: 0, commissionBps: 1501 })).toThrow(
-      RangeError,
-    );
+    expect(() =>
+      paymentSplit({ priceKobo: 1000, serviceFeeKobo: 0, commissionBps: 10_001 }),
+    ).toThrow(RangeError);
   });
 
   it('rejects a free booking, which Paystack cannot charge', () => {

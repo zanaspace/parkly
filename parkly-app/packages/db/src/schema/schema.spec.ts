@@ -2,6 +2,7 @@ import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '@parkly/domain/authz';
+import { BOOKING_STATUSES, PAYMENT_STATUSES } from '@parkly/domain/booking';
 import { LOT_STATUSES, VERIFICATION_ITEMS } from '@parkly/domain/lot';
 import * as schema from './index.js';
 
@@ -11,11 +12,16 @@ describe('schema conventions (doc 02 §1)', () => {
   it('finds the tables', () => {
     expect(tables.map((t) => getTableConfig(t).name).sort()).toEqual([
       'audit_logs',
+      'booking_status_history',
+      'bookings',
       'consents',
       'data_subject_requests',
       'devices',
       'feature_flags',
       'files',
+      'idempotency_keys',
+      'ledger_accounts',
+      'ledger_entries',
       'lot_closures',
       'lot_opening_hours',
       'lot_photos',
@@ -24,15 +30,18 @@ describe('schema conventions (doc 02 §1)', () => {
       'operator_kyb_documents',
       'operator_members',
       'operators',
+      'payments',
       'payout_accounts',
       'permits',
       'platform_settings',
       'rate_plans',
+      'refunds',
       'user_roles',
       'users',
       'vehicles',
       'verification_items',
       'verification_records',
+      'webhook_events',
     ]);
   });
 
@@ -49,9 +58,10 @@ describe('schema conventions (doc 02 §1)', () => {
   );
 
   // lot_slot_inventory is high-volume and keyed by (lot, slot): no id or timestamps (doc 02 §2.5).
+  // webhook_events records when it arrived as received_at (doc 02 §2.7).
   it.each(
     tables
-      .filter((t) => getTableConfig(t).name !== 'lot_slot_inventory')
+      .filter((t) => !['lot_slot_inventory', 'webhook_events'].includes(getTableConfig(t).name))
       .map((t) => [getTableConfig(t).name, t] as const),
   )('%s has created_at', (_name, table) => {
     expect(getTableConfig(table).columns.map((c) => c.name)).toContain('created_at');
@@ -63,6 +73,8 @@ describe('enums match the domain (no silent drift)', () => {
     ['lot_status', schema.lotStatusEnum.enumValues, LOT_STATUSES],
     ['verification_item', schema.verificationItemEnum.enumValues, VERIFICATION_ITEMS],
     ['role', schema.roleEnum.enumValues, ROLES],
+    ['booking_status', schema.bookingStatusEnum.enumValues, BOOKING_STATUSES],
+    ['payment_status', schema.paymentStatusEnum.enumValues, PAYMENT_STATUSES],
   ] as const)('%s', (_name, db, domain) => {
     expect([...db]).toEqual([...domain]);
   });

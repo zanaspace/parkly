@@ -1,8 +1,10 @@
 import { assertKobo, mulDivRoundHalfUp, type Kobo } from '../money/money.js';
 
-/** `fees.commission_bps_default` range (doc 02 §8). */
-export const MIN_COMMISSION_BPS = 1000;
-export const MAX_COMMISSION_BPS = 1500;
+/**
+ * 10–15 % is the app rule (`fees.commission_bps_default`, doc 02 §8), but a
+ * SUPER_ADMIN may override it, so only 0–100 % is enforced here, as in the DB.
+ */
+const MAX_COMMISSION_BPS = 10_000;
 
 export type PaymentSplit = {
   /** What the driver pays: price + service fee. */
@@ -30,7 +32,7 @@ export function paymentSplit(input: {
   const { commissionBps } = input;
   if (
     !Number.isSafeInteger(commissionBps) ||
-    commissionBps < MIN_COMMISSION_BPS ||
+    commissionBps < 0 ||
     commissionBps > MAX_COMMISSION_BPS
   ) {
     throw new RangeError(`Invalid commission bps: ${commissionBps}`);

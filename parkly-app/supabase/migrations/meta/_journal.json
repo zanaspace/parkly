@@ -36,6 +36,13 @@
       "when": 1792626475820,
       "tag": "20261021234755_lot_slot_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792681045408,
+      "tag": "20261022145725_bookings_payments_ledger",
+      "breakpoints": true
     }
   ]
 }
