@@ -127,6 +127,8 @@ export type LotRow = LotFields & {
   slug: string;
   status: LotStatus;
   statusReason: string | null;
+  /** Drivers may check themselves in with the entrance QR (ADR 0016). */
+  selfCheckinEnabled: boolean;
   version: number;
   createdAt: Date;
 };
@@ -360,7 +362,8 @@ export type AttendEventInput =
       clientEventId: string;
       deviceTime: Date;
       bookingId: string;
-      method: 'QR' | 'CODE' | 'PLATE';
+      /** SELF: the driver scanned the entrance QR (ADR 0016). */
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
       plateSeen: string | null;
       overrideReason: string | null;
     }
@@ -369,7 +372,8 @@ export type AttendEventInput =
       clientEventId: string;
       deviceTime: Date;
       bookingId: string;
-      method: 'QR' | 'CODE' | 'PLATE';
+      /** SELF: the driver scanned the entrance QR (ADR 0016). */
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
     }
   | { type: 'WALK_IN'; clientEventId: string; deviceTime: Date; delta: 1 | -1 }
   | {
@@ -384,6 +388,13 @@ export type AttendEventResult = {
   clientEventId: string;
   result: 'APPLIED' | 'DUPLICATE' | 'CONFLICT' | 'REJECTED';
   reason: string | null;
+};
+
+export type StaySummary = {
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+  overstayMinutes: number;
+  overstayAmountKobo: number;
 };
 
 export type AttendBatch = {
@@ -547,6 +558,8 @@ export type Store = {
       to: LotStatus,
       reason: string | null,
     ): Promise<LotRow>;
+    /** The owner's self check-in switch (ADR 0016); null if the lot is not this operator's. */
+    setSelfCheckin(operatorId: string, id: string, enabled: boolean): Promise<LotRow | null>;
     openingHours(lotId: string): Promise<OpeningHourRow[]>;
     openingHoursFor(lotIds: string[]): Promise<(OpeningHourRow & { lotId: string })[]>;
     /** Listable lots within `radiusM` of the point, nearest first. */
@@ -802,6 +815,13 @@ export type Store = {
       checkOutAt: Date | null;
     } | null>;
     setOverstay(sessionId: string, minutes: number, amountKobo: number): Promise<void>;
+    /** Parked (checked in, not out) and expected (paid, due within 24 h, not in) per lot. */
+    occupancy(
+      lotIds: string[],
+      now: Date,
+    ): Promise<Map<string, { parked: number; expected: number }>>;
+    /** Stay times and recorded overstay for these bookings (driver timer, ADR 0016). */
+    sessionsForBookings(bookingIds: string[]): Promise<Map<string, StaySummary>>;
   };
   lotKeys: {
     /** The lot's ACTIVE QR signing key, if it has one yet. */

@@ -94,12 +94,16 @@ export function teamRoutes(deps: AppDeps) {
       let emailHash: Buffer | null = null;
       let lotIds: string[] = [];
       if (body.role === 'ATTENDANT') {
-        const phone = normaliseNigerianPhone(body.phone);
-        if (!phone)
-          throw new ApiError('VALIDATION_FAILED', 'Check the phone number', {
-            errors: [{ path: 'phone', message: 'Enter a Nigerian mobile number.' }],
-          });
-        phoneHash = deps.crypto.lookupHash(phone);
+        if (body.email) {
+          emailHash = deps.crypto.lookupHash(body.email.trim().toLowerCase());
+        } else {
+          const phone = normaliseNigerianPhone(body.phone ?? '');
+          if (!phone)
+            throw new ApiError('VALIDATION_FAILED', 'Check the phone number', {
+              errors: [{ path: 'phone', message: 'Enter a Nigerian mobile number or an email.' }],
+            });
+          phoneHash = deps.crypto.lookupHash(phone);
+        }
         lotIds = [...new Set(body.lotIds)];
         for (const lotId of lotIds)
           if (!(await deps.store.lots.find(operatorId, lotId)))

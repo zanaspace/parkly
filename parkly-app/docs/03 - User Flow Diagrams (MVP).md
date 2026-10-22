@@ -437,7 +437,7 @@ sequenceDiagram
 
 | Rule | Behaviour |
 |---|---|
-| Go-live invariant | Server-side check: Operator KYB `APPROVED`, payout subaccount active, Permit `APPROVED` with an unexpired expiry, VerificationRecord `APPROVED` and < 12 months old, ≥ 1 rate plan, hours set, ≥ 1 attendant active. Each failing item is shown as a checklist on O-13. |
+| Go-live invariant | Server-side check: Operator KYB `APPROVED`, payout subaccount active, Permit `APPROVED` with an unexpired expiry, VerificationRecord `APPROVED` and < 12 months old, ≥ 1 rate plan, hours set. *(No attendant needed: the owner or a manager can check cars in themselves in /attend; decided 2026-10-23.)* Each failing item is shown as a checklist on O-13. |
 | Pause | Operator can `PAUSE`/resume. Existing bookings are honoured; the operator is warned about how many are affected. |
 | Events | `verification_visit_proposed`, `verification_visit_confirmed`, `lot_went_live`, `lot_paused`, `lot_resumed` |
 
@@ -445,7 +445,7 @@ sequenceDiagram
 
 | Widget (O-30) | Definition |
 |---|---|
-| Live occupancy | Parkly sessions `CHECKED_IN` now + walk-in count recorded by attendants, against `total_capacity`, per lot |
+| Live occupancy | Parkly sessions `CHECKED_IN` now + walk-in count recorded at the gate (by the owner, a manager or an attendant), against `total_capacity`, per lot |
 | Today | Bookings, check-ins, no-shows, cancellations |
 | Revenue | Gross booking value, Parkly commission, operator net. Today, 7 d, 30 d, custom. |
 | Upcoming | Next 4 h of arrivals (list) |

@@ -8809,6 +8809,11 @@
                         "minLength": 7,
                         "maxLength": 20
                       },
+                      "email": {
+                        "type": "string",
+                        "maxLength": 254,
+                        "format": "email"
+                      },
                       "lotIds": {
                         "type": "array",
                         "items": {
@@ -8821,8 +8826,7 @@
                     },
                     "required": [
                       "role",
-                      "name",
-                      "phone"
+                      "name"
                     ]
                   }
                 ]
@@ -10339,13 +10343,17 @@
                             },
                             "addressLine": {
                               "type": "string"
+                            },
+                            "selfCheckIn": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine"
+                            "addressLine",
+                            "selfCheckIn"
                           ]
                         },
                         "vehicle": {
@@ -10486,6 +10494,58 @@
                             "null"
                           ]
                         },
+                        "overstay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "graceMin": {
+                              "type": "integer"
+                            },
+                            "per15Kobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "graceMin",
+                            "per15Kobo"
+                          ]
+                        },
+                        "stay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "checkedInAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "checkedOutAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "overstayMinutes": {
+                              "type": "integer"
+                            },
+                            "overstayKobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "checkedInAt",
+                            "checkedOutAt",
+                            "overstayMinutes",
+                            "overstayKobo"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -10506,6 +10566,8 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
+                        "overstay",
+                        "stay",
                         "createdAt"
                       ]
                     },
@@ -10654,13 +10716,17 @@
                               },
                               "addressLine": {
                                 "type": "string"
+                              },
+                              "selfCheckIn": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "id",
                               "slug",
                               "name",
-                              "addressLine"
+                              "addressLine",
+                              "selfCheckIn"
                             ]
                           },
                           "vehicle": {
@@ -10801,6 +10867,58 @@
                               "null"
                             ]
                           },
+                          "overstay": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "graceMin": {
+                                "type": "integer"
+                              },
+                              "per15Kobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "graceMin",
+                              "per15Kobo"
+                            ]
+                          },
+                          "stay": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "checkedInAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              },
+                              "checkedOutAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              },
+                              "overstayMinutes": {
+                                "type": "integer"
+                              },
+                              "overstayKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "checkedInAt",
+                              "checkedOutAt",
+                              "overstayMinutes",
+                              "overstayKobo"
+                            ]
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -10821,6 +10939,8 @@
                           "totalKobo",
                           "lines",
                           "qrToken",
+                          "overstay",
+                          "stay",
                           "createdAt"
                         ]
                       }
@@ -10921,13 +11041,17 @@
                         },
                         "addressLine": {
                           "type": "string"
+                        },
+                        "selfCheckIn": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "id",
                         "slug",
                         "name",
-                        "addressLine"
+                        "addressLine",
+                        "selfCheckIn"
                       ]
                     },
                     "vehicle": {
@@ -11068,6 +11192,58 @@
                         "null"
                       ]
                     },
+                    "overstay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "graceMin": {
+                          "type": "integer"
+                        },
+                        "per15Kobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "graceMin",
+                        "per15Kobo"
+                      ]
+                    },
+                    "stay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "checkedInAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "checkedOutAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "overstayMinutes": {
+                          "type": "integer"
+                        },
+                        "overstayKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "checkedInAt",
+                        "checkedOutAt",
+                        "overstayMinutes",
+                        "overstayKobo"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -11088,6 +11264,8 @@
                     "totalKobo",
                     "lines",
                     "qrToken",
+                    "overstay",
+                    "stay",
                     "createdAt"
                   ]
                 }
@@ -11226,13 +11404,17 @@
                             },
                             "addressLine": {
                               "type": "string"
+                            },
+                            "selfCheckIn": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine"
+                            "addressLine",
+                            "selfCheckIn"
                           ]
                         },
                         "vehicle": {
@@ -11373,6 +11555,58 @@
                             "null"
                           ]
                         },
+                        "overstay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "graceMin": {
+                              "type": "integer"
+                            },
+                            "per15Kobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "graceMin",
+                            "per15Kobo"
+                          ]
+                        },
+                        "stay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "checkedInAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "checkedOutAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "overstayMinutes": {
+                              "type": "integer"
+                            },
+                            "overstayKobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "checkedInAt",
+                            "checkedOutAt",
+                            "overstayMinutes",
+                            "overstayKobo"
+                          ]
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -11393,6 +11627,8 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
+                        "overstay",
+                        "stay",
                         "createdAt"
                       ]
                     }
@@ -11985,6 +12221,403 @@
                   "required": [
                     "serverTime",
                     "results"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/lots/{lotId}/self-check-in": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Self check-in switch and poster code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "gateCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "lotId",
+                    "enabled",
+                    "gateCode"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Switched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "gateCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "lotId",
+                    "enabled",
+                    "gateCode"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}/self-check-in": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientEventId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "lng": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                },
+                "required": [
+                  "clientEventId",
+                  "code",
+                  "lat",
+                  "lng"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked in (or already in)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "APPLIED",
+                        "DUPLICATE",
+                        "CONFLICT",
+                        "REJECTED"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result",
+                    "reason"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}/self-check-out": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientEventId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "lng": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                },
+                "required": [
+                  "clientEventId",
+                  "code",
+                  "lat",
+                  "lng"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked out (or already out)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "APPLIED",
+                        "DUPLICATE",
+                        "CONFLICT",
+                        "REJECTED"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result",
+                    "reason"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/occupancy": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Who is parked now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "capacityTotal": {
+                            "type": "integer"
+                          },
+                          "parked": {
+                            "type": "integer"
+                          },
+                          "walkIns": {
+                            "type": "integer"
+                          },
+                          "expected": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "lotId",
+                          "name",
+                          "capacityTotal",
+                          "parked",
+                          "walkIns",
+                          "expected"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
                   ]
                 }
               }

@@ -162,7 +162,8 @@ async function setup() {
         clientDeviceId: opts.clientDeviceId ?? device,
         lotId: lot.id,
         batchId: opts.batchId ?? randomUUID(),
-        deviceSentAt: TEST_NOW.toISOString(),
+        // The phone and server clocks agree (drift correction is tested in attend-plan.spec).
+        deviceSentAt: w.deps.now().toISOString(),
         events,
       },
     });
@@ -414,5 +415,165 @@ describe('sync (doc 01 §5.3)', () => {
       true,
     );
     expect(t.store.attending.eventRows).toHaveLength(20);
+  });
+});
+
+describe('driver timer data (ADR 0016)', () => {
+  it('shows the overstay price, the check-in time and a live, then final, overstay', async () => {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    await t.readyDevice();
+    const view = () => t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+
+    // ₦500 an hour → ₦125 per 15 minutes after a 10-minute grace.
+    expect((await view()).body).toMatchObject({
+      overstay: { graceMin: 10, per15Kobo: 12_500 },
+      stay: null,
+    });
+
+    await t.sync([checkIn(paid.id, min(55))]);
+    expect((await view()).body?.stay).toEqual({
+      checkedInAt: min(55),
+      checkedOutAt: null,
+      overstayMinutes: 0,
+      overstayKobo: 0,
+    });
+
+    // 12:40 Lagos, still parked: 40 min past the end, 10 min grace → 30 min so far.
+    t.deps.now = () => new Date(min(220));
+    expect((await view()).body?.stay).toMatchObject({ overstayMinutes: 30, overstayKobo: 25_000 });
+
+    const out = {
+      type: 'CHECK_OUT',
+      clientEventId: randomUUID(),
+      bookingId: paid.id,
+      method: 'QR',
+      deviceTime: min(226),
+    };
+    await t.sync([out]);
+    t.deps.now = () => new Date(min(300));
+    expect((await view()).body?.stay).toEqual({
+      checkedInAt: min(55),
+      checkedOutAt: min(226),
+      overstayMinutes: 45,
+      overstayKobo: 37_500,
+    });
+  });
+});
+
+describe('live occupancy (doc 03 §2.4)', () => {
+  it('counts parked cars, walk-ins and who is still expected', async () => {
+    const t = await setup();
+    const a = await t.paidBooking('LND 111 AB');
+    await t.paidBooking('LND 222 AB');
+    await t.readyDevice();
+    await t.sync([
+      checkIn(a.id, min(55)),
+      { type: 'WALK_IN', clientEventId: randomUUID(), delta: 1, deviceTime: min(56) },
+    ]);
+    const res = await t.call('GET', `/v1/operators/${t.operatorId}/occupancy`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.body?.items).toEqual([
+      {
+        lotId: t.lot.id,
+        name: 'Eko Hotel Car Park',
+        capacityTotal: 10,
+        parked: 1,
+        walkIns: 1,
+        expected: 1,
+      },
+    ]);
+  });
+});
+
+describe('self check-in (ADR 0016)', () => {
+  const AT_LOT = { lat: 6.4301, lng: 3.4201 };
+  async function selfSetup() {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    const toggle = (enabled: boolean, as = t.ownerId) =>
+      t.call('POST', `/v1/operators/${t.operatorId}/lots/${t.lot.id}/self-check-in`, {
+        as,
+        aal: 'aal2',
+        body: { enabled },
+      });
+    const self = (
+      kind: 'in' | 'out',
+      body: Partial<{ code: string; lat: number; lng: number; clientEventId: string }> = {},
+      as = paid.driver,
+    ) =>
+      t.call('POST', `/v1/bookings/${paid.id}/self-check-${kind}`, {
+        as,
+        body: { clientEventId: randomUUID(), code: `PKG1.${t.lot.id}`, ...AT_LOT, ...body },
+      });
+    return { ...t, paid, toggle, self };
+  }
+
+  it('is off until the owner turns it on; managers and attendants cannot switch it', async () => {
+    const t = await selfSetup();
+    t.deps.now = () => new Date(min(55));
+    expect((await t.self('in')).body?.code).toBe('SELF_CHECKIN_OFF');
+    expect((await t.toggle(true, t.attendant)).status).toBe(404);
+
+    const on = await t.toggle(true);
+    expect(on.status).toBe(200);
+    expect(on.body).toEqual({ lotId: t.lot.id, enabled: true, gateCode: `PKG1.${t.lot.id}` });
+    expect(t.store.auditRows.at(-1)).toMatchObject({ action: 'lot.self_checkin_on' });
+    const read = await t.call(
+      'GET',
+      `/v1/operators/${t.operatorId}/lots/${t.lot.id}/self-check-in`,
+      {
+        as: t.ownerId,
+        aal: 'aal2',
+      },
+    );
+    expect(read.body?.enabled).toBe(true);
+    expect(
+      (await t.call('GET', `/v1/bookings/${t.paid.id}`, { as: t.paid.driver })).body?.lot,
+    ).toMatchObject({ selfCheckIn: true });
+  });
+
+  it('checks the driver in at the lot during the window, once, then out with the overstay', async () => {
+    const t = await selfSetup();
+    await t.toggle(true);
+    t.deps.now = () => new Date(min(55));
+    const id = randomUUID();
+    expect((await t.self('in', { clientEventId: id })).body).toEqual({
+      result: 'APPLIED',
+      reason: null,
+    });
+    expect((await t.self('in', { clientEventId: id })).body?.result).toBe('DUPLICATE');
+    const view = await t.call('GET', `/v1/bookings/${t.paid.id}`, { as: t.paid.driver });
+    expect(view.body).toMatchObject({ status: 'CHECKED_IN', stay: { checkedInAt: min(55) } });
+
+    t.deps.now = () => new Date(min(226));
+    expect((await t.self('out')).body?.result).toBe('APPLIED');
+    const after = await t.call('GET', `/v1/bookings/${t.paid.id}`, { as: t.paid.driver });
+    expect(after.body?.stay).toMatchObject({ overstayMinutes: 45, overstayKobo: 37_500 });
+  });
+
+  it('refuses the wrong poster, a phone far away, outside the window, and other drivers', async () => {
+    const t = await selfSetup();
+    await t.toggle(true);
+    t.deps.now = () => new Date(min(55));
+    expect((await t.self('in', { code: `PKG1.${randomUUID()}` })).body?.code).toBe('QR_WRONG_LOT');
+    expect((await t.self('in', { code: 'hello' })).body?.code).toBe('QR_WRONG_LOT');
+    expect((await t.self('in', { lat: 6.44, lng: 3.42 })).body?.code).toBe('SELF_CHECKIN_TOO_FAR');
+    expect((await t.self('out')).body?.code).toBe('BOOKING_NOT_ACTIVE');
+    expect((await t.self('in', {}, t.user())).status).toBe(404);
+    expect((await t.self('in', {}, t.ownerId)).status).toBe(404);
+    t.deps.now = () => new Date(min(0));
+    expect((await t.self('in')).body?.code).toBe('QR_OUTSIDE_WINDOW');
+  });
+
+  it('can be turned off again', async () => {
+    const t = await selfSetup();
+    await t.toggle(true);
+    await t.toggle(false);
+    t.deps.now = () => new Date(min(55));
+    expect((await t.self('in')).body?.code).toBe('SELF_CHECKIN_OFF');
+    expect((await t.self('out')).body?.code).toBe('SELF_CHECKIN_OFF');
   });
 });

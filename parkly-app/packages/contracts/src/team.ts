@@ -19,8 +19,9 @@ export const TeamMemberSchema = z.object({
 export const TeamMemberListSchema = z.object({ items: z.array(TeamMemberSchema) });
 
 /**
- * Doc 03 §2.3. Managers sign in to the portal by email; attendants use their
- * phone (attendant app, S5). Owners invite either; managers invite attendants.
+ * Doc 03 §2.3. Managers sign in to the portal by email. Attendants are invited
+ * by email or by phone (one of the two; ADR 0015: email while SMS is not
+ * live). Owners invite either role; managers invite attendants.
  */
 export const InviteMemberRequestSchema = z.discriminatedUnion('role', [
   z.object({
@@ -31,7 +32,8 @@ export const InviteMemberRequestSchema = z.discriminatedUnion('role', [
   z.object({
     role: z.literal('ATTENDANT'),
     name: z.string().trim().min(2).max(100),
-    phone: z.string().trim().min(7).max(20),
+    phone: z.string().trim().min(7).max(20).optional(),
+    email: z.email().max(254).optional(),
     lotIds: z.array(z.uuid()).max(50).default([]),
   }),
 ]);

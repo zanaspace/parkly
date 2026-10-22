@@ -26,7 +26,7 @@ export type EventPlan = {
     checkInAt?: Date;
     checkOutAt?: Date;
     addFlags: string[];
-    method?: 'QR' | 'CODE' | 'PLATE';
+    method?: 'QR' | 'CODE' | 'PLATE' | 'SELF';
   } | null;
   booking: { from: BookingStatus; to: 'CHECKED_IN' | 'COMPLETED'; reason: string } | null;
   /** NO_SHOW → CHECKED_IN: take the remaining slots again (fn_rebook_no_show). */

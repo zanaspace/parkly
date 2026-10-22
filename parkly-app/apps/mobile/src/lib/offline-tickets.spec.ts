@@ -15,6 +15,7 @@ const booking = (id: string, qrToken: string | null) => ({
     slug: 'eko',
     name: 'Eko Hotel Car Park',
     addressLine: 'VI',
+    selfCheckIn: false,
   },
   vehicle: { id: '01a162b3-dcae-740c-a25a-e148a6951c2f', plate: 'LND123AB' },
   priceKobo: 100000,
@@ -22,6 +23,8 @@ const booking = (id: string, qrToken: string | null) => ({
   totalKobo: 110000,
   lines: [],
   qrToken,
+  overstay: null,
+  stay: null,
   createdAt: '2026-10-22T16:41:26.000Z',
 });
 

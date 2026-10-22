@@ -3,6 +3,9 @@ import {
   BookingSchema,
   BootstrapResponseSchema,
   CreateBookingResponseSchema,
+  SelfCheckResultSchema,
+  type SelfCheckRequest,
+  type SelfCheckResult,
   VerifyPaymentResponseSchema,
   type Booking,
   type CreateBookingRequest,
@@ -207,6 +210,14 @@ export function createApiClient(options: ApiClientOptions) {
       (await request('GET', `/v1/bookings?status=${status}`, undefined, BookingListSchema)).items,
     booking: (id: string) =>
       request<Booking>('GET', `/v1/bookings/${encodeURIComponent(id)}`, undefined, BookingSchema),
+    /** ADR 0016: the driver scanned the entrance poster; the server checks place and time. */
+    selfCheck: (id: string, kind: 'in' | 'out', body: SelfCheckRequest) =>
+      request<SelfCheckResult>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/self-check-${kind}`,
+        body,
+        SelfCheckResultSchema,
+      ),
     /** Asks the server to check the payment with Paystack; never trusts the app's word. */
     verifyPayment: (reference: string) =>
       request<VerifyPaymentResponse>(

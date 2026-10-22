@@ -181,3 +181,15 @@ body {
 a.pk-button {
   text-decoration: none;
 }
+/* ADR 0016 entrance poster: big code, nothing else on paper. */
+.pk-poster .pk-qr {
+  width: min(100%, 24rem);
+  align-self: center;
+}
+@media print {
+  .pk-no-print,
+  header,
+  nav {
+    display: none !important;
+  }
+}

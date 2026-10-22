@@ -76,6 +76,12 @@ export const ERROR_STATUS = {
   DEVICE_NOT_APPROVED: 403,
   /** Attendant phone blocked by a manager: the app wipes its cached data. */
   DEVICE_REVOKED: 403,
+  /** The owner has not turned on self check-in for this lot (ADR 0016). */
+  SELF_CHECKIN_OFF: 422,
+  /** The phone is not at the car park. */
+  SELF_CHECKIN_TOO_FAR: 422,
+  /** Cancelled, unpaid or already finished. */
+  BOOKING_NOT_ACTIVE: 409,
   INVITE_INVALID: 422,
   INVITE_EXPIRED: 422,
 

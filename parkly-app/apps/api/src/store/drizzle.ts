@@ -176,6 +176,7 @@ const lotColumns = {
   vehicleTypes: lots.vehicleTypes,
   status: lots.status,
   statusReason: lots.statusReason,
+  selfCheckinEnabled: lots.selfCheckinEnabled,
   version: lots.version,
   createdAt: lots.createdAt,
 };
@@ -708,6 +709,14 @@ export function drizzleStore(db: Db): Store {
           .returning(lotColumns);
         if (!lot) throw new StaleVersionError();
         return lot as LotRow;
+      },
+      async setSelfCheckin(operatorId, id, enabled) {
+        const [lot] = await db
+          .update(lots)
+          .set({ selfCheckinEnabled: enabled })
+          .where(and(eq(lots.id, id), eq(lots.operatorId, operatorId)))
+          .returning(lotColumns);
+        return (lot as LotRow | undefined) ?? null;
       },
       async openingHoursFor(lotIds) {
         if (lotIds.length === 0) return [];

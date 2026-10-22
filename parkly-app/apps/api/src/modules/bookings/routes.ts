@@ -13,7 +13,11 @@ import {
 import { checkSearchWindow, isOpenDuring } from '@parkly/domain/availability';
 import { holdExpiresAt, paymentSplit } from '@parkly/domain/booking';
 import { generateBookingCode } from '@parkly/domain/codes';
-import { quote as priceQuote, type Quote as DomainQuote } from '@parkly/domain/pricing';
+import {
+  overstayCharge,
+  quote as priceQuote,
+  type Quote as DomainQuote,
+} from '@parkly/domain/pricing';
 import { lagosDateKey } from '@parkly/domain/time';
 import { v7 as uuidv7 } from 'uuid';
 import type { AppDeps } from '../../app.js';
@@ -48,8 +52,8 @@ export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
 
 export function toBooking(
   b: BookingRow,
-  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine'>,
-  qrToken: string | null = null,
+  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine' | 'selfCheckinEnabled'>,
+  extra: { qrToken?: string | null; overstay?: Booking['overstay']; stay?: Booking['stay'] } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
   return {
@@ -60,7 +64,13 @@ export function toBooking(
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     holdExpiresAt: b.status === 'PENDING_PAYMENT' ? (b.holdExpiresAt?.toISOString() ?? null) : null,
-    lot: { id: lot.id, slug: lot.slug, name: lot.name, addressLine: lot.addressLine },
+    lot: {
+      id: lot.id,
+      slug: lot.slug,
+      name: lot.name,
+      addressLine: lot.addressLine,
+      selfCheckIn: lot.selfCheckinEnabled,
+    },
     vehicle: { id: b.vehicleId, plate: b.plateNorm },
     priceKobo: b.priceKobo,
     serviceFeeKobo: b.serviceFeeKobo,
@@ -74,7 +84,9 @@ export function toBooking(
       operatorAmountKobo: 0,
       lines,
     }).lines,
-    qrToken,
+    qrToken: extra.qrToken ?? null,
+    overstay: extra.overstay ?? null,
+    stay: extra.stay ?? null,
     createdAt: b.createdAt.toISOString(),
   };
 }
@@ -89,6 +101,63 @@ export function bookingRoutes(deps: AppDeps) {
   const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const secured = { security: [{ bearerAuth: [] }], middleware };
   const ticketFor = qrTickets(deps);
+
+  /**
+   * Ticket, overstay price and stay for each booking (ADR 0016). Overstay is
+   * priced here with the domain engine: live while the car is still in past
+   * end + grace, as recorded after check-out.
+   */
+  async function viewsFor(rows: BookingRow[]) {
+    const now = deps.now();
+    const [stays, graceMin] = await Promise.all([
+      deps.store.attend.sessionsForBookings(rows.map((r) => r.id)),
+      deps.store.settings.get<number>('session.overstay_grace_min').then((v) => v ?? 10),
+    ]);
+    const plansByLot = new Map<
+      string,
+      Awaited<ReturnType<typeof deps.store.ratePlans.activeFor>>
+    >();
+    for (const lotId of new Set(rows.map((r) => r.lotId)))
+      plansByLot.set(lotId, await deps.store.ratePlans.activeFor([lotId]));
+    const price = (b: BookingRow, checkOutAt: Date) => {
+      try {
+        const q = overstayCharge({
+          ratePlans: plansByLot.get(b.lotId) ?? [],
+          endAt: b.endAt,
+          checkOutAt,
+          graceMin,
+          commissionBps: b.commissionBps,
+        });
+        const line = q.lines[0];
+        return { minutes: line?.kind === 'OVERSTAY' ? line.minutes : 0, kobo: q.priceKobo };
+      } catch {
+        return null; // no hourly or daily price to base it on
+      }
+    };
+    return Promise.all(
+      rows.map(async (b) => {
+        const one = price(b, new Date(b.endAt.getTime() + (graceMin + 1) * 60_000));
+        const s = stays.get(b.id);
+        let stay: Booking['stay'] = null;
+        if (s) {
+          const late =
+            !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + graceMin * 60_000;
+          const live = late ? price(b, now) : null;
+          stay = {
+            checkedInAt: s.checkInAt?.toISOString() ?? null,
+            checkedOutAt: s.checkOutAt?.toISOString() ?? null,
+            overstayMinutes: live ? live.minutes : s.overstayMinutes,
+            overstayKobo: live ? live.kobo : s.overstayAmountKobo,
+          };
+        }
+        return {
+          qrToken: await ticketFor(b),
+          overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
+          stay,
+        };
+      }),
+    );
+  }
 
   async function lotOf(lotId: string) {
     const lot = await deps.store.lots.findById(lotId);
@@ -295,9 +364,8 @@ export function bookingRoutes(deps: AppDeps) {
       );
       const lots = new Map<string, LotRow>();
       for (const id of new Set(rows.map((r) => r.lotId))) lots.set(id, await lotOf(id));
-      const items = await Promise.all(
-        rows.map(async (r) => toBooking(r, lots.get(r.lotId) as LotRow, await ticketFor(r))),
-      );
+      const views = await viewsFor(rows);
+      const items = rows.map((r, i) => toBooking(r, lots.get(r.lotId) as LotRow, views[i]));
       return c.json({ items }, 200);
     },
   );
@@ -313,7 +381,8 @@ export function bookingRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const booking = await ownBooking(c, c.req.valid('param').id);
-      return c.json(toBooking(booking, await lotOf(booking.lotId), await ticketFor(booking)), 200);
+      const [view] = await viewsFor([booking]);
+      return c.json(toBooking(booking, await lotOf(booking.lotId), view), 200);
     },
   );
 
@@ -351,7 +420,7 @@ export function bookingRoutes(deps: AppDeps) {
       return c.json(
         {
           payment: toCheckout(current, booking),
-          booking: toBooking(booking, await lotOf(booking.lotId), await ticketFor(booking)),
+          booking: toBooking(booking, await lotOf(booking.lotId), (await viewsFor([booking]))[0]),
         },
         200,
       );

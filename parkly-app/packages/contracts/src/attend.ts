@@ -115,6 +115,47 @@ export const OperatorDeviceSchema = z.object({
 export const OperatorDeviceListSchema = z.object({ items: z.array(OperatorDeviceSchema) });
 export const DeviceDecisionSchema = z.object({ decision: z.enum(['approve', 'revoke']) });
 
+/** Driver self check-in / check-out (ADR 0016): the scanned entrance code and where the phone is. */
+export const SelfCheckRequestSchema = z.object({
+  /** The app's idempotency key for this tap: a repeat is the same check-in. */
+  clientEventId: z.uuid(),
+  code: z.string().max(80),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+/** Owner's switch for a lot, and the text the entrance poster's QR holds. */
+export const SelfCheckinSettingSchema = z.object({
+  lotId: z.uuid(),
+  enabled: z.boolean(),
+  gateCode: z.string(),
+});
+export const SelfCheckinUpdateSchema = z.object({ enabled: z.boolean() });
+/** DUPLICATE: the same tap again; CONFLICT: already in (or out) by another route. */
+export const SelfCheckResultSchema = z.object({
+  result: z.enum(['APPLIED', 'DUPLICATE', 'CONFLICT', 'REJECTED']),
+  reason: z.string().nullable(),
+});
+
+/** Portal home: who is in each lot now (doc 03 §2.4 live occupancy). */
+export const OccupancySchema = z.object({
+  items: z.array(
+    z.object({
+      lotId: z.uuid(),
+      name: z.string(),
+      capacityTotal: z.number().int(),
+      /** Parkly cars checked in and not yet out. */
+      parked: z.number().int(),
+      walkIns: z.number().int(),
+      /** Paid bookings due in the next 24 h that have not arrived. */
+      expected: z.number().int(),
+    }),
+  ),
+});
+
+export type Occupancy = z.infer<typeof OccupancySchema>;
+export type SelfCheckinSetting = z.infer<typeof SelfCheckinSettingSchema>;
+export type SelfCheckRequest = z.infer<typeof SelfCheckRequestSchema>;
+export type SelfCheckResult = z.infer<typeof SelfCheckResultSchema>;
 export type ManifestBooking = z.infer<typeof ManifestBookingSchema>;
 export type Manifest = z.infer<typeof ManifestSchema>;
 export type AttendEvent = z.infer<typeof AttendEventSchema>;

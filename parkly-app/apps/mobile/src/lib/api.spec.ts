@@ -173,6 +173,7 @@ describe('place search', () => {
         slug: 'eko',
         name: 'Eko Hotel Car Park',
         addressLine: 'VI',
+        selfCheckIn: false,
       },
       vehicle: { id: vehicle.id, plate: 'LND123AB' },
       priceKobo: 100000,
@@ -180,6 +181,8 @@ describe('place search', () => {
       totalKobo: 110000,
       lines: [],
       qrToken: null,
+      overstay: null,
+      stay: null,
       createdAt: '2026-10-19T08:00:00.000Z',
     };
     const payment = {

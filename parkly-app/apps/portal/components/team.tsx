@@ -2,7 +2,7 @@
 
 import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useActionState, useState } from 'react';
-import { acceptInvite, inviteMember, removeMember } from '../lib/team/actions';
+import { acceptInvite, decideDevice, inviteMember, removeMember } from '../lib/team/actions';
 import { whatsappShare } from '../lib/team/copy';
 
 function Notice({ tone, children }: { tone: 'error' | 'info'; children: React.ReactNode }) {
@@ -113,13 +113,11 @@ export function InviteForm(props: {
           />
         ) : (
           <Input
-            key="phone"
-            label="Their phone number"
+            key="attendant"
+            label="Their email address or phone number"
             name="contact"
-            type="tel"
-            inputMode="tel"
             autoComplete="off"
-            helper="Attendants sign in with this number (Nigerian mobile)."
+            helper="Email for now (they sign up with it and a password); phone works once SMS is live."
             required
             error={state?.fieldErrors?.contact}
           />
@@ -151,6 +149,31 @@ export function RemoveMemberButton(props: { operatorId: string; memberId: string
       <input type="hidden" name="memberId" value={props.memberId} />
       <Button type="submit" variant="ghost" size="sm" loading={pending}>
         {props.label}
+      </Button>
+      {state?.error && <Notice tone="error">{state.error}</Notice>}
+    </ActionForm>
+  );
+}
+
+/** O-20 attendant phones: approve a new phone, or block one (its data is wiped). */
+export function DeviceDecisionButton(props: {
+  operatorId: string;
+  deviceId: string;
+  decision: 'approve' | 'revoke';
+}) {
+  const [state, action, pending] = useActionState(decideDevice, undefined);
+  return (
+    <ActionForm action={action}>
+      <input type="hidden" name="operatorId" value={props.operatorId} />
+      <input type="hidden" name="deviceId" value={props.deviceId} />
+      <input type="hidden" name="decision" value={props.decision} />
+      <Button
+        type="submit"
+        size="sm"
+        variant={props.decision === 'approve' ? 'primary' : 'ghost'}
+        loading={pending}
+      >
+        {props.decision === 'approve' ? 'Approve' : 'Block'}
       </Button>
       {state?.error && <Notice tone="error">{state.error}</Notice>}
     </ActionForm>

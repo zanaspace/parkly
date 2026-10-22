@@ -247,3 +247,29 @@ export async function submitLot(_prev: SubmitLotState, form: FormData): Promise<
   revalidatePath('/lots');
   return undefined;
 }
+
+/** ADR 0016: the owner's self check-in switch (owner only; audited by the API). */
+export async function setSelfCheckin(
+  _prev: { error?: string } | undefined,
+  form: FormData,
+): Promise<{ error?: string } | undefined> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/self-check-in`,
+      await token(),
+      { method: 'POST', body: { enabled: form.get('enabled') === 'true' } },
+    );
+  } catch (err) {
+    return {
+      error:
+        err instanceof ApiProblem && err.status === 404
+          ? 'Only the owner can switch self check-in.'
+          : 'Something went wrong. Please try again.',
+    };
+  }
+  revalidatePath(`/lots/${lotId}`);
+  return undefined;
+}

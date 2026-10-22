@@ -263,3 +263,26 @@ describe('invite preview (doc 03 §2.3 step 2)', () => {
     expect(last).toBe(429);
   });
 });
+
+describe('attendant invites by email (ADR 0015)', () => {
+  it('invites an attendant by email and lets that email accept', async () => {
+    const t = await setup();
+    const res = await t.w.call('POST', t.base, {
+      ...t.as(t.owner),
+      body: { role: 'ATTENDANT', name: 'Musa Bello', email: 'Musa@Example.com' },
+    });
+    expect(res.status).toBe(201);
+    const attendant = t.w.user([]);
+    const accepted = await t.w.call('POST', '/v1/auth/invites/accept', {
+      as: attendant,
+      email: 'musa@example.com',
+      body: { inviteToken: res.body?.inviteToken },
+    });
+    expect(accepted.body).toMatchObject({ role: 'ATTENDANT' });
+    const none = await t.w.call('POST', t.base, {
+      ...t.as(t.owner),
+      body: { role: 'ATTENDANT', name: 'No Contact' },
+    });
+    expect(none.body?.code).toBe('VALIDATION_FAILED');
+  });
+});

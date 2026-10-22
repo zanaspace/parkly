@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, eq, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { planEvent } from './attend-plan.js';
 import type { AttendDeviceRow, AttendEventResult, Store } from './types.js';
@@ -349,6 +349,61 @@ export function drizzleAttend(db: Db): {
           .innerJoin(bookings, eq(bookings.id, sessions.bookingId))
           .where(eq(sessions.id, id));
         return row ?? null;
+      },
+
+      async occupancy(lotIds, now) {
+        const out = new Map<string, { parked: number; expected: number }>();
+        for (const lotId of lotIds) out.set(lotId, { parked: 0, expected: 0 });
+        if (lotIds.length === 0) return out;
+        const parked = await db
+          .select({ lotId: sessions.lotId, n: sql<number>`count(*)::int` })
+          .from(sessions)
+          .where(
+            and(
+              inArray(sessions.lotId, lotIds),
+              isNotNull(sessions.checkInAt),
+              isNull(sessions.checkOutAt),
+            ),
+          )
+          .groupBy(sessions.lotId);
+        const expected = await db
+          .select({ lotId: bookings.lotId, n: sql<number>`count(*)::int` })
+          .from(bookings)
+          .leftJoin(sessions, eq(sessions.bookingId, bookings.id))
+          .where(
+            and(
+              inArray(bookings.lotId, lotIds),
+              inArray(bookings.status, ['CONFIRMED', 'NO_SHOW']),
+              gt(bookings.endAt, now),
+              lt(bookings.startAt, new Date(now.getTime() + 24 * 60 * 60_000)),
+              isNull(sessions.checkInAt),
+            ),
+          )
+          .groupBy(bookings.lotId);
+        for (const r of parked) {
+          const o = out.get(r.lotId);
+          if (o) o.parked = r.n;
+        }
+        for (const r of expected) {
+          const o = out.get(r.lotId);
+          if (o) o.expected = r.n;
+        }
+        return out;
+      },
+
+      async sessionsForBookings(ids) {
+        if (ids.length === 0) return new Map();
+        const rows = await db
+          .select({
+            bookingId: sessions.bookingId,
+            checkInAt: sessions.checkInAt,
+            checkOutAt: sessions.checkOutAt,
+            overstayMinutes: sessions.overstayMinutes,
+            overstayAmountKobo: sessions.overstayAmountKobo,
+          })
+          .from(sessions)
+          .where(inArray(sessions.bookingId, ids));
+        return new Map(rows.map(({ bookingId, ...rest }) => [bookingId, rest]));
       },
 
       async setOverstay(sessionId, minutes, amountKobo) {

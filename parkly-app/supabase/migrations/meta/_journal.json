@@ -57,6 +57,13 @@
       "when": 1792704200084,
       "tag": "20261023090000_sessions_checkin_events",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792711842964,
+      "tag": "20261023100000_self_checkin",
+      "breakpoints": true
     }
   ]
 }

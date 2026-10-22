@@ -1280,6 +1280,11 @@ export function storeContract(
         expect(first.results.map((r) => r.result)).toEqual(['APPLIED', 'APPLIED']);
         expect((await store.bookings.find(booking.id))?.status).toBe('CHECKED_IN');
         expect(await store.attend.walkIns(lot.lotId)).toBe(1);
+        expect(
+          (await store.attend.occupancy([lot.lotId], new Date('2027-01-05T07:30:00Z'))).get(
+            lot.lotId,
+          ),
+        ).toEqual({ parked: 1, expected: 0 });
         expect((await store.attend.applyBatch(b1, [inEvent])).results[0]?.result).toBe('DUPLICATE');
         expect((await store.attend.applyBatch(batch(), [inEvent])).results[0]?.result).toBe(
           'DUPLICATE',
@@ -1300,6 +1305,14 @@ export function storeContract(
         const s = await store.attend.session(out.checkedOut[0] ?? '');
         expect(s).toMatchObject({ bookingId: booking.id, commissionBps: 1200 });
         await store.attend.setOverstay(out.checkedOut[0] ?? '', 30, 25_000);
+        const stays = await store.attend.sessionsForBookings([booking.id, randomUUID()]);
+        expect(stays.get(booking.id)).toEqual({
+          checkInAt: new Date('2027-01-05T07:05:00Z'),
+          checkOutAt: new Date('2027-01-05T09:40:00Z'),
+          overstayMinutes: 30,
+          overstayAmountKobo: 25_000,
+        });
+        expect(stays.size).toBe(1);
 
         const manifest = await store.attend.manifest(lot.lotId, START, END);
         expect(manifest).toEqual([
@@ -1339,6 +1352,43 @@ export function storeContract(
         await store.idempotency.release(actorId, other.key);
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
       });
+    });
+
+    it('keeps the owner’s self check-in switch per lot', async () => {
+      const owner = await newUser([]);
+      const op = await store.operators.create({
+        legalName: 'Self Ltd',
+        tradingName: 'Self',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const lot = await store.lots.create({
+        operatorId: op.id,
+        type: 'HOTEL',
+        name: 'Self lot',
+        slug: `self-${randomUUID()}`,
+        description: null,
+        addressLine: '1 Road',
+        area: null,
+        lga: null,
+        location: { lat: 6.43, lng: 3.42 },
+        entranceNotes: null,
+        capacityTotal: 2,
+        capacityBookable: 1,
+        amenities: [],
+        vehicleTypes: ['CAR'],
+        createdBy: owner,
+      });
+      expect(lot.selfCheckinEnabled).toBe(false);
+      expect((await store.lots.setSelfCheckin(op.id, lot.id, true))?.selfCheckinEnabled).toBe(true);
+      expect((await store.lots.findById(lot.id))?.selfCheckinEnabled).toBe(true);
+      expect(await store.lots.setSelfCheckin(randomUUID(), lot.id, false)).toBeNull();
     });
 
     it('keeps one active QR signing key per lot', async () => {
