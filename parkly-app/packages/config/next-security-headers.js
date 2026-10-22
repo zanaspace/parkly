@@ -10,6 +10,8 @@ export function securityHeaders({ isDev, connectSrc = [], imgSrc = [] }) {
     `img-src 'self' data: blob:${imgSrc.map((s) => ` ${s}`).join('')}`,
     "font-src 'self'",
     `connect-src 'self' ${connectSrc.join(' ')}${isDev ? ' ws:' : ''}`.trim(),
+    // MapLibre (ADR 0014) runs its tile parser in a worker created from a blob URL.
+    "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
