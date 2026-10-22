@@ -7,7 +7,7 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | S0 | Foundations: monorepo, API skeleton, database, jobs, design tokens, app skeletons, CI | **Done**, platform items carried over (staging/prod, CI secrets, Sentry, external accounts) | [S0-report.md](S0-report.md) |
 | S1 | Identity and access: driver phone OTP, operator/admin password + MFA, RBAC, audit log, vehicles | **Done**; attendant sign-in → S5, real-number OTP → Termii | [S1-report.md](S1-report.md) |
 | S2 | Operators, lots, permits, verification: operator onboarding + KYB, lot wizard, admin review and go-live, permit expiry job, team invites | **Done (code complete)**; dev demo run and staging pending | [S2-report.md](S2-report.md) |
-| S3 | Lot discovery: drivers search near a destination and see prices and availability (mobile + web) | **In progress** (pricing engine done); Google Maps key being created | [S3-report.md](S3-report.md) |
+| S3 | Lot discovery: drivers search near a destination and see prices and availability (mobile + web) | **In progress** (pricing, availability, search API, demo data, website done); mobile and Google Maps next | [S3-report.md](S3-report.md) |
 
 ## What exists on dev today
 
@@ -16,7 +16,7 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | API | https://parkly-api-six.vercel.app | Every app; `pg_cron` jobs |
 | Operator portal | https://parkly-portal.vercel.app | Operator owners and managers |
 | Admin console | https://parkly-khaki.vercel.app | Parkly staff |
-| Driver web | https://parkly-web-two.vercel.app | Skeleton until S3 |
+| Driver web | https://parkly-web-two.vercel.app | Drivers: search, results and lot pages (booking from S4) |
 | Driver mobile app | Expo / EAS Android test builds | Drivers (sign-in, profile, vehicles until S3) |
 
 Environments, variables and secrets: [doc 22](../22%20-%20Environment%20Setup.md).

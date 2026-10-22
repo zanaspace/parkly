@@ -1,6 +1,6 @@
 # Sprint 3 — Lot discovery: progress report
 
-- **Status:** In progress. Stories 1–4 are done (pricing engine, availability, driver lot API, demo data + latency check).
+- **Status:** In progress. Stories 1–5 are done (pricing engine, availability, driver lot API, demo data + latency check, driver website).
 - **Updated:** 2026-10-22
 - **Entry check:** S2 is done (code complete); its open items are in `S2-report.md` § Carried over and doc 20 §6. The Google Maps key is being created by the owner (PRD §12: needed by S3); work that needs it comes last.
 
@@ -16,7 +16,7 @@ Drivers find verified lots near a destination and see accurate prices and availa
 | 2 | Availability: `lot_slot_inventory` table + read path (`availableCount` for a window), booking window limits, opening hours | task 2 | **Done** |
 | 3 | Driver lot API: `GET /v1/lots/search` (PostGIS, LIVE only, distance, price and availability for the window), `GET /v1/lots/:idOrSlug`, availability, `POST /v1/lots/:id/quote`; public photo links | FR-LOT-101/102, task 3 | **Done** |
 | 4 | Seed script with realistic Victoria Island lots; latency check | task 7, exit criterion | **Done** |
-| 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | To do |
+| 5 | Web: search + results + lot page (public, SEO) | FR-LOT-101/102, task 6 | **Done** |
 | 6 | Mobile: home/search, results list + map, lot detail, time picker, quote | task 5 | To do |
 | 7 | Places autocomplete + place details proxied through the API (Google key) | FR-LOT-101, task 4 | Waiting for the Google Maps key |
 | — | Fix: operators change prices on live lots; rejected changes show their reason | FR-LOT-005 | **Done** |
@@ -73,3 +73,13 @@ Found while testing search on dev: the "Testing" lot's hourly price had been rej
 - **On dev now:** the 12 demo lots are loaded. A 5 km search around Victoria Island returns 10 of them (the two Lekki lots are just over 5 km away).
 - **Latency** (exit criterion: p95 < 800 ms with 500 lots): with 512 lots loaded on dev, 40 searches from Lagos against the live dev API (5 km radius, 50 results each) took **p50 325 ms, p95 508 ms, max 665 ms**, network included. The 500 extra lots were then removed. `tests/load/search.js` is the k6 scenario of doc 02 §12.9 (100 users, p95 < 500 ms) for staging before launch.
 - **Tests:** +3 (demo data).
+
+### Story 5: driver website (`apps/web`)
+
+- **Home (D-10/D-11)** `/`: search by area (9 Lagos areas, Victoria Island first, doc 00 Q1) or "Near me" (browser location), date (today to 30 days ahead), arrival time on the quarter hour and duration (1–12 hours or a full day); popular-area shortcuts. A plain GET form, so it works before JavaScript loads.
+- **Results (D-12)** `/search`: verified car parks nearest first (or cheapest), each with photo (or placeholder), area and distance, facilities, the "Verified" badge, spaces band ("Few left" under 5, "Full", "Closed at that time") and the server's total for the window. Nothing within 2 km widens to 3 km automatically (doc 03 §1.2), then an empty state with "Search within 5 km". Not indexed by search engines.
+- **Lot page (D-13, public SEO page)** `/lots/{slug}`: photos, address, the exact price for the chosen time with the server's breakdown and total, free spaces, "Booking opens soon" (S4), directions (Google Maps link, no key needed), entrance notes, rate card, opening hours with today highlighted, facilities, the verified sheet (visit date, permit last 4, checks passed, operator) and policies. Page title, description and schema.org `ParkingFacility` data for search engines; the lot data is cached for 60 s.
+- **Prices are never computed in the browser** (doc 00 §3.4): every amount shown comes from the API's quote; the site only formats kobo as naira.
+- **Checked against the live dev API** (local run): Victoria Island returns 9 demo car parks with totals and spaces; Ikeja widens to 3 km and shows the empty state; the lot page prices 10 hours at ₦5,000 + ₦100 fee = ₦5,100; unknown lots return 404; a past date shows a plain message.
+- **Until the Google Maps key is ready** there is no interactive map and no typed-address search (story 7); the area list and "Near me" cover search.
+- **Tests:** +11 (web search helpers: defaults, Lagos time, full days, links, labels).

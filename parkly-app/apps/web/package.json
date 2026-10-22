@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "eslint .",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@parkly/config": "workspace:*",
@@ -16,7 +17,9 @@
     "@parkly/ui": "workspace:*",
     "next": "16.4.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "@parkly/contracts": "workspace:*",
+    "@parkly/domain": "workspace:*"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "16.4.1",
@@ -24,6 +27,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "eslint": "10.12.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
   }
 }
