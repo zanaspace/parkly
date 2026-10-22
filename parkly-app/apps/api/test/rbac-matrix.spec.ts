@@ -240,6 +240,11 @@ const COVERED_ELSEWHERE = new Set([
   'DELETE /v1/operators/{operatorId}/members/{memberId}',
   'POST /v1/auth/invites/accept',
   'POST /v1/invites/preview', // public, token-gated and rate limited; team.spec
+  // Public driver discovery: no sign-in, only listable lots (discovery.spec)
+  'GET /v1/lots/search',
+  'GET /v1/lots/{idOrSlug}',
+  'GET /v1/lots/{lotId}/availability',
+  'POST /v1/lots/{lotId}/quote',
 ]);
 
 describe('RBAC matrix', () => {

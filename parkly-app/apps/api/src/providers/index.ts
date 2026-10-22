@@ -103,6 +103,8 @@ export interface StorageProvider {
     contentType: string;
   }): Promise<void>;
   remove(input: { bucket: Bucket; paths: string[] }): Promise<void>;
+  /** Permanent CDN link; only the public bucket of approved lot photos (C1, doc 06). */
+  publicUrl(input: { bucket: 'lot-photos-public'; path: string }): string;
 }
 
 export type Bank = { code: string; name: string };

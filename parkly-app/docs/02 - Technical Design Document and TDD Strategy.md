@@ -503,10 +503,10 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 ### 6.3 Lots (driver-facing)
 | Method | Path | Role | Notes | Errors |
 |---|---|---|---|---|
-| GET | `/lots/search` | PUB/DRV | `lat,lng,radiusM(≤5000),startAt,endAt,product,amenities[],sort(distance|price)` → `{items[{lot summary, distanceM, quote, availableCount, verifiedBadge}]}` LIVE only | `SEARCH_INVALID_WINDOW` |
-| GET | `/lots/:idOrSlug` | PUB/DRV | profile, photos, hours, amenities, rate plans, permit status badge (no doc) | `LOT_NOT_FOUND` |
-| GET | `/lots/:id/availability` | PUB/DRV | `startAt,endAt` → `{availableCount, isAvailable}` | |
-| POST | `/lots/:id/quote` | PUB/DRV | `{product, startAt, endAt}` → Quote | `PRICING_INVALID_DURATION`, `BOOKING_OUTSIDE_OPENING_HOURS` |
+| GET | `/lots/search` | PUB/DRV | `lat,lng,radiusM(100–5000, default 2000),startAt,endAt,product(HOURLY\|DAILY),amenities(csv),sort(distance\|price)` → `{items[{id, slug, name, type, addressLine, area, location, distanceM, amenities, photoUrl, isOpen, availableCount, isAvailable, quote}], radiusM}`: up to 50 listable lots (LIVE + operator active + approved permit and verification valid today), nearest first; lots that don't sell the product or whose minimum stay is longer are left out; quotes from the domain engine (no commission) | `SEARCH_INVALID_WINDOW` |
+| GET | `/lots/:idOrSlug` | PUB/DRV | listable lots only: profile, hours, amenities, up to 8 public photo URLs, ACTIVE prices, verified sheet `{permitNumberLast4, verifiedOn, checksPassed}` (no document); `cache-control: public, s-maxage=60` | `LOT_NOT_FOUND` |
+| GET | `/lots/:id/availability` | PUB/DRV | `startAt,endAt,product` → `{isOpen, availableCount, isAvailable}` (minimum over the window's slots; 0 when closed) | `SEARCH_INVALID_WINDOW`, `LOT_NOT_FOUND` |
+| POST | `/lots/:id/quote` | PUB/DRV | `{product, startAt, endAt}` → `{product, priceKobo, serviceFeeKobo, totalKobo, lines}`; MONTHLY runs 30 days from the start date | `PRICING_INVALID_DURATION`, `BOOKING_OUTSIDE_OPENING_HOURS`, `BOOKING_WINDOW_INVALID`, `LOT_NOT_BOOKABLE` (product not sold), `LOT_NOT_FOUND` |
 | GET | `/places/autocomplete` · `/places/:placeId` | PUB/DRV | proxied Google Places (keys never in clients other than map SDK key restricted to app) | `MAPS_UNAVAILABLE` |
 
 ### 6.4 Bookings (driver)

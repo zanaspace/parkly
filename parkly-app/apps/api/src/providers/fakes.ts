@@ -123,6 +123,10 @@ export class FakeStorageProvider implements StorageProvider {
       token: 'upload-token',
     };
   }
+  publicUrl(input: { bucket: 'lot-photos-public'; path: string }) {
+    return `https://storage.fake/public/${input.bucket}/${input.path}`;
+  }
+
   async createSignedDownloadUrl(input: { bucket: Bucket; path: string; expiresInSec: number }) {
     return `https://storage.fake/${input.bucket}/${input.path}?expires=${input.expiresInSec}`;
   }

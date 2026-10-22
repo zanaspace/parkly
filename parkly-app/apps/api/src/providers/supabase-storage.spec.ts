@@ -124,3 +124,15 @@ describe('Supabase Storage adapter', () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe('public lot photo links', () => {
+  it('builds a permanent CDN link without calling the API or exposing the key', () => {
+    const { storage, calls } = make(() => json(500, {}));
+    const url = storage.publicUrl({ bucket: 'lot-photos-public', path: 'lots/a b/1.webp' });
+    expect(url).toBe(
+      'https://proj.supabase.co/storage/v1/object/public/lot-photos-public/lots/a%20b/1.webp',
+    );
+    expect(url).not.toContain(KEY);
+    expect(calls).toHaveLength(0);
+  });
+});

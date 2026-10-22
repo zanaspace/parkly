@@ -130,6 +130,13 @@ export type LotRow = LotFields & {
   createdAt: Date;
 };
 
+/**
+ * A lot drivers may see (doc 00 non-negotiable 2): LIVE, operator active with
+ * KYB approved, an APPROVED permit and an APPROVED verification both still
+ * valid on the Lagos date given.
+ */
+export type LiveLotRow = LotRow & { operatorName: string; commissionBps: number };
+
 /** `HH:MM` in Africa/Lagos; both null when `is24h`. */
 export type OpeningHourRow = {
   weekday: number;
@@ -398,6 +405,17 @@ export type Store = {
       reason: string | null,
     ): Promise<LotRow>;
     openingHours(lotId: string): Promise<OpeningHourRow[]>;
+    openingHoursFor(lotIds: string[]): Promise<(OpeningHourRow & { lotId: string })[]>;
+    /** Listable lots within `radiusM` of the point, nearest first. */
+    searchLive(q: {
+      lat: number;
+      lng: number;
+      radiusM: number;
+      today: string;
+      limit: number;
+    }): Promise<(LiveLotRow & { distanceM: number })[]>;
+    /** A listable lot by id or slug; null when missing or not listable. */
+    findLive(idOrSlug: string, today: string): Promise<LiveLotRow | null>;
     /** Replaces the whole week (days left out are closed). */
     setOpeningHours(lotId: string, days: OpeningHourRow[]): Promise<void>;
   };
@@ -413,6 +431,8 @@ export type Store = {
     /** The most recently submitted permit for the lot. */
     latest(lotId: string): Promise<PermitRow | null>;
     find(id: string): Promise<PermitRow | null>;
+    /** The APPROVED permit still valid on `today` with the latest expiry. */
+    currentApproved(lotId: string, today: string): Promise<PermitRow | null>;
     /** From SUBMITTED or IN_REVIEW only (StaleVersionError otherwise). */
     approve(id: string, review: Review & { note: string }): Promise<PermitRow>;
     reject(id: string, review: Review & { reason: string }): Promise<PermitRow>;
@@ -435,6 +455,8 @@ export type Store = {
     /** ACTIVE and PENDING_APPROVAL plans, HOURLY → DAILY → MONTHLY. */
     current(lotId: string): Promise<RatePlanRow[]>;
     find(id: string): Promise<RatePlanRow | null>;
+    /** ACTIVE plans of these lots. */
+    activeFor(lotIds: string[]): Promise<RatePlanRow[]>;
     /**
      * PENDING_APPROVAL → ACTIVE from `at` (new bookings only), retiring the
      * product's previous ACTIVE plan in the same transaction. StaleVersionError
@@ -449,6 +471,8 @@ export type Store = {
     list(lotId: string): Promise<(LotPhotoRow & { sizeBytes: number })[]>;
     find(lotId: string, id: string): Promise<LotPhotoRow | null>;
     findById(id: string): Promise<LotPhotoRow | null>;
+    /** Approved photos with their public copy, in display order. */
+    publicFor(lotIds: string[]): Promise<{ lotId: string; path: string; sort: number }[]>;
     /** From PENDING only (StaleVersionError otherwise); approval records the public copy. */
     review(
       id: string,
@@ -465,6 +489,8 @@ export type Store = {
     ): Promise<VerificationRow>;
     /** The most recent visit for the lot. */
     latest(lotId: string): Promise<VerificationRow | null>;
+    /** The APPROVED visit still valid on `today` with the latest inspection. */
+    currentApproved(lotId: string, today: string): Promise<VerificationRow | null>;
     find(id: string): Promise<VerificationRow | null>;
     /**
      * SUBMITTED/IN_REVIEW → APPROVED. In the same transaction a lower count on
