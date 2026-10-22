@@ -72,6 +72,10 @@ export const ERROR_STATUS = {
   PASS_NOT_OFFERED: 422,
   VEHICLE_LIMIT_REACHED: 422,
   DEVICE_LIMIT_REACHED: 422,
+  /** Attendant phone registered but not yet approved by a manager (doc 05 §4.4). */
+  DEVICE_NOT_APPROVED: 403,
+  /** Attendant phone blocked by a manager: the app wipes its cached data. */
+  DEVICE_REVOKED: 403,
   INVITE_INVALID: 422,
   INVITE_EXPIRED: 422,
 

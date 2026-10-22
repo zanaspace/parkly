@@ -27,6 +27,7 @@ import {
   type VehicleRow,
   type VerificationRow,
 } from './types.js';
+import { MemoryAttend } from './memory-attend.js';
 import { MemoryBookings } from './memory-bookings.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
@@ -89,7 +90,17 @@ export class MemoryStore implements Store {
       this.lotKeyRows.push(created);
       return { ...created };
     },
+    forManifest: (lotId) => this.attending.forManifest(lotId),
   };
+  /** Attendant devices, manifest and sync (Sprint 5). */
+  readonly attending = new MemoryAttend({
+    bookings: this.booking,
+    lotRows: this.lotRows,
+    slotRows: this.slotRows,
+    userRows: this.userRows,
+    lotKeyRows: this.lotKeyRows,
+  });
+  readonly attend: Store['attend'] = this.attending.attend;
 
   /** Test helper: what the on_auth_user_created trigger does. */
   seedUser(

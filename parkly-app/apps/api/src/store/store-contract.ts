@@ -1195,6 +1195,124 @@ export function storeContract(
         await store.webhooks.finish(first.id, 'PROCESSED', null, AT);
       });
 
+      it('registers, approves and blocks attendant phones', async () => {
+        const lot = await liveLot(1);
+        const attendant = await newUser([]);
+        const phone = randomUUID();
+        const reg = await store.attend.registerDevice({
+          userId: attendant,
+          clientDeviceId: phone,
+          operatorId: lot.operatorId,
+          lotId: lot.lotId,
+          approve: false,
+          at: AT,
+        });
+        expect(reg).toMatchObject({ lotId: lot.lotId, approvedAt: null, revokedAt: null });
+        await store.attend.decideDevice({
+          operatorId: lot.operatorId,
+          deviceId: reg.id,
+          decision: 'approve',
+          by: attendant,
+          at: AT,
+        });
+        expect((await store.attend.device(attendant, phone))?.approvedAt).not.toBeNull();
+        await store.attend.decideDevice({
+          operatorId: lot.operatorId,
+          deviceId: reg.id,
+          decision: 'revoke',
+          by: attendant,
+          at: AT,
+        });
+        const again = await store.attend.registerDevice({
+          userId: attendant,
+          clientDeviceId: phone,
+          operatorId: lot.operatorId,
+          lotId: lot.lotId,
+          approve: true,
+          at: AT,
+        });
+        expect(again.revokedAt).not.toBeNull();
+        expect(
+          await store.attend.decideDevice({
+            operatorId: randomUUID(),
+            deviceId: reg.id,
+            decision: 'approve',
+            by: attendant,
+            at: AT,
+          }),
+        ).toBeNull();
+        const listed = await store.attend.operatorDevices(lot.operatorId);
+        expect(listed).toEqual([expect.objectContaining({ id: reg.id, lotName: 'Hold lot' })]);
+      });
+
+      it('syncs check-in, check-out and walk-ins once, and lists them in the manifest', async () => {
+        const lot = await liveLot(2);
+        const attendant = await newUser([]);
+        const { booking, payment } = await hold(lot, await driver());
+        await store.payments.settle(payment.id, charge(), AT);
+        const batch = (id = randomUUID()) => ({
+          id,
+          deviceId: randomUUID(),
+          lotId: lot.lotId,
+          attendantId: attendant,
+          deviceSentAt: new Date('2027-01-05T07:30:00Z'),
+          receivedAt: new Date('2027-01-05T07:30:00Z'),
+        });
+        const inEvent = {
+          type: 'CHECK_IN' as const,
+          clientEventId: randomUUID(),
+          deviceTime: new Date('2027-01-05T07:05:00Z'),
+          bookingId: booking.id,
+          method: 'QR' as const,
+          plateSeen: 'LND123AB',
+          overrideReason: null,
+        };
+        const b1 = batch();
+        const first = await store.attend.applyBatch(b1, [
+          inEvent,
+          {
+            type: 'WALK_IN',
+            clientEventId: randomUUID(),
+            deviceTime: new Date('2027-01-05T07:06:00Z'),
+            delta: 1,
+          },
+        ]);
+        expect(first.results.map((r) => r.result)).toEqual(['APPLIED', 'APPLIED']);
+        expect((await store.bookings.find(booking.id))?.status).toBe('CHECKED_IN');
+        expect(await store.attend.walkIns(lot.lotId)).toBe(1);
+        expect((await store.attend.applyBatch(b1, [inEvent])).results[0]?.result).toBe('DUPLICATE');
+        expect((await store.attend.applyBatch(batch(), [inEvent])).results[0]?.result).toBe(
+          'DUPLICATE',
+        );
+
+        const out = await store.attend.applyBatch(batch(), [
+          {
+            type: 'CHECK_OUT',
+            clientEventId: randomUUID(),
+            deviceTime: new Date('2027-01-05T09:40:00Z'),
+            bookingId: booking.id,
+            method: 'CODE',
+          },
+        ]);
+        expect(out.results[0]?.result).toBe('APPLIED');
+        expect(out.checkedOut).toHaveLength(1);
+        expect((await store.bookings.find(booking.id))?.status).toBe('COMPLETED');
+        const s = await store.attend.session(out.checkedOut[0] ?? '');
+        expect(s).toMatchObject({ bookingId: booking.id, commissionBps: 1200 });
+        await store.attend.setOverstay(out.checkedOut[0] ?? '', 30, 25_000);
+
+        const manifest = await store.attend.manifest(lot.lotId, START, END);
+        expect(manifest).toEqual([
+          expect.objectContaining({
+            id: booking.id,
+            status: 'COMPLETED',
+            checkedInAt: new Date('2027-01-05T07:05:00Z'),
+            checkedOutAt: new Date('2027-01-05T09:40:00Z'),
+          }),
+        ]);
+        expect(await store.lotKeys.forManifest(lot.lotId)).toEqual({ valid: [], revokedKids: [] });
+      });
+
       it('claims, replays and frees idempotency keys', async () => {
         const actorId = await newUser();
         const k = {

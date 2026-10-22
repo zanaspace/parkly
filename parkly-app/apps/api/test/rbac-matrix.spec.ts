@@ -67,6 +67,12 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}/devices`,
+    route: 'GET /v1/operators/{operatorId}/devices',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
     path: `/v1/operators/${OP_B}/members`,
     route: 'GET /v1/operators/{operatorId}/members (other tenant)',
     expect: only([], 200, 404),
@@ -212,6 +218,11 @@ const COVERED_ELSEWHERE = new Set([
   'PATCH /v1/me/vehicles/{id}',
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
   // Drivers only (owner 403), other driver's booking or payment → 404, idempotency: bookings.spec
+  // Lot-scoped attendant routes, device approval and the device checks: attend.spec
+  'POST /v1/attend/devices',
+  'GET /v1/attend/lots/{lotId}/manifest',
+  'POST /v1/attend/sync',
+  'POST /v1/operators/{operatorId}/devices/{deviceId}',
   'POST /v1/bookings',
   'GET /v1/bookings/{id}',
   'POST /v1/payments/{reference}/verify',

@@ -12,3 +12,4 @@ export * from './team.js';
 export * from './discovery.js';
 export * from './places.js';
 export * from './bookings.js';
+export * from './attend.js';

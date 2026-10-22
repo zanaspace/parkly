@@ -28,6 +28,7 @@ import {
   type VehicleRow,
   type VerificationRow,
 } from './types.js';
+import { drizzleAttend } from './drizzle-attend.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
@@ -279,6 +280,7 @@ const activeVehicle = (userId: string, id: string) =>
   and(eq(vehicles.id, id), eq(vehicles.userId, userId), isNull(vehicles.deletedAt));
 
 export function drizzleStore(db: Db): Store {
+  const attending = drizzleAttend(db);
   async function withItems(record: Omit<VerificationRow, 'items'>): Promise<VerificationRow> {
     const items = await db
       .select({
@@ -1492,7 +1494,10 @@ export function drizzleStore(db: Db): Store {
 
     ...drizzleBookings(db),
 
+    attend: attending.attend,
+
     lotKeys: {
+      forManifest: attending.forManifest,
       async active(lotId) {
         const [row] = await db
           .select(lotKeyColumns)

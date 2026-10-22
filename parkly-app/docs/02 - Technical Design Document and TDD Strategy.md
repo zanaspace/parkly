@@ -562,6 +562,8 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET | `/operators/:operatorId/incidents` · POST | OWN, MGR, ATT | ✅ | | |
 
 ### 6.7 Attendant (`/attend/...`, role ATT/MGR/OWN, lot-scoped)
+
+*Sprint 5 as built:* `POST /attend/devices {clientDeviceId, lotId}` (owners and managers are approved at once; attendant phones wait for `POST /operators/:operatorId/devices/:deviceId {decision: approve|revoke}`, audited; a blocked phone gets `DEVICE_REVOKED` and the app wipes its cache); `GET /attend/lots/:lotId/manifest?clientDeviceId=` returns the **whole** manifest for now−24 h…now+24 h (no delta cursor yet; pilot lots stay small); `POST /attend/sync {clientDeviceId, lotId, batchId, deviceSentAt, events[≤500]}` is idempotent per batch and per `clientEventId`. Batches are not yet signed with the device key (the JWT plus an approved, unblocked device is required); `/attend/lookup`, `/attend/check-in`, `/attend/check-out` and `/attend/walk-ins` are covered by the manifest and `sync`.
 | Method | Path | Idem | Notes | Errors |
 |---|---|---|---|---|
 | POST | `/attend/devices` | ✅ | register PWA device `{lotId, devicePublicKey}` | `DEVICE_LIMIT_REACHED` |

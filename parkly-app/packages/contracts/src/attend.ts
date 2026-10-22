@@ -1,0 +1,120 @@
+import { z } from 'zod';
+import { BookingStatusSchema } from './bookings.js';
+
+/**
+ * Attendant PWA (doc 02 §6.7, doc 01 §5.3, ADR 0005). The app keeps the
+ * manifest and an event queue offline and syncs batches when it can.
+ */
+
+export const EntryMethodSchema = z.enum(['QR', 'CODE', 'PLATE']);
+
+/** `POST /v1/attend/devices`: this phone, for this lot. Managers approve attendant phones. */
+export const RegisterDeviceRequestSchema = z.object({
+  clientDeviceId: z.uuid(),
+  lotId: z.uuid(),
+});
+export const AttendDeviceSchema = z.object({
+  id: z.uuid(),
+  lotId: z.uuid(),
+  approved: z.boolean(),
+  revoked: z.boolean(),
+});
+
+/** One booking as the gate needs it. */
+export const ManifestBookingSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  plateNorm: z.string(),
+  startAt: z.iso.datetime(),
+  endAt: z.iso.datetime(),
+  status: BookingStatusSchema,
+  checkedInAt: z.iso.datetime().nullable(),
+  checkedOutAt: z.iso.datetime().nullable(),
+});
+
+/** `GET /v1/attend/lots/{lotId}/manifest`: everything the gate needs for 24 h offline. */
+export const ManifestSchema = z.object({
+  /** For the device's clock offset (doc 03 §3.8). */
+  serverTime: z.iso.datetime(),
+  lot: z.object({ id: z.uuid(), name: z.string(), capacityBookable: z.number().int() }),
+  rules: z.object({
+    earlyArrivalMin: z.number().int(),
+    noShowGraceMin: z.number().int(),
+    overstayGraceMin: z.number().int(),
+  }),
+  /** Ed25519 public keys for offline QR checks (ADR 0007); base64url. */
+  keys: z.array(
+    z.object({ kid: z.string(), publicKey: z.string(), status: z.enum(['ACTIVE', 'RETIRING']) }),
+  ),
+  revokedKids: z.array(z.string()),
+  bookings: z.array(ManifestBookingSchema),
+  walkIns: z.number().int(),
+});
+
+const base = { clientEventId: z.uuid(), deviceTime: z.iso.datetime() };
+
+export const AttendEventSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...base,
+    type: z.literal('CHECK_IN'),
+    bookingId: z.uuid(),
+    method: EntryMethodSchema,
+    plateSeen: z.string().max(12).optional(),
+    /** Required when the gate showed amber (early, late, duplicate, provisional). */
+    overrideReason: z.string().max(200).optional(),
+  }),
+  z.object({
+    ...base,
+    type: z.literal('CHECK_OUT'),
+    bookingId: z.uuid(),
+    method: EntryMethodSchema,
+  }),
+  z.object({ ...base, type: z.literal('WALK_IN'), delta: z.union([z.literal(1), z.literal(-1)]) }),
+  z.object({
+    ...base,
+    type: z.literal('ISSUE'),
+    note: z.string().trim().min(1).max(500),
+    bookingId: z.uuid().optional(),
+  }),
+]);
+
+/** `POST /v1/attend/sync`: up to 500 queued events, oldest first. */
+export const SyncRequestSchema = z.object({
+  clientDeviceId: z.uuid(),
+  lotId: z.uuid(),
+  batchId: z.uuid(),
+  deviceSentAt: z.iso.datetime(),
+  events: z.array(AttendEventSchema).max(500),
+});
+
+export const SyncResultSchema = z.object({
+  clientEventId: z.uuid(),
+  result: z.enum(['APPLIED', 'DUPLICATE', 'CONFLICT', 'REJECTED']),
+  reason: z.string().nullable(),
+});
+export const SyncResponseSchema = z.object({
+  serverTime: z.iso.datetime(),
+  results: z.array(SyncResultSchema),
+});
+
+/** Portal: attendant phones waiting for approval or in use (O-20). */
+export const OperatorDeviceSchema = z.object({
+  id: z.uuid(),
+  lotId: z.uuid(),
+  lotName: z.string(),
+  attendantName: z.string().nullable(),
+  approved: z.boolean(),
+  revoked: z.boolean(),
+  lastSeenAt: z.iso.datetime(),
+});
+export const OperatorDeviceListSchema = z.object({ items: z.array(OperatorDeviceSchema) });
+export const DeviceDecisionSchema = z.object({ decision: z.enum(['approve', 'revoke']) });
+
+export type ManifestBooking = z.infer<typeof ManifestBookingSchema>;
+export type Manifest = z.infer<typeof ManifestSchema>;
+export type AttendEvent = z.infer<typeof AttendEventSchema>;
+export type SyncRequest = z.infer<typeof SyncRequestSchema>;
+export type SyncResult = z.infer<typeof SyncResultSchema>;
+export type SyncResponse = z.infer<typeof SyncResponseSchema>;
+export type AttendDevice = z.infer<typeof AttendDeviceSchema>;
+export type OperatorDevice = z.infer<typeof OperatorDeviceSchema>;
