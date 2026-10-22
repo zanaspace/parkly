@@ -53,6 +53,12 @@ const LotParams = OperatorIdParam.extend({ lotId: z.uuid() });
 
 /** Until submission/verification (slice D) and booking capacity rules (S4), only drafts change. */
 const EDITABLE = new Set<LotRow['status']>(['DRAFT']);
+/**
+ * FR-LOT-005: prices can also change on a live or paused lot. Each change waits
+ * for admin approval and applies to new bookings only. While a lot is under
+ * review its prices are being checked, so they stay put.
+ */
+const PRICE_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED']);
 
 const CAPACITY_MESSAGES = {
   TOTAL_INVALID: ['capacityTotal', 'Enter the total number of spaces (a whole number above 0).'],
@@ -126,12 +132,21 @@ export const toRatePlan = (r: RatePlanRow): RatePlan => ({
 
 /** The lot as operators and admins see it: hours, photos, latest permit, current prices. */
 export async function toLotResponse(store: Store, row: LotRow): Promise<Lot> {
-  const [hours, photos, permit, plans] = await Promise.all([
+  const [hours, photos, permit, current, rejected] = await Promise.all([
     store.lots.openingHours(row.id),
     store.lotPhotos.list(row.id),
     store.permits.latest(row.id),
     store.ratePlans.current(row.id),
+    store.ratePlans.latestRejected(row.id),
   ]);
+  // Show a rejected change until the operator submits a new one for that product.
+  const newestOpen = new Map<string, number>();
+  for (const p of current)
+    newestOpen.set(p.product, Math.max(newestOpen.get(p.product) ?? 0, p.createdAt.getTime()));
+  const plans = [
+    ...current,
+    ...rejected.filter((r) => r.createdAt.getTime() > (newestOpen.get(r.product) ?? 0)),
+  ];
   return {
     id: row.id,
     operatorId: row.operatorId,
@@ -574,7 +589,13 @@ export function lotRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
-      await loadLot(c, operatorId, lotId, 'edit');
+      const lot = await loadLot(c, operatorId, lotId, 'read');
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      if (!PRICE_EDITABLE.has(lot.status))
+        throw new ApiError(
+          'INVALID_STATE_TRANSITION',
+          'Prices can’t change while the lot is in this state',
+        );
       const body = c.req.valid('json');
       const prices = {
         hourlyRateKobo: body.product === 'HOURLY' ? body.hourlyRateKobo : null,

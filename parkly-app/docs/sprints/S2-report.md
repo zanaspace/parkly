@@ -201,7 +201,7 @@ Stories 1 and 2 (domain rules, schema + migrations) were committed before the PR
 | Emails (permit reminders, suspension, KYB decision) and SMS invites | Email provider and notification outbox are S6; SMS needs Termii | S6 |
 | Suspend impact preview and bulk cancel/refund | No bookings until S4 | S8 (admin console) |
 | Site-visit evidence photos | Field use of X-03 | S8 |
-| Rejected price changes shown on the portal | Not specified; ops send the lot back with a reason meanwhile | S7 (operator dashboard) |
+| Rejected price changes shown on the portal | Not specified; ops send the lot back with a reason meanwhile | **Done in S3** (with price changes on live lots) |
 | Staging and production environments, S2 demo on staging | Owner decision: wait | Before S4 |
 | `supabase migration repair` for migrations applied by hand on dev; DB integration tests in CI | Remote changes must go through CI (AGENTS.md §4); CI secrets not set yet | Owner setup, before S4 |
 | Malware scanning vendor (ADR 0013 Proposed) | Owner to choose | Before launch (prod refuses the fake scanner) |

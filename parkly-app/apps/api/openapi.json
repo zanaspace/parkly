@@ -6569,6 +6569,9 @@
                           "photoCount": {
                             "type": "integer"
                           },
+                          "pendingPriceCount": {
+                            "type": "integer"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -6583,6 +6586,7 @@
                           "operatorId",
                           "operatorName",
                           "photoCount",
+                          "pendingPriceCount",
                           "createdAt"
                         ]
                       }

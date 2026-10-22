@@ -12,6 +12,8 @@ export const AdminLotSummarySchema = z.object({
   operatorId: z.uuid(),
   operatorName: z.string(),
   photoCount: z.number().int(),
+  /** Price changes waiting for approval (live lots can change prices, FR-LOT-005). */
+  pendingPriceCount: z.number().int(),
   createdAt: z.iso.datetime(),
 });
 export const AdminLotListSchema = z.object({ items: z.array(AdminLotSummarySchema) });

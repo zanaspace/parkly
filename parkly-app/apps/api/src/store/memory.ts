@@ -310,6 +310,9 @@ export class MemoryStore implements Store {
           ...l,
           photoCount: this.photoRows.filter((p) => p.lotId === l.id).length,
           operatorName: this.operatorRows.get(l.operatorId)?.legalName ?? '',
+          pendingPriceCount: this.ratePlanRows.filter(
+            (p) => p.lotId === l.id && p.status === 'PENDING_APPROVAL',
+          ).length,
         })),
     list: async (operatorId) =>
       [...this.lotRows.values()]
@@ -447,6 +450,15 @@ export class MemoryStore implements Store {
             a.createdAt.getTime() - b.createdAt.getTime(),
         )
         .map(({ effectiveFrom: _e, ...p }) => p);
+    },
+    latestRejected: async (lotId) => {
+      const newest = new Map<string, RatePlanRow & { effectiveFrom?: Date }>();
+      for (const p of this.ratePlanRows)
+        if (p.lotId === lotId && p.status === 'REJECTED') {
+          const seen = newest.get(p.product);
+          if (!seen || p.createdAt.getTime() > seen.createdAt.getTime()) newest.set(p.product, p);
+        }
+      return [...newest.values()].map(({ effectiveFrom: _e, ...p }) => p);
     },
     activeFor: async (lotIds) =>
       this.ratePlanRows

@@ -59,6 +59,7 @@ export default async function LotQueuePage({
                 <th scope="col">Lot</th>
                 <th scope="col">Operator</th>
                 <th scope="col">Photos</th>
+                <th scope="col">Price changes</th>
                 <th scope="col">Created</th>
               </tr>
             </thead>
@@ -76,6 +77,7 @@ export default async function LotQueuePage({
                   </td>
                   <td>{l.operatorName}</td>
                   <td>{l.photoCount}</td>
+                  <td>{l.pendingPriceCount > 0 ? `${l.pendingPriceCount} to review` : '—'}</td>
                   <td>{lagos.format(new Date(l.createdAt))}</td>
                 </tr>
               ))}

@@ -133,6 +133,7 @@ export function adminLotRoutes(deps: AppDeps) {
             operatorId: l.operatorId,
             operatorName: l.operatorName,
             photoCount: l.photoCount,
+            pendingPriceCount: l.pendingPriceCount,
             createdAt: l.createdAt.toISOString(),
           })),
         },
