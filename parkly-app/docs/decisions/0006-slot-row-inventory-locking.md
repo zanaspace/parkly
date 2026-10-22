@@ -1,6 +1,6 @@
 # 0006 — Slot-row inventory with `SELECT … FOR UPDATE` in `fn_hold_booking`
 
-- **Status:** Proposed (implemented and accepted in Sprint 4)
+- **Status:** Accepted (Sprint 4: `fn_hold_booking`, `fn_convert_hold`, `fn_release_slots` in `20261022145800_booking_hold_functions.sql`)
 - **Date:** 2026-10-14
 - **Deciders:** Engineering lead
 - **Related:** doc 01 §6, doc 02 §5, FR-BOOK-001, ADR 0002

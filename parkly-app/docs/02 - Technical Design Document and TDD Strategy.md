@@ -430,11 +430,11 @@ These are mandatory unit-test cases (table-driven) in `packages/domain/pricing/q
 **`fn_hold_booking` (SQL function, hand-written migration)**
 
 ```sql
--- SECURITY DEFINER, SET search_path = public, pg_temp
+-- SECURITY INVOKER (parkly_api holds the table grants), SET search_path = ''
 -- EXECUTE granted to parkly_api only; REVOKE from public, anon, authenticated.
 create function public.fn_hold_booking(
   p_booking_id uuid, p_code text, p_driver_id uuid, p_vehicle_id uuid,
-  p_plate_norm text, p_lot_id uuid, p_product booking_product,
+  p_plate_norm text, p_lot_id uuid, p_product product, -- HOURLY|DAILY (bookings CHECK)
   p_start_at timestamptz, p_end_at timestamptz, p_hold_expires_at timestamptz,
   p_price_kobo bigint, p_service_fee_kobo bigint, p_commission_bps int,
   p_rate_plan_id uuid, p_pricing_breakdown jsonb, p_source booking_source
@@ -444,13 +444,13 @@ create function public.fn_hold_booking(
 Behaviour, in one transaction (the caller's):
 1. Validate `p_start_at`/`p_end_at` on the 15-min grid and `p_end_at > p_start_at` (raise `22023` with `BOOKING_WINDOW_INVALID` in `MESSAGE`).
 2. Check the lot is `LIVE` (`SELECT … FROM lots WHERE id = p_lot_id FOR SHARE`); else raise `LOT_NOT_BOOKABLE`.
-3. Check no overlapping CONFIRMED/CHECKED_IN/PENDING_PAYMENT booking for the same vehicle; else `BOOKING_OVERLAP_SAME_VEHICLE`.
+3. Lock the vehicle row (`FOR UPDATE`, so two requests for one car take turns) and check no overlapping CONFIRMED/CHECKED_IN/PENDING_PAYMENT booking for it; else `BOOKING_OVERLAP_SAME_VEHICLE`.
 4. Materialise missing `lot_slot_inventory` rows for `generate_series(p_start_at, p_end_at - interval '15 min', interval '15 min')` with `INSERT … ON CONFLICT DO NOTHING` (capacity = `lots.capacity_bookable`).
 5. `SELECT … FROM lot_slot_inventory WHERE lot_id = p_lot_id AND slot_start >= p_start_at AND slot_start < p_end_at ORDER BY slot_start FOR UPDATE` (ordered locking prevents deadlocks).
 6. If any row has `capacity − booked − held − pass_reserved − blocked < 1` → raise `BOOKING_SLOT_UNAVAILABLE`.
 7. `UPDATE … SET held = held + 1` for those rows; `INSERT INTO bookings (…) VALUES (… 'PENDING_PAYMENT' …)`; insert `booking_status_history`. Return `p_booking_id`.
 
-Prices are computed in TypeScript (`packages/domain/pricing`) and passed in; the function does no pricing. Sibling functions with the same locking discipline: `fn_convert_hold(booking_id)`, `fn_release_slots(booking_id, from_column)`, `fn_hold_extension(...)`, `fn_reserve_pass(...)`, `fn_expire_holds()` (used by cron, §9). The API maps raised codes to problem+json errors. Unit tests live in `apps/api/test/integration/availability/*.int-spec.ts` against local Supabase; logic stays mirrored in `packages/domain/availability` for the pure maths.
+Prices are computed in TypeScript (`packages/domain/pricing`) and passed in; the function does no pricing. Business failures raise with the code as `MESSAGE` (`P0001`; `22023` for the window). Sibling functions with the same locking discipline: `fn_convert_hold(booking_id)` (held → booked), `fn_release_slots(booking_id, 'held'|'booked')` (both built in S4 on `fn_move_booking_slots`, which refuses to touch a window with missing slot rows), `fn_hold_extension(...)`, `fn_reserve_pass(...)`, `fn_expire_holds()` (used by cron, §9). The API maps raised codes to problem+json errors. Integration tests live in `packages/db/test/booking-hold.int-spec.ts` against local Supabase; logic stays mirrored in `packages/domain/availability` for the pure maths.
 
 Concurrency test (mandatory): 50 parallel bookings for a lot with capacity 10 → exactly 10 succeed, 40 get `BOOKING_SLOT_UNAVAILABLE`, inventory counts consistent.
 
