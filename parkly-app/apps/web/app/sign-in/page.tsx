@@ -19,7 +19,7 @@ export default async function SignIn({
       <Text variant="heading-xl" as="h1">
         Sign in to book
       </Text>
-      <Text tone="secondary">Use your mobile number. It’s the same account as the Parkly app.</Text>
+      <Text tone="secondary">Use your email address. It’s the same account as the Parkly app.</Text>
       <SignInForm next={next} />
     </main>
   );

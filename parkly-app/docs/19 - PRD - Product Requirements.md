@@ -61,7 +61,7 @@ Each FR has a story and Gherkin acceptance criteria (AC). Engineers turn AC into
 
 ### 6.1 Identity and access — FR-AUTH
 
-**FR-AUTH-001 · P0 · Driver sign-up/sign-in with phone OTP**
+**FR-AUTH-001 · P0 · Driver sign-up/sign-in with phone OTP** *(until an SMS provider is live, drivers sign in with a 6-digit email code instead; phone stays available for test numbers; ADR 0015)*
 As a driver, I want to sign in with my phone number and a one-time code, so I don't need a password.
 ```gherkin
 Scenario: Successful OTP sign-in

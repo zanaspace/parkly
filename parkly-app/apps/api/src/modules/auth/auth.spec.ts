@@ -176,6 +176,26 @@ describe('POST /v1/auth/bootstrap', () => {
     expect(hash?.equals(w.deps.crypto.lookupHash(PHONE))).toBe(true);
   });
 
+  it('makes an email sign-up a driver only when a driver app asks (ADR 0015)', async () => {
+    const w = world();
+    const userId = randomUUID();
+    const token = await tokenFor(userId, { email: 'ada@example.com' });
+    const send = (extra: Record<string, unknown>) =>
+      w.app.request('/v1/auth/bootstrap', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ ...body(), ...extra }),
+      });
+    const portal = (await (await send({})).json()) as { user: { roles: unknown[] } };
+    expect(portal.user.roles).toEqual([]);
+    const driver = (await (await send({ asDriver: true })).json()) as {
+      user: { roles: unknown[] };
+    };
+    expect(driver.user.roles).toEqual([{ role: 'DRIVER', operatorId: null }]);
+    await send({ asDriver: true });
+    expect(await w.store.users.roles(userId)).toHaveLength(1);
+  });
+
   it('blocks suspended accounts', async () => {
     const w = world();
     const id = w.user();

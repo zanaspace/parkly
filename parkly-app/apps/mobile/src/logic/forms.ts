@@ -13,6 +13,14 @@ export function phoneFromInput(input: string): string | null {
   return normaliseNigerianPhone(`+234${digits}`);
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** Email sign-in (ADR 0015): trimmed and lower-cased, or null when it isn't an address. */
+export function emailFromInput(input: string): string | null {
+  const email = input.trim().toLowerCase();
+  return email.length <= 254 && EMAIL.test(email) ? email : null;
+}
+
 /** "+2348031234567" → "+234 803 123 4567" for display on the OTP screen. */
 export function formatPhone(e164: string): string {
   const m = /^\+234(\d{3})(\d{3})(\d{4})$/.exec(e164);

@@ -38,6 +38,13 @@ export function storeContract(
       expect(again.user.firstName).toBe('Ada');
     });
 
+    it('adds the driver role once', async () => {
+      const id = await newUser([]);
+      await store.users.addDriverRole(id);
+      await store.users.addDriverRole(id);
+      expect(await store.users.roles(id)).toEqual([{ role: 'DRIVER', operatorId: null }]);
+    });
+
     it('stores roles and returns them', async () => {
       const op = randomUUID();
       const id = await newUser([{ role: 'OPERATOR_MANAGER', operatorId: op }]);
