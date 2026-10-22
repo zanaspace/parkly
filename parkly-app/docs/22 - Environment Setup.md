@@ -182,6 +182,8 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | one DB per env | own | own | ✅ (token) |
 | `SENTRY_DSN` | EU DSN | EU DSN | EU DSN | |
 
+`SETTLEMENT_PROVIDER=paystack` also switches booking checkout to Paystack with the same key (Sprint 4). Then, in the Paystack dashboard for that key (Settings → API Keys & Webhooks), set the **Webhook URL** to `<that env's API URL>/v1/webhooks/paystack` (dev: `https://parkly-api-six.vercel.app/v1/webhooks/paystack`). Paystack signs each webhook with the secret key; nothing else to store. Outside prod, lots whose operator has no active subaccount (the demo lots) take payments with no split, all to the main account; prod refuses them.
+
 **Never reuse** `HASH_PEPPER_V1`, `ENC_KEY_V1` or `JOB_HMAC_SECRET` across environments. Losing a prod encryption key makes encrypted fields unreadable, so store each one in the password manager as well.
 
 **`parkly-web`, `parkly-portal`, `parkly-admin`** (all public values)

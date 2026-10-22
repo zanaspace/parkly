@@ -55,6 +55,12 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/bookings',
+    route: 'GET /v1/bookings',
+    expect: only(['DRIVER'], 200, 403),
+  },
+  {
+    method: 'GET',
     path: `/v1/operators/${OP_A}/members`,
     route: 'GET /v1/operators/{operatorId}/members',
     expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
@@ -205,6 +211,10 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/me/vehicles',
   'PATCH /v1/me/vehicles/{id}',
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
+  // Drivers only (owner 403), other driver's booking or payment → 404, idempotency: bookings.spec
+  'POST /v1/bookings',
+  'GET /v1/bookings/{id}',
+  'POST /v1/payments/{reference}/verify',
   'POST /v1/operators', // any signed-in user, incl. no role yet; operators.spec
   'PATCH /v1/operators/{operatorId}', // owner only, manager 403, other tenant 404; operators.spec
   // Owner only, manager 403, other tenant 404, cross-operator file → 404: kyb.spec

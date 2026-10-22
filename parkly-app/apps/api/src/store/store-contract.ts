@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { RoleGrant } from '@parkly/domain/authz';
+import { generateBookingCode } from '@parkly/domain/codes';
 import { describe, expect, it } from 'vitest';
 import {
   DsrAlreadyOpenError,
@@ -10,6 +11,7 @@ import {
   StaleVersionError,
   type Store,
 } from './types.js';
+import type { VerifiedCharge } from '../providers/index.js';
 
 /**
  * Behaviour every Store must have. Runs against MemoryStore in unit tests and
@@ -966,6 +968,252 @@ export function storeContract(
         'owner',
         'Owner again',
       ]);
+    });
+
+    describe('bookings and payments (Sprint 4)', () => {
+      const START = new Date('2027-01-05T07:00:00Z');
+      const END = new Date('2027-01-05T09:00:00Z');
+      const AT = new Date('2027-01-04T10:00:00Z');
+
+      async function liveLot(capacity: number) {
+        const owner = await newUser([]);
+        const op = await store.operators.create({
+          legalName: 'Hold Ltd',
+          tradingName: 'Hold',
+          type: 'HOTEL',
+          cacNumberEnc: null,
+          tinEnc: null,
+          addressLine: null,
+          contactEmail: null,
+          contactPhoneEnc: null,
+          ownerUserId: owner,
+          commissionBps: 1200,
+        });
+        const lot = await store.lots.create({
+          operatorId: op.id,
+          type: 'HOTEL',
+          name: 'Hold lot',
+          slug: `hold-${randomUUID()}`,
+          description: null,
+          addressLine: '1 Road',
+          area: null,
+          lga: null,
+          location: { lat: 6.43, lng: 3.42 },
+          entranceNotes: null,
+          capacityTotal: capacity + 1,
+          capacityBookable: capacity,
+          amenities: [],
+          vehicleTypes: ['CAR'],
+          createdBy: owner,
+        });
+        const plan = await store.ratePlans.submit({
+          lotId: lot.id,
+          product: 'HOURLY',
+          hourlyRateKobo: 50_000,
+          minMinutes: 60,
+          dailyCapKobo: null,
+          dailyRateKobo: null,
+          monthlyRateKobo: null,
+          submittedBy: owner,
+        });
+        await store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
+        await store.lots.setStatus(op.id, lot.id, 'PENDING_VERIFICATION', 'LIVE', null);
+        return { lotId: lot.id, operatorId: op.id, ratePlanId: plan.id };
+      }
+
+      async function driver() {
+        const id = await newUser();
+        const v = await store.vehicles.create({
+          userId: id,
+          plateRaw: 'LND 123 AB',
+          plateNorm: 'LND123AB',
+          make: null,
+          model: null,
+          colour: null,
+          isDefault: true,
+        });
+        return { id, vehicleId: v.id };
+      }
+
+      type Lot = Awaited<ReturnType<typeof liveLot>>;
+      const hold = (lot: Lot, d: { id: string; vehicleId: string }) =>
+        store.bookings.hold(
+          {
+            id: randomUUID(),
+            code: generateBookingCode(),
+            driverId: d.id,
+            vehicleId: d.vehicleId,
+            plateNorm: 'LND123AB',
+            lotId: lot.lotId,
+            product: 'HOURLY',
+            startAt: START,
+            endAt: END,
+            holdExpiresAt: new Date(AT.getTime() + 10 * 60_000),
+            priceKobo: 100_000,
+            serviceFeeKobo: 10_000,
+            commissionBps: 1200,
+            ratePlanId: lot.ratePlanId,
+            pricingBreakdown: [],
+            source: 'MOBILE',
+          },
+          {
+            id: randomUUID(),
+            payerUserId: d.id,
+            provider: 'FAKE',
+            amountKobo: 110_000,
+            platformAmountKobo: 22_000,
+            operatorAmountKobo: 88_000,
+            operatorId: lot.operatorId,
+            subaccountCode: null,
+          },
+          AT,
+        );
+
+      const checkout = { authorizationUrl: 'https://checkout.example/x', accessCode: 'x' };
+
+      const charge = (over: Partial<VerifiedCharge> = {}): VerifiedCharge => ({
+        status: 'success',
+        amountKobo: 110_000,
+        currency: 'NGN',
+        paidAt: AT,
+        feesKobo: 1_500,
+        channel: 'card',
+        cardLast4: '4081',
+        cardBrand: 'visa',
+        ...over,
+      });
+
+      it('holds a space per booking and refuses a full lot or a car booked twice', async () => {
+        const lot = await liveLot(1);
+        const first = await driver();
+        const { booking, payment } = await hold(lot, first);
+        expect(booking).toMatchObject({ status: 'PENDING_PAYMENT', totalKobo: 110_000 });
+        expect(payment).toMatchObject({ status: 'INITIATED', bookingId: booking.id });
+        await expect(hold(lot, first)).rejects.toMatchObject({
+          code: 'BOOKING_OVERLAP_SAME_VEHICLE',
+        });
+        await expect(hold(lot, await driver())).rejects.toMatchObject({
+          code: 'BOOKING_SLOT_UNAVAILABLE',
+        });
+        const slots = await store.inventory.slots([lot.lotId], START, END);
+        expect(slots.map((s) => s.held)).toEqual(Array(8).fill(1));
+      });
+
+      it('confirms a paid hold once and lists it', async () => {
+        const lot = await liveLot(2);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        const started = await store.payments.checkoutStarted(payment.id, checkout, AT);
+        expect(started.status).toBe('PENDING');
+        const settled = await store.payments.settle(payment.id, charge(), AT);
+        expect(settled).toMatchObject({
+          decision: 'CONFIRM',
+          booking: { status: 'CONFIRMED', holdExpiresAt: null },
+          payment: { status: 'SUCCEEDED' },
+          refund: null,
+        });
+        expect((await store.payments.settle(payment.id, charge(), AT)).decision).toBe('NOOP');
+        const slots = await store.inventory.slots([lot.lotId], START, END);
+        expect(slots.every((s) => s.held === 0 && s.booked === 1)).toBe(true);
+        const upcoming = await store.bookings.listForDriver(d.id, 'upcoming', AT, 10);
+        expect(upcoming.map((b) => b.id)).toEqual([booking.id]);
+        expect(await store.bookings.listForDriver(d.id, 'past', AT, 10)).toEqual([]);
+        expect((await store.payments.latestForBooking(booking.id))?.id).toBe(payment.id);
+      });
+
+      it('fails a payment that never reached the provider when its hold is released', async () => {
+        const lot = await liveLot(1);
+        const a = await hold(lot, await driver());
+        await store.bookings.releaseHold(a.booking.id, 'checkout.failed', AT);
+        expect((await store.bookings.find(a.booking.id))?.status).toBe('EXPIRED');
+        expect((await store.payments.find(a.payment.id))?.status).toBe('FAILED');
+      });
+
+      it('re-books late money when a space is free', async () => {
+        const lot = await liveLot(1);
+        const b = await hold(lot, await driver());
+        await store.payments.checkoutStarted(b.payment.id, checkout, AT);
+        await store.bookings.releaseHold(b.booking.id, 'hold.expired', AT);
+        expect((await store.payments.find(b.payment.id))?.status).toBe('PENDING');
+        expect(await store.payments.settle(b.payment.id, charge(), AT)).toMatchObject({
+          decision: 'REACQUIRE_AND_CONFIRM',
+          booking: { status: 'CONFIRMED' },
+        });
+        const slots = await store.inventory.slots([lot.lotId], START, END);
+        expect(slots.every((s) => s.held === 0 && s.booked === 1)).toBe(true);
+      });
+
+      it('refunds late money when the space is gone', async () => {
+        const lot = await liveLot(1);
+        const held = await hold(lot, await driver());
+        await store.payments.checkoutStarted(held.payment.id, checkout, AT);
+        await store.bookings.releaseHold(held.booking.id, 'hold.expired', AT);
+        await hold(lot, await driver());
+        const refunded = await store.payments.settle(held.payment.id, charge(), AT);
+        expect(refunded).toMatchObject({
+          decision: 'REFUND_HOLD_EXPIRED',
+          booking: { status: 'EXPIRED' },
+          payment: { status: 'SUCCEEDED' },
+          refund: { amountKobo: 110_000 },
+        });
+        await store.payments.refundRequested(refunded.refund?.id ?? '', 'rf_1');
+      });
+
+      it('fails a declined charge and frees the space', async () => {
+        const lot = await liveLot(1);
+        const { payment, booking } = await hold(lot, await driver());
+        const failed = await store.payments.settle(payment.id, charge({ status: 'failed' }), AT);
+        expect(failed).toMatchObject({
+          decision: 'FAIL',
+          booking: { status: 'EXPIRED' },
+          payment: { status: 'FAILED' },
+        });
+        const slots = await store.inventory.slots([lot.lotId], START, END);
+        expect(slots.every((s) => s.held === 0)).toBe(true);
+        expect((await store.bookings.find(booking.id))?.holdExpiresAt).toBeNull();
+      });
+
+      it('stores a webhook once', async () => {
+        const event = {
+          provider: 'FAKE' as const,
+          dedupeKey: `charge.success:${randomUUID()}:1`,
+          eventType: 'charge.success',
+          reference: null,
+          payload: { event: 'charge.success' },
+          at: AT,
+        };
+        const first = await store.webhooks.record(event);
+        expect(first.duplicate).toBe(false);
+        expect(await store.webhooks.record(event)).toEqual({ id: first.id, duplicate: true });
+        await store.webhooks.finish(first.id, 'PROCESSED', null, AT);
+      });
+
+      it('claims, replays and frees idempotency keys', async () => {
+        const actorId = await newUser();
+        const k = {
+          actorId,
+          key: `key-${randomUUID()}`,
+          method: 'POST',
+          path: '/v1/bookings',
+          requestHash: 'a'.repeat(64),
+          expiresAt: new Date('2027-01-06T00:00:00Z'),
+        };
+        expect(await store.idempotency.begin(k)).toEqual({ state: 'new' });
+        expect(await store.idempotency.begin(k)).toEqual({ state: 'in_progress' });
+        await store.idempotency.complete(actorId, k.key, 201, { ok: true });
+        expect(await store.idempotency.begin(k)).toEqual({
+          state: 'replay',
+          status: 201,
+          body: { ok: true },
+        });
+        expect(await store.idempotency.begin({ ...k, requestHash: 'b'.repeat(64) })).toEqual({
+          state: 'mismatch',
+        });
+        const other = { ...k, key: `key-${randomUUID()}` };
+        await store.idempotency.begin(other);
+        await store.idempotency.release(actorId, other.key);
+        expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
+      });
     });
   });
 }

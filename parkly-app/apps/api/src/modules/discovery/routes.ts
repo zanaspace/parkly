@@ -35,7 +35,7 @@ const SEARCH_LIMIT = 50;
 const MAX_PUBLIC_PHOTOS = 8;
 
 /** Doc 02 §8 defaults, overridden by `platform_settings`. */
-async function loadSettings(store: Store) {
+export async function loadSettings(store: Store) {
   const get = async (key: string, fallback: number) =>
     (await store.settings.get<number>(key)) ?? fallback;
   const [serviceFeeKobo, serviceFeeMaxDurationMin, minLeadMin, maxAdvanceDays, maxDurationHours] =
@@ -51,7 +51,7 @@ async function loadSettings(store: Store) {
 }
 
 /** Drivers see the price, fee and total; commission and the operator's share stay internal. */
-const toPublicQuote = (q: DomainQuote): Quote => ({
+export const toPublicQuote = (q: DomainQuote): Quote => ({
   product: q.product,
   priceKobo: q.priceKobo,
   serviceFeeKobo: q.serviceFeeKobo,
@@ -61,7 +61,7 @@ const toPublicQuote = (q: DomainQuote): Quote => ({
   ),
 });
 
-const toOpeningDay = (h: OpeningHourRow): OpeningDay =>
+export const toOpeningDay = (h: OpeningHourRow): OpeningDay =>
   h.is24h
     ? { weekday: h.weekday, is24h: true }
     : { weekday: h.weekday, is24h: false, opensAt: h.opensAt ?? '', closesAt: h.closesAt ?? '' };

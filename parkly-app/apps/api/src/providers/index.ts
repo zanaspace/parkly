@@ -8,26 +8,41 @@ export interface Clock {
   now(): Date;
 }
 
-export type PaymentStatus = 'SUCCEEDED' | 'FAILED' | 'ABANDONED' | 'PENDING';
+/** A charge as the provider reports it on verify (never trust a webhook body alone). */
+export type VerifiedCharge = {
+  /** Provider status as given: success, failed, reversed, abandoned, ongoing, pending, … */
+  status: string;
+  amountKobo: number;
+  currency: string;
+  paidAt: Date | null;
+  feesKobo: number | null;
+  channel: string | null;
+  /** Only the last four digits and the brand: never more card data (doc 06). */
+  cardLast4: string | null;
+  cardBrand: string | null;
+};
 
 export interface PaymentProvider {
-  readonly name: 'paystack' | 'flutterwave' | 'fake';
+  readonly name: 'paystack' | 'fake';
   initialize(input: {
     reference: string;
     amountKobo: number;
     email: string;
-    subaccountCode: string;
-    /** Parkly's share (commission + service fee), deducted by the split. */
+    /** The operator's subaccount; null only outside prod (demo lots have none). */
+    subaccountCode: string | null;
+    /** Parkly's share (commission + service fee), kept by the split (`transaction_charge`). */
     platformShareKobo: number;
+    /** Where the provider sends the driver after paying. */
+    callbackUrl: string | null;
     metadata: Record<string, string>;
-  }): Promise<{ authorizationUrl: string; accessCode: string; reference: string }>;
-  verify(
-    reference: string,
-  ): Promise<{ status: PaymentStatus; amountKobo: number; paidAt: Date | null }>;
+  }): Promise<{ authorizationUrl: string; accessCode: string }>;
+  /** Null when the provider does not know the reference. */
+  verify(reference: string): Promise<VerifiedCharge | null>;
   refund(input: {
     reference: string;
     amountKobo: number;
   }): Promise<{ refundId: string; status: 'PENDING' | 'PROCESSED' }>;
+  /** Checks the webhook signature over the exact raw body. */
   verifyWebhook(rawBody: string, signature: string | undefined): boolean;
 }
 

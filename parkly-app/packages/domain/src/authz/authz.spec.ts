@@ -193,6 +193,14 @@ describe('own-resource permissions', () => {
     expect(can(driver, 'vehicle:manage:own', { ownerUserId: 'u2' })).toBe(false);
   });
 
+  it('lets only drivers book, and only for themselves', () => {
+    for (const action of ['booking:create:own', 'booking:read:own'] as const) {
+      expect(can(driver, action, { ownerUserId: 'u1' })).toBe(true);
+      expect(can(driver, action, { ownerUserId: 'u2' })).toBe(false);
+      expect(can(ownerA, action, { ownerUserId: 'u1' })).toBe(false);
+    }
+  });
+
   it('limits vehicles and account deletion to drivers', () => {
     expect(can(ownerA, 'vehicle:manage:own', { ownerUserId: 'u1' })).toBe(false);
     expect(can(ownerA, 'account:delete:own', { ownerUserId: 'u1' })).toBe(false);

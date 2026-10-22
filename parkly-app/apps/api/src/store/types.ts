@@ -1,5 +1,6 @@
 import type { RoleGrant } from '@parkly/domain/authz';
-import type { Bucket } from '../providers/index.js';
+import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
+import type { Bucket, VerifiedCharge } from '../providers/index.js';
 
 /**
  * Everything the API reads or writes in Postgres goes through this interface.
@@ -255,6 +256,80 @@ export type SlotRow = {
   passReserved: number;
   blocked: number;
 };
+
+export type BookingRow = {
+  id: string;
+  code: string;
+  driverId: string;
+  vehicleId: string;
+  plateNorm: string;
+  lotId: string;
+  product: 'HOURLY' | 'DAILY';
+  startAt: Date;
+  endAt: Date;
+  status: BookingStatus;
+  holdExpiresAt: Date | null;
+  priceKobo: number;
+  serviceFeeKobo: number;
+  totalKobo: number;
+  commissionBps: number;
+  ratePlanId: string;
+  /** The domain quote lines, as priced when booked. */
+  pricingBreakdown: unknown;
+  source: 'MOBILE' | 'WEB' | 'ADMIN';
+  createdAt: Date;
+};
+
+export type NewBooking = Omit<
+  BookingRow,
+  'status' | 'totalKobo' | 'createdAt' | 'holdExpiresAt'
+> & {
+  holdExpiresAt: Date;
+};
+
+export type PaymentRow = {
+  /** Also the provider reference. */
+  id: string;
+  bookingId: string | null;
+  payerUserId: string;
+  provider: 'PAYSTACK' | 'FAKE';
+  status: PaymentStatus;
+  amountKobo: number;
+  platformAmountKobo: number;
+  operatorAmountKobo: number;
+  operatorId: string;
+  subaccountCode: string | null;
+  authorizationUrl: string | null;
+  paidAt: Date | null;
+  failureCode: string | null;
+  createdAt: Date;
+};
+
+export type NewPayment = Pick<
+  PaymentRow,
+  | 'id'
+  | 'payerUserId'
+  | 'provider'
+  | 'amountKobo'
+  | 'platformAmountKobo'
+  | 'operatorAmountKobo'
+  | 'operatorId'
+  | 'subaccountCode'
+>;
+
+export type SettleResult = {
+  decision: ConfirmDecision;
+  booking: BookingRow;
+  payment: PaymentRow;
+  /** A refund row created by this settlement; the caller asks the provider for it. */
+  refund: { id: string; amountKobo: number } | null;
+};
+
+export type IdempotencyBegin =
+  | { state: 'new' }
+  | { state: 'replay'; status: number; body: unknown }
+  | { state: 'in_progress' }
+  | { state: 'mismatch' };
 
 export type AuditEntry = {
   actorUserId: string | null;
@@ -542,6 +617,82 @@ export type Store = {
     /** Lots an attendant may work: their explicit list, or every lot of the operator when empty. */
     attendantLotIds(userId: string): Promise<string[]>;
   };
+  bookings: {
+    /**
+     * `fn_hold_booking` plus the booking's INITIATED payment, in one
+     * transaction. Throws BookingHoldError (full, same car, lot not bookable,
+     * bad window) or BookingCodeTakenError (retry with a new code).
+     */
+    hold(
+      booking: NewBooking,
+      payment: NewPayment,
+      at: Date,
+    ): Promise<{ booking: BookingRow; payment: PaymentRow }>;
+    find(id: string): Promise<BookingRow | null>;
+    /** Upcoming: live and not yet ended, soonest first. Past: the rest, latest first. */
+    listForDriver(
+      driverId: string,
+      which: 'upcoming' | 'past',
+      now: Date,
+      limit: number,
+    ): Promise<BookingRow[]>;
+    /**
+     * Ends an unpaid hold now (checkout could not start): EXPIRED with the
+     * space given back and a SYSTEM history row. No-op unless PENDING_PAYMENT.
+     * A payment that never reached the provider (INITIATED) becomes FAILED; one
+     * the driver may still complete stays PENDING, so late money is refunded.
+     */
+    releaseHold(id: string, reason: string, at: Date): Promise<void>;
+  };
+  payments: {
+    find(id: string): Promise<PaymentRow | null>;
+    latestForBooking(bookingId: string): Promise<PaymentRow | null>;
+    /** INITIATED → PENDING with the provider's checkout link. */
+    checkoutStarted(
+      id: string,
+      checkout: { authorizationUrl: string; accessCode: string },
+      at: Date,
+    ): Promise<PaymentRow>;
+    /**
+     * Applies a verified charge (doc 02 §7.5): locks the payment and its
+     * booking, decides with `confirmDecision`, then confirms (slots, history,
+     * ledger), fails, refunds or does nothing. Safe to call any number of times.
+     */
+    settle(id: string, charge: VerifiedCharge, at: Date): Promise<SettleResult>;
+    /** Records the provider's id for a refund we asked for. */
+    refundRequested(refundId: string, providerRefundId: string): Promise<void>;
+  };
+  webhooks: {
+    /** Stores a provider event once; a repeat of the same dedupe key is `duplicate`. */
+    record(event: {
+      provider: 'PAYSTACK' | 'FAKE';
+      dedupeKey: string;
+      eventType: string;
+      reference: string | null;
+      payload: unknown;
+      at: Date;
+    }): Promise<{ id: string; duplicate: boolean }>;
+    finish(
+      id: string,
+      status: 'PROCESSED' | 'FAILED' | 'IGNORED',
+      error: string | null,
+      at: Date,
+    ): Promise<void>;
+  };
+  idempotency: {
+    /** Claims (actor, key) for this request, or says how a repeat should be answered. */
+    begin(key: {
+      actorId: string;
+      key: string;
+      method: string;
+      path: string;
+      requestHash: string;
+      expiresAt: Date;
+    }): Promise<IdempotencyBegin>;
+    complete(actorId: string, key: string, status: number, body: unknown): Promise<void>;
+    /** Drops an IN_PROGRESS claim after an error so the client can retry the same key. */
+    release(actorId: string, key: string): Promise<void>;
+  };
   inventory: {
     /** Existing inventory rows for these lots with slot_start in [from, to). */
     slots(lotIds: string[], from: Date, to: Date): Promise<SlotRow[]>;
@@ -603,3 +754,17 @@ export class OperatorExistsError extends Error {}
 export class SlugTakenError extends Error {}
 export class MemberExistsError extends Error {}
 export class StaleVersionError extends Error {}
+
+export type BookingHoldCode =
+  | 'BOOKING_SLOT_UNAVAILABLE'
+  | 'BOOKING_OVERLAP_SAME_VEHICLE'
+  | 'LOT_NOT_BOOKABLE'
+  | 'BOOKING_WINDOW_INVALID';
+
+/** `fn_hold_booking` refused; `code` is the problem+json code. */
+export class BookingHoldError extends Error {
+  constructor(readonly code: BookingHoldCode) {
+    super(code);
+  }
+}
+export class BookingCodeTakenError extends Error {}

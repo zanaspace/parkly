@@ -14,13 +14,20 @@ import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middlewar
 import {
   FakeMalwareScanner,
   FakeMapsProvider,
+  FakePaymentProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
-import type { SettlementProvider, SmsProvider, StorageProvider } from './providers/index.js';
+import type {
+  PaymentProvider,
+  SettlementProvider,
+  SmsProvider,
+  StorageProvider,
+} from './providers/index.js';
 import { logOnlyEmail } from './providers/log-email.js';
 import { locationIqMaps } from './providers/locationiq.js';
+import { paystackPaymentProvider } from './providers/paystack-payments.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
@@ -112,6 +119,10 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     config.settlement.provider === 'paystack'
       ? paystackSettlementProvider({ secretKey: config.settlement.secretKey })
       : new FakeSettlementProvider();
+  const payments: PaymentProvider =
+    config.settlement.provider === 'paystack'
+      ? paystackPaymentProvider({ secretKey: config.settlement.secretKey })
+      : new FakePaymentProvider();
   const storage: StorageProvider =
     config.storage.provider === 'supabase'
       ? supabaseStorage({ url: config.supabase.url, secretKey: config.storage.secretKey })
@@ -161,6 +172,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     sms: { primary },
     sessions,
     settlement,
+    payments,
     storage,
     scanner: new FakeMalwareScanner(),
     maps:

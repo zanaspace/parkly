@@ -79,6 +79,12 @@ describe('booking transitions (doc 02 §3.1)', () => {
     );
   });
 
+  it('ends a hold early when the payment failed', () => {
+    expect(
+      check('PENDING_PAYMENT', 'EXPIRED', 'SYSTEM', beforeHoldEnd, { paymentFailed: true }),
+    ).toEqual({ ok: true });
+  });
+
   it('lets the driver cancel a pending booking', () => {
     expect(check('PENDING_PAYMENT', 'CANCELLED', 'DRIVER', beforeHoldEnd)).toEqual({ ok: true });
     expect(check('PENDING_PAYMENT', 'CANCELLED', 'ATTENDANT', beforeHoldEnd)).toEqual({
