@@ -10507,6 +10507,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "graceMin",
                             "per15Kobo"
@@ -10539,6 +10540,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "checkedInAt",
                             "checkedOutAt",
@@ -10566,8 +10568,6 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
-                        "overstay",
-                        "stay",
                         "createdAt"
                       ]
                     },
@@ -10880,6 +10880,7 @@
                                 "type": "integer"
                               }
                             },
+                            "default": null,
                             "required": [
                               "graceMin",
                               "per15Kobo"
@@ -10912,6 +10913,7 @@
                                 "type": "integer"
                               }
                             },
+                            "default": null,
                             "required": [
                               "checkedInAt",
                               "checkedOutAt",
@@ -10939,8 +10941,6 @@
                           "totalKobo",
                           "lines",
                           "qrToken",
-                          "overstay",
-                          "stay",
                           "createdAt"
                         ]
                       }
@@ -11205,6 +11205,7 @@
                           "type": "integer"
                         }
                       },
+                      "default": null,
                       "required": [
                         "graceMin",
                         "per15Kobo"
@@ -11237,6 +11238,7 @@
                           "type": "integer"
                         }
                       },
+                      "default": null,
                       "required": [
                         "checkedInAt",
                         "checkedOutAt",
@@ -11264,8 +11266,6 @@
                     "totalKobo",
                     "lines",
                     "qrToken",
-                    "overstay",
-                    "stay",
                     "createdAt"
                   ]
                 }
@@ -11568,6 +11568,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "graceMin",
                             "per15Kobo"
@@ -11600,6 +11601,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "checkedInAt",
                             "checkedOutAt",
@@ -11627,8 +11629,6 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
-                        "overstay",
-                        "stay",
                         "createdAt"
                       ]
                     }
