@@ -10345,15 +10345,15 @@
                               "type": "string"
                             },
                             "selfCheckIn": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "default": false
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine",
-                            "selfCheckIn"
+                            "addressLine"
                           ]
                         },
                         "vehicle": {
@@ -10718,15 +10718,15 @@
                                 "type": "string"
                               },
                               "selfCheckIn": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "default": false
                               }
                             },
                             "required": [
                               "id",
                               "slug",
                               "name",
-                              "addressLine",
-                              "selfCheckIn"
+                              "addressLine"
                             ]
                           },
                           "vehicle": {
@@ -11043,15 +11043,15 @@
                           "type": "string"
                         },
                         "selfCheckIn": {
-                          "type": "boolean"
+                          "type": "boolean",
+                          "default": false
                         }
                       },
                       "required": [
                         "id",
                         "slug",
                         "name",
-                        "addressLine",
-                        "selfCheckIn"
+                        "addressLine"
                       ]
                     },
                     "vehicle": {
@@ -11406,15 +11406,15 @@
                               "type": "string"
                             },
                             "selfCheckIn": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "default": false
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine",
-                            "selfCheckIn"
+                            "addressLine"
                           ]
                         },
                         "vehicle": {
