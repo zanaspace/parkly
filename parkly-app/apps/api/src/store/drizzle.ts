@@ -749,6 +749,18 @@ export function drizzleStore(db: Db): Store {
           .limit(limit);
         return rows as (LiveLotRow & { distanceM: number })[];
       },
+      async searchLiveByName(text, today, limit) {
+        // ILIKE wildcards in the driver's text are matched literally.
+        const pattern = `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        const rows = await db
+          .select(liveColumns)
+          .from(lots)
+          .innerJoin(operators, eq(operators.id, lots.operatorId))
+          .where(and(listable(today), sql`${lots.name} ilike ${pattern}`))
+          .orderBy(asc(lots.name), asc(lots.id))
+          .limit(limit);
+        return rows as LiveLotRow[];
+      },
       async findLive(idOrSlug, today) {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
           idOrSlug,

@@ -476,7 +476,9 @@ export function attendRoutes(deps: AppDeps) {
       tags: ['bookings'],
       ...secured,
       request: { params: bookingPath, body: { ...json(SelfCheckRequestSchema), required: true } },
-      responses: { 200: { description: 'Checked in (or already in)', ...json(SelfCheckResultSchema) } },
+      responses: {
+        200: { description: 'Checked in (or already in)', ...json(SelfCheckResultSchema) },
+      },
     }),
     async (c) => c.json(await selfCheck(c, c.req.valid('param').id, 'CHECK_IN'), 200),
   );

@@ -388,6 +388,13 @@ export class MemoryStore implements Store {
         .sort((a, b) => a.distanceM - b.distanceM)
         .slice(0, limit)
         .map(({ lot, distanceM }) => ({ ...lot, distanceM: Math.round(distanceM) })),
+    searchLiveByName: async (text, today, limit) =>
+      [...this.lotRows.values()]
+        .filter((l) => l.name.toLowerCase().includes(text.toLowerCase()))
+        .map((l) => this.live(l, today))
+        .filter((l): l is LiveLotRow => !!l)
+        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+        .slice(0, limit),
     findLive: async (idOrSlug, today) => {
       const lot = [...this.lotRows.values()].find((l) => l.id === idOrSlug || l.slug === idOrSlug);
       return lot ? this.live(lot, today) : null;

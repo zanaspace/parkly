@@ -10164,6 +10164,14 @@
                           "id": {
                             "type": "string"
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "LOT",
+                              "PLACE"
+                            ],
+                            "default": "PLACE"
+                          },
                           "label": {
                             "type": "string"
                           },

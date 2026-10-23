@@ -432,3 +432,43 @@ describe('monthly quotes and edge cases', () => {
     expect(names(await search(w))).toEqual([]);
   });
 });
+
+describe('search by car park name (FR-LOT-101)', () => {
+  const suggest = (w: ReturnType<typeof world>, q: string) =>
+    w.call('GET', `/v1/places/autocomplete?q=${encodeURIComponent(q)}`, {
+      headers: { 'x-forwarded-for': '203.0.113.50' },
+    });
+
+  it('lists matching car parks drivers may see first, then places', async () => {
+    const w = world();
+    await addLot(w.store, { name: 'Eko Hotel Car Park', north: 100 });
+    await addLot(w.store, { name: 'Eko Atlantic Garage', north: 500 });
+    await addLot(w.store, { name: 'Eko Suspended Lot', north: 300, status: 'SUSPENDED' });
+    await addLot(w.store, { name: 'Ikoyi Lot', north: 900 });
+
+    const res = await suggest(w, 'eko');
+    const items = res.body?.items as { kind: string; label: string }[];
+    expect(items.map((i) => [i.kind, i.label])).toEqual([
+      ['LOT', 'Eko Atlantic Garage'],
+      ['LOT', 'Eko Hotel Car Park'],
+      ['PLACE', 'Eko Hotel'],
+    ]);
+    expect(items[0]).toMatchObject({ lat: expect.any(Number), lng: expect.any(Number) });
+  });
+
+  it('still finds car parks when place search is down, and matches % literally', async () => {
+    const down = {
+      autocomplete: async () => {
+        throw new Error('timeout');
+      },
+      placeDetails: async () => ({ lat: 0, lng: 0, formattedAddress: '' }),
+    };
+    const w = world({ maps: down });
+    await addLot(w.store, { name: 'Falomo Car Park' });
+    const res = await suggest(w, 'falomo');
+    expect((res.body?.items as { label: string }[]).map((i) => i.label)).toEqual([
+      'Falomo Car Park',
+    ]);
+    expect((await suggest(w, '%%')).body?.code).toBe('MAPS_UNAVAILABLE');
+  });
+});

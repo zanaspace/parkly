@@ -356,6 +356,16 @@ body {
 .pk-places__label {
   font-weight: 600;
 }
+.pk-places__tag {
+  display: inline-block;
+  margin-right: var(--pk-space-2);
+  padding: 0 var(--pk-space-2);
+  border-radius: var(--pk-radius-full);
+  background: var(--pk-color-bg-brand-subtle);
+  color: var(--pk-color-text-brand);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
 .pk-places__detail {
   color: var(--pk-color-text-tertiary);
   font-size: 0.875rem;

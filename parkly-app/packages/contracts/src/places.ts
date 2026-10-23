@@ -7,6 +7,11 @@ export const PlacesQuerySchema = z.object({
 
 export const PlaceSuggestionSchema = z.object({
   id: z.string(),
+  /**
+   * LOT: a Parkly car park whose name matched (listed first); PLACE: a
+   * landmark or street. Defaults to PLACE for an API that predates it.
+   */
+  kind: z.enum(['LOT', 'PLACE']).default('PLACE'),
   /** Main line, e.g. "Eko Hotel". */
   label: z.string(),
   /** Second line, e.g. "Adetokunbo Ademola Street, Victoria Island". */

@@ -15,13 +15,14 @@ describe('GET /v1/places/autocomplete (FR-LOT-101, ADR 0014)', () => {
     expect(res.body?.items).toEqual([
       {
         id: 'fake-eko',
+        kind: 'PLACE',
         label: 'Eko Hotel',
         detail: 'Victoria Island, Lagos',
         lat: 6.4247,
         lng: 3.4284,
       },
     ]);
-    expect(res.headers.get('cache-control')).toBe('public, s-maxage=86400');
+    expect(res.headers.get('cache-control')).toBe('public, s-maxage=600');
   });
 
   it('needs at least 2 characters', async () => {
@@ -38,7 +39,7 @@ describe('GET /v1/places/autocomplete (FR-LOT-101, ADR 0014)', () => {
       placeDetails: async () => ({ lat: 0, lng: 0, formattedAddress: '' }),
     };
     expect((await search(world({ maps: partial }), 'ab')).body?.items).toEqual([
-      { id: '2', label: 'B', detail: 'Lagos', lat: 6.5, lng: 3.4 },
+      { id: '2', kind: 'PLACE', label: 'B', detail: 'Lagos', lat: 6.5, lng: 3.4 },
     ]);
     const down: MapsProvider = {
       autocomplete: async () => {
