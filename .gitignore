@@ -32,3 +32,6 @@ supabase/.branches/
 *.log
 .DS_Store
 Thumbs.db
+expoErrors/
+product doc/WhatsApp*
+product doc/errors.md

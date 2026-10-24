@@ -3,7 +3,7 @@
 import type { Lot, OpeningDay } from '@parkly/contracts';
 import { Button, Input, Select, Text, ActionForm } from '@parkly/ui';
 import { useRouter } from 'next/navigation';
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useId, useRef, useState } from 'react';
 import { putToSignedUrl, sha256Hex } from '../lib/browser-upload';
 import {
   completeLotPhoto,
@@ -16,6 +16,7 @@ import {
 import { AMENITY_LABELS, VEHICLE_LABELS, WEEKDAYS } from '../lib/lots/form';
 import { formatBytes } from '../lib/operators/kyb-copy';
 import { OPERATOR_TYPE_OPTIONS } from '../lib/operators/form';
+import { LocateIcon, MapPinIcon } from './icons';
 
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MIN_PHOTOS = 3;
@@ -39,28 +40,57 @@ function CheckboxGroup(props: {
 }) {
   return (
     <fieldset
-      className="pk-form"
+      className="pk-fieldset"
       aria-describedby={props.error ? `${props.name}-error` : undefined}
     >
       <legend className="pk-field__label">{props.legend}</legend>
-      {Object.entries(props.options).map(([value, label]) => (
-        <label key={value} className="pk-check">
-          <input
-            type="checkbox"
-            name={props.name}
-            value={value}
-            defaultChecked={props.selected.includes(value)}
-            disabled={props.disabled}
-          />
-          <span>{label}</span>
-        </label>
-      ))}
+      <div className="pk-check-grid">
+        {Object.entries(props.options).map(([value, label]) => (
+          <label key={value} className="pk-check pk-check-tile">
+            <input
+              type="checkbox"
+              name={props.name}
+              value={value}
+              defaultChecked={props.selected.includes(value)}
+              disabled={props.disabled}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
       {props.error && (
         <span id={`${props.name}-error`} className="pk-field__error" role="alert">
           {props.error}
         </span>
       )}
     </fieldset>
+  );
+}
+
+/** A numbered card grouping related fields (step header + body). */
+function FormSection(props: {
+  step: number;
+  title: string;
+  description: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section className="pk-form-section" aria-labelledby={id}>
+      <header className="pk-form-section__head">
+        <span className="pk-form-section__step" aria-hidden="true">
+          {props.icon ?? props.step}
+        </span>
+        <div>
+          <h3 id={id} className="pk-form-section__title">
+            {props.title}
+          </h3>
+          <p className="pk-form-section__desc">{props.description}</p>
+        </div>
+      </header>
+      <div className="pk-form-section__body">{props.children}</div>
+    </section>
   );
 }
 
@@ -98,7 +128,7 @@ export function LotForm(props: { operatorId: string; lot?: Lot; editable: boolea
       : null;
 
   return (
-    <ActionForm action={action} className="pk-form" noValidate>
+    <ActionForm action={action} className="pk-form pk-lot-form" noValidate>
       <input type="hidden" name="operatorId" value={props.operatorId} />
       {lot && (
         <>
@@ -106,145 +136,199 @@ export function LotForm(props: { operatorId: string; lot?: Lot; editable: boolea
           <input type="hidden" name="version" value={lot.version} />
         </>
       )}
-      <Input
-        label="Lot name"
-        name="name"
-        defaultValue={lot?.name}
-        error={err.name}
-        readOnly={ro}
-        required
-      />
-      <Select
-        label="Kind of lot"
-        name="type"
-        defaultValue={lot?.type ?? ''}
-        placeholder="Choose one"
-        options={OPERATOR_TYPE_OPTIONS}
-        error={err.type}
-        disabled={ro}
-        required
-      />
-      <Input
-        label="Street address"
-        name="addressLine"
-        defaultValue={lot?.addressLine}
-        error={err.addressLine}
-        readOnly={ro}
-        required
-      />
-      <Input
-        label="Area, optional"
-        name="area"
-        defaultValue={lot?.area ?? ''}
-        placeholder="Victoria Island"
-        readOnly={ro}
-      />
-      <Input
-        label="LGA, optional"
-        name="lga"
-        defaultValue={lot?.lga ?? ''}
-        placeholder="Eti-Osa"
-        readOnly={ro}
-      />
 
-      <fieldset className="pk-form">
-        <legend className="pk-field__label">Entrance location</legend>
-        <Text variant="body-sm" tone="tertiary">
-          Drivers navigate to this point, so use the entrance, not the middle of the lot.
-        </Text>
-        <div className="pk-row">
+      <FormSection
+        step={1}
+        title="Basics"
+        description="How drivers will recognise this car park in the Parkly app."
+      >
+        <div className="pk-form-grid">
           <Input
-            label="Latitude"
-            name="lat"
-            inputMode="decimal"
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            placeholder="6.428100"
+            label="Lot name"
+            name="name"
+            defaultValue={lot?.name}
+            placeholder="Landmark Towers Car Park"
+            error={err.name}
+            readOnly={ro}
+            required
+          />
+          <Select
+            label="Kind of lot"
+            name="type"
+            defaultValue={lot?.type ?? ''}
+            placeholder="Choose one"
+            options={OPERATOR_TYPE_OPTIONS}
+            error={err.type}
+            disabled={ro}
+            required
+          />
+          <div className="pk-form-col-full">
+            <Input
+              label="Street address"
+              name="addressLine"
+              defaultValue={lot?.addressLine}
+              placeholder="12 Akin Adesola Street"
+              autoComplete="street-address"
+              error={err.addressLine}
+              readOnly={ro}
+              required
+            />
+          </div>
+          <Input
+            label="Area, optional"
+            name="area"
+            defaultValue={lot?.area ?? ''}
+            placeholder="Victoria Island"
             readOnly={ro}
           />
           <Input
-            label="Longitude"
-            name="lng"
-            inputMode="decimal"
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            placeholder="3.421900"
+            label="LGA, optional"
+            name="lga"
+            defaultValue={lot?.lga ?? ''}
+            placeholder="Eti-Osa"
             readOnly={ro}
           />
         </div>
+      </FormSection>
+
+      <FormSection
+        step={2}
+        title="Entrance location"
+        description="Drivers navigate to this point, so use the entrance, not the middle of the lot."
+      >
+        <fieldset className="pk-fieldset">
+          <legend className="pk-visually-hidden">Entrance coordinates</legend>
+          <div className="pk-form-grid">
+            <Input
+              label="Latitude"
+              name="lat"
+              inputMode="decimal"
+              value={lat}
+              onChange={(e) => setLat(e.target.value)}
+              placeholder="6.428100"
+              readOnly={ro}
+            />
+            <Input
+              label="Longitude"
+              name="lng"
+              inputMode="decimal"
+              value={lng}
+              onChange={(e) => setLng(e.target.value)}
+              placeholder="3.421900"
+              readOnly={ro}
+            />
+          </div>
+        </fieldset>
         {err.location && <Notice tone="error">{err.location}</Notice>}
-        <div className="pk-row">
-          {!ro && (
-            <Button type="button" variant="ghost" size="sm" onClick={useMyLocation}>
-              Use my current location
-            </Button>
-          )}
-          {mapUrl && (
-            <a className="pk-link" href={mapUrl} target="_blank" rel="noopener noreferrer">
-              Check it on a map
-            </a>
-          )}
-        </div>
+        {(!ro || mapUrl) && (
+          <div className="pk-location-actions">
+            {!ro && (
+              <Button type="button" variant="secondary" size="sm" onClick={useMyLocation}>
+                <LocateIcon size={16} /> Use my current location
+              </Button>
+            )}
+            {mapUrl && (
+              <a
+                className="pk-location-actions__map"
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MapPinIcon size={16} /> Check it on a map ↗
+              </a>
+            )}
+          </div>
+        )}
         {locating && <Notice tone="info">{locating}</Notice>}
-      </fieldset>
+        <Input
+          label="Entrance instructions, optional"
+          name="entranceNotes"
+          defaultValue={lot?.entranceNotes ?? ''}
+          placeholder="Enter through Gate 2 on Akin Adesola St"
+          readOnly={ro}
+        />
+      </FormSection>
 
-      <Input
-        label="Entrance instructions, optional"
-        name="entranceNotes"
-        defaultValue={lot?.entranceNotes ?? ''}
-        placeholder="Enter through Gate 2 on Akin Adesola St"
-        readOnly={ro}
-      />
-      <div className="pk-row">
-        <Input
-          label="Total spaces"
-          name="capacityTotal"
-          inputMode="numeric"
-          defaultValue={lot?.capacityTotal}
-          error={err.capacityTotal}
-          readOnly={ro}
-          required
+      <FormSection
+        step={3}
+        title="Capacity"
+        description="Tell us how many cars fit, and how many of those spaces you want to sell on Parkly."
+      >
+        <div className="pk-form-grid">
+          <Input
+            label="Total spaces"
+            name="capacityTotal"
+            inputMode="numeric"
+            defaultValue={lot?.capacityTotal}
+            placeholder="120"
+            error={err.capacityTotal}
+            readOnly={ro}
+            required
+          />
+          <Input
+            label="Spaces offered on Parkly"
+            name="capacityBookable"
+            inputMode="numeric"
+            defaultValue={lot?.capacityBookable}
+            placeholder="40"
+            error={err.capacityBookable}
+            helper="Can be less than the total if you keep some for regulars."
+            readOnly={ro}
+            required
+          />
+        </div>
+      </FormSection>
+
+      <FormSection
+        step={4}
+        title="Amenities & vehicles"
+        description="Drivers filter by these, so only tick what’s really available on site."
+      >
+        <CheckboxGroup
+          legend="Amenities"
+          name="amenities"
+          options={AMENITY_LABELS}
+          selected={lot?.amenities ?? []}
+          error={err.amenities}
+          disabled={ro}
         />
-        <Input
-          label="Spaces offered on Parkly"
-          name="capacityBookable"
-          inputMode="numeric"
-          defaultValue={lot?.capacityBookable}
-          error={err.capacityBookable}
-          helper="Can be less than the total if you keep some for regulars."
-          readOnly={ro}
-          required
+        <CheckboxGroup
+          legend="Vehicles allowed"
+          name="vehicleTypes"
+          options={VEHICLE_LABELS}
+          selected={lot?.vehicleTypes ?? ['CAR']}
+          error={err.vehicleTypes}
+          disabled={ro}
         />
-      </div>
-      <CheckboxGroup
-        legend="Amenities"
-        name="amenities"
-        options={AMENITY_LABELS}
-        selected={lot?.amenities ?? []}
-        error={err.amenities}
-        disabled={ro}
-      />
-      <CheckboxGroup
-        legend="Vehicles allowed"
-        name="vehicleTypes"
-        options={VEHICLE_LABELS}
-        selected={lot?.vehicleTypes ?? ['CAR']}
-        error={err.vehicleTypes}
-        disabled={ro}
-      />
-      <Input
-        label="Description, optional"
-        name="description"
-        defaultValue={lot?.description ?? ''}
-        readOnly={ro}
-      />
+      </FormSection>
+
+      <FormSection
+        step={5}
+        title="Description"
+        description="Anything else drivers should know before they arrive. Optional."
+      >
+        <Input
+          label="Description, optional"
+          name="description"
+          defaultValue={lot?.description ?? ''}
+          placeholder="Covered parking, 2-minute walk to the Civic Centre."
+          readOnly={ro}
+        />
+      </FormSection>
 
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       {state?.saved && <Notice tone="info">Lot details saved.</Notice>}
       {!ro && (
-        <Button type="submit" loading={pending} fullWidth>
-          {lot ? 'Save details' : 'Create lot and continue'}
-        </Button>
+        <div className="pk-form-actions">
+          <Text variant="body-sm" tone="secondary">
+            {lot
+              ? 'Changes are saved to this draft.'
+              : 'Saved as a draft. Nothing is shown to drivers until Parkly approves it.'}
+          </Text>
+          <Button type="submit" loading={pending}>
+            {lot ? 'Save details' : 'Create lot and continue'}
+          </Button>
+        </div>
       )}
     </ActionForm>
   );

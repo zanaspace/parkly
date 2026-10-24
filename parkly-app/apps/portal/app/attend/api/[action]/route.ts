@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { loadSession } from '../../../../lib/auth/session';
+import { getAccessToken } from '../../../../lib/auth/session';
 import { publicEnv } from '../../../../lib/env';
 
 /**
@@ -31,13 +31,13 @@ async function forward(req: NextRequest, action: string) {
   const path = route.path(req.nextUrl.searchParams);
   if (!path) return NextResponse.json({ code: 'VALIDATION_FAILED' }, { status: 400 });
 
-  const session = await loadSession();
-  if (!session.signedIn) return NextResponse.json({ code: 'AUTH_REQUIRED' }, { status: 401 });
+  const token = await getAccessToken();
+  if (!token) return NextResponse.json({ code: 'AUTH_REQUIRED' }, { status: 401 });
 
   const res = await fetch(`${publicEnv().apiUrl}${path}`, {
     method: route.method,
     headers: {
-      authorization: `Bearer ${session.accessToken}`,
+      authorization: `Bearer ${token}`,
       ...(route.method === 'POST' ? { 'content-type': 'application/json' } : {}),
     },
     ...(route.method === 'POST' ? { body: await req.text() } : {}),

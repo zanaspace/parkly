@@ -133,8 +133,14 @@ export default function Account() {
   }
 
   return (
-    <Screen>
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
+    <Screen showNav>
+      {router.canGoBack() ? (
+        <Button
+          label="Back"
+          variant="ghost"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+        />
+      ) : null}
       <Text variant="heading.lg">Account</Text>
       <View style={{ gap: theme.space.stack.xs }}>
         <Text variant="body.lg">

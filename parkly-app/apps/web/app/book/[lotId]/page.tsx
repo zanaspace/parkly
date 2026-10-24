@@ -3,12 +3,14 @@ import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { randomUUID } from 'node:crypto';
 import { AddCarForm, PayForm } from '../../../components/booking-forms';
 import { api, apiAs, ApiProblem } from '../../../lib/api';
 import { problemText } from '../../../lib/copy';
 import { lineLabel, readSearch, searchQuery, searchWindow, windowLabel } from '../../../lib/search';
 import { requireDriver } from '../../../lib/session';
+import { createClient } from '../../../lib/supabase/server';
 
 export const metadata: Metadata = { title: 'Review and pay · Parkly' };
 
@@ -49,7 +51,17 @@ export default async function ReviewAndPay({
       </main>
     );
   }
-  const vehicles = (await apiAs<{ items: Vehicle[] }>(driver.accessToken, '/v1/me/vehicles')).items;
+  let vehicles: Vehicle[];
+  try {
+    vehicles = (await apiAs<{ items: Vehicle[] }>(driver.accessToken, '/v1/me/vehicles')).items;
+  } catch (err) {
+    if (err instanceof ApiProblem && (err.status === 401 || err.status === 403)) {
+      const supabase = await createClient();
+      await supabase.auth.signOut({ scope: 'local' });
+      redirect(`/sign-in?next=${encodeURIComponent(back)}`);
+    }
+    throw err;
+  }
 
   return (
     <main className="pk-page pk-stack">

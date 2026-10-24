@@ -1,6 +1,6 @@
 import type { Booking } from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
-import { Button, Text, useTheme } from '@parkly/ui-native';
+import { Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
@@ -55,9 +55,7 @@ export default function MyBookings() {
   }, [tab, userId]);
 
   return (
-    <Screen
-      footer={<Button label="Find parking" fullWidth onPress={() => router.replace('/home')} />}
-    >
+    <Screen showNav>
       <Text variant="heading.xl">My bookings</Text>
       <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
         <Chip label="Upcoming" selected={tab === 'upcoming'} onPress={() => setTab('upcoming')} />

@@ -161,9 +161,7 @@ export default function Results() {
 
   const header = (
     <View style={{ gap: theme.space.stack.sm, paddingBottom: theme.space.stack.sm }}>
-      <Text variant="heading.lg">Parking near {point.place}</Text>
-      <Text tone="secondary">{windowLabel(search)}</Text>
-      <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
+      <View style={{ flexDirection: 'row', gap: theme.space.inline.sm, alignItems: 'center' }}>
         <Chip
           label="Nearest"
           selected={search.sort === 'distance'}
@@ -187,7 +185,70 @@ export default function Results() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.bg.canvas }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.bg.canvas }} edges={['top', 'left', 'right']}>
+      {/* Pinned Top Search Bar — Gold Standard: Always accessible without scrolling */}
+      <View
+        style={{
+          paddingHorizontal: theme.space.layout.gutter,
+          paddingTop: theme.space.stack.xs,
+          paddingBottom: theme.space.stack.xs,
+          backgroundColor: theme.color.bg.canvas,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.color.border.default,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Change search: near ${point.place}, ${windowLabel(search)}`}
+          accessibilityHint="Tap to edit search location or parking time"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: theme.card.bg,
+            borderRadius: theme.card.radius,
+            borderWidth: 1,
+            borderColor: pressed ? theme.color.border.brand : theme.card.border,
+            paddingVertical: 10,
+            paddingHorizontal: theme.space.inset.md,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 3,
+            elevation: 2,
+          })}
+        >
+          <View style={{ flex: 1, marginRight: theme.space.inline.sm, gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text variant="label.lg" numberOfLines={1} style={{ flexShrink: 1 }}>
+                📍 {point.place}
+              </Text>
+            </View>
+            <Text variant="body.sm" tone="secondary" numberOfLines={1}>
+              {windowLabel(search)}
+            </Text>
+          </View>
+          <View
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: theme.radius.full,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              borderWidth: 1,
+              borderColor: theme.color.border.brand,
+            }}
+          >
+            <Text
+              variant="label.sm"
+              style={{ color: theme.color.text.brand, fontWeight: '600' }}
+            >
+              Change
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+
       <FlatList
         data={result?.items ?? []}
         keyExtractor={(lot) => lot.id}
@@ -234,7 +295,11 @@ export default function Results() {
           )
         }
         ListFooterComponent={
-          <Button label="Change search" variant="ghost" onPress={() => router.back()} />
+          <Button
+            label="Search another area"
+            variant="ghost"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+          />
         }
       />
     </SafeAreaView>

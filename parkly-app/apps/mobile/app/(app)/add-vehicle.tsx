@@ -1,4 +1,4 @@
-import { Text } from '@parkly/ui-native';
+import { Button, Text } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Screen } from '../../src/components/Screen';
@@ -8,15 +8,29 @@ export default function AddVehicle() {
   const auth = useAuth();
   const router = useRouter();
   return (
-    <Screen>
+    <Screen
+      footer={
+        <Button
+          label="Cancel"
+          variant="ghost"
+          fullWidth
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/account'))}
+        />
+      }
+    >
       <Text variant="heading.lg">Add a vehicle</Text>
       <VehicleForm
         submitLabel="Save vehicle"
         onAdded={async () => {
           await auth.refreshVehicles();
-          router.back();
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/account');
+          }
         }}
       />
     </Screen>
   );
 }
+
