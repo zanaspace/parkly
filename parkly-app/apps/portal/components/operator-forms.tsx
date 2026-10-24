@@ -82,81 +82,85 @@ export function BusinessForm(
   return (
     <ActionForm action={action} className="pk-form" noValidate key={key}>
       {props.mode === 'edit' && <input type="hidden" name="operatorId" value={props.operator.id} />}
-      <Input
-        label="Registered business name"
-        name="legalName"
-        defaultValue={v.legalName}
-        helper="Exactly as on your CAC certificate."
-        error={err.legalName}
-        readOnly={readOnly}
-        required
-      />
-      <Input
-        label="Trading name"
-        name="tradingName"
-        defaultValue={v.tradingName}
-        helper="The name drivers see in the app."
-        error={err.tradingName}
-        readOnly={readOnly}
-        required
-      />
-      <Select
-        label="Business type"
-        name="type"
-        defaultValue={v.type ?? ''}
-        placeholder="Choose one"
-        options={OPERATOR_TYPE_OPTIONS}
-        error={err.type}
-        disabled={readOnly}
-        required
-      />
-      <Input
-        label="CAC registration number"
-        name="cacNumber"
-        defaultValue={v.cacNumber}
-        placeholder="RC 123456"
-        error={err.cacNumber}
-        readOnly={readOnly}
-        required
-      />
-      <Input
-        label="Tax ID (TIN), optional"
-        name="tin"
-        defaultValue={v.tin}
-        placeholder="12345678-0001"
-        error={err.tin}
-        readOnly={readOnly}
-      />
-      <Input
-        label="Business address"
-        name="addressLine"
-        defaultValue={v.addressLine}
-        autoComplete="street-address"
-        error={err.addressLine}
-        readOnly={readOnly}
-        required
-      />
-      <Input
-        label="Contact email"
-        name="contactEmail"
-        type="email"
-        defaultValue={v.contactEmail}
-        autoComplete="email"
-        error={err.contactEmail}
-        readOnly={readOnly}
-        required
-      />
-      <Input
-        label="Contact phone"
-        name="contactPhone"
-        type="tel"
-        defaultValue={v.contactPhone}
-        placeholder="0803 123 4567"
-        autoComplete="tel"
-        error={err.contactPhone}
-        readOnly={readOnly}
-        required
-      />
+      <div className="pk-form-grid">
+        <Input
+          label="Registered business name"
+          name="legalName"
+          defaultValue={v.legalName}
+          helper="Exactly as on your CAC certificate."
+          error={err.legalName}
+          readOnly={readOnly}
+          required
+        />
+        <Input
+          label="Trading name"
+          name="tradingName"
+          defaultValue={v.tradingName}
+          helper="The name drivers see in the app."
+          error={err.tradingName}
+          readOnly={readOnly}
+          required
+        />
+        <Select
+          label="Business type"
+          name="type"
+          defaultValue={v.type ?? ''}
+          placeholder="Choose one"
+          options={OPERATOR_TYPE_OPTIONS}
+          error={err.type}
+          disabled={readOnly}
+          required
+        />
+        <Input
+          label="CAC registration number"
+          name="cacNumber"
+          defaultValue={v.cacNumber}
+          placeholder="RC 123456"
+          error={err.cacNumber}
+          readOnly={readOnly}
+          required
+        />
+        <Input
+          label="Tax ID (TIN), optional"
+          name="tin"
+          defaultValue={v.tin}
+          placeholder="12345678-0001"
+          error={err.tin}
+          readOnly={readOnly}
+        />
+        <div className="pk-form-col-full">
+          <Input
+            label="Business address"
+            name="addressLine"
+            defaultValue={v.addressLine}
+            autoComplete="street-address"
+            error={err.addressLine}
+            readOnly={readOnly}
+            required
+          />
+        </div>
+        <Input
+          label="Contact email"
+          name="contactEmail"
+          type="email"
+          defaultValue={v.contactEmail}
+          autoComplete="email"
+          error={err.contactEmail}
+          readOnly={readOnly}
+          required
+        />
+        <Input
+          label="Contact phone"
+          name="contactPhone"
+          type="tel"
+          defaultValue={v.contactPhone}
+          placeholder="0803 123 4567"
+          autoComplete="tel"
+          error={err.contactPhone}
+          readOnly={readOnly}
+          required
+        />
+      </div>
 
       {props.mode === 'create' && (
         <>

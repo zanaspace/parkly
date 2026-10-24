@@ -13,12 +13,16 @@ export async function getOrCreateDeviceId(): Promise<string> {
   const existing = store.get(DEVICE_COOKIE)?.value;
   if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
   const id = randomUUID();
-  store.set(DEVICE_COOKIE, id, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  try {
+    store.set(DEVICE_COOKIE, id, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  } catch {
+    // If called during Server Component render, cookie mutation is disallowed by Next.js.
+  }
   return id;
 }

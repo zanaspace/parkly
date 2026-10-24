@@ -3,6 +3,7 @@ import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ArrowLeftIcon, CarIcon, SearchIcon, ShieldCheckIcon } from '../../components/icons';
 import { LotsMap } from '../../components/lots-map';
 import { SearchForm } from '../../components/search-form';
 import { api, ApiProblem } from '../../lib/api';
@@ -36,15 +37,21 @@ function ResultCard({ lot, search }: { lot: LotSearchResult; search: SearchInput
           <img className="pk-result__photo" src={lot.photoUrl} alt="" loading="lazy" />
         ) : (
           <div className="pk-result__photo pk-result__photo--empty" aria-hidden="true">
-            P
+            <div className="pk-result__empty-graphic">
+              <CarIcon size={26} />
+              <span className="pk-result__empty-label">Car Park</span>
+            </div>
           </div>
         )}
         <div className="pk-result__body">
           <div className="pk-row pk-row--between">
-            <Text variant="label-lg" as="h3">
+            <Text variant="label-lg" as="h3" style={{ fontWeight: '700' }}>
               {lot.name}
             </Text>
-            <span className="pk-badge-verified">✓ Verified</span>
+            <span className="pk-badge-verified">
+              <ShieldCheckIcon size={12} />
+              <span>Verified</span>
+            </span>
           </div>
           <Text variant="body-sm" tone="secondary">
             {lot.area ? `${lot.area} · ` : ''}
@@ -55,7 +62,7 @@ function ResultCard({ lot, search }: { lot: LotSearchResult; search: SearchInput
               {lot.amenities.map((a) => AMENITY_LABEL[a]).join(' · ')}
             </Text>
           )}
-          <div className="pk-row pk-row--between">
+          <div className="pk-row pk-row--between" style={{ marginTop: 'auto', paddingTop: '0.5rem' }}>
             <span className={bookable ? 'pk-spaces' : 'pk-spaces pk-spaces--none'}>{spaces}</span>
             <span className="pk-price">
               {formatNaira(lot.quote.totalKobo)}
@@ -110,23 +117,32 @@ export default async function SearchPage({
 
   return (
     <main className="pk-page pk-page--wide">
-      <Link className="pk-link" href="/">
-        ← Parkly
+      <Link href="/" className="pk-nav-pill" style={{ alignSelf: 'flex-start', paddingLeft: '0.6rem' }}>
+        <ArrowLeftIcon size={16} />
+        <span>Back to Home</span>
       </Link>
-      <Text variant="heading-lg" as="h1">
-        Parking near {search.place}
-      </Text>
-      <Text tone="secondary">{windowLabel(search)}</Text>
 
-      <details className="pk-card">
-        <summary className="pk-link">Change search</summary>
-        <SearchForm initial={search} today={today} lastDay={lastDay} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <Text variant="heading-xl" as="h1" style={{ margin: 0, fontWeight: 800 }}>
+          Parking near {search.place}
+        </Text>
+        <Text tone="secondary" style={{ fontSize: '0.95rem' }}>{windowLabel(search)}</Text>
+      </div>
+
+      <details className="pk-search-details">
+        <summary className="pk-search-summary">
+          <SearchIcon size={16} />
+          <span>Change search criteria</span>
+        </summary>
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--pk-color-border-subtle, #272d34)' }}>
+          <SearchForm initial={search} today={today} lastDay={lastDay} />
+        </div>
       </details>
 
       {widened && (
-        <Text variant="body-sm" tone="secondary">
-          Nothing within 2 km, so we looked a little further.
-        </Text>
+        <p className="pk-notice pk-notice--info" role="status">
+          Nothing within 2 km, so we looked a little further for available verified parking.
+        </p>
       )}
 
       {problem && (
@@ -136,51 +152,58 @@ export default async function SearchPage({
       )}
 
       {result && result.items.length > 0 && (
-        <>
-          <div className="pk-row pk-row--between">
-            <Text variant="body-sm" tone="secondary">
-              {result.items.length} verified car park{result.items.length === 1 ? '' : 's'} within{' '}
-              {search.radiusM / 1000} km
-            </Text>
-            <nav className="pk-row" aria-label="Sort">
-              {(['distance', 'price'] as const).map((sort) =>
-                sort === search.sort ? (
-                  <span key={sort} className="pk-chip pk-chip--on" aria-current="true">
-                    {sort === 'distance' ? 'Nearest' : 'Cheapest'}
-                  </span>
-                ) : (
-                  <Link
-                    key={sort}
-                    className="pk-chip"
-                    href={`/search?${searchQuery(search, { sort })}`}
-                  >
-                    {sort === 'distance' ? 'Nearest' : 'Cheapest'}
-                  </Link>
-                ),
-              )}
-            </nav>
+        <div className="pk-search-layout">
+          <div className="pk-search-results-col">
+            <div className="pk-search-results-header">
+              <span className="pk-search-count">
+                <strong>{result.items.length}</strong> verified car park{result.items.length === 1 ? '' : 's'} within{' '}
+                {search.radiusM / 1000} km
+              </span>
+              <nav className="pk-row" aria-label="Sort">
+                {(['distance', 'price'] as const).map((sort) =>
+                  sort === search.sort ? (
+                    <span key={sort} className="pk-chip pk-chip--on" aria-current="true">
+                      {sort === 'distance' ? 'Nearest' : 'Cheapest'}
+                    </span>
+                  ) : (
+                    <Link
+                      key={sort}
+                      className="pk-chip"
+                      href={`/search?${searchQuery(search, { sort })}`}
+                    >
+                      {sort === 'distance' ? 'Nearest' : 'Cheapest'}
+                    </Link>
+                  ),
+                )}
+              </nav>
+            </div>
+
+            <ul className="pk-results">
+              {result.items.map((lot) => (
+                <ResultCard key={lot.id} lot={lot} search={search} />
+              ))}
+            </ul>
+
+            <p className="pk-search-pricing-note">
+              Prices are the exact total for your selected time, including all Parkly service fees.
+            </p>
           </div>
-          <LotsMap
-            centre={{ lat: search.lat, lng: search.lng }}
-            showCentre
-            pins={result.items.map((lot) => ({
-              id: lot.id,
-              lat: lot.location.lat,
-              lng: lot.location.lng,
-              label: formatNaira(lot.quote.totalKobo),
-              title: `${lot.name}, ${formatNaira(lot.quote.totalKobo)} total`,
-              href: `/lots/${lot.slug}?${searchQuery(search)}`,
-            }))}
-          />
-          <ul className="pk-results">
-            {result.items.map((lot) => (
-              <ResultCard key={lot.id} lot={lot} search={search} />
-            ))}
-          </ul>
-          <Text variant="body-sm" tone="tertiary">
-            Prices are the total for your time, including Parkly’s service fee.
-          </Text>
-        </>
+
+          <div className="pk-search-map-col">
+            <LotsMap
+              centre={{ lat: search.lat, lng: search.lng }}
+              showCentre
+              pins={result.items.map((lot) => ({
+                id: lot.id,
+                lat: lot.location.lat,
+                lng: lot.location.lng,
+                label: formatNaira(lot.quote.totalKobo),
+                title: `${lot.name}, ${formatNaira(lot.quote.totalKobo)} total`,
+                href: `/lots/${lot.slug}?${searchQuery(search)}`,
+              }))}
+            />
+          </div>
+        </div>
       )}
 
       {result && result.items.length === 0 && (

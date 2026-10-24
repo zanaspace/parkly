@@ -2,6 +2,7 @@ import type { Lot, SelfCheckinSetting } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ArrowLeftIcon, LotsIcon } from '../../../../components/icons';
 import {
   PermitSection,
   PricesSection,
@@ -59,11 +60,15 @@ export default async function LotPage({
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
 
   return (
-    <main className="pk-page">
-      <Link className="pk-link" href="/lots">
-        ← Your lots
+    <main className="pk-page pk-page--wide">
+      <Link className="pk-back-link" href="/lots">
+        <ArrowLeftIcon size={16} />
+        <span>Back to lots</span>
       </Link>
-      <Text variant="heading-xl">{lot.name}</Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+        <LotsIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
+        <Text variant="heading-xl">{lot.name}</Text>
+      </div>
       {created && (
         <p className="pk-notice pk-notice--info" role="status">
           Lot created as a draft. Next: photos, opening hours, prices and the LASPA permit, then

@@ -129,7 +129,15 @@ export default function LotScreen() {
 
   if (error)
     return (
-      <Screen footer={<Button label="Back to results" fullWidth onPress={() => router.back()} />}>
+      <Screen
+        footer={
+          <Button
+            label="Back to results"
+            fullWidth
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/search'))}
+          />
+        }
+      >
         <Notice message={error} />
       </Screen>
     );
@@ -158,7 +166,12 @@ export default function LotScreen() {
               })
             }
           />
-          <Button label="Back to results" variant="ghost" fullWidth onPress={() => router.back()} />
+          <Button
+            label="Back to results"
+            variant="ghost"
+            fullWidth
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/search'))}
+          />
         </>
       }
     >

@@ -43,15 +43,26 @@ export async function apiFetch<T>(
   accessToken: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  const res = await fetch(`${apiUrl}${path}`, {
-    method: init.method ?? 'GET',
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
-    },
-    ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
-    cache: 'no-store',
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}${path}`, {
+      method: init.method ?? 'GET',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
+      },
+      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+      cache: 'no-store',
+    });
+  } catch (err) {
+    if (err instanceof Error && (err.name === 'TypeError' || err.message.includes('fetch failed'))) {
+      throw new Error(
+        `Failed to reach the Parkly API at ${apiUrl}. Please ensure the API server is running on port 4000 (pnpm --filter @parkly/api dev).`,
+        { cause: err },
+      );
+    }
+    throw err;
+  }
   if (res.status === 204) return undefined as T;
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) throw parseProblem(res.status, body);

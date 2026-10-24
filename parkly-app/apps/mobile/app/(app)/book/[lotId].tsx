@@ -84,7 +84,14 @@ export default function ReviewAndPay() {
   if (!lot || !quote)
     return (
       <Screen
-        footer={<Button label="Back" variant="ghost" fullWidth onPress={() => router.back()} />}
+        footer={
+          <Button
+            label="Back"
+            variant="ghost"
+            fullWidth
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+          />
+        }
       >
         {error ? (
           <Notice message={error} />
@@ -104,7 +111,12 @@ export default function ReviewAndPay() {
             disabled={paying || !vehicleId}
             onPress={() => void pay()}
           />
-          <Button label="Back" variant="ghost" fullWidth onPress={() => router.back()} />
+          <Button
+            label="Back"
+            variant="ghost"
+            fullWidth
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+          />
         </>
       }
     >

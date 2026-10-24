@@ -3,7 +3,7 @@ import { Button, Text, useTheme } from '@parkly/ui-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, Pressable } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
@@ -69,40 +69,46 @@ export default function Home() {
 
   return (
     <Screen
+      showNav
       footer={
-        <>
-          <Button
-            label="Find parking"
-            fullWidth
-            onPress={() => router.push({ pathname: '/search', params: toParams(search) })}
-          />
-          <Button
-            label="My bookings"
-            variant="secondary"
-            fullWidth
-            onPress={() => router.push('/bookings')}
-          />
-          <Button
-            label="Account"
-            variant="ghost"
-            fullWidth
-            onPress={() => router.push('/account')}
-          />
-        </>
+        <Button
+          label="🔍  Find parking"
+          size="lg"
+          fullWidth
+          onPress={() => router.push({ pathname: '/search', params: toParams(search) })}
+        />
       }
     >
-      <Text variant="overline" tone="brand">
-        Parkly
-      </Text>
-      <Text variant="heading.xl">{me?.firstName ? `Hello, ${me.firstName}` : 'Hello'}</Text>
-      {defaultVehicle ? (
-        <Text tone="secondary">
-          {'Parking with '}
-          <Text variant="code.md">{defaultVehicle.plateNorm}</Text>
-        </Text>
-      ) : (
-        <Text tone="secondary">Add a vehicle in Account before your first booking.</Text>
-      )}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ gap: 2 }}>
+          <Text variant="overline" tone="brand">
+            Parkly
+          </Text>
+          <Text variant="heading.xl">{me?.firstName ? `Hello, ${me.firstName}` : 'Hello'}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={defaultVehicle ? `Vehicle ${defaultVehicle.plateNorm}` : 'Add vehicle'}
+          onPress={() => router.push(defaultVehicle ? '/account' : '/add-vehicle')}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: theme.radius.full,
+            backgroundColor: theme.color.bg['brand-subtle'],
+            borderWidth: 1,
+            borderColor: pressed ? theme.color.border.brand : theme.color.border.default,
+            marginTop: 4,
+          })}
+        >
+          <Text style={{ fontSize: 13 }}>🚗</Text>
+          <Text variant="label.sm" style={{ color: theme.color.text.brand, fontWeight: '600' }}>
+            {defaultVehicle ? defaultVehicle.plateNorm : '+ Vehicle'}
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={section}>
         <Text variant="label.lg">Where</Text>

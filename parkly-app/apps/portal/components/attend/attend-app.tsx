@@ -2,6 +2,7 @@
 
 import type { Manifest, ManifestBooking } from '@parkly/contracts';
 import { Button, Input, Text } from '@parkly/ui';
+import { GateIcon, ShieldCheckIcon } from '../icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AttendError, attendApi } from '../../lib/attend/client';
 import {
@@ -266,7 +267,16 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
 
   // --- screens ------------------------------------------------------------------
 
-  if (screen.name === 'loading') return <Text>Opening…</Text>;
+  if (screen.name === 'loading') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', gap: '1rem', textAlign: 'center' }}>
+        <div className="pk-spinner" />
+        <Text variant="body-md" tone="secondary">
+          Opening Gate Scanner…
+        </Text>
+      </div>
+    );
+  }
 
   if (screen.name === 'signed-out')
     return (
@@ -703,16 +713,34 @@ function PinScreen({
         });
       }}
     >
-      <Text variant="heading-lg" as="h1">
-        {setting ? 'Choose a 6-digit PIN' : 'Enter your PIN'}
-      </Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            backgroundColor: 'var(--pk-color-bg-brand-subtle)',
+            color: 'var(--pk-color-text-brand)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {setting ? <ShieldCheckIcon size={22} /> : <GateIcon size={22} />}
+        </div>
+        <div>
+          <Text variant="heading-lg" as="h1" style={{ margin: 0 }}>
+            {setting ? 'Choose a 6-digit PIN' : 'Enter Shift PIN'}
+          </Text>
+        </div>
+      </div>
       {setting && (
-        <Text tone="secondary">
-          You will use it to unlock this app during your shift, even offline.
+        <Text tone="secondary" style={{ lineHeight: 1.5, margin: 0 }}>
+          You will use this PIN to quickly unlock this app during your shift, even while offline.
         </Text>
       )}
       <Input
-        label="PIN"
+        label="6-Digit Shift PIN"
         type="password"
         inputMode="numeric"
         autoComplete="off"
@@ -720,10 +748,13 @@ function PinScreen({
         value={pin}
         onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
         error={error ?? undefined}
+        placeholder="••••••"
       />
-      <Button type="submit" size="lg" fullWidth>
-        {setting ? 'Save PIN' : 'Unlock'}
-      </Button>
+      <div style={{ marginTop: '0.5rem' }}>
+        <Button type="submit" size="lg" fullWidth>
+          {setting ? 'Save PIN & Start Shift' : 'Unlock Gate App'}
+        </Button>
+      </div>
     </form>
   );
 }

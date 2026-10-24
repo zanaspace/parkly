@@ -16,16 +16,33 @@ export type SignedInState = {
   email: string | null;
 };
 
+/** Fast check for signed-in status without loading full assurance levels or tokens. */
+export async function hasSession(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  return Boolean(claims);
+}
+
+/** Fast retrieval of access token for same-origin proxy routes like /attend/api. */
+export async function getAccessToken(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims) return null;
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData?.session?.access_token ?? null;
+}
+
 /** Validated session state (getClaims verifies the JWT; never trust getSession alone). */
 export async function loadSession(): Promise<SignedInState | { signedIn: false }> {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims) return { signedIn: false };
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const [{ data: sessionData }, { data: aal }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  const session = sessionData?.session;
   if (!session) return { signedIn: false };
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   return {
     signedIn: true,
     accessToken: session.access_token,
@@ -50,7 +67,7 @@ export async function loadMe(accessToken: string): Promise<Me | null> {
  * Used by every protected layout/page. Redirects unless the user is signed in,
  * holds a role for this console and has completed MFA (aal2).
  */
-export async function requireAccess(): Promise<{ me: Me; accessToken: string }> {
+export async function requireAccess(): Promise<{ me: Me; accessToken: string; email: string | null }> {
   const session = await loadSession();
   if (!session.signedIn) redirect('/sign-in');
   const me = await loadMe(session.accessToken);
@@ -62,7 +79,7 @@ export async function requireAccess(): Promise<{ me: Me; accessToken: string }> 
     nextLevel: session.nextLevel,
   });
   if (decision.kind !== 'ok' || !me) redirect(REDIRECTS[decision.kind]);
-  return { me, accessToken: session.accessToken };
+  return { me, accessToken: session.accessToken, email: session.email };
 }
 
 const REDIRECTS: Record<AccessDecision['kind'], string> = {
