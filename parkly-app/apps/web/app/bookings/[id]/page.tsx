@@ -1,11 +1,23 @@
 import type { Booking } from '@parkly/contracts';
 import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { formatNaira } from '@parkly/domain/money';
-import { Text } from '@parkly/ui';
+import { PriceBreakdown, StatusBadge, Text } from '@parkly/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeftIcon, ShieldCheckIcon } from '../../../components/icons';
+import {
+  AlertCircleIcon,
+  ArrowLeftIcon,
+  CalendarIcon,
+  CarIcon,
+  ClockIcon,
+  CreditCardIcon,
+  ExternalLinkIcon,
+  MapPinIcon,
+  SearchIcon,
+  ShieldCheckIcon,
+  TicketIcon,
+} from '../../../components/icons';
 import { QrCode } from '../../../components/qr-code';
 import { StayTimer } from '../../../components/stay-timer';
 import { apiAs, ApiProblem } from '../../../lib/api';
@@ -33,76 +45,259 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     }
     throw err;
   }
+
   const confirmed = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
+  const expiredOrCancelled =
+    booking.status === 'EXPIRED' ||
+    booking.status === 'CANCELLED' ||
+    booking.status === 'NO_SHOW';
+
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    `${booking.lot.name}, ${booking.lot.addressLine}`,
+  )}`;
 
   return (
-    <main className="pk-page pk-stack" style={{ marginBlock: '1.5rem', maxWidth: '38rem' }}>
-      <Link href="/bookings" className="pk-nav-pill" style={{ alignSelf: 'flex-start', paddingLeft: '0.6rem' }}>
-        <ArrowLeftIcon size={16} />
-        <span>Back to My Bookings</span>
-      </Link>
+    <main className="pk-page pk-booking-detail-page">
       {booking.status === 'PENDING_PAYMENT' && <meta httpEquiv="refresh" content="3" />}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <span className="pk-badge pk-badge--brand-subtle">{statusLabel(booking.status)}</span>
-        <span className="pk-badge pk-badge--verified">
-          <ShieldCheckIcon size={12} />
-          <span>LASPA Verified</span>
-        </span>
+
+      {/* Top Navigation & Reference Bar */}
+      <div className="pk-booking-detail-topbar">
+        <Link href="/bookings" className="pk-nav-pill" style={{ paddingLeft: '0.65rem' }}>
+          <ArrowLeftIcon size={16} />
+          <span>Back to My Bookings</span>
+        </Link>
+        <span className="pk-ref-code">PASS #{booking.code}</span>
       </div>
-      <Text variant="heading-xl" as="h1" style={{ margin: '0.2rem 0' }}>
-        {confirmed ? 'You’re booked' : 'Booking'}
-      </Text>
-      <StayTimer booking={booking} />
+
+      {/* Status & Title Header */}
+      <div className="pk-booking-detail-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <StatusBadge status={booking.status} label={statusLabel(booking.status)} />
+          <span className="pk-badge pk-badge--verified">
+            <ShieldCheckIcon size={12} />
+            <span>LASPA Verified</span>
+          </span>
+        </div>
+
+        <Text variant="heading-xl" as="h1" className="pk-booking-detail-title">
+          {confirmed
+            ? `You’re booked at ${booking.lot.name}`
+            : booking.status === 'EXPIRED'
+              ? `Reservation expired · ${booking.lot.name}`
+              : booking.status === 'CANCELLED'
+                ? `Reservation cancelled · ${booking.lot.name}`
+                : booking.status === 'COMPLETED'
+                  ? `Completed stay · ${booking.lot.name}`
+                  : `Waiting for payment · ${booking.lot.name}`}
+        </Text>
+
+        <p className="pk-booking-detail-sub">
+          {bookingWindowLabel(booking)} · {booking.lot.addressLine}
+        </p>
+      </div>
+
+      {/* Status Alert Banners */}
+      {expiredOrCancelled && (
+        <div className="pk-status-banner pk-status-banner--warning" role="status">
+          <div className="pk-status-banner-icon">
+            <AlertCircleIcon size={24} />
+          </div>
+          <div className="pk-status-banner-body">
+            <h2 className="pk-status-banner-title">
+              {booking.status === 'EXPIRED'
+                ? 'Reservation expired (not paid in time)'
+                : booking.status === 'NO_SHOW'
+                  ? 'Missed reservation'
+                  : 'Reservation cancelled'}
+            </h2>
+            <p className="pk-status-banner-text">
+              {booking.status === 'EXPIRED'
+                ? 'This space hold was automatically released because payment was not completed within the reservation window. No funds were charged to your account.'
+                : 'This reservation is no longer active. If you need parking in Lagos, check real-time availability below.'}
+            </p>
+            <div className="pk-status-banner-actions">
+              <Link href={`/lots/${booking.lot.slug}`} className="pk-btn-primary pk-btn-sm">
+                <span>Book again at this car park</span>
+              </Link>
+              <Link href="/search" className="pk-btn-secondary pk-btn-sm">
+                <SearchIcon size={14} />
+                <span>Search other car parks</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {booking.status === 'PENDING_PAYMENT' && (
+        <div className="pk-status-banner pk-status-banner--info" role="status">
+          <div className="pk-spinner" />
+          <div className="pk-status-banner-body">
+            <h2 className="pk-status-banner-title">Confirming payment with Paystack</h2>
+            <p className="pk-status-banner-text">
+              We are waiting for Paystack to complete your transaction. This page automatically updates every 3 seconds.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Official Gate Pass (Confirmed & Checked In) */}
       {confirmed && !booking.stay?.checkedOutAt && (
-        <section className="pk-card pk-stack pk-ticket" aria-label="Booking code">
-          <Text tone="secondary">Show this at the gate</Text>
-          {booking.qrToken && (
-            <QrCode value={booking.qrToken} label={`QR ticket for booking ${booking.code}`} />
-          )}
-          <p className="pk-ticket__code">{booking.code}</p>
-          <code>{booking.vehicle.plate}</code>
-          {booking.overstay && (
-            <Text variant="body-sm" tone="secondary">
-              Overstay: {formatNaira(booking.overstay.per15Kobo)} per 15 min after{' '}
-              {booking.overstay.graceMin} min grace
-            </Text>
-          )}
+        <section className="pk-ticket-pass" aria-label="Digital gate ticket">
+          <div className="pk-ticket-pass-header">
+            <div className="pk-row" style={{ gap: '0.5rem' }}>
+              <TicketIcon size={18} />
+              <span className="pk-ticket-pass-title">Official Parkly Gate Pass</span>
+            </div>
+            <span className="pk-ticket-pass-subtitle">Show to attendant or scan at barrier</span>
+          </div>
+
+          <div className="pk-ticket-pass-body">
+            {booking.qrToken && (
+              <div className="pk-ticket-pass-qr">
+                <div className="pk-qr-container">
+                  <QrCode value={booking.qrToken} label={`QR ticket for booking ${booking.code}`} />
+                </div>
+                <span className="pk-ticket-pass-scan-hint">Scan at barrier reader</span>
+              </div>
+            )}
+
+            <div className="pk-ticket-pass-details">
+              <div className="pk-ticket-code-block">
+                <span className="pk-ticket-code-label">Gate Pass Code</span>
+                <span className="pk-ticket-code-value">{booking.code}</span>
+              </div>
+
+              <div className="pk-ticket-info-grid">
+                <div>
+                  <span className="pk-ticket-info-label">Vehicle Plate</span>
+                  <span className="pk-plate-pill pk-plate-pill--lg">{booking.vehicle.plate}</span>
+                </div>
+                <div>
+                  <span className="pk-ticket-info-label">Parking Facility</span>
+                  <span className="pk-ticket-lot-name">{booking.lot.name}</span>
+                </div>
+              </div>
+
+              {booking.overstay && (
+                <div className="pk-ticket-overstay-note">
+                  <ClockIcon size={14} />
+                  <span>
+                    Overstay rate: {formatNaira(booking.overstay.per15Kobo)} per 15 min (after{' '}
+                    {booking.overstay.graceMin} min grace)
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <StayTimer booking={booking} />
         </section>
       )}
-      {booking.status === 'PENDING_PAYMENT' && (
-        <p className="pk-notice pk-notice--info" role="status">
-          We’re waiting for Paystack to confirm your payment. This page updates by itself.
-        </p>
-      )}
-      <section className="pk-card pk-stack">
-        <Text variant="heading-md" as="h2">
-          {booking.lot.name}
-        </Text>
-        <Text tone="secondary">{booking.lot.addressLine}</Text>
-        <Text>{bookingWindowLabel(booking)}</Text>
-        <table className="pk-breakdown">
-          <tbody>
-            {booking.lines.map((l, i) => (
-              <tr key={i}>
-                <td>{lineLabel(l)}</td>
-                <td>{formatNaira(l.amountKobo)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row">{confirmed ? 'Paid' : 'Total'}</th>
-              <td>{formatNaira(booking.totalKobo)}</td>
-            </tr>
-          </tfoot>
-        </table>
-        <Link className="pk-link" href={`/lots/${booking.lot.slug}`}>
-          Car park details and directions
+
+      {/* Structured 2-Column Responsive Detail Grid */}
+      <div className="pk-booking-detail-grid">
+        {/* Left Column: Facility & Reservation Details */}
+        <section className="pk-detail-card" aria-label="Facility details">
+          <div className="pk-detail-card-header">
+            <h2 className="pk-detail-card-title">Facility & Access</h2>
+            <span className="pk-badge pk-badge--brand-subtle">Verified Location</span>
+          </div>
+
+          <div className="pk-detail-rows">
+            <div className="pk-detail-item">
+              <div className="pk-detail-item-icon">
+                <MapPinIcon size={18} />
+              </div>
+              <div className="pk-detail-item-content">
+                <strong className="pk-detail-item-title">{booking.lot.name}</strong>
+                <p className="pk-detail-item-desc">{booking.lot.addressLine}</p>
+                <a
+                  href={directionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pk-btn-secondary pk-btn-sm"
+                  style={{ marginTop: '0.5rem', width: 'fit-content' }}
+                >
+                  <ExternalLinkIcon size={14} />
+                  <span>Get Directions on Google Maps</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="pk-detail-item">
+              <div className="pk-detail-item-icon">
+                <CalendarIcon size={18} />
+              </div>
+              <div className="pk-detail-item-content">
+                <strong className="pk-detail-item-title">Reservation Window</strong>
+                <p className="pk-detail-item-desc">{bookingWindowLabel(booking)}</p>
+              </div>
+            </div>
+
+            <div className="pk-detail-item">
+              <div className="pk-detail-item-icon">
+                <CarIcon size={18} />
+              </div>
+              <div className="pk-detail-item-content">
+                <strong className="pk-detail-item-title">Registered Vehicle</strong>
+                <div style={{ marginTop: '0.25rem' }}>
+                  <span className="pk-plate-pill">{booking.vehicle.plate}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pk-detail-card-footer">
+            <Link href={`/lots/${booking.lot.slug}`} className="pk-link" style={{ fontSize: '0.875rem' }}>
+              View full car park rules, hours & amenities →
+            </Link>
+          </div>
+        </section>
+
+        {/* Right Column: Pricing & Receipt Summary */}
+        <section className="pk-detail-card" aria-label="Pricing summary">
+          <div className="pk-detail-card-header">
+            <div className="pk-row" style={{ gap: '0.5rem' }}>
+              <CreditCardIcon size={18} />
+              <h2 className="pk-detail-card-title">Receipt & Pricing</h2>
+            </div>
+            <span className={confirmed ? 'pk-badge pk-badge--confirmed' : 'pk-badge pk-badge--cancelled'}>
+              {confirmed ? 'Paid via Card' : 'Not Charged'}
+            </span>
+          </div>
+
+          <div style={{ padding: '0.25rem 0' }}>
+            <PriceBreakdown
+              lines={booking.lines.map((l) => ({
+                label: lineLabel(l),
+                amount: formatNaira(l.amountKobo),
+              }))}
+              totalLabel={confirmed ? 'Total Paid' : 'Total Quote'}
+              totalAmount={formatNaira(booking.totalKobo)}
+            />
+          </div>
+
+          <div className="pk-receipt-guarantee">
+            <ShieldCheckIcon size={16} />
+            <span>
+              Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority (LASPA) permit.
+            </span>
+          </div>
+        </section>
+      </div>
+
+      {/* Bottom Footer Actions */}
+      <div className="pk-booking-detail-footer">
+        <Link href="/bookings" className="pk-nav-pill">
+          <ArrowLeftIcon size={16} />
+          <span>View all my bookings</span>
         </Link>
-      </section>
-      <Link className="pk-link" href="/bookings">
-        All my bookings
-      </Link>
+        <Link href="/search" className="pk-btn-secondary pk-btn-sm">
+          <SearchIcon size={14} />
+          <span>Find more parking in Lagos</span>
+        </Link>
+      </div>
     </main>
   );
 }
+

@@ -246,7 +246,30 @@ Camera via `BarcodeDetector` where supported, fallback to `@zxing/browser`. Came
 | `stat.padding` | `space.inset.md` |
 | `stat.label.font` / `.fg` | `type.label.sm` / `color.text.secondary` |
 | `stat.value.font` | `type.price.lg` |
-| `stat.delta.up.fg` / `.down.fg` | `color.status.success.fg` + `trending-up` / `color.status.danger.fg` + `trending-down` (icon + sign, never colour alone) |
+### 3.12 Badge and StatusBadge (`@parkly/ui`)
+
+| Token / Class | Description | Value |
+|---|---|---|
+| `.pk-badge` | Base badge container | `font-size: 0.725rem`, `font-weight: 600`, uppercase, pill/sm radius (6px) |
+| `.pk-badge--brand-subtle` | Parkly brand teal tint | `bg: rgba(19, 112, 102, 0.15)`, `fg: #19a594` |
+| `.pk-badge--verified` | LASPA verified trust badge | `bg: rgba(16, 185, 129, 0.15)`, `fg: #34d399` |
+| `.pk-badge--confirmed` | Confirmed / paid booking | `bg: rgba(16, 185, 129, 0.15)`, `fg: #34d399` |
+| `.pk-badge--checkedin` | Active park-in state | `bg: rgba(20, 184, 166, 0.15)`, `fg: #2dd4bf` |
+| `.pk-badge--pending` | Awaiting Paystack payment | `bg: rgba(245, 158, 11, 0.15)`, `fg: #fbbf24` |
+| `.pk-badge--completed` | Checked out / completed | `bg: rgba(148, 163, 184, 0.15)`, `fg: #cbd5e1` |
+| `.pk-badge--cancelled` | Expired / cancelled / missed | `bg: rgba(239, 68, 68, 0.15)`, `fg: #f87171` |
+
+`StatusBadge` automatically maps any booking status (`CONFIRMED`, `CHECKED_IN`, `PENDING_PAYMENT`, `COMPLETED`, `CANCELLED`, `EXPIRED`, `NO_SHOW`) to its standardized label and color-coded variant.
+
+### 3.13 PriceBreakdown (`@parkly/ui`)
+
+| Token / Class | Description | Value |
+|---|---|---|
+| `.pk-breakdown` | Itemised table container | `width: 100%`, border-collapse |
+| `.pk-breakdown td, th` | Line item cell | padding `space.1` 0, text left, amount right with `tabular-nums` |
+| `.pk-breakdown tfoot` | Grand total row | `border-top: 1px solid border.subtle`, `font-weight: 700` |
+
+Used in checkout, booking details, and operator settlement summaries.
 
 ## 4. DTCG JSON example (`component/button.json`)
 
