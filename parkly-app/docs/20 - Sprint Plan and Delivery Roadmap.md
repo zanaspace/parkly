@@ -125,6 +125,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 ### Sprint 1 — Identity and access
 
 **Goal:** Drivers sign in with phone OTP and manage vehicles; operators and admins sign in with password + MFA; RBAC and audit logging enforced everywhere.
+*(Driver Onboarding Architecture: Sprint 1 delivers **Tier 1 Consumer Baseline** — Phone OTP / Email OTP per ADR 0015, Name, FRSC plate normalisation, NDPA consent, and 3DS card tokenisation for zero-friction short-stay parking. **Tier 2 Verified Driver KYC** is scheduled for Sprint 9 to gate monthly passes and overnight parking; **Tier 3 Corporate & Fleet Onboarding** is scheduled for Sprint 14.)*
 
 **Stories:** FR-AUTH-001…008, NFR-SEC-001 (auth controls).
 
@@ -346,9 +347,9 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 
 **Goal:** Commuters can buy monthly passes; the system is hardened for launch.
 
-**Stories:** FR-PASS-001…003, FR-PASS-004 (P1), FR-PAY-007 (P1), FR-LOT-008 (P1), NFR-LOWEND-001, NFR-A11Y-001.
+**Stories:** FR-PASS-001…003, FR-PASS-004 (P1), FR-AUTH-009 (P1 — Driver Identity Verification KYC), FR-PASS-005 (P1 — Verified Driver gating), FR-PAY-007 (P1), FR-LOT-008 (P1), NFR-LOWEND-001, NFR-A11Y-001.
 
-**Read:** 02 (Pass model, capacity), 03 (pass flows), 05 (full checklist), 17 (launch checklist).
+**Read:** 02 (Pass model, capacity), 03 (pass flows), 05 (full checklist), 06 (§3.1 C4 encryption for ID verification), 17 (launch checklist).
 
 **Technical tasks**
 1. Pass purchase, capacity per month, QR check-in rules (one vehicle in lot at a time), renewal reminders.
@@ -358,12 +359,14 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 5. Accessibility audit (axe, TalkBack pass).
 6. Security hardening sweep against doc 05 checklist; dependency upgrades; threat model review.
 7. Backups: Supabase PITR add-on enabled on `parkly-prod`; nightly encrypted off-platform `pg_dump` (GitHub Actions → separate cloud bucket) plus Storage objects export; restore script tested.
+8. Driver Identity Verification (Tier 2 KYC — P1, `FR-AUTH-009`): integration with Nigerian identity provider (Dojah / Smile ID / QoreID adapter) supporting FRSC Driver's License verification (license number + DOB lookup) and NIN phone-match; `POST /v1/me/verification` endpoint; store verified status (`users.is_verified_driver: true`) and provider verification reference in `driver_verifications` table; license number encrypted at rest (C4) with raw documents discarded per NDPA minimisation (doc 06).
+9. Verified Driver gating (`FR-PASS-005`): lot policy rule `requires_verified_driver: true` for monthly passes, overnight parking, and premium bays; mobile/web checkout prompts 60-second verification flow if unverified; verified driver badge displayed on mobile profile, tickets, and attendant manifest.
 
-**Tests:** pass capacity and in-lot rules; renewal job; a11y automated tests in CI; mobile Maestro e2e covering book → check-in → pass.
+**Tests:** pass capacity and in-lot rules; renewal job; driver verification tests (FRSC license match, DOB mismatch, timeout fallback, C4 encryption test); monthly pass checkout blocked for unverified drivers when lot policy enforces verification; a11y automated tests in CI; mobile Maestro e2e covering book → check-in → pass.
 
-**Exit criteria:** doc 17 checklist ≥ 80% complete; no P0 bugs open.
+**Exit criteria:** doc 17 checklist ≥ 80% complete; driver verification sandbox integration passing; no P0 bugs open.
 
-**Demo:** buy November pass → enter/exit twice in a day → second vehicle denied while first is in → renewal reminder.
+**Demo:** buy November pass at a secured lot → prompted for FRSC driver's license → verified via provider sandbox in 30 s → pass activated → enter/exit twice in a day → verified badge visible on ticket and attendant manifest → renewal reminder.
 
 ---
 
@@ -420,10 +423,10 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 
 ### Sprint 14 — Employer passes and invoicing
 **Goal:** Companies buy passes for staff on one invoice.
-**Stories:** FR-EMP-001…004.
+**Stories:** FR-EMP-001…004, FR-EMP-005 (P2 — Tier 3 Corporate & Fleet Driver Onboarding).
 **Read:** 18 (enterprise readiness: SSO roadmap, invoicing, data-processing terms).
-**Tasks:** Employer org + admins; assign passes by phone; monthly invoice (Paystack invoice/transfer); VAT handling; employer reports.
-**Tests:** invoice totals = ledger; seat assignment limits; employer cannot see staff locations beyond pass usage (privacy).
+**Tasks:** Employer org + admins; assign passes by phone; monthly invoice (Paystack invoice/transfer); VAT handling; employer reports; Tier 3 Corporate & Fleet driver onboarding (corporate email domain validation `@company.com`, employer pass assignment link, fleet plate allocation, support for LASPA commercial/hackney permit records for commercial fleet drivers).
+**Tests:** invoice totals = ledger; seat assignment limits; employer cannot see staff locations beyond pass usage (privacy); corporate domain verification test.
 **Exit:** one pilot employer invoiced in staging.
 
 ### Sprint 15 — Paid operator tier and referrals

@@ -84,6 +84,8 @@ Retention clock starts at the "trigger" stated. "Account closure" = driver/opera
 | Play Integrity verdicts | C3 | Fraud/security | Legitimate interest | `security_events` | At rest | Security | 12 months | Hard delete |
 | Consents (type, version, timestamp, channel) | C3 | Demonstrate consent | Legal obligation | `consents` | At rest | DPO, system | Account life + 6 years ⚖️ (proof) | Hard delete after period |
 | Preferences (language, notification settings) | C2 | UX | Contract | `user_settings` | At rest | Driver | Account life | Delete with account |
+| Driver's License number (FRSC) / NIN verification ref | C4 | Identity proofing for monthly passes & gated lots (Tier 2 KYC, FR-AUTH-009) | Consent / Legal obligation | `driver_verifications.id_number_encrypted`, `provider_ref` | App-level AES-256-GCM envelope | Security, Ops (reveal audited) | Account life + 30 days | Hard delete / crypto-shred |
+| Verified Driver status (`is_verified_driver`, badge timestamp) | C1 | Verification badge on ticket, pass & manifest | Legitimate interest / Contract | `users.is_verified_driver`, `driver_verifications.status` | At rest (Supabase) | Driver, attendants, operators, public | Account life | Anonymise |
 
 ### 3.2 Vehicles
 

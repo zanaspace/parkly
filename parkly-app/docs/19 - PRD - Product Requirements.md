@@ -124,6 +124,26 @@ Scenario: Cross-operator access is denied
 
 **FR-AUTH-008 · P0 · Audit log** — every privileged action (admin and operator writes, refunds, role changes, lot status changes, data exports) writes an append-only AuditLog row.
 
+**FR-AUTH-009 · P1 · Driver Identity Verification (KYC & Trust Tiers)** — Tiered verification structure separating low-friction hourly booking from high-trust monthly/overnight/corporate privileges.
+- **Tier 1 — Consumer Baseline (P0 · In MVP Core):** Phone OTP (NIN-linked Nigerian SIM) / Email OTP fallback (ADR 0015), driver name, FRSC plate normalisation (`FR-AUTH-003`), accepted Terms of Service & Privacy Notice (NDPA consent), and 3D-Secure payment card tokenisation. Zero upfront document upload required for standard hourly or daily reservations to maintain sub-60s booking conversion.
+- **Tier 2 — Verified Driver (P1 · Sprint 9):** Identity proofing via Nigerian identity provider (Dojah / Smile ID / QoreID). Driver provides FRSC Driver's License number and Date of Birth (or NIN/vNIN phone-match). Verified against official government registries; upon successful match, driver profile receives a "Verified Driver" badge and `is_verified_driver: true`. Gated by operators for monthly passes (`FR-PASS-005`), overnight parking, and high-security lots. Raw documents are not retained; license numbers are stored encrypted at rest (C4) per doc 06.
+- **Tier 3 — Corporate & Fleet Driver (P2 · Sprint 14):** Corporate email domain verification (`@company.com`), employer pass delegation, fleet vehicle plate assignment, and optional commercial/hackney carriage permit validation.
+```gherkin
+Scenario: Driver verifies identity with FRSC Driver's License
+  Given I am a signed-in driver without verification
+  When I submit my FRSC Driver's License number and Date of Birth
+  Then the system verifies the details against the FRSC database via the identity partner
+  And my full name is matched against the license record
+  And my account receives the "Verified Driver" badge (is_verified_driver: true)
+  And the license number is stored encrypted at rest (C4) with raw documents discarded
+
+Scenario: High-trust lot or monthly pass gates on Verified Driver status
+  Given lot "VI Financial Towers" has policy "requires_verified_driver: true" for monthly passes
+  When an unverified driver attempts to purchase a monthly pass
+  Then the checkout flow requires completion of Tier 2 Driver Verification before payment
+  And the slot hold is preserved while verification completes
+```
+
 ### 6.2 Operators and lots — FR-LOT
 
 **FR-LOT-001 · P0 · Operator onboarding (KYB)** — business name, CAC/RC number, contact, owner identity, bank account (validated via Paystack resolve), creates a Paystack subaccount. Status `PENDING → ACTIVE` after admin review.
@@ -290,6 +310,16 @@ Scenario: Pass capacity
   Then I see "Sold out" and can join a waitlist (P1)
 ```
 
+**FR-PASS-005 · P1 · Verified driver gating** — Lots can configure `requires_verified_driver: true` for monthly passes and multi-day holds. Unverified drivers must complete Tier 2 KYC (`FR-AUTH-009`) before activating or completing purchase of a monthly pass.
+```gherkin
+Scenario: Unverified driver blocked from buying gated pass
+  Given a lot requires driver verification for monthly passes
+  And I have not completed Tier 2 verification
+  When I attempt to purchase the pass
+  Then I am directed to the 60-second identity verification flow
+  And the pass hold is preserved while verification completes
+```
+
 ### 6.8 Operator portal — FR-OPS
 
 **FR-OPS-001 · P0 · Occupancy dashboard** — live: expected arrivals, checked-in, available capacity per lot; today and next 7 days.
@@ -350,6 +380,7 @@ Scenario: Pass capacity
 **FR-EMP-002 · P1 · Corporate passes** — employer buys monthly passes for staff (assign by phone number); staff see pass in app.
 **FR-EMP-003 · P1 · Invoicing** — one monthly invoice, pay by transfer/Paystack invoice; no credit/stored value.
 **FR-EMP-004 · P2 · Usage reports** for employer admins.
+**FR-EMP-005 · P2 · Corporate & Fleet Driver Verification (Tier 3)** — Corporate drivers verify via work email domain (`@company.com`) or employer invitation token; fleet managers assign verified vehicle plates and validate commercial driver credentials where required.
 
 ### 6.16 Growth — FR-GRO (Next)
 
