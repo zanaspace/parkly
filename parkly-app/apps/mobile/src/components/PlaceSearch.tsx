@@ -6,7 +6,8 @@ import { api } from '../lib/client';
 
 /**
  * D-11 destination search (ADR 0014): suggestions from the API once typing
- * pauses for 300 ms. Picking one hands its name and position back.
+ * pauses for 300 ms, car parks matched by name first. Picking one hands its
+ * name and position back, so a picked car park leads the results.
  */
 export function PlaceSearch({
   onPick,
@@ -46,8 +47,8 @@ export function PlaceSearch({
   return (
     <View style={{ gap: theme.space.stack.xs }}>
       <Input
-        label="Search a place"
-        placeholder="e.g. Eko Hotel, Lekki toll gate"
+        label="Search a car park or place"
+        placeholder="e.g. Falomo Car Park, Eko Hotel"
         value={q}
         onChangeText={setQ}
         autoCorrect={false}
@@ -57,7 +58,7 @@ export function PlaceSearch({
         <Pressable
           key={p.id}
           accessibilityRole="button"
-          accessibilityLabel={`${p.label}, ${p.detail}`}
+          accessibilityLabel={`${p.kind === 'LOT' ? 'Car park: ' : ''}${p.label}, ${p.detail}`}
           onPress={() => {
             onPick({ lat: p.lat, lng: p.lng, label: p.label });
             setQ('');
@@ -71,6 +72,11 @@ export function PlaceSearch({
             borderColor: theme.color.border.default,
           })}
         >
+          {p.kind === 'LOT' ? (
+            <Text variant="overline" tone="brand">
+              Car park
+            </Text>
+          ) : null}
           <Text variant="label.md">{p.label}</Text>
           {p.detail ? (
             <Text variant="body.sm" tone="tertiary" numberOfLines={1}>
@@ -86,7 +92,7 @@ export function PlaceSearch({
       ) : null}
       {status === 'none' ? (
         <Text variant="body.sm" tone="tertiary">
-          No places found in Lagos. Try a landmark or area.
+          No car parks or places found. Try another name, a landmark or an area.
         </Text>
       ) : null}
       {status === 'error' ? (

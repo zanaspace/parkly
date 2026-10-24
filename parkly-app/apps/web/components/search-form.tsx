@@ -51,8 +51,8 @@ function PlaceSearch({
       <input
         className="pk-input"
         type="search"
-        placeholder="Search a place, e.g. Eko Hotel"
-        aria-label="Search a place"
+        placeholder="Car park name or place, e.g. Falomo"
+        aria-label="Search a car park or place"
         aria-controls={listId}
         aria-autocomplete="list"
         autoComplete="off"
@@ -60,7 +60,7 @@ function PlaceSearch({
         onChange={(e) => setQ(e.target.value)}
       />
       {items.length > 0 && (
-        <ul id={listId} className="pk-places__list" role="listbox" aria-label="Places">
+        <ul id={listId} className="pk-places__list" role="listbox" aria-label="Car parks and places">
           {items.map((p) => (
             <li key={p.id} role="option" aria-selected="false">
               <button
@@ -68,7 +68,10 @@ function PlaceSearch({
                 className="pk-places__item"
                 onClick={() => onPick({ lat: p.lat, lng: p.lng, label: p.label })}
               >
-                <span className="pk-places__label">{p.label}</span>
+                <span className="pk-places__label">
+                  {p.kind === 'LOT' && <span className="pk-places__tag">Car park</span>}
+                  {p.label}
+                </span>
                 {p.detail && <span className="pk-places__detail">{p.detail}</span>}
               </button>
             </li>
@@ -77,7 +80,7 @@ function PlaceSearch({
       )}
       {status === 'loading' && <p className="pk-hint">Searching…</p>}
       {status === 'none' && (
-        <p className="pk-hint">No places found in Lagos. Try a landmark or area.</p>
+        <p className="pk-hint">No car parks or places found. Try another name, a landmark or an area.</p>
       )}
       {status === 'error' && (
         <p className="pk-hint">Place search isn’t available right now. Pick an area instead.</p>

@@ -10164,6 +10164,14 @@
                           "id": {
                             "type": "string"
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "LOT",
+                              "PLACE"
+                            ],
+                            "default": "PLACE"
+                          },
                           "label": {
                             "type": "string"
                           },
@@ -10345,15 +10353,15 @@
                               "type": "string"
                             },
                             "selfCheckIn": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "default": false
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine",
-                            "selfCheckIn"
+                            "addressLine"
                           ]
                         },
                         "vehicle": {
@@ -10507,6 +10515,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "graceMin",
                             "per15Kobo"
@@ -10539,6 +10548,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "checkedInAt",
                             "checkedOutAt",
@@ -10566,8 +10576,6 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
-                        "overstay",
-                        "stay",
                         "createdAt"
                       ]
                     },
@@ -10718,15 +10726,15 @@
                                 "type": "string"
                               },
                               "selfCheckIn": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "default": false
                               }
                             },
                             "required": [
                               "id",
                               "slug",
                               "name",
-                              "addressLine",
-                              "selfCheckIn"
+                              "addressLine"
                             ]
                           },
                           "vehicle": {
@@ -10880,6 +10888,7 @@
                                 "type": "integer"
                               }
                             },
+                            "default": null,
                             "required": [
                               "graceMin",
                               "per15Kobo"
@@ -10912,6 +10921,7 @@
                                 "type": "integer"
                               }
                             },
+                            "default": null,
                             "required": [
                               "checkedInAt",
                               "checkedOutAt",
@@ -10939,8 +10949,6 @@
                           "totalKobo",
                           "lines",
                           "qrToken",
-                          "overstay",
-                          "stay",
                           "createdAt"
                         ]
                       }
@@ -11043,15 +11051,15 @@
                           "type": "string"
                         },
                         "selfCheckIn": {
-                          "type": "boolean"
+                          "type": "boolean",
+                          "default": false
                         }
                       },
                       "required": [
                         "id",
                         "slug",
                         "name",
-                        "addressLine",
-                        "selfCheckIn"
+                        "addressLine"
                       ]
                     },
                     "vehicle": {
@@ -11205,6 +11213,7 @@
                           "type": "integer"
                         }
                       },
+                      "default": null,
                       "required": [
                         "graceMin",
                         "per15Kobo"
@@ -11237,6 +11246,7 @@
                           "type": "integer"
                         }
                       },
+                      "default": null,
                       "required": [
                         "checkedInAt",
                         "checkedOutAt",
@@ -11264,8 +11274,6 @@
                     "totalKobo",
                     "lines",
                     "qrToken",
-                    "overstay",
-                    "stay",
                     "createdAt"
                   ]
                 }
@@ -11406,15 +11414,15 @@
                               "type": "string"
                             },
                             "selfCheckIn": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "default": false
                             }
                           },
                           "required": [
                             "id",
                             "slug",
                             "name",
-                            "addressLine",
-                            "selfCheckIn"
+                            "addressLine"
                           ]
                         },
                         "vehicle": {
@@ -11568,6 +11576,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "graceMin",
                             "per15Kobo"
@@ -11600,6 +11609,7 @@
                               "type": "integer"
                             }
                           },
+                          "default": null,
                           "required": [
                             "checkedInAt",
                             "checkedOutAt",
@@ -11627,8 +11637,6 @@
                         "totalKobo",
                         "lines",
                         "qrToken",
-                        "overstay",
-                        "stay",
                         "createdAt"
                       ]
                     }

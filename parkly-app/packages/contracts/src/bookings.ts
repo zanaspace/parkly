@@ -42,8 +42,9 @@ export const BookingSchema = z.object({
     slug: z.string(),
     name: z.string(),
     addressLine: z.string(),
-    /** The owner allows drivers to check themselves in here (ADR 0016). */
-    selfCheckIn: z.boolean(),
+    /** The owner allows drivers to check themselves in here (ADR 0016). Defaults to off so an
+     * app newer than the live API still reads its bookings. */
+    selfCheckIn: z.boolean().default(false),
   }),
   vehicle: z.object({ id: z.uuid(), plate: z.string() }),
   priceKobo: z.number().int(),
@@ -60,7 +61,11 @@ export const BookingSchema = z.object({
    * per started 15 minutes after the grace. Null when the lot has no
    * hourly or daily price to base it on.
    */
-  overstay: z.object({ graceMin: z.number().int(), per15Kobo: z.number().int() }).nullable(),
+  overstay: z
+    .object({ graceMin: z.number().int(), per15Kobo: z.number().int() })
+    .nullable()
+    // Null when an older API leaves it out (an app can be newer than the live API).
+    .default(null),
   /**
    * The car's stay, once the gate has checked it in (driver timer, ADR 0016).
    * Overstay is the server's figure: live while the car is still in after
@@ -73,7 +78,8 @@ export const BookingSchema = z.object({
       overstayMinutes: z.number().int(),
       overstayKobo: z.number().int(),
     })
-    .nullable(),
+    .nullable()
+    .default(null),
   createdAt: z.iso.datetime(),
 });
 

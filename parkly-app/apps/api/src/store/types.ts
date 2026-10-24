@@ -570,6 +570,8 @@ export type Store = {
       today: string;
       limit: number;
     }): Promise<(LiveLotRow & { distanceM: number })[]>;
+    /** Listable lots whose name contains `text` (any case), by name. */
+    searchLiveByName(text: string, today: string, limit: number): Promise<LiveLotRow[]>;
     /** A listable lot by id or slug; null when missing or not listable. */
     findLive(idOrSlug: string, today: string): Promise<LiveLotRow | null>;
     /** Replaces the whole week (days left out are closed). */
