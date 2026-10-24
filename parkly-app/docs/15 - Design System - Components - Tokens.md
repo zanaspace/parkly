@@ -121,6 +121,24 @@ A11y: label is a verb; icon-only uses `IconButton` with required `label` prop. M
 
 A11y: label element always rendered; `aria-invalid`, `aria-describedby` → helper/error id; error text prefixed by icon + "Error:" visually hidden.
 
+#### Select (Enterprise Custom Dropdown)
+
+| Token / Property | Value |
+|---|---|
+| `select.trigger.bg` / `-hover` | `color.bg.surface` (`#181d24`) / `color.bg.subtle` (`#1e242c`) |
+| `select.trigger.border` / `-focus` | `color.border.default` (`#272d34`) / `color.border.brand` (`#137066` + ring) |
+| `select.trigger.radius` | `radius.control` (8px) |
+| `select.trigger.height` | 44px (web) / 48px |
+| `select.menu.bg` | `color.bg.surface` (`#181d24`) |
+| `select.menu.border` | 1px solid `color.border.default` (`#272d34`) |
+| `select.menu.radius` | `radius.surface` (10px) |
+| `select.menu.shadow` | `0 12px 32px rgba(0, 0, 0, 0.55)` |
+| `select.option.padding` | `0.6rem 0.75rem`, radius `radius.control-sm` (6px) |
+| `select.option.selected.bg` / `.fg` | `rgba(19, 112, 102, 0.18)` / `color.brand.primary` (`#2dd4bf`) |
+| `select.chevron` | Rotating 180° animated SVG indicator |
+| `select.check.icon` | Emerald/teal checkmark on active selected option |
+| Form serialization | Hidden native `<select>` keeping 100% standard form/POST/GET/Server Action compatibility |
+
 ### 3.3 Card / LotCard / BookingCard
 
 | Token | Value |

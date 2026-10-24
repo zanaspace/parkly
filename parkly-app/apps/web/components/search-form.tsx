@@ -1,7 +1,7 @@
 'use client';
 
 import type { PlaceSuggestion } from '@parkly/contracts';
-import { Button } from '@parkly/ui';
+import { Button, Select } from '@parkly/ui';
 import { useEffect, useId, useState } from 'react';
 import { AREAS, DURATIONS, type SearchInput } from '../lib/search';
 
@@ -165,13 +165,12 @@ export function SearchForm(props: {
               <label className="pk-hint" htmlFor="search-area">
                 or pick an area
               </label>
-              <select id="search-area" name="area" className="pk-input" defaultValue={area}>
-                {AREAS.map((a) => (
-                  <option key={a.key} value={a.key}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
+              <Select
+                id="search-area"
+                name="area"
+                defaultValue={area}
+                options={AREAS.map((a) => ({ value: a.key, label: a.label }))}
+              />
             </div>
           </>
         )}
@@ -194,43 +193,28 @@ export function SearchForm(props: {
             required
           />
         </div>
-        <div className="pk-field">
-          <label className="pk-field__label" htmlFor="search-duration">
-            How long
-          </label>
-          <select
-            id="search-duration"
-            name="duration"
-            className="pk-input"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          >
-            {DURATIONS.map((h) => (
-              <option key={h} value={h}>
-                {h} hour{h === 1 ? '' : 's'}
-              </option>
-            ))}
-            <option value="day">Full day</option>
-          </select>
-        </div>
+        <Select
+          label="How long"
+          id="search-duration"
+          name="duration"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          options={[
+            ...DURATIONS.map((h) => ({
+              value: String(h),
+              label: `${h} hour${h === 1 ? '' : 's'}`,
+            })),
+            { value: 'day', label: 'Full day' },
+          ]}
+        />
         {duration !== 'day' && (
-          <div className="pk-field">
-            <label className="pk-field__label" htmlFor="search-time">
-              Arrive at
-            </label>
-            <select
-              id="search-time"
-              name="time"
-              className="pk-input"
-              defaultValue={props.initial.time}
-            >
-              {TIMES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Arrive at"
+            id="search-time"
+            name="time"
+            defaultValue={props.initial.time}
+            options={TIMES.map((t) => ({ value: t, label: t }))}
+          />
         )}
       </div>
       <Button type="submit" fullWidth>
