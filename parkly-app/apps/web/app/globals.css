@@ -1316,3 +1316,384 @@ a.pk-button {
   color: var(--pk-color-text-tertiary, #64748b);
 }
 
+/* ==========================================================================
+   Booking Detail Page (State-of-the-art responsive view)
+   ========================================================================== */
+.pk-booking-detail-page {
+  max-width: min(100% - 3rem, 80rem);
+  width: 100%;
+  margin-inline: auto;
+  padding-block: 2rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.pk-booking-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pk-ref-code {
+  font-family: var(--pk-font-family-mono, monospace);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--pk-color-border-subtle, #272d34);
+  color: var(--pk-color-text-secondary, #9da8b3);
+}
+
+.pk-booking-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--pk-color-border-subtle, #272d34);
+}
+
+.pk-booking-detail-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  margin: 0;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-booking-detail-sub {
+  font-size: 0.95rem;
+  color: var(--pk-color-text-secondary, #9da8b3);
+  margin: 0;
+}
+
+/* Status Alert Banner */
+.pk-status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: 14px;
+  background: var(--pk-color-bg-surface, #1e242b);
+  border: 1px solid var(--pk-color-border-subtle, #272d34);
+}
+
+.pk-status-banner--warning {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(30, 36, 43, 0.9) 100%);
+}
+
+.pk-status-banner--info {
+  border-color: rgba(19, 112, 102, 0.4);
+  background: linear-gradient(135deg, rgba(19, 112, 102, 0.08) 0%, rgba(30, 36, 43, 0.9) 100%);
+}
+
+.pk-status-banner-icon {
+  color: #fbbf24;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pk-status-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.pk-status-banner-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-status-banner-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--pk-color-text-secondary, #9da8b3);
+  margin: 0;
+}
+
+.pk-status-banner-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Digital Ticket Pass */
+.pk-ticket-pass {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.75rem;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(20, 32, 35, 0.95) 0%, rgba(18, 22, 25, 0.98) 100%);
+  border: 1px solid rgba(19, 112, 102, 0.45);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(19, 112, 102, 0.15);
+}
+
+.pk-ticket-pass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pk-ticket-pass-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pk-color-brand-primary, #19a594);
+}
+
+.pk-ticket-pass-subtitle {
+  font-size: 0.825rem;
+  color: var(--pk-color-text-secondary, #9da8b3);
+}
+
+.pk-ticket-pass-body {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.pk-ticket-pass-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pk-qr-container {
+  padding: 0.75rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  display: inline-flex;
+}
+
+.pk-qr-container .pk-qr {
+  width: 140px;
+  height: 140px;
+}
+
+.pk-ticket-pass-scan-hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--pk-color-text-tertiary, #64748b);
+}
+
+.pk-ticket-pass-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  flex: 1;
+  min-width: 16rem;
+}
+
+.pk-ticket-code-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pk-ticket-code-label {
+  font-size: 0.725rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--pk-color-text-tertiary, #64748b);
+}
+
+.pk-ticket-code-value {
+  font-family: var(--pk-font-family-mono, monospace);
+  font-size: 2.25rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.pk-ticket-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+
+.pk-ticket-info-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--pk-color-text-tertiary, #64748b);
+  margin-bottom: 0.25rem;
+}
+
+.pk-ticket-lot-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-plate-pill--lg {
+  font-size: 0.95rem;
+  padding: 4px 10px;
+}
+
+.pk-ticket-overstay-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.8rem;
+  color: var(--pk-color-text-secondary, #9da8b3);
+}
+
+/* 2-Column Responsive Detail Grid */
+.pk-booking-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (min-width: 860px) {
+  .pk-booking-detail-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+}
+
+.pk-detail-card {
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: var(--pk-color-bg-surface, #1e242b);
+  border: 1px solid var(--pk-color-border-subtle, #272d34);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pk-detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pk-detail-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-detail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pk-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.pk-detail-item-icon {
+  color: var(--pk-color-brand-primary, #19a594);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.pk-detail-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pk-detail-item-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-detail-item-desc {
+  font-size: 0.875rem;
+  color: var(--pk-color-text-secondary, #9da8b3);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.pk-detail-card-footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pk-receipt-guarantee {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(19, 112, 102, 0.1);
+  border: 1px solid rgba(19, 112, 102, 0.2);
+  color: var(--pk-color-text-secondary, #9da8b3);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.pk-receipt-guarantee svg {
+  color: var(--pk-color-brand-primary, #19a594);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pk-booking-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pk-color-border-subtle, #272d34);
+}
+
+.pk-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--pk-color-border-subtle, #272d34);
+  color: var(--pk-color-text-primary, #ffffff);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pk-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--pk-color-border-default, #363e48);
+}
+
+.pk-btn-sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+}
+

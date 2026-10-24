@@ -316,6 +316,22 @@ Three levels, pick the smallest that fits:
 
 ---
 
+## P16. Booking detail and gate pass (web & mobile)
+
+**Use:** driver booking screen (`/bookings/:id`) across web and mobile.
+
+- **Responsive layout:**
+  - Container expands fluidly on desktop (`max-width: min(100% - 3rem, 80rem)`), never constrained to narrow columns.
+  - On desktop (`≥ 860px`), displays a 2-column layout:
+    - Left Column: Facility name, address, Google Maps directions deep link, reservation window, registered plate, and amenities link.
+    - Right Column: Itemised receipt and price breakdown (`PriceBreakdown`), payment verification badge, and LASPA guarantee.
+- **Status handling:**
+  - Active (`CONFIRMED`, `CHECKED_IN`): Displays the Digital Gate Pass hero card with high-contrast QR code, large gate code (`PASS #...`), plate badge, and active countdown timer (`StayTimer`).
+  - Expired / Unpaid (`EXPIRED`, `CANCELLED`, `NO_SHOW`): Displays an informative, reassuring alert card (`.pk-status-banner--warning`) explaining that the space hold was released and no funds were charged, paired with direct CTAs to re-book or search nearby.
+  - Pending payment (`PENDING_PAYMENT`): Displays auto-refreshing polling indicator.
+
+---
+
 ## Pattern tokens (DTCG excerpt)
 
 ```json

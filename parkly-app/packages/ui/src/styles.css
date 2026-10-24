@@ -189,3 +189,82 @@
   font-size: var(--pk-type-caption-font-size);
   line-height: var(--pk-type-caption-line-height);
 }
+
+/* Badge (doc 15 §3.18) & StatusChip (doc 15 §3.19) */
+.pk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--pk-radius-sm, 6px);
+  font-family: var(--pk-font-family-text);
+  font-size: 0.725rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.pk-badge--neutral {
+  background: var(--pk-color-bg-muted, #272d34);
+  color: var(--pk-color-text-secondary, #9da8b3);
+  border: 1px solid var(--pk-color-border-subtle, #363e48);
+}
+.pk-badge--brand {
+  background: var(--pk-color-brand-primary, #137066);
+  color: #ffffff;
+}
+.pk-badge--brand-subtle {
+  background: rgba(19, 112, 102, 0.15);
+  color: var(--pk-color-brand-primary, #19a594);
+  border: 1px solid rgba(19, 112, 102, 0.3);
+}
+.pk-badge--verified,
+.pk-badge--confirmed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.pk-badge--checkedin {
+  background: rgba(20, 184, 166, 0.15);
+  color: #2dd4bf;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+.pk-badge--pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.pk-badge--completed {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.pk-badge--cancelled,
+.pk-badge--danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* PriceBreakdown (doc 14 P9 / doc 15 §3.27) */
+.pk-breakdown {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pk-breakdown td,
+.pk-breakdown th {
+  padding: var(--pk-space-1, 4px) 0;
+  text-align: left;
+  font-weight: 400;
+}
+.pk-breakdown td:last-child,
+.pk-breakdown th:last-child {
+  text-align: right;
+}
+.pk-breakdown tfoot th,
+.pk-breakdown tfoot td {
+  border-top: 1px solid var(--pk-color-border-subtle, #272d34);
+  padding-top: var(--pk-space-2, 8px);
+  font-weight: 700;
+}
