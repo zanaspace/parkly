@@ -78,6 +78,13 @@ export async function saveOpeningHours(_prev: LotFormState, form: FormData): Pro
       { method: 'PUT', body: { days: readHoursForm(form) } },
     );
   } catch (err) {
+    if (err instanceof ApiProblem && err.code === 'LOT_HAS_FUTURE_BOOKINGS') {
+      return {
+        error:
+          err.detail ??
+          'Cannot shorten hours: one or more confirmed driver bookings fall outside the proposed schedule. Existing bookings must be honoured.',
+      };
+    }
     return problemState(err);
   }
   revalidatePath(`/lots/${lotId}`);
@@ -273,3 +280,43 @@ export async function setSelfCheckin(
   revalidatePath(`/lots/${lotId}`);
   return undefined;
 }
+
+export type LotVisibilityState = { error?: string } | undefined;
+
+/** FR-LOT-006: pause / resume listing visibility by operator (LIVE <-> PAUSED). */
+export async function setLotVisibility(
+  _prev: LotVisibilityState,
+  form: FormData,
+): Promise<LotVisibilityState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  const visible = form.get('visible') === 'true';
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/visibility`,
+      await token(),
+      { method: 'POST', body: { visible } },
+    );
+  } catch (err) {
+    if (err instanceof ApiProblem) {
+      if (err.code === 'LOT_PERMIT_INVALID' || err.code === 'LOT_NOT_LISTABLE') {
+        const details = err.errors?.map((e) => e.message).join(', ');
+        return {
+          error: details
+            ? `Cannot make listing visible: ${details}`
+            : 'The lot cannot go live yet. Please make sure permits, rate plans, and inspection requirements are satisfied.',
+        };
+      }
+      if (err.code === 'INVALID_STATE_TRANSITION') {
+        return { error: 'Visibility can only be toggled for lots that are Live or Paused.' };
+      }
+      return { error: err.detail ?? err.message ?? 'Failed to update visibility.' };
+    }
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  revalidatePath(`/lots/${lotId}`);
+  revalidatePath('/lots');
+  return undefined;
+}
+

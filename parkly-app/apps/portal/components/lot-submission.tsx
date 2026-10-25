@@ -179,7 +179,7 @@ function PriceForm(props: { operatorId: string; lot: Lot; product: Product; edit
       {state?.saved && (
         <Notice tone="info">Sent for approval. It applies to new bookings once approved.</Notice>
       )}
-      <Button type="submit" variant="secondary" size="sm" loading={pending}>
+      <Button type="submit" loading={pending}>
         Send price for approval
       </Button>
     </ActionForm>

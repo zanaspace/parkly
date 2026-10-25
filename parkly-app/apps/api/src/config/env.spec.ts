@@ -55,6 +55,7 @@ describe('loadConfig', () => {
       SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
     });
     expect(config.upstash).toEqual({ url: 'https://x.upstash.io', token: 't' });
+    expect(config.logPayloads).toBe(false);
   });
 
   it('names the bad variable but never echoes its value', () => {

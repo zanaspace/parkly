@@ -5703,6 +5703,453 @@
         }
       }
     },
+    "/v1/operators/{operatorId}/lots/{lotId}/visibility": {
+      "post": {
+        "tags": [
+          "lots"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "visible": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "visible"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lot visibility updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 80
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string",
+                      "minLength": 5,
+                      "maxLength": 300
+                    },
+                    "area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lga": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "entranceNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capacityTotal": {
+                      "type": "integer"
+                    },
+                    "capacityBookable": {
+                      "type": "integer"
+                    },
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "GUARD",
+                          "CCTV",
+                          "LIGHTING",
+                          "COVERED",
+                          "EV",
+                          "ACCESS_CONTROL",
+                          "TOILET"
+                        ]
+                      },
+                      "maxItems": 7
+                    },
+                    "vehicleTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "CAR",
+                          "SUV",
+                          "BUS"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING_VERIFICATION",
+                        "LIVE",
+                        "PAUSED",
+                        "SUSPENDED",
+                        "ARCHIVED"
+                      ]
+                    },
+                    "statusReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "openingHours": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "is24h": {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              "opensAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "closesAt": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "is24h",
+                              "opensAt",
+                              "closesAt"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "sort": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "sizeBytes": {
+                            "type": "integer"
+                          },
+                          "uploadedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sort",
+                          "status",
+                          "sizeBytes",
+                          "uploadedAt"
+                        ]
+                      }
+                    },
+                    "permit": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "permitNumber": {
+                          "type": "string"
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SUBMITTED",
+                            "IN_REVIEW",
+                            "APPROVED",
+                            "REJECTED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "rejectionReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "issuer",
+                        "permitNumber",
+                        "issuedAt",
+                        "expiresAt",
+                        "status",
+                        "rejectionReason",
+                        "submittedAt"
+                      ]
+                    },
+                    "ratePlans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "product": {
+                            "type": "string",
+                            "enum": [
+                              "HOURLY",
+                              "DAILY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "PENDING_APPROVAL",
+                              "ACTIVE",
+                              "RETIRED",
+                              "REJECTED"
+                            ]
+                          },
+                          "hourlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "minMinutes": {
+                            "type": "integer"
+                          },
+                          "dailyCapKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "dailyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "monthlyRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "rejectionReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "submittedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "product",
+                          "status",
+                          "hourlyRateKobo",
+                          "minMinutes",
+                          "dailyCapKobo",
+                          "dailyRateKobo",
+                          "monthlyRateKobo",
+                          "rejectionReason",
+                          "submittedAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "description",
+                    "addressLine",
+                    "area",
+                    "lga",
+                    "location",
+                    "entranceNotes",
+                    "capacityTotal",
+                    "capacityBookable",
+                    "amenities",
+                    "vehicleTypes",
+                    "id",
+                    "operatorId",
+                    "slug",
+                    "status",
+                    "statusReason",
+                    "version",
+                    "openingHours",
+                    "photos",
+                    "permit",
+                    "ratePlans",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/audit-logs": {
       "get": {
         "tags": [

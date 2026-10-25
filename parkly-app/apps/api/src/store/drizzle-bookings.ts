@@ -237,6 +237,21 @@ export function drizzleBookings(
         return rows.map(asBooking);
       },
 
+      async listUpcomingForLot(lotId, now) {
+        const rows = await db
+          .select(bookingColumns)
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.lotId, lotId),
+              inArray(bookings.status, [...LIVE, 'PENDING_PAYMENT']),
+              gt(bookings.endAt, now),
+            ),
+          )
+          .orderBy(asc(bookings.startAt));
+        return rows.map(asBooking);
+      },
+
       async releaseHold(id, reason, at) {
         await db.transaction(async (tx) => {
           const [b] = await tx

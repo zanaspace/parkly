@@ -60,6 +60,11 @@
 .pk-button--secondary {
   background: var(--pk-button-secondary-bg);
   color: var(--pk-button-secondary-fg);
+  border: 1px solid var(--pk-color-border-default);
+}
+.pk-button--secondary:hover {
+  background: var(--pk-button-secondary-bg-pressed);
+  border-color: var(--pk-color-border-strong);
 }
 .pk-button--secondary:active {
   background: var(--pk-button-secondary-bg-pressed);

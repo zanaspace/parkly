@@ -1125,6 +1125,9 @@ export function storeContract(
         const upcoming = await store.bookings.listForDriver(d.id, 'upcoming', AT, 10);
         expect(upcoming.map((b) => b.id)).toEqual([booking.id]);
         expect(await store.bookings.listForDriver(d.id, 'past', AT, 10)).toEqual([]);
+        expect((await store.bookings.listUpcomingForLot(lot.lotId, AT)).map((b) => b.id)).toEqual([
+          booking.id,
+        ]);
         expect((await store.payments.latestForBooking(booking.id))?.id).toBe(payment.id);
       });
 

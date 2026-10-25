@@ -256,6 +256,7 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/lots/{lotId}/permits/document',
   'POST /v1/operators/{operatorId}/lots/{lotId}/permits',
   'PUT /v1/operators/{operatorId}/lots/{lotId}/rate-plans',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/visibility',
   // Same kyb:review rule as the rows above; behaviour in admin/kyb.spec
   'GET /v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url',
   'POST /v1/admin/operators/{operatorId}/kyb/review',

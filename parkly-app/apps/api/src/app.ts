@@ -10,6 +10,7 @@ import type { FieldCrypto } from './lib/crypto.js';
 import { ApiError } from './lib/errors.js';
 import type { Logger } from './lib/logger.js';
 import { problemResponse } from './lib/problem.js';
+import { payloadLogger } from './middleware/payload-logger.js';
 import { rateLimit, type RateLimiter } from './middleware/rate-limit.js';
 import { adminKybRoutes } from './modules/admin/kyb.js';
 import { adminLotRoutes } from './modules/admin/lots.js';
@@ -42,7 +43,7 @@ export type AppDeps = {
   config: Pick<
     AppConfig,
     'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret' | 'paystackWebhookIps'
-  >;
+  > & { logPayloads?: boolean };
   logger: Logger;
   readinessChecks: Record<string, ReadinessCheck>;
   rateLimiter: RateLimiter;
@@ -95,6 +96,10 @@ export function createApp(deps: AppDeps) {
       maxAge: 600,
     }),
   );
+
+  if (deps.config.logPayloads) {
+    app.use('*', payloadLogger());
+  }
 
   // Signed by pg_cron / Supabase Auth; not rate limited by IP (Supabase egress is shared).
   app.route(

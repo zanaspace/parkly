@@ -12,8 +12,8 @@ export const metadata = { title: 'Lots · Parkly for Operators' };
 const STATUS_CONFIG: Record<LotSummary['status'], { label: string; class: string }> = {
   DRAFT: { label: 'Draft', class: 'pk-badge--draft' },
   PENDING_VERIFICATION: { label: 'Under Review', class: 'pk-badge--submitted' },
-  LIVE: { label: 'Live', class: 'pk-badge--live' },
-  PAUSED: { label: 'Paused', class: 'pk-badge--submitted' },
+  LIVE: { label: 'Live · Visible in Search', class: 'pk-badge--live' },
+  PAUSED: { label: 'Paused · Hidden from Search', class: 'pk-badge--submitted' },
   SUSPENDED: { label: 'Suspended', class: 'pk-badge--suspended' },
   ARCHIVED: { label: 'Archived', class: 'pk-badge--draft' },
 };

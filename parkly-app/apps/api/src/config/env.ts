@@ -57,6 +57,7 @@ const EnvSchema = z
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     SENTRY_DSN: z.url().optional(),
     PORT: z.coerce.number().int().positive().default(4000),
+    LOG_PAYLOADS: z.coerce.boolean().optional(),
   })
   .superRefine((env, ctx) => {
     const required = (key: keyof typeof env) => {
@@ -103,6 +104,7 @@ const EnvSchema = z
 export type AppConfig = {
   appEnv: 'local' | 'dev' | 'staging' | 'prod';
   logLevel: string;
+  logPayloads: boolean;
   corsOrigins: string[];
   jobHmacSecret: string;
   databaseUrl: string | undefined;
@@ -146,6 +148,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   return {
     appEnv: e.APP_ENV,
     logLevel: e.LOG_LEVEL,
+    logPayloads: local ? (e.LOG_PAYLOADS ?? true) : false,
     corsOrigins: corsOrigins
       .split(',')
       .map((s) => s.trim())

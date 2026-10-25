@@ -218,4 +218,97 @@ describe('submit for verification (doc 02 §3.3 DRAFT → PENDING_VERIFICATION)'
     });
     expect(edit.status).toBe(409);
   });
+
+  it('allows operators to pause and resume listing visibility (FR-LOT-006)', async () => {
+    const ctx = await setup();
+    // Simulate approved lot (S2 slice E)
+    await ctx.w.store.lots.setStatus(ctx.operatorId, ctx.lotId, 'DRAFT', 'PENDING_VERIFICATION', null);
+    await ctx.w.store.lots.setStatus(ctx.operatorId, ctx.lotId, 'PENDING_VERIFICATION', 'LIVE', null);
+
+    // Pause visibility: LIVE -> PAUSED
+    const pauseRes = await ctx.w.call('POST', `${ctx.base}/visibility`, {
+      ...ctx.as(ctx.owner),
+      body: { visible: false },
+    });
+    expect(pauseRes.status).toBe(200);
+    expect(pauseRes.body).toMatchObject({ status: 'PAUSED' });
+    expect(ctx.w.store.auditRows.map((a) => a.action)).toContain('lot.paused');
+
+    // Pausing again is a no-op
+    const pauseAgain = await ctx.w.call('POST', `${ctx.base}/visibility`, {
+      ...ctx.as(ctx.owner),
+      body: { visible: false },
+    });
+    expect(pauseAgain.status).toBe(200);
+    expect(pauseAgain.body).toMatchObject({ status: 'PAUSED' });
+
+    // Try to resume without required listing gate items -> 422 LOT_NOT_LISTABLE
+    const resumeFail = await ctx.w.call('POST', `${ctx.base}/visibility`, {
+      ...ctx.as(ctx.owner),
+      body: { visible: true },
+    });
+    expect([resumeFail.status, resumeFail.body?.code]).toEqual([422, 'LOT_PERMIT_INVALID']);
+
+    // Provide valid permit, visit, rate plan, and approved operator
+    const permit = await ctx.w.store.permits.create({
+      lotId: ctx.lotId,
+      permitNumber: 'LASPA/VI/2026/0012',
+      issuedAt: '2026-01-10',
+      expiresAt: '2027-01-09',
+      documentFileId: 'doc-1',
+      submittedBy: ctx.owner,
+    });
+    await ctx.w.store.permits.approve(permit.id, { reviewerId: 'admin-1', at: TEST_NOW, note: 'ok' });
+
+    const visit = await ctx.w.store.verifications.create({
+      lotId: ctx.lotId,
+      inspectorUserId: ctx.owner,
+      inspectedAt: TEST_NOW,
+      capacityCounted: 120,
+      gps: null,
+      notes: null,
+      validUntil: '2027-10-09',
+      items: [{ item: 'LASPA_PERMIT', result: 'PASS', comment: null }],
+    });
+    await ctx.w.store.verifications.approve(visit.id, {
+      reviewerId: 'admin-1',
+      at: TEST_NOW,
+    });
+
+    const plan = await ctx.w.store.ratePlans.submit({
+      lotId: ctx.lotId,
+      product: 'DAILY',
+      dailyRateKobo: 300_000,
+      hourlyRateKobo: null,
+      minMinutes: 60,
+      dailyCapKobo: null,
+      monthlyRateKobo: null,
+      submittedBy: ctx.owner,
+    });
+    await ctx.w.store.ratePlans.approve(plan.id, { reviewerId: 'admin-1', at: TEST_NOW });
+
+    const op = ctx.w.store.operatorRows.get(ctx.operatorId);
+    if (op) {
+      op.status = 'ACTIVE';
+      op.kybStatus = 'APPROVED';
+    }
+
+    // Resume visibility: PAUSED -> LIVE
+    const resumeRes = await ctx.w.call('POST', `${ctx.base}/visibility`, {
+      ...ctx.as(ctx.owner),
+      body: { visible: true },
+    });
+    expect(resumeRes.status).toBe(200);
+    expect(resumeRes.body).toMatchObject({ status: 'LIVE' });
+    expect(ctx.w.store.auditRows.map((a) => a.action)).toContain('lot.resumed');
+  });
+
+  it('rejects visibility toggle on draft lots', async () => {
+    const ctx = await setup();
+    const res = await ctx.w.call('POST', `${ctx.base}/visibility`, {
+      ...ctx.as(ctx.owner),
+      body: { visible: false },
+    });
+    expect([res.status, res.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
+  });
 });
