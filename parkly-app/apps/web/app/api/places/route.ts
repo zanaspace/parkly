@@ -13,8 +13,7 @@ export async function GET(request: Request) {
       // Keep the API's per-IP rate limit meaningful behind this proxy.
       'x-forwarded-for': request.headers.get('x-forwarded-for') ?? '',
     },
-    // Car parks come and go (live, paused), so keep this short, like the API.
-    next: { revalidate: 600 },
+    cache: 'no-store',
   });
   const body: unknown = await res.json().catch(() => ({ items: [] }));
   return Response.json(body, { status: res.ok ? 200 : res.status });

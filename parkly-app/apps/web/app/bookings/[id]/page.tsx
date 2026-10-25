@@ -47,6 +47,10 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
   }
 
   const confirmed = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
+  const isPaid =
+    booking.status === 'CONFIRMED' ||
+    booking.status === 'CHECKED_IN' ||
+    booking.status === 'COMPLETED';
   const expiredOrCancelled =
     booking.status === 'EXPIRED' ||
     booking.status === 'CANCELLED' ||
@@ -261,8 +265,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
               <CreditCardIcon size={18} />
               <h2 className="pk-detail-card-title">Receipt & Pricing</h2>
             </div>
-            <span className={confirmed ? 'pk-badge pk-badge--confirmed' : 'pk-badge pk-badge--cancelled'}>
-              {confirmed ? 'Paid via Card' : 'Not Charged'}
+            <span className={isPaid ? 'pk-badge pk-badge--confirmed' : 'pk-badge pk-badge--cancelled'}>
+              {isPaid ? 'PAID' : 'NOT CHARGED'}
             </span>
           </div>
 
@@ -272,7 +276,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
                 label: lineLabel(l),
                 amount: formatNaira(l.amountKobo),
               }))}
-              totalLabel={confirmed ? 'Total Paid' : 'Total Quote'}
+              totalLabel={isPaid ? 'Total Paid' : 'Total Quote'}
               totalAmount={formatNaira(booking.totalKobo)}
             />
           </div>
