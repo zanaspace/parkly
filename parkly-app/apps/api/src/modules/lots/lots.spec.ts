@@ -201,6 +201,90 @@ describe('edit lots', () => {
       { path: 'days.2', message: 'Opening and closing times can’t be the same.' },
     ]);
   });
+
+  it('updates opening hours on a LIVE or PAUSED lot when no bookings conflict', async () => {
+    const ctx = await setup();
+    const lot = await createLot(ctx);
+    const lotId = lot.body?.id as string;
+    const row = ctx.w.store.lotRows.get(lotId);
+    if (row) row.status = 'LIVE';
+
+    const url = `${ctx.base}/${lotId}/opening-hours`;
+    const res = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: {
+        days: [{ weekday: 1, is24h: true }],
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body?.openingHours).toEqual([{ weekday: 1, is24h: true }]);
+  });
+
+  it('rejects opening hours updates on a LIVE lot that conflict with confirmed driver bookings', async () => {
+    const ctx = await setup();
+    const lot = await createLot(ctx);
+    const lotId = lot.body?.id as string;
+    const row = ctx.w.store.lotRows.get(lotId);
+    if (row) row.status = 'LIVE';
+
+    // Existing booking on Monday (weekday 1) from 20:00 to 22:00 Lagos
+    ctx.w.store.booking.bookingRows.push({
+      id: randomUUID(),
+      code: 'BK-CONF-1',
+      driverId: 'driver-1',
+      vehicleId: 'veh-1',
+      plateNorm: 'ABC123XY',
+      lotId,
+      product: 'HOURLY',
+      startAt: new Date(Date.UTC(2026, 9, 26, 19, 0)),
+      endAt: new Date(Date.UTC(2026, 9, 26, 21, 0)),
+      status: 'CONFIRMED',
+      holdExpiresAt: null,
+      priceKobo: 200_000,
+      serviceFeeKobo: 10_000,
+      totalKobo: 210_000,
+      commissionBps: 1200,
+      ratePlanId: 'rp-1',
+      pricingBreakdown: [],
+      source: 'MOBILE',
+      createdAt: new Date(),
+    });
+
+    const url = `${ctx.base}/${lotId}/opening-hours`;
+    // Attempt to change Monday hours to close early at 18:00
+    const res = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: {
+        days: [{ weekday: 1, is24h: false, opensAt: '08:00', closesAt: '18:00' }],
+      },
+    });
+    expect([res.status, res.body?.code]).toEqual([409, 'LOT_HAS_FUTURE_BOOKINGS']);
+    expect(String(res.body?.detail).toLowerCase()).toContain('honoured');
+
+    // Attempting to expand hours to 24h succeeds because it covers the booking
+    const expand = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: {
+        days: [{ weekday: 1, is24h: true }],
+      },
+    });
+    expect(expand.status).toBe(200);
+  });
+
+  it('rejects opening hours updates on lots under review or suspended', async () => {
+    const ctx = await setup();
+    const lot = await createLot(ctx);
+    const lotId = lot.body?.id as string;
+    const row = ctx.w.store.lotRows.get(lotId);
+    if (row) row.status = 'PENDING_VERIFICATION';
+
+    const url = `${ctx.base}/${lotId}/opening-hours`;
+    const res = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: { days: [{ weekday: 1, is24h: true }] },
+    });
+    expect([res.status, res.body?.code]).toEqual([409, 'INVALID_STATE_TRANSITION']);
+  });
 });
 
 describe('lot photos (3–10 per lot)', () => {

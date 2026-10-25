@@ -1,5 +1,5 @@
 import type { Booking } from '@parkly/contracts';
-import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
+import { bookingWindowLabel } from '@parkly/domain/booking';
 import { lineLabel } from '@parkly/domain/discovery';
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';

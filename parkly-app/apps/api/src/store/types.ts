@@ -717,6 +717,8 @@ export type Store = {
       now: Date,
       limit: number,
     ): Promise<BookingRow[]>;
+    /** Active/upcoming bookings for a lot (CONFIRMED or CHECKED_IN or hold, ending after `now`). */
+    listUpcomingForLot(lotId: string, now: Date): Promise<BookingRow[]>;
     /**
      * Ends an unpaid hold now (checkout could not start): EXPIRED with the
      * space given back and a SYSTEM history row. No-op unless PENDING_PAYMENT.

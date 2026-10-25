@@ -220,6 +220,13 @@ export class MemoryBookings {
         .map((b) => ({ ...b }));
     },
 
+    listUpcomingForLot: async (lotId, now) => {
+      return this.bookingRows
+        .filter((b) => b.lotId === lotId && LIVE_STATUSES.has(b.status) && b.endAt > now)
+        .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
+        .map((b) => ({ ...b }));
+    },
+
     releaseHold: async (id, reason) => {
       const b = this.bookingRows.find((r) => r.id === id);
       if (!b || b.status !== 'PENDING_PAYMENT') return;

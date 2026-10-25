@@ -12,6 +12,7 @@ import {
   LotSchema,
   PresignLotPhotoRequestSchema,
   PresignUploadResponseSchema,
+  SetLotVisibilityRequestSchema,
   SetOpeningHoursRequestSchema,
   UpdateLotRequestSchema,
   type Lot,
@@ -23,13 +24,17 @@ import {
   checkCapacity,
   checkLotTransition,
   checkPermitDates,
+  listability,
   submissionGaps,
   validateRatePlan,
   isInLagosState,
   MAX_LOT_PHOTOS,
   slugify,
   validateOpeningHours,
+  type LotActor,
+  type LotStatus,
 } from '@parkly/domain/lot';
+import { isOpenDuring } from '@parkly/domain/availability';
 import type { Context } from 'hono';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
@@ -59,6 +64,11 @@ const EDITABLE = new Set<LotRow['status']>(['DRAFT']);
  * review its prices are being checked, so they stay put.
  */
 const PRICE_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED']);
+/**
+ * Opening hours can be set on draft lots, and updated on live/paused lots as long
+ * as proposed hours do not conflict with active driver bookings.
+ */
+const HOURS_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED']);
 
 const CAPACITY_MESSAGES = {
   TOTAL_INVALID: ['capacityTotal', 'Enter the total number of spaces (a whole number above 0).'],
@@ -192,6 +202,23 @@ export function lotRoutes(deps: AppDeps) {
   };
 
   const toLot = (row: LotRow) => toLotResponse(deps.store, row);
+
+  /** The doc 02 §3.3 listing gate, from the lot's latest permit, visit, prices and operator. */
+  async function listabilityOf(lot: LotRow) {
+    const [permit, visit, plans, operator] = await Promise.all([
+      deps.store.permits.latest(lot.id),
+      deps.store.verifications.latest(lot.id),
+      deps.store.ratePlans.current(lot.id),
+      deps.store.operators.find(lot.operatorId),
+    ]);
+    return listability({
+      permit: permit && { status: permit.status, expiresOn: permit.expiresAt },
+      verification: visit && { status: visit.status, validUntil: visit.validUntil },
+      hasActiveRatePlan: plans.some((p) => p.status === 'ACTIVE'),
+      operatorActive: operator?.status === 'ACTIVE' && operator.kybStatus === 'APPROVED',
+      now: deps.now(),
+    });
+  }
 
   /** Read access hides other operators (404); writes need lot:manage. */
   async function loadLot(
@@ -364,7 +391,16 @@ export function lotRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
-      const lot = await loadLot(c, operatorId, lotId, 'edit');
+      authorize(c, deps.logger, 'lot:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      const lot = await deps.store.lots.find(operatorId, lotId);
+      if (!lot) throw new ApiError('NOT_FOUND');
+      if (!HOURS_EDITABLE.has(lot.status))
+        throw new ApiError(
+          'INVALID_STATE_TRANSITION',
+          'Opening hours can only be changed while a lot is draft, live, or paused',
+        );
+
       const { days } = c.req.valid('json');
       const problems = validateOpeningHours(days);
       if (problems.length > 0)
@@ -374,6 +410,35 @@ export function lotRoutes(deps: AppDeps) {
             message: HOURS_MESSAGES[p.problem],
           })),
         });
+
+      if (lot.status !== 'DRAFT') {
+        const upcoming = await deps.store.bookings.listUpcomingForLot(lotId, deps.now());
+        const active = upcoming.filter(
+          (b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
+        );
+        const conflicting = active.filter(
+          (b) =>
+            !isOpenDuring({
+              hours: days,
+              startAt: b.startAt,
+              endAt: b.endAt,
+              product: b.product === 'DAILY' ? 'DAILY' : 'HOURLY',
+            }),
+        );
+        if (conflicting.length > 0) {
+          throw new ApiError(
+            'LOT_HAS_FUTURE_BOOKINGS',
+            `Cannot change opening hours: ${conflicting.length} driver booking(s) fall outside the proposed hours. Existing bookings must be honoured.`,
+            {
+              errors: conflicting.slice(0, 5).map((b) => ({
+                path: `days.${b.startAt.getUTCDay()}`,
+                message: `Booking ${b.code} (${b.startAt.toISOString().slice(0, 16)} to ${b.endAt.toISOString().slice(0, 16)}) falls outside new opening hours`,
+              })),
+            },
+          );
+        }
+      }
+
       await deps.store.lots.setOpeningHours(
         lotId,
         days.map((d) => ({
@@ -707,6 +772,80 @@ export function lotRoutes(deps: AppDeps) {
         before: { status: 'DRAFT' },
         after: { status: 'PENDING_VERIFICATION' },
       });
+      return c.json(await toLot(row), 200);
+    },
+  );
+
+  // --- visibility: pause / resume listing by operator (FR-LOT-006) -----------------------
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/visibility',
+      tags: ['lots'],
+      ...secured,
+      request: {
+        params: LotParams,
+        body: { ...json(SetLotVisibilityRequestSchema), required: true },
+      },
+      responses: { 200: { description: 'Lot visibility updated', ...json(LotSchema) } },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      authorize(c, deps.logger, 'lot:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+
+      const lot = await deps.store.lots.find(operatorId, lotId);
+      if (!lot) throw new ApiError('NOT_FOUND');
+
+      const { visible } = c.req.valid('json');
+      const targetStatus: LotStatus = visible ? 'LIVE' : 'PAUSED';
+
+      if (lot.status === targetStatus) {
+        return c.json(await toLot(lot), 200);
+      }
+
+      const held = new Set<string>(c.get('actor').roles.map((r) => r.role));
+      const operatorRoles: LotActor[] = ['OPERATOR_OWNER', 'OPERATOR_MANAGER'];
+      const actorRole = operatorRoles.find((r) => held.has(r)) ?? 'OPERATOR_OWNER';
+
+      const gate = await listabilityOf(lot);
+      const check = checkLotTransition({
+        from: lot.status,
+        to: targetStatus,
+        actor: actorRole,
+        facts: {
+          submissionGaps: [],
+          listability: gate,
+          hasFutureBookings: false,
+        },
+      });
+
+      if (!check.ok) {
+        if (check.code === 'LOT_NOT_LISTABLE' || check.code === 'LOT_PERMIT_INVALID') {
+          throw new ApiError(check.code, 'The lot cannot go live yet', {
+            errors: (check.missing ?? []).map((m) => ({ path: m, message: m })),
+          });
+        }
+        throw new ApiError(check.code === 'FORBIDDEN' ? 'FORBIDDEN' : 'INVALID_STATE_TRANSITION');
+      }
+
+      let row: LotRow;
+      try {
+        row = await deps.store.lots.setStatus(operatorId, lotId, lot.status, targetStatus, null);
+      } catch (err) {
+        if (err instanceof StaleVersionError) throw new ApiError('INVALID_STATE_TRANSITION');
+        throw err;
+      }
+
+      await audit(c, deps, {
+        action: visible ? 'lot.resumed' : 'lot.paused',
+        entityType: 'lot',
+        entityId: lotId,
+        before: { status: lot.status },
+        after: { status: targetStatus },
+      });
+
       return c.json(await toLot(row), 200);
     },
   );

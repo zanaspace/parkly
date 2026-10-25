@@ -3,6 +3,7 @@ import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeftIcon, LotsIcon } from '../../../../components/icons';
+import { LotVisibilitySection } from '../../../../components/lot-visibility';
 import {
   PermitSection,
   PricesSection,
@@ -56,8 +57,11 @@ export default async function LotPage({
   const editable = lot.status === 'DRAFT';
   // FR-LOT-005: prices may change on a live or paused lot too (each change is approved first).
   const pricesEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
+  const hoursEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
   const created = (await searchParams).created === '1';
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
+  const isManager = me.roles.some((r) => r.role === 'OPERATOR_MANAGER' && r.operatorId === operatorId);
+  const canManage = isOwner || isManager;
 
   return (
     <main className="pk-page pk-page--wide">
@@ -87,6 +91,9 @@ export default async function LotPage({
         </p>
       )}
 
+      {/* FR-LOT-006: Search & Listing Visibility Control */}
+      <LotVisibilitySection operatorId={operatorId} lot={lot} canManage={canManage} />
+
       <Text variant="heading-md" as="h2">
         Photos
       </Text>
@@ -95,7 +102,7 @@ export default async function LotPage({
       <Text variant="heading-md" as="h2">
         Opening hours
       </Text>
-      <HoursEditor operatorId={operatorId} lot={lot} editable={editable} />
+      <HoursEditor operatorId={operatorId} lot={lot} editable={hoursEditable} />
 
       <Text variant="heading-md" as="h2">
         Prices

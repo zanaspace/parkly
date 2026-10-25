@@ -173,6 +173,10 @@ export const PresignLotPhotoRequestSchema = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/i, 'SHA-256 as 64 hex characters'),
 });
 
+export const SetLotVisibilityRequestSchema = z.object({
+  visible: z.boolean(),
+});
+
 export type Amenity = z.infer<typeof AmenitySchema>;
 export type Permit = z.infer<typeof PermitSchema>;
 export type RatePlan = z.infer<typeof RatePlanSchema>;
@@ -185,3 +189,4 @@ export type LotPhoto = z.infer<typeof LotPhotoSchema>;
 export type OpeningDay = z.infer<typeof OpeningDaySchema>;
 export type CreateLotRequest = z.infer<typeof CreateLotRequestSchema>;
 export type UpdateLotRequest = z.infer<typeof UpdateLotRequestSchema>;
+export type SetLotVisibilityRequest = z.infer<typeof SetLotVisibilityRequestSchema>;
