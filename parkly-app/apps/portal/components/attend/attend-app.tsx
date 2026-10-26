@@ -22,6 +22,8 @@ import {
 } from '../../lib/attend/queue';
 import { attendStorage, type AttendSettings } from '../../lib/attend/storage';
 import { Scanner } from './scanner';
+import { QrCode } from '../qr-code';
+import { attendantGateCodeFor } from '@parkly/domain/checkin';
 
 const SYNC_EVERY_MS = 15_000;
 const MANIFEST_EVERY_MS = 5 * 60_000;
@@ -44,6 +46,7 @@ type Screen =
   | { name: 'choose'; mode: Mode; results: GateResult[] }
   | { name: 'exits' }
   | { name: 'issue' }
+  | { name: 'show-qr' }
   | { name: 'queue' };
 
 const REASON_TEXT: Record<string, string> = {
@@ -581,6 +584,49 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
       </div>
     );
 
+  if (screen.name === 'show-qr')
+    return (
+      <div className="pk-stack" style={{ textAlign: 'center', alignItems: 'center' }}>
+        <Text variant="heading-lg" as="h1">
+          Gate QR for Drivers
+        </Text>
+        <Text tone="secondary">
+          Hold this up to the driver. They can scan this code with the Parkly app or website to
+          check in or check out.
+        </Text>
+        <div
+          style={{
+            padding: '1.25rem',
+            background: 'var(--pk-color-qr-bg, #ffffff)',
+            borderRadius: '12px',
+            boxShadow: 'var(--pk-shadow-md)',
+            border: '2px solid var(--pk-color-border-subtle)',
+            maxWidth: '280px',
+            width: '100%',
+            aspectRatio: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0.5rem auto',
+          }}
+        >
+          <QrCode
+            value={attendantGateCodeFor(manifest.lot.id)}
+            label={`Gate QR code for ${manifest.lot.name}`}
+          />
+        </div>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <Text variant="heading-sm">{manifest.lot.name}</Text>
+          <Text variant="body-sm" tone="tertiary" style={{ fontFamily: 'monospace' }}>
+            {attendantGateCodeFor(manifest.lot.id)}
+          </Text>
+        </div>
+        <Button size="lg" fullWidth onClick={() => setScreen({ name: 'home' })}>
+          Back to gate
+        </Button>
+      </div>
+    );
+
   // A-02 shift home
   return (
     <div className="pk-stack">
@@ -622,6 +668,17 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
         }}
       >
         Scan ticket
+      </Button>
+      <Button
+        size="lg"
+        variant="secondary"
+        fullWidth
+        onClick={() => {
+          setNotice(null);
+          setScreen({ name: 'show-qr' });
+        }}
+      >
+        Show gate QR to driver
       </Button>
       <Button
         size="lg"

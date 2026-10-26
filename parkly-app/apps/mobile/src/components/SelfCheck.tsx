@@ -31,7 +31,7 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
     setError(null);
     const cam = permission?.granted ? permission : await requestPermission();
     if (!cam.granted) {
-      setError('Allow the camera for Parkly to scan the poster, or show your ticket at the gate.');
+      setError('Allow the camera for Parkly to scan the barrier poster or attendant’s phone, or show your ticket at the gate.');
       return;
     }
     const loc = await Location.requestForegroundPermissionsAsync();
@@ -68,7 +68,7 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
     <View style={{ gap: theme.space.stack.sm }}>
       {scanning ? (
         <>
-          <Text tone="secondary">Point the camera at the Parkly poster at the entrance.</Text>
+          <Text tone="secondary">Point the camera at the Parkly barcode at the barrier or on the attendant’s phone.</Text>
           <CameraView
             style={{ width: '100%', aspectRatio: 1, borderRadius: theme.card.radius }}
             facing="back"
@@ -79,7 +79,7 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
         </>
       ) : (
         <Button
-          label={`${verb} yourself`}
+          label={`${verb} (scan barrier or attendant)`}
           variant="secondary"
           fullWidth
           loading={sending}

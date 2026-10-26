@@ -6,9 +6,9 @@ const b = (over: Partial<Booking>, selfCheckIn = true) =>
   ({ status: 'CONFIRMED', stay: null, ...over, lot: { selfCheckIn } }) as unknown as Booking;
 
 describe('selfCheckKind (ADR 0016)', () => {
-  it('offers check-in, then check-out, only where the owner allows it', () => {
+  it('offers check-in, then check-out for confirmed and active stays', () => {
     expect(selfCheckKind(b({}))).toBe('in');
-    expect(selfCheckKind(b({}, false))).toBeNull();
+    expect(selfCheckKind(b({}, false))).toBe('in');
     const stay = { checkedInAt: 'x', checkedOutAt: null, overstayMinutes: 0, overstayKobo: 0 };
     expect(selfCheckKind(b({ status: 'CHECKED_IN', stay }))).toBe('out');
     expect(

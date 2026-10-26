@@ -76,3 +76,34 @@ export async function addCar(_prev: BookState, form: FormData): Promise<BookStat
   }
   redirect(back.startsWith('/') ? back : '/bookings');
 }
+
+export type SelfCheckResult = { ok: boolean; message?: string };
+
+const SELF_MESSAGES: Record<string, string> = {
+  SELF_CHECKIN_OFF: 'Self check-in is not active for this car park.',
+  QR_WRONG_LOT: 'That code does not match this car park. Scan the barrier or attendant QR.',
+  SELF_CHECKIN_TOO_FAR: 'You must be physically at the car park (within 150 m) to check in or out.',
+  QR_OUTSIDE_WINDOW: 'You can only check in up to 30 minutes before your booked start time.',
+  BOOKING_NOT_ACTIVE: 'This booking is not currently active.',
+  NOT_FOUND: 'Booking not found.',
+};
+
+/** Driver self check-in / check-out by scanning barrier poster or attendant barcode. */
+export async function submitSelfCheck(
+  bookingId: string,
+  kind: 'in' | 'out',
+  payload: { clientEventId: string; code: string; lat: number; lng: number },
+): Promise<SelfCheckResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    await apiAs(driver.accessToken, `/v1/bookings/${bookingId}/self-check-${kind}`, {
+      method: 'POST',
+      body: payload,
+    });
+    return { ok: true };
+  } catch (err) {
+    const msg = (err instanceof ApiProblem && SELF_MESSAGES[err.code]) || message(err);
+    return { ok: false, message: msg };
+  }
+}
+

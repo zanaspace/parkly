@@ -333,6 +333,9 @@ importers:
       '@supabase/supabase-js':
         specifier: 2.117.3
         version: 2.117.3(@opentelemetry/api@1.9.1)
+      jsqr:
+        specifier: 1.4.0
+        version: 1.4.0
       maplibre-gl:
         specifier: 6.13.0
         version: 6.13.0

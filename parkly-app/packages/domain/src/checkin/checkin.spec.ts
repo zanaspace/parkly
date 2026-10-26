@@ -9,6 +9,8 @@ import {
   checkSelf,
   distanceM,
   gateCodeFor,
+  attendantGateCodeFor,
+  isAttendantGateCode,
   parseGateCode,
   type GateBooking,
 } from './checkin.js';
@@ -227,10 +229,16 @@ describe('self check-in (ADR 0016)', () => {
 
   it('reads only Parkly entrance codes', () => {
     expect(gateCodeFor(LOT)).toBe(`PKG1.${LOT}`);
+    expect(attendantGateCodeFor(LOT)).toBe(`PKGA.${LOT}`);
+    expect(isAttendantGateCode(`PKGA.${LOT}`)).toBe(true);
+    expect(isAttendantGateCode(`PKG1.${LOT}`)).toBe(false);
     expect(parseGateCode(`PKG1.${LOT}`)).toBe(LOT);
     expect(parseGateCode(` PKG1.${LOT.toUpperCase()} `)).toBe(LOT);
+    expect(parseGateCode(`PKGA.${LOT}`)).toBe(LOT);
+    expect(parseGateCode(` PKGA.${LOT.toUpperCase()} `)).toBe(LOT);
     expect(parseGateCode('PK1.abc.def.ghi')).toBeNull();
     expect(parseGateCode('PKG1.not-a-uuid')).toBeNull();
+    expect(parseGateCode('PKGA.not-a-uuid')).toBeNull();
   });
 
   it('measures how far the phone is from the lot', () => {
@@ -247,11 +255,24 @@ describe('self check-in (ADR 0016)', () => {
       ok: false,
       code: 'SELF_CHECKIN_OFF',
     });
+    // Scanning the attendant's phone barcode works even if unmanned self-checkin is disabled
+    const attendantHere = { code: `PKGA.${LOT}`, position: { lat: 6.4282, lng: 3.422 } };
+    expect(checkSelf({ ...base, ...attendantHere, enabled: false, booking: booking() })).toEqual({
+      ok: true,
+    });
     expect(
       checkSelf({
         ...base,
         ...here,
         code: 'PKG1.01a162b3-dcae-740c-a25a-e148a6951c2f',
+        booking: booking(),
+      }),
+    ).toEqual({ ok: false, code: 'QR_WRONG_LOT' });
+    expect(
+      checkSelf({
+        ...base,
+        ...attendantHere,
+        code: 'PKGA.01a162b3-dcae-740c-a25a-e148a6951c2f',
         booking: booking(),
       }),
     ).toEqual({ ok: false, code: 'QR_WRONG_LOT' });

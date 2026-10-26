@@ -216,16 +216,35 @@ export function applyWalkIn(count: number, delta: 1 | -1): { count: number; clam
 
 /** How close the driver's phone must be to the lot's pin. */
 export const SELF_CHECKIN_RADIUS_M = 150;
-const GATE_PREFIX = 'PKG1.';
+export const GATE_PREFIX = 'PKG1.';
+export const ATTENDANT_GATE_PREFIX = 'PKGA.';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** What the entrance poster's QR says: the lot, nothing secret (location + booking time do the checking). */
 export const gateCodeFor = (lotId: string) => `${GATE_PREFIX}${lotId}`;
 
+/** What the attendant's phone screen displays to drivers. */
+export const attendantGateCodeFor = (lotId: string) => `${ATTENDANT_GATE_PREFIX}${lotId}`;
+
+/** True when the scanned code was displayed on an attendant's phone. */
+export function isAttendantGateCode(text: string): boolean {
+  const t = text.trim();
+  if (!t.toUpperCase().startsWith(ATTENDANT_GATE_PREFIX)) return false;
+  const lotId = t.slice(ATTENDANT_GATE_PREFIX.length).toLowerCase();
+  return UUID.test(lotId);
+}
+
 export function parseGateCode(text: string): string | null {
   const t = text.trim();
-  if (!t.toUpperCase().startsWith(GATE_PREFIX)) return null;
-  const lotId = t.slice(GATE_PREFIX.length).toLowerCase();
+  const upper = t.toUpperCase();
+  let lotId: string;
+  if (upper.startsWith(GATE_PREFIX)) {
+    lotId = t.slice(GATE_PREFIX.length).toLowerCase();
+  } else if (upper.startsWith(ATTENDANT_GATE_PREFIX)) {
+    lotId = t.slice(ATTENDANT_GATE_PREFIX.length).toLowerCase();
+  } else {
+    return null;
+  }
   return UUID.test(lotId) ? lotId : null;
 }
 
@@ -255,9 +274,10 @@ export type SelfCheck =
     };
 
 /**
- * May the driver check themselves in (ADR 0016)? The owner turned it on, the
- * scanned poster is this lot's, the phone is at the lot, and the booking is
- * paid and inside its time (from early arrival until the end).
+ * May the driver check themselves in (ADR 0016)? The owner turned it on (or an
+ * attendant presented their phone barcode), the scanned code is this lot's, the
+ * phone is at the lot, and the booking is paid and inside its time (from early
+ * arrival until the end).
  */
 export function checkSelf(input: {
   enabled: boolean;
@@ -269,7 +289,8 @@ export function checkSelf(input: {
   now: Date;
   rules: GateRules;
 }): SelfCheck {
-  if (!input.enabled) return { ok: false, code: 'SELF_CHECKIN_OFF' };
+  const isAttendant = isAttendantGateCode(input.code);
+  if (!input.enabled && !isAttendant) return { ok: false, code: 'SELF_CHECKIN_OFF' };
   if (parseGateCode(input.code) !== input.lotId) return { ok: false, code: 'QR_WRONG_LOT' };
   if (distanceM(input.lotLocation, input.position) > SELF_CHECKIN_RADIUS_M)
     return { ok: false, code: 'TOO_FAR' };
