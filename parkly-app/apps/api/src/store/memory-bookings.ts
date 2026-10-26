@@ -8,6 +8,7 @@ import {
   type BookingRow,
   type LotRow,
   type PaymentRow,
+  type RefundRow,
   type SlotRow,
   type Store,
 } from './types.js';
@@ -366,6 +367,26 @@ export class MemoryBookings {
       }
       return { booking: { ...b }, refundId };
     },
+
+    markNoShows: async (at) => {
+      let markedCount = 0;
+      const graceMin = 30;
+      const threshold = new Date(at.getTime() - graceMin * 60_000);
+      for (const b of this.bookingRows) {
+        if (b.status === 'CONFIRMED' && b.startAt < threshold) {
+          b.status = 'NO_SHOW';
+          this.historyRows.push({
+            bookingId: b.id,
+            from: 'CONFIRMED',
+            to: 'NO_SHOW',
+            actor: 'SYSTEM',
+            reason: 'no_show.grace_over',
+          });
+          markedCount += 1;
+        }
+      }
+      return { markedCount };
+    },
   };
 
   readonly payments: Store['payments'] = {
@@ -378,6 +399,32 @@ export class MemoryBookings {
       const rows = this.paymentRows.filter((p) => p.bookingId === bookingId);
       const p = rows[rows.length - 1];
       return p ? this.publicPayment(p) : null;
+    },
+
+    listForBooking: async (bookingId) => {
+      return this.paymentRows
+        .filter((p) => p.bookingId === bookingId)
+        .map((p) => this.publicPayment(p));
+    },
+
+    refundsForBooking: async (bookingId) => {
+      const paymentIds = new Set(
+        this.paymentRows.filter((p) => p.bookingId === bookingId).map((p) => p.id),
+      );
+      return this.refundRows
+        .filter((r) => paymentIds.has(r.paymentId))
+        .map((r) => ({
+          id: r.id,
+          paymentId: r.paymentId,
+          amountKobo: r.amountKobo,
+          reason: r.reason as RefundRow['reason'],
+          status: 'SUCCEEDED' as const,
+          providerRefundId: r.providerRefundId,
+          requestedBy: null,
+          approvedBy: null,
+          note: null,
+          createdAt: new Date(),
+        }));
     },
 
     create: async (payment, at) => {

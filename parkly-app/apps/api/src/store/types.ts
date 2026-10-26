@@ -320,6 +320,10 @@ export type PaymentRow = {
   authorizationUrl: string | null;
   paidAt: Date | null;
   failureCode: string | null;
+  channel?: string | null;
+  cardLast4?: string | null;
+  cardBrand?: string | null;
+  feesKobo?: number | null;
   createdAt: Date;
 };
 
@@ -341,6 +345,19 @@ export type SettleResult = {
   payment: PaymentRow;
   /** A refund row created by this settlement; the caller asks the provider for it. */
   refund: { id: string; amountKobo: number } | null;
+};
+
+export type RefundRow = {
+  id: string;
+  paymentId: string;
+  amountKobo: number;
+  reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+  providerRefundId: string | null;
+  requestedBy: string | null;
+  approvedBy: string | null;
+  note: string | null;
+  createdAt: Date;
 };
 
 export type IdempotencyBegin =
@@ -769,10 +786,13 @@ export type Store = {
       } | null,
       at: Date,
     ): Promise<{ booking: BookingRow; refundId: string | null }>;
+    markNoShows(at: Date): Promise<{ markedCount: number }>;
   };
   payments: {
     find(id: string): Promise<PaymentRow | null>;
     latestForBooking(bookingId: string): Promise<PaymentRow | null>;
+    listForBooking(bookingId: string): Promise<PaymentRow[]>;
+    refundsForBooking(bookingId: string): Promise<RefundRow[]>;
     create(
       payment: NewPayment & {
         bookingId: string;

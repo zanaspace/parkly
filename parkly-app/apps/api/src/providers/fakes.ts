@@ -89,7 +89,12 @@ export class FakeSmsProvider implements SmsProvider {
 export class FakePushProvider implements PushProvider {
   readonly sent: Parameters<PushProvider['send']>[0][] = [];
   readonly invalid = new Set<string>();
+  failNext = false;
   async send(input: Parameters<PushProvider['send']>[0]) {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('fake push failure');
+    }
     this.sent.push(input);
     const invalidTokens = input.tokens.filter((t) => this.invalid.has(t));
     return { delivered: input.tokens.length - invalidTokens.length, invalidTokens };
@@ -98,7 +103,12 @@ export class FakePushProvider implements PushProvider {
 
 export class FakeEmailProvider implements EmailProvider {
   readonly sent: Parameters<EmailProvider['send']>[0][] = [];
+  failNext = false;
   async send(input: Parameters<EmailProvider['send']>[0]) {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('fake email failure');
+    }
     this.sent.push(input);
     return { providerMessageId: `email_${this.sent.length}` };
   }

@@ -237,6 +237,7 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/devices/{deviceId}',
   'POST /v1/bookings',
   'GET /v1/bookings/{id}',
+  'GET /v1/bookings/{id}/receipt',
   'POST /v1/bookings/{id}/extensions',
   'POST /v1/bookings/{id}/cancel',
   'POST /v1/bookings/{id}/overstay/pay',
