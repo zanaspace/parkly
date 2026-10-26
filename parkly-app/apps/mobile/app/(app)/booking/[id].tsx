@@ -1,4 +1,4 @@
-import type { Booking } from '@parkly/contracts';
+import type { Booking, ExtensionOptions } from '@parkly/contracts';
 import { bookingWindowLabel } from '@parkly/domain/booking';
 import { lineLabel } from '@parkly/domain/discovery';
 import { formatNaira } from '@parkly/domain/money';
@@ -51,11 +51,34 @@ export default function BookingScreen() {
   // Lifecycle state
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendMinutes, setExtendMinutes] = useState(30);
+  const [extensionOptions, setExtensionOptions] = useState<ExtensionOptions | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('CHANGE_OF_PLANS');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (extendOpen && booking) {
+      api
+        .extensionOptions(booking.id)
+        .then((opts) => {
+          setExtensionOptions(opts);
+          if (opts.extendableUntil) {
+            const maxMs = new Date(opts.extendableUntil).getTime();
+            const curEndMs = new Date(booking.endAt).getTime();
+            const allowed = EXTEND_DURATIONS.filter(
+              (o) => curEndMs + o.minutes * 60_000 <= maxMs,
+            );
+            const first = allowed[0];
+            if (first && !allowed.some((a) => a.minutes === extendMinutes)) {
+              setExtendMinutes(first.minutes);
+            }
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [extendOpen, booking?.id]);
 
   const handleExtend = async () => {
     if (!booking) return;
@@ -850,7 +873,14 @@ export default function BookingScreen() {
           label="View Official Receipt ↗"
           variant="secondary"
           fullWidth
-          onPress={() => void Linking.openURL(api.receiptUrl(booking.id)).catch(() => undefined)}
+          onPress={async () => {
+            try {
+              const url = await api.receiptUrl(booking.id);
+              await Linking.openURL(url);
+            } catch {
+              // ignore
+            }
+          }}
         />
       </View>
 
@@ -899,13 +929,31 @@ export default function BookingScreen() {
               </Pressable>
             </View>
 
+            {extensionOptions && extensionOptions.extendableUntil === null ? (
+              <Notice
+                kind="warning"
+                message={
+                  extensionOptions.closesAt
+                    ? `The car park closes at ${new Date(extensionOptions.closesAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Lagos' })}${extensionOptions.reopensAt ? ` and reopens ${new Date(extensionOptions.reopensAt).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Africa/Lagos' })} ${new Date(extensionOptions.reopensAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Lagos' })}` : ''}. No extension is available.`
+                    : 'The car park is closed during the extension window.'
+                }
+              />
+            ) : null}
+
             {/* Duration Chips */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {EXTEND_DURATIONS.map((opt) => {
                 const selected = extendMinutes === opt.minutes;
+                const isPastClosing = Boolean(
+                  extensionOptions &&
+                    (extensionOptions.extendableUntil === null ||
+                      new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
+                        new Date(extensionOptions.extendableUntil).getTime()),
+                );
                 return (
                   <Pressable
                     key={opt.minutes}
+                    disabled={isPastClosing}
                     onPress={() => setExtendMinutes(opt.minutes)}
                     style={{
                       paddingVertical: 10,
@@ -914,6 +962,7 @@ export default function BookingScreen() {
                       backgroundColor: selected ? theme.color.bg.brand : theme.color.bg.surface,
                       borderWidth: 1,
                       borderColor: selected ? theme.color.border.brand : theme.color.border.default,
+                      opacity: isPastClosing ? 0.35 : 1,
                     }}
                   >
                     <Text
@@ -946,12 +995,23 @@ export default function BookingScreen() {
               </Text>
             </View>
 
+            {actionError && <Notice kind="danger" message={actionError} />}
+
             <View style={{ gap: 8, marginTop: 4 }}>
               <Button
                 label={actionLoading ? 'Extending...' : `Confirm +${extendMinutes} Mins`}
                 variant="primary"
                 fullWidth
                 loading={actionLoading}
+                disabled={
+                  actionLoading ||
+                  Boolean(
+                    extensionOptions &&
+                      (extensionOptions.extendableUntil === null ||
+                        new Date(booking.endAt).getTime() + extendMinutes * 60_000 >
+                          new Date(extensionOptions.extendableUntil).getTime()),
+                  )
+                }
                 onPress={handleExtend}
               />
               <Button

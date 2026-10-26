@@ -142,6 +142,24 @@ export const ExtendBookingResponseSchema = z.object({
   payment: CheckoutSchema.nullable(),
 });
 
+/**
+ * FR-BOOK-005: `GET /v1/bookings/{id}/extensions/options`. How far this stay
+ * can be extended right now, so clients only offer durations the server will
+ * accept. All times are on the 15-minute grid.
+ */
+export const ExtensionOptionsSchema = z.object({
+  /** The booking is in a state that allows extending (confirmed or checked in). */
+  extendable: z.boolean(),
+  /** Latest new end time allowed; null when no extension is possible. */
+  extendableUntil: z.iso.datetime().nullable(),
+  /** The car park closes here before the longest stay allowed is reached. */
+  closesAt: z.iso.datetime().nullable(),
+  /** When it opens again after `closesAt` (within a week), else null. */
+  reopensAt: z.iso.datetime().nullable(),
+  /** The longest stay allowed caps the end here (booking start + 24h for hourly). */
+  maxEndAt: z.iso.datetime(),
+});
+
 /** FR-BOOK-006: `POST /v1/bookings/{id}/cancel`. */
 export const CancelBookingRequestSchema = z.object({
   reason: z.string().max(200).optional(),
@@ -223,6 +241,7 @@ export type VerifyPaymentResponse = z.infer<typeof VerifyPaymentResponseSchema>;
 export type ExtendBookingRequest = z.input<typeof ExtendBookingRequestSchema>;
 export type BookingExtension = z.infer<typeof BookingExtensionSchema>;
 export type ExtendBookingResponse = z.infer<typeof ExtendBookingResponseSchema>;
+export type ExtensionOptions = z.infer<typeof ExtensionOptionsSchema>;
 export type CancelBookingRequest = z.input<typeof CancelBookingRequestSchema>;
 export type CancelBookingResponse = z.infer<typeof CancelBookingResponseSchema>;
 export type OverstayPayRequest = z.input<typeof OverstayPayRequestSchema>;

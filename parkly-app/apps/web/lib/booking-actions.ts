@@ -4,6 +4,7 @@ import type {
   CancelBookingResponse,
   CreateBookingResponse,
   ExtendBookingResponse,
+  ExtensionOptions,
   OverstayPayResponse,
   Vehicle,
 } from '@parkly/contracts';
@@ -34,7 +35,9 @@ const MESSAGES: Record<string, string> = {
   NO_OVERSTAY_DUE: 'No overstay payment is due for this booking.',
 };
 const message = (err: unknown) =>
-  (err instanceof ApiProblem && MESSAGES[err.code]) || 'Something went wrong. Please try again.';
+  err instanceof ApiProblem
+    ? err.detail || MESSAGES[err.code] || 'Something went wrong. Please try again.'
+    : 'Something went wrong. Please try again.';
 
 /** Where Paystack brings the driver back; the API accepts only our own origins. */
 async function siteOrigin(): Promise<string> {
@@ -123,6 +126,19 @@ export type ExtendBookingResult = {
   message?: string;
   authorizationUrl?: string | null;
 };
+
+/** Loads current extension limits and closing time for an active booking. */
+export async function getExtensionOptions(bookingId: string): Promise<ExtensionOptions | null> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    return await apiAs<ExtensionOptions>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/extensions/options`,
+    );
+  } catch {
+    return null;
+  }
+}
 
 /** Extends an active booking by adding minutes on the 15-minute grid. */
 export async function extendBooking(

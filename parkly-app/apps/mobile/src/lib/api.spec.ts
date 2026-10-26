@@ -309,7 +309,7 @@ describe('place search', () => {
     // 4. Receipt
     const recRes = await c.receipt(booking.id);
     expect(recRes.bookingCode).toBe('PK-X1Y2Z3');
-    expect(c.receiptUrl(booking.id)).toBe(`http://api.test/v1/bookings/${booking.id}/receipt?format=html`);
+    expect(await c.receiptUrl(booking.id)).toBe(`http://api.test/v1/bookings/${booking.id}/receipt?format=html&token=tok`);
 
     // 5. Register device
     await c.registerDevice({ deviceId: 'dev-1', platform: 'ANDROID', pushToken: 'push-tok' });

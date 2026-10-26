@@ -15,18 +15,20 @@ export type AuthEnv = {
   };
 };
 
-/** Verifies the bearer token. Sets `identity`; does not need a users row yet (bootstrap). */
+/** Verifies the bearer token (or ?token= query param). Sets `identity`; does not need a users row yet (bootstrap). */
 export function authenticate(verify: TokenVerifier): MiddlewareHandler<AuthEnv> {
   return async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const [scheme, token] = header.split(' ');
-    if (scheme?.toLowerCase() !== 'bearer' || !token) throw new ApiError('AUTH_REQUIRED');
+    const authToken =
+      scheme?.toLowerCase() === 'bearer' && token ? token : (c.req.query('token') ?? null);
+    if (!authToken) throw new ApiError('AUTH_REQUIRED');
     try {
-      c.set('identity', await verify(token));
+      c.set('identity', await verify(authToken));
     } catch {
       throw new ApiError('AUTH_REQUIRED');
     }
-    c.set('accessToken', token);
+    c.set('accessToken', authToken);
     await next();
   };
 }

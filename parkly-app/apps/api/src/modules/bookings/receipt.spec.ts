@@ -336,6 +336,15 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
       as: otherDriver,
     });
     expect(unauthorizedRes.status).toBe(404);
+
+    // 5. Query parameter token authentication (external browser without Authorization header)
+    const driverToken = await w.tokenFor(driver);
+    const tokenRes = await w.call(
+      'GET',
+      `/v1/bookings/${bookingId}/receipt?format=html&token=${driverToken}`,
+    );
+    expect(tokenRes.status).toBe(200);
+    expect(tokenRes.raw).toContain('Official Parking Receipt');
   });
 
   it('renders HTML for cancelled, no-show, and refunded bookings with proper badges', () => {

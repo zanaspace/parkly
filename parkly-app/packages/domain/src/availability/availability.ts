@@ -131,3 +131,68 @@ export function isOpenDuring(input: {
     if (!slotOpen(byDay, new Date(t))) return false;
   return true;
 }
+
+/** How far a stay may be extended (FR-BOOK-005) given the car park's opening hours. */
+export type ExtensionWindow = {
+  /** The latest new end time allowed, or null when the stay cannot be extended at all. */
+  extendableUntil: Date | null;
+  /** When the car park closes after the current end, if that comes before `maxEndAt`. */
+  closesAt: Date | null;
+  /** When it opens again after `closesAt` (looking up to a week ahead), else null. */
+  reopensAt: Date | null;
+};
+
+const REOPEN_HORIZON_MS = 7 * 24 * 60 * MINUTE_MS;
+
+/**
+ * Walks forward from the current end on the 15-minute grid and stops at the
+ * first slot the car park is closed, or at `maxEndAt` (the longest stay
+ * allowed). Uses `isOpenDuring`, so it always agrees with the API's check.
+ */
+export function extensionWindow(input: {
+  hours: readonly OpeningDay[];
+  currentEndAt: Date;
+  maxEndAt: Date;
+  product: 'HOURLY' | 'DAILY';
+}): ExtensionWindow {
+  const step = SLOT_MINUTES * MINUTE_MS;
+  const from = input.currentEndAt.getTime();
+  const cap = input.maxEndAt.getTime();
+  let lastOk: number | null = null;
+  let closesAt: number | null = null;
+  for (let t = from + step; t <= cap; t += step) {
+    const open = isOpenDuring({
+      hours: input.hours,
+      startAt: input.currentEndAt,
+      endAt: new Date(t),
+      product: input.product,
+    });
+    if (!open) {
+      closesAt = t - step;
+      break;
+    }
+    lastOk = t;
+  }
+
+  let reopensAt: number | null = null;
+  if (closesAt !== null) {
+    for (let t = closesAt + step; t <= closesAt + REOPEN_HORIZON_MS; t += step) {
+      const open = isOpenDuring({
+        hours: input.hours,
+        startAt: new Date(t),
+        endAt: new Date(t + step),
+        product: 'HOURLY',
+      });
+      if (open) {
+        reopensAt = t;
+        break;
+      }
+    }
+  }
+
+  return {
+    extendableUntil: lastOk === null ? null : new Date(lastOk),
+    closesAt: closesAt === null ? null : new Date(closesAt),
+    reopensAt: reopensAt === null ? null : new Date(reopensAt),
+  };
+}
