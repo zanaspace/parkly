@@ -19,6 +19,7 @@ import {
   TicketIcon,
 } from '../../../components/icons';
 import { QrCode } from '../../../components/qr-code';
+import { SelfCheckinAction } from '../../../components/self-checkin';
 import { StayTimer } from '../../../components/stay-timer';
 import { apiAs, ApiProblem } from '../../../lib/api';
 import { lineLabel } from '../../../lib/search';
@@ -194,6 +195,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
+          <SelfCheckinAction booking={booking} />
           <StayTimer booking={booking} />
         </section>
       )}

@@ -568,6 +568,22 @@ describe('self check-in (ADR 0016)', () => {
     expect((await t.self('in')).body?.code).toBe('QR_OUTSIDE_WINDOW');
   });
 
+  it('allows driver to check in and out by scanning attendant phone barcode even when unmanned self-checkin is off', async () => {
+    const t = await selfSetup();
+    // unmanned self-checkin is off by default
+    t.deps.now = () => new Date(min(55));
+    // Poster code is refused because unmanned self-checkin is off
+    expect((await t.self('in', { code: `PKG1.${t.lot.id}` })).body?.code).toBe('SELF_CHECKIN_OFF');
+
+    // Attendant barcode code PKGA.<lotId> succeeds!
+    const inRes = await t.self('in', { code: `PKGA.${t.lot.id}` });
+    expect(inRes.body).toEqual({ result: 'APPLIED', reason: null });
+
+    t.deps.now = () => new Date(min(226));
+    const outRes = await t.self('out', { code: `PKGA.${t.lot.id}` });
+    expect(outRes.body?.result).toBe('APPLIED');
+  });
+
   it('can be turned off again', async () => {
     const t = await selfSetup();
     await t.toggle(true);

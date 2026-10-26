@@ -22,6 +22,7 @@ import {
   checkSelf,
   distanceM,
   gateCodeFor,
+  isAttendantGateCode,
   parseGateCode,
   SELF_CHECKIN_RADIUS_M,
 } from '@parkly/domain/checkin';
@@ -416,7 +417,7 @@ export function attendRoutes(deps: AppDeps) {
             now,
             rules,
           })
-        : !lot.selfCheckinEnabled
+        : !lot.selfCheckinEnabled && !isAttendantGateCode(body.code)
           ? ({ ok: false, code: 'SELF_CHECKIN_OFF' } as const)
           : parseGateCode(body.code) !== lot.id
             ? ({ ok: false, code: 'QR_WRONG_LOT' } as const)
