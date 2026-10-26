@@ -90,6 +90,10 @@ const paymentColumns = {
   authorizationUrl: payments.authorizationUrl,
   paidAt: payments.paidAt,
   failureCode: payments.failureCode,
+  channel: payments.channel,
+  cardLast4: payments.cardLast4,
+  cardBrand: payments.cardBrand,
+  feesKobo: payments.feesKobo,
   createdAt: payments.createdAt,
 };
 
@@ -454,6 +458,13 @@ export function drizzleBookings(
           throw err;
         }
       },
+
+      async markNoShows(_at: Date) {
+        const [r] = await db.execute<{ marked: number }>(
+          sql`select public.fn_mark_no_shows() as marked`,
+        );
+        return { markedCount: r?.marked ?? 0 };
+      },
     },
 
     payments: {
@@ -470,6 +481,36 @@ export function drizzleBookings(
           .orderBy(desc(payments.createdAt))
           .limit(1);
         return row ? asPayment(row) : null;
+      },
+
+      async listForBooking(bookingId) {
+        const rows = await db
+          .select(paymentColumns)
+          .from(payments)
+          .where(eq(payments.bookingId, bookingId))
+          .orderBy(asc(payments.createdAt));
+        return rows.map(asPayment);
+      },
+
+      async refundsForBooking(bookingId) {
+        const rows = await db
+          .select()
+          .from(refunds)
+          .innerJoin(payments, eq(refunds.paymentId, payments.id))
+          .where(eq(payments.bookingId, bookingId))
+          .orderBy(asc(refunds.createdAt));
+        return rows.map(({ refunds: r }) => ({
+          id: r.id,
+          paymentId: r.paymentId,
+          amountKobo: r.amountKobo,
+          reason: r.reason,
+          status: r.status,
+          providerRefundId: r.providerRefundId,
+          requestedBy: r.requestedBy,
+          approvedBy: r.approvedBy,
+          note: r.note,
+          createdAt: r.createdAt,
+        }));
       },
 
       async create(payment, at) {

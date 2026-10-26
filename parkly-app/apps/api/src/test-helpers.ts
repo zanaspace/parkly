@@ -170,10 +170,19 @@ export function world(overrides: Partial<AppDeps> = {}) {
       ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
     });
     const text = await res.text();
+    let body: any = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    }
     return {
       status: res.status,
       headers: res.headers,
-      body: text ? (JSON.parse(text) as Record<string, unknown>) : null,
+      body,
+      raw: text,
     };
   };
 

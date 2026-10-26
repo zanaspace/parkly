@@ -15,13 +15,27 @@ describe('job registry', () => {
       now: () => new Date('2026-10-19T05:00:00Z'),
       appEnv: 'prod',
     });
-    expect(Object.keys(jobs).sort()).toEqual(['permit-expiry-check', 'ping', 'settle-payments']);
+    expect(Object.keys(jobs).sort()).toEqual([
+      'mark-no-shows',
+      'permit-expiry-check',
+      'ping',
+      'settle-payments',
+      'sweep-reminders',
+    ]);
     const deadline = new Date('2100-01-01T00:00:00Z');
     expect(await jobs['permit-expiry-check']?.({ payload: {}, deadline })).toEqual({
       processed: 0,
       remaining: 0,
     });
     expect(await jobs['settle-payments']?.({ payload: {}, deadline })).toEqual({
+      processed: 0,
+      remaining: 0,
+    });
+    expect(await jobs['mark-no-shows']?.({ payload: {}, deadline })).toEqual({
+      processed: 0,
+      remaining: 0,
+    });
+    expect(await jobs['sweep-reminders']?.({ payload: {}, deadline })).toEqual({
       processed: 0,
       remaining: 0,
     });

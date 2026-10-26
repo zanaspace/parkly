@@ -3,6 +3,7 @@ import {
   BookingExtensionSchema,
   BookingListQuerySchema,
   BookingListSchema,
+  BookingReceiptSchema,
   BookingSchema,
   CancelBookingRequestSchema,
   CancelBookingResponseSchema,
@@ -49,6 +50,7 @@ import {
   type PaymentRow,
 } from '../../store/types.js';
 import { loadSettings, toOpeningDay, toPublicQuote } from '../discovery/routes.js';
+import { buildReceiptData, renderReceiptHtml } from './receipt.js';
 import { verifyAndSettle } from './settle.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -410,6 +412,51 @@ export function bookingRoutes(deps: AppDeps) {
       const booking = await ownBooking(c, c.req.valid('param').id);
       const [view] = await viewsFor([booking]);
       return c.json(toBooking(booking, await lotOf(booking.lotId), view), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/bookings/{id}/receipt',
+      tags: ['bookings'],
+      ...secured,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        query: z.object({ format: z.enum(['json', 'html', 'pdf']).default('json') }),
+      },
+      responses: {
+        200: {
+          description: 'Booking receipt',
+          content: {
+            'application/json': { schema: BookingReceiptSchema },
+            'text/html': { schema: z.string() },
+          },
+        },
+      },
+    }),
+    async (c) => {
+      const booking = await ownBooking(c, c.req.valid('param').id);
+      const [lot, user, payments, refunds] = await Promise.all([
+        lotOf(booking.lotId),
+        deps.store.users.find(booking.driverId),
+        deps.store.payments.listForBooking(booking.id),
+        deps.store.payments.refundsForBooking(booking.id),
+      ]);
+      const receipt = buildReceiptData({
+        booking,
+        lot,
+        user,
+        payments,
+        refunds,
+        now: deps.now(),
+      });
+      const format = c.req.valid('query').format;
+      const accept = c.req.header('accept') ?? '';
+      if (format === 'html' || format === 'pdf' || accept.includes('text/html')) {
+        return c.html(renderReceiptHtml(receipt), 200);
+      }
+      return c.json(receipt, 200);
     },
   );
 

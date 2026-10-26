@@ -164,6 +164,54 @@ export const OverstayPayResponseSchema = z.object({
   amountKobo: z.number().int(),
 });
 
+export const BookingReceiptPaymentSchema = z.object({
+  reference: z.string(),
+  kind: z.enum(['BOOKING', 'EXTENSION', 'OVERSTAY', 'PASS']),
+  amountKobo: z.number().int(),
+  paidAt: z.iso.datetime().nullable(),
+  channel: z.string().nullable(),
+  cardLast4: z.string().nullable(),
+  status: PaymentStatusSchema,
+});
+
+export const BookingReceiptRefundSchema = z.object({
+  amountKobo: z.number().int(),
+  status: z.string(),
+  reason: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+export const BookingReceiptSchema = z.object({
+  bookingId: z.uuid(),
+  bookingCode: z.string(),
+  status: BookingStatusSchema,
+  issuedAt: z.iso.datetime(),
+  lot: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    addressLine: z.string(),
+    area: z.string().nullable(),
+  }),
+  vehicle: z.object({
+    plate: z.string(),
+  }),
+  driver: z.object({
+    firstName: z.string().nullable(),
+    lastName: z.string().nullable(),
+    phoneLast4: z.string().nullable(),
+  }),
+  product: z.enum(['HOURLY', 'DAILY']),
+  startAt: z.iso.datetime(),
+  endAt: z.iso.datetime(),
+  durationMinutes: z.number().int(),
+  priceKobo: z.number().int(),
+  serviceFeeKobo: z.number().int(),
+  totalKobo: z.number().int(),
+  lines: z.array(QuoteLineSchema),
+  payments: z.array(BookingReceiptPaymentSchema),
+  refunds: z.array(BookingReceiptRefundSchema),
+});
+
 export type BookingStatus = z.infer<typeof BookingStatusSchema>;
 /** What a client sends (defaults applied by the API). */
 export type CreateBookingRequest = z.input<typeof CreateBookingRequestSchema>;
@@ -179,4 +227,5 @@ export type CancelBookingRequest = z.input<typeof CancelBookingRequestSchema>;
 export type CancelBookingResponse = z.infer<typeof CancelBookingResponseSchema>;
 export type OverstayPayRequest = z.input<typeof OverstayPayRequestSchema>;
 export type OverstayPayResponse = z.infer<typeof OverstayPayResponseSchema>;
+export type BookingReceipt = z.infer<typeof BookingReceiptSchema>;
 
