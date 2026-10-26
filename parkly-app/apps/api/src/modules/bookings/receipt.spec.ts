@@ -393,11 +393,13 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
         {
           id: randomUUID(),
           paymentId: randomUUID(),
-          bookingId: bookingBase.id,
           amountKobo: 50_000,
           status: 'SUCCEEDED',
-          reason: 'CUSTOMER_REQUEST',
-          reference: 'ref-1',
+          reason: 'DRIVER_CANCEL',
+          providerRefundId: 'ref-1',
+          requestedBy: null,
+          approvedBy: null,
+          note: null,
           createdAt: new Date('2026-10-20T07:30:00Z'),
         },
       ],
@@ -406,7 +408,7 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
 
     const cancelledHtml = renderReceiptHtml(cancelledReceipt);
     expect(cancelledHtml).toContain('CANCELLED');
-    expect(cancelledHtml).toContain('Refund (CUSTOMER_REQUEST)');
+    expect(cancelledHtml).toContain('Refund (DRIVER_CANCEL)');
     expect(cancelledHtml).toContain('bank_transfer');
     expect(cancelledHtml).toContain('Parkly Driver');
 

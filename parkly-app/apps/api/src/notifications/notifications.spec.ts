@@ -104,9 +104,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN1',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 50_000,
-        policy: 'FREE_CANCELLATION',
       },
       '+2348012345678',
     );
@@ -120,9 +118,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN2',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 0,
-        policy: 'LATE_CANCELLATION_NO_REFUND',
       },
       '+2348012345678',
     );
@@ -202,9 +198,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 50_000,
-        policy: 'FREE_CANCELLATION',
       },
       tokens,
     );
@@ -218,9 +212,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 0,
-        policy: 'LATE_CANCELLATION_NO_REFUND',
       },
       tokens,
     );
@@ -234,7 +226,6 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-NS',
         lotName: 'Eko Lot',
-        markedAt: '2026-10-20T07:30:00.000Z',
       },
       tokens,
     );
@@ -263,7 +254,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-IN',
         lotName: 'Eko Lot',
-        checkedInAt: '2026-10-20T07:05:00.000Z',
+        checkInAt: '2026-10-20T07:05:00.000Z',
       },
       tokens,
     );
@@ -277,7 +268,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-OUT',
         lotName: 'Eko Lot',
-        checkedOutAt: '2026-10-20T08:55:00.000Z',
+        checkOutAt: '2026-10-20T08:55:00.000Z',
       },
       tokens,
     );
@@ -296,9 +287,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 50_000,
-        policy: 'FREE_CANCELLATION',
       },
       'test@example.com',
     );
@@ -312,9 +301,7 @@ describe('Notification Templates', () => {
         bookingId: baseEvent.bookingId,
         bookingCode: 'PK-CAN',
         lotName: 'Eko Lot',
-        cancelledAt: '2026-10-20T07:00:00.000Z',
         refundKobo: 0,
-        policy: 'LATE_CANCELLATION_NO_REFUND',
       },
       'test@example.com',
     );
