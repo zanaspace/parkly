@@ -990,5 +990,33 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
     const session = await t.store.attend.sessionByBooking(created.booking.id);
     expect(session?.overstayStatus).toBe('PAID');
   });
+
+  it('exposes entrance landmark, location coordinates, area, and operator phone on booking.lot', async () => {
+    const t = await setup();
+    const opRow = t.store.operatorRows.get(t.operatorId);
+    if (opRow) opRow.contactPhoneEnc = t.deps.crypto.encrypt('+2348012345678');
+    const lotRow = t.store.lotRows.get(t.lot.id);
+    if (lotRow) lotRow.entranceNotes = 'Gate 2 on Adeola Odeku, beside GTBank';
+
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    expect(created.booking.lot).toMatchObject({
+      area: 'Victoria Island',
+      location: { lat: 6.4281, lng: 3.4219 },
+      entranceNotes: 'Gate 2 on Adeola Odeku, beside GTBank',
+      contactPhone: '+2348012345678',
+    });
+
+    const getRes = await t.call('GET', `/v1/bookings/${created.booking.id}`, { as: driver.id });
+    expect(getRes.status).toBe(200);
+    const fetched = getRes.body as any;
+    expect(fetched.lot).toMatchObject({
+      area: 'Victoria Island',
+      location: { lat: 6.4281, lng: 3.4219 },
+      entranceNotes: 'Gate 2 on Adeola Odeku, beside GTBank',
+      contactPhone: '+2348012345678',
+    });
+  });
 });
+
 

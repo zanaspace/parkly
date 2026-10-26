@@ -42,6 +42,10 @@ export const BookingSchema = z.object({
     slug: z.string(),
     name: z.string(),
     addressLine: z.string(),
+    area: z.string().nullable().default(null),
+    location: z.object({ lat: z.number(), lng: z.number() }).nullable().default(null),
+    entranceNotes: z.string().nullable().default(null),
+    contactPhone: z.string().nullable().default(null),
     /** The owner allows drivers to check themselves in here (ADR 0016). Defaults to off so an
      * app newer than the live API still reads its bookings. */
     selfCheckIn: z.boolean().default(false),

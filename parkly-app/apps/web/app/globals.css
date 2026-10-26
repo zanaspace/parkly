@@ -1932,6 +1932,56 @@ a.pk-button {
   color: var(--pk-color-text-secondary, #9da8b3);
 }
 
+.pk-ticket-landmark-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(19, 112, 102, 0.12);
+  border-left: 3px solid var(--pk-color-brand-primary, #137066);
+}
+
+.pk-ticket-landmark-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--pk-color-brand-light, #2dd4bf);
+}
+
+.pk-ticket-landmark-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pk-color-text-primary, #ffffff);
+}
+
+.pk-ticket-attendant-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.pk-ticket-attendant-label {
+  font-size: 0.75rem;
+  color: var(--pk-color-text-tertiary, #64748b);
+}
+
+.pk-ticket-attendant-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pk-ticket-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+}
+
+
 .pk-self-check-btn {
   width: 100%;
   display: flex;
