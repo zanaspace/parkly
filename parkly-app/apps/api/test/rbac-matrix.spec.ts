@@ -237,6 +237,9 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/operators/{operatorId}/devices/{deviceId}',
   'POST /v1/bookings',
   'GET /v1/bookings/{id}',
+  'POST /v1/bookings/{id}/extensions',
+  'POST /v1/bookings/{id}/cancel',
+  'POST /v1/bookings/{id}/overstay/pay',
   'POST /v1/payments/{reference}/verify',
   'POST /v1/operators', // any signed-in user, incl. no role yet; operators.spec
   'PATCH /v1/operators/{operatorId}', // owner only, manager 403, other tenant 404; operators.spec

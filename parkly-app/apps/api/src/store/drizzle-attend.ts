@@ -416,6 +416,27 @@ export function drizzleAttend(db: Db): {
           })
           .where(eq(sessions.id, sessionId));
       },
+
+      async sessionByBooking(bookingId) {
+        const [row] = await db
+          .select({
+            id: sessions.id,
+            bookingId: sessions.bookingId,
+            lotId: sessions.lotId,
+            overstayMinutes: sessions.overstayMinutes,
+            overstayAmountKobo: sessions.overstayAmountKobo,
+            overstayStatus: sessions.overstayStatus,
+            checkInAt: sessions.checkInAt,
+            checkOutAt: sessions.checkOutAt,
+          })
+          .from(sessions)
+          .where(eq(sessions.bookingId, bookingId));
+        return row ?? null;
+      },
+
+      async markOverstayPaid(bookingId) {
+        await db.execute(sql`select public.fn_mark_overstay_paid(${bookingId}::uuid)`);
+      },
     },
 
     async forManifest(lotId) {

@@ -102,6 +102,12 @@ export class MemoryStore implements Store {
   });
   readonly attend: Store['attend'] = this.attending.attend;
 
+  constructor() {
+    this.booking.onOverstayPaid = async (bookingId) => {
+      await this.attend.markOverstayPaid(bookingId, new Date());
+    };
+  }
+
   /** Test helper: what the on_auth_user_created trigger does. */
   seedUser(
     id: string,
