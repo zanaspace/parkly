@@ -52,8 +52,11 @@ export function validateExtensionWindow(input: {
     return { ok: false, code: 'EXTENSION_NOT_LATER' };
   }
 
-  // newEndAt must align to the 15-minute grid
-  if (!isSlotAligned(newEndAt)) {
+  const addedMinutes = Math.round((newEndAt.getTime() - currentEndAt.getTime()) / MINUTE_MS);
+  const is5Min = addedMinutes === 5;
+
+  // newEndAt must align to the 15-minute grid (or be a 5-minute test extension)
+  if (!isSlotAligned(newEndAt) && !is5Min) {
     return { ok: false, code: 'EXTENSION_NOT_SLOT_ALIGNED' };
   }
 
@@ -62,8 +65,6 @@ export function validateExtensionWindow(input: {
   if (totalMinutes > maxDurationMinutes) {
     return { ok: false, code: 'EXTENSION_EXCEEDS_MAX_DURATION' };
   }
-
-  const addedMinutes = Math.round((newEndAt.getTime() - currentEndAt.getTime()) / MINUTE_MS);
 
   return {
     ok: true,

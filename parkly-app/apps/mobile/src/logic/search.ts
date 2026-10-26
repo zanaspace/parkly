@@ -50,6 +50,7 @@ export function stepTime(time: string, quarters: number): string {
 }
 
 export function durationLabel(d: Duration): string {
+  if (d === '5m') return '5 min (Test)';
   return d === 'day' ? 'Full day' : `${d} h`;
 }
 
@@ -99,9 +100,11 @@ export function fromParams(
     duration:
       one(p.duration) === 'day'
         ? 'day'
-        : (DURATIONS as readonly number[]).includes(hours)
-          ? hours
-          : base.duration,
+        : one(p.duration) === '5m'
+          ? '5m'
+          : (DURATIONS as readonly unknown[]).includes(hours)
+            ? (hours as Duration)
+            : base.duration,
     sort: one(p.sort) === 'price' ? 'price' : 'distance',
   };
 }

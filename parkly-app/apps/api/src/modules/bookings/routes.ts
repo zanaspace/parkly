@@ -197,12 +197,14 @@ export function bookingRoutes(deps: AppDeps) {
     };
     return Promise.all(
       rows.map(async (b) => {
-        const one = price(b, new Date(b.endAt.getTime() + (graceMin + 1) * 60_000));
+        const stayDurationMin = (b.endAt.getTime() - b.startAt.getTime()) / 60_000;
+        const effectiveGrace = stayDurationMin <= 5 ? 1 : graceMin;
+        const one = price(b, new Date(b.endAt.getTime() + (effectiveGrace + 1) * 60_000));
         const s = stays.get(b.id);
         let stay: Booking['stay'] = null;
         if (s) {
           const late =
-            !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + graceMin * 60_000;
+            !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + effectiveGrace * 60_000;
           const live = late ? price(b, now) : null;
           stay = {
             checkedInAt: s.checkInAt?.toISOString() ?? null,
@@ -213,7 +215,7 @@ export function bookingRoutes(deps: AppDeps) {
         }
         return {
           qrToken: await ticketFor(b),
-          overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
+          overstay: one ? { graceMin: effectiveGrace, per15Kobo: one.kobo } : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };

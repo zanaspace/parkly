@@ -62,16 +62,22 @@ export function checkSearchWindow(input: {
   const { startAt, endAt, now, limits } = input;
   const start = startAt.getTime();
   const end = endAt.getTime();
-  if (!isSlotAligned(startAt) || !isSlotAligned(endAt) || end <= start)
-    return 'SEARCH_INVALID_WINDOW';
-  const earliest = ceilToSlot(new Date(now.getTime() + limits.minLeadMin * MINUTE_MS));
-  // The slot in progress cannot be booked: round "now" up even when it sits on the grid.
-  const firstFree = Math.max(earliest.getTime(), ceilToSlot(new Date(now.getTime() + 1)).getTime());
-  if (start < firstFree) return 'SEARCH_INVALID_WINDOW';
-  if (start > now.getTime() + limits.maxAdvanceDays * 24 * 60 * MINUTE_MS)
-    return 'SEARCH_INVALID_WINDOW';
-  if (input.product === 'HOURLY' && end - start > limits.maxDurationHours * 60 * MINUTE_MS)
-    return 'SEARCH_INVALID_WINDOW';
+  const is5Min = end - start === 5 * MINUTE_MS;
+  if (!is5Min) {
+    if (!isSlotAligned(startAt) || !isSlotAligned(endAt) || end <= start)
+      return 'SEARCH_INVALID_WINDOW';
+    const earliest = ceilToSlot(new Date(now.getTime() + limits.minLeadMin * MINUTE_MS));
+    // The slot in progress cannot be booked: round "now" up even when it sits on the grid.
+    const firstFree = Math.max(earliest.getTime(), ceilToSlot(new Date(now.getTime() + 1)).getTime());
+    if (start < firstFree) return 'SEARCH_INVALID_WINDOW';
+    if (start > now.getTime() + limits.maxAdvanceDays * 24 * 60 * MINUTE_MS)
+      return 'SEARCH_INVALID_WINDOW';
+    if (input.product === 'HOURLY' && end - start > limits.maxDurationHours * 60 * MINUTE_MS)
+      return 'SEARCH_INVALID_WINDOW';
+  } else {
+    if (end <= start) return 'SEARCH_INVALID_WINDOW';
+    if (start < now.getTime() - 2 * MINUTE_MS) return 'SEARCH_INVALID_WINDOW';
+  }
   return null;
 }
 

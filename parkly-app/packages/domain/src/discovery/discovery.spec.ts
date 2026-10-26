@@ -57,8 +57,16 @@ describe('words for results', () => {
   it('shows distance and the window', () => {
     expect(distanceLabel(184)).toBe('180 m away');
     expect(distanceLabel(1322)).toBe('1.3 km away');
+    expect(searchWindow({ date: '2026-10-23', time: '08:00', duration: '5m' })).toEqual({
+      startAt: '2026-10-23T07:00:00.000Z',
+      endAt: '2026-10-23T07:05:00.000Z',
+      product: 'HOURLY',
+    });
     expect(windowLabel({ date: '2026-10-23', time: '08:00', duration: 1 })).toBe(
       'Fri 23 Oct, 08:00 for 1 hour',
+    );
+    expect(windowLabel({ date: '2026-10-23', time: '08:00', duration: '5m' })).toBe(
+      'Fri 23 Oct, 08:00 for 5 min (Test)',
     );
     expect(windowLabel({ date: '2026-10-23', time: '08:00', duration: 'day' })).toBe(
       'Fri 23 Oct, all day',
@@ -67,6 +75,9 @@ describe('words for results', () => {
 
   it('describes every kind of quote line', () => {
     const base = { amountKobo: 1 };
+    expect(
+      lineLabel({ ...base, kind: 'HOURLY_DAY', date: '2026-10-23', minutes: 5, capped: false }),
+    ).toBe('Fri 23 Oct · 5 min (Test)');
     expect(
       lineLabel({ ...base, kind: 'HOURLY_DAY', date: '2026-10-23', minutes: 600, capped: true }),
     ).toBe('Fri 23 Oct · 10 h (daily maximum)');

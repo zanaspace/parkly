@@ -154,7 +154,12 @@ export class MemoryBookings {
   readonly bookings: Store['bookings'] = {
     hold: async (input, payment, at) => {
       const { startAt, endAt } = input;
-      if (endAt <= startAt || startAt.getTime() % SLOT_MS !== 0 || endAt.getTime() % SLOT_MS !== 0)
+      const is5Min = endAt.getTime() - startAt.getTime() === 5 * 60_000;
+      if (
+        endAt <= startAt ||
+        startAt.getTime() % SLOT_MS !== 0 ||
+        (!is5Min && endAt.getTime() % SLOT_MS !== 0)
+      )
         throw new BookingHoldError('BOOKING_WINDOW_INVALID');
       const lot = this.lotRows.get(input.lotId);
       if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
@@ -256,7 +261,9 @@ export class MemoryBookings {
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
       if (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN')
         throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
-      if (ext.newEndAt <= b.endAt || ext.newEndAt.getTime() % SLOT_MS !== 0)
+      const addedMinutes = Math.round((ext.newEndAt.getTime() - b.endAt.getTime()) / 60_000);
+      const is5Min = addedMinutes === 5;
+      if (ext.newEndAt <= b.endAt || (!is5Min && ext.newEndAt.getTime() % SLOT_MS !== 0))
         throw new BookingHoldError('BOOKING_WINDOW_INVALID');
       const lot = this.lotRows.get(b.lotId);
       if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
@@ -266,7 +273,6 @@ export class MemoryBookings {
         throw new BookingHoldError('BOOKING_SLOT_UNAVAILABLE');
       for (const s of slots) s.held += 1;
 
-      const addedMinutes = Math.round((ext.newEndAt.getTime() - b.endAt.getTime()) / 60_000);
       const extensionRow: BookingExtensionRow & { paymentId: string | null } = {
         id: ext.id,
         bookingId: ext.bookingId,

@@ -23,9 +23,9 @@ export const AREAS = [
 ] as const;
 export type Area = (typeof AREAS)[number];
 
-/** Hourly stays offered in the pickers; 'day' is a full Lagos day. */
-export const DURATIONS = [1, 2, 3, 4, 6, 8, 10, 12] as const;
-export type Duration = number | 'day';
+/** Hourly stays offered in the pickers; '5m' is a 5-minute test stay (for testing overstay); 'day' is a full Lagos day. */
+export const DURATIONS = ['5m', 1, 2, 3, 4, 6, 8, 10, 12] as const;
+export type Duration = (typeof DURATIONS)[number] | 'day';
 
 /** Doc 03 §1.2: widen an empty 2 km search to 3 km, then offer 5 km. */
 export const SEARCH_RADII = [2000, 3000, 5000] as const;
@@ -82,10 +82,18 @@ export function searchWindow(s: { date: string; time: string; duration: Duration
       product: 'DAILY',
     };
   }
+  if (s.duration === '5m') {
+    const start = lagosInstant(s.date, s.time);
+    return {
+      startAt: start.toISOString(),
+      endAt: new Date(start.getTime() + 5 * 60_000).toISOString(),
+      product: 'HOURLY',
+    };
+  }
   const start = lagosInstant(s.date, s.time);
   return {
     startAt: start.toISOString(),
-    endAt: new Date(start.getTime() + s.duration * HOUR_MS).toISOString(),
+    endAt: new Date(start.getTime() + (s.duration as number) * HOUR_MS).toISOString(),
     product: 'HOURLY',
   };
 }
@@ -115,6 +123,7 @@ export function dayLabel(date: string): string {
 /** "Fri 23 Oct, 08:00 for 10 hours" / "Fri 23 Oct, all day". */
 export function windowLabel(s: { date: string; time: string; duration: Duration }): string {
   if (s.duration === 'day') return `${dayLabel(s.date)}, all day`;
+  if (s.duration === '5m') return `${dayLabel(s.date)}, ${s.time} for 5 min (Test)`;
   return `${dayLabel(s.date)}, ${s.time} for ${s.duration} hour${s.duration === 1 ? '' : 's'}`;
 }
 
@@ -122,6 +131,7 @@ export function windowLabel(s: { date: string; time: string; duration: Duration 
 export function lineLabel(line: QuoteLine): string {
   switch (line.kind) {
     case 'HOURLY_DAY': {
+      if (line.minutes === 5) return `${dayLabel(line.date)} · 5 min (Test)`;
       const h = line.minutes / 60;
       const hours = Number.isInteger(h) ? `${h} h` : `${Math.floor(h)} h ${line.minutes % 60} min`;
       return `${dayLabel(line.date)} · ${hours}${line.capped ? ' (daily maximum)' : ''}`;

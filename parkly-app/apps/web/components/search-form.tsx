@@ -202,7 +202,7 @@ export function SearchForm(props: {
           options={[
             ...DURATIONS.map((h) => ({
               value: String(h),
-              label: `${h} hour${h === 1 ? '' : 's'}`,
+              label: h === '5m' ? '5 min (Test)' : `${h} hour${h === 1 ? '' : 's'}`,
             })),
             { value: 'day', label: 'Full day' },
           ]}

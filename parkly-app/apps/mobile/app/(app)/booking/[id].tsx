@@ -21,6 +21,7 @@ const POLL_MS = 3_000;
 const STAY_POLL_MS = 30_000;
 
 const EXTEND_DURATIONS = [
+  { label: '+5m (Test)', minutes: 5 },
   { label: '+15m', minutes: 15 },
   { label: '+30m', minutes: 30 },
   { label: '+45m', minutes: 45 },

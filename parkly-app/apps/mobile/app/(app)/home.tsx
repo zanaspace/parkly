@@ -160,7 +160,16 @@ export default function Home() {
               key={String(d)}
               label={durationLabel(d)}
               selected={search.duration === d}
-              onPress={() => set({ duration: d })}
+              onPress={() => {
+                if (d === '5m') {
+                  const nowLagos = new Date(Date.now() + 60 * 60_000);
+                  const hh = String(nowLagos.getUTCHours()).padStart(2, '0');
+                  const mm = String(Math.floor(nowLagos.getUTCMinutes() / 15) * 15).padStart(2, '0');
+                  set({ duration: d, date: days[0]?.date ?? search.date, time: `${hh}:${mm}` });
+                } else {
+                  set({ duration: d });
+                }
+              }}
             />
           ))}
         </Row>
