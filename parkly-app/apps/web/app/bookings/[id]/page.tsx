@@ -14,6 +14,8 @@ import {
   CreditCardIcon,
   ExternalLinkIcon,
   MapPinIcon,
+  MessageCircleIcon,
+  PhoneIcon,
   SearchIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -58,9 +60,22 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     booking.status === 'CANCELLED' ||
     booking.status === 'NO_SHOW';
 
+  const destinationCoords = booking.lot.location
+    ? `${booking.lot.location.lat},${booking.lot.location.lng}`
+    : `${booking.lot.name}, ${booking.lot.addressLine}`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-    `${booking.lot.name}, ${booking.lot.addressLine}`,
+    destinationCoords,
   )}`;
+
+  const rawContact = booking.lot.contactPhone?.trim();
+  const waDigits = rawContact?.replace(/[^\d]/g, '');
+  const waClean = waDigits?.startsWith('0') ? `234${waDigits.slice(1)}` : waDigits;
+  const whatsappUrl = waClean
+    ? `https://wa.me/${waClean}?text=${encodeURIComponent(
+        `Hi, I have a reservation at ${booking.lot.name} (Pass #${booking.code}). Need help with gate directions.`,
+      )}`
+    : null;
+  const phoneCallUrl = rawContact ? `tel:${rawContact}` : null;
 
   return (
     <main className="pk-page pk-booking-detail-page">
@@ -184,6 +199,38 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
+              {booking.lot.entranceNotes && (
+                <div className="pk-ticket-landmark-note">
+                  <span className="pk-ticket-landmark-label">Gate / Entrance Landmark</span>
+                  <span className="pk-ticket-landmark-value">{booking.lot.entranceNotes}</span>
+                </div>
+              )}
+
+              {(phoneCallUrl || whatsappUrl) && (
+                <div className="pk-ticket-attendant-actions">
+                  <span className="pk-ticket-attendant-label">Need help finding the gate?</span>
+                  <div className="pk-ticket-attendant-buttons">
+                    {phoneCallUrl && (
+                      <a href={phoneCallUrl} className="pk-btn-secondary pk-btn-sm pk-ticket-btn">
+                        <PhoneIcon size={14} />
+                        <span>Call Gate</span>
+                      </a>
+                    )}
+                    {whatsappUrl && (
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="pk-btn-secondary pk-btn-sm pk-ticket-btn"
+                      >
+                        <MessageCircleIcon size={14} />
+                        <span>WhatsApp Gate</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {booking.overstay && (
                 <div className="pk-ticket-overstay-note">
                   <ClockIcon size={14} />
@@ -255,6 +302,51 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             </div>
+
+            {booking.lot.entranceNotes && (
+              <div className="pk-detail-item">
+                <div className="pk-detail-item-icon">
+                  <MapPinIcon size={18} />
+                </div>
+                <div className="pk-detail-item-content">
+                  <strong className="pk-detail-item-title">Entrance Landmark & Notes</strong>
+                  <p className="pk-detail-item-desc">{booking.lot.entranceNotes}</p>
+                </div>
+              </div>
+            )}
+
+            {(phoneCallUrl || whatsappUrl) && (
+              <div className="pk-detail-item">
+                <div className="pk-detail-item-icon">
+                  <PhoneIcon size={18} />
+                </div>
+                <div className="pk-detail-item-content">
+                  <strong className="pk-detail-item-title">Gate Attendant Contact</strong>
+                  {booking.lot.contactPhone && (
+                    <p className="pk-detail-item-desc">{booking.lot.contactPhone}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                    {phoneCallUrl && (
+                      <a href={phoneCallUrl} className="pk-btn-secondary pk-btn-sm">
+                        <PhoneIcon size={14} />
+                        <span>Call Gate</span>
+                      </a>
+                    )}
+                    {whatsappUrl && (
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="pk-btn-secondary pk-btn-sm"
+                      >
+                        <MessageCircleIcon size={14} />
+                        <span>WhatsApp</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pk-detail-card-footer">

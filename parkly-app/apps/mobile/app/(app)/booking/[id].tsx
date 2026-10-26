@@ -215,9 +215,22 @@ export default function BookingScreen() {
     booking.status === 'CANCELLED' ||
     booking.status === 'NO_SHOW';
 
+  const destinationCoords = booking.lot.location
+    ? `${booking.lot.location.lat},${booking.lot.location.lng}`
+    : `${booking.lot.name}, ${booking.lot.addressLine}`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-    `${booking.lot.name}, ${booking.lot.addressLine}`,
+    destinationCoords,
   )}`;
+
+  const rawContact = booking.lot.contactPhone?.trim();
+  const waDigits = rawContact?.replace(/[^\d]/g, '');
+  const waClean = waDigits?.startsWith('0') ? `234${waDigits.slice(1)}` : waDigits;
+  const whatsappUrl = waClean
+    ? `https://wa.me/${waClean}?text=${encodeURIComponent(
+        `Hi, I have a reservation at ${booking.lot.name} (Pass #${booking.code}). Need help with gate directions.`,
+      )}`
+    : null;
+  const phoneCallUrl = rawContact ? `tel:${rawContact}` : null;
 
   // Status badge colors & label
   const getStatusBadge = () => {
@@ -631,6 +644,59 @@ export default function BookingScreen() {
             </Text>
           </View>
 
+          {booking.lot.entranceNotes ? (
+            <View
+              style={{
+                backgroundColor: theme.color.bg.subtle,
+                borderLeftWidth: 3,
+                borderLeftColor: theme.color.border.brand,
+                borderRadius: theme.radius.sm,
+                padding: 10,
+                width: '100%',
+                gap: 2,
+              }}
+            >
+              <Text variant="label.sm" tone="secondary">
+                GATE / ENTRANCE LANDMARK
+              </Text>
+              <Text variant="body.sm" style={{ fontWeight: '600' }}>
+                {booking.lot.entranceNotes}
+              </Text>
+            </View>
+          ) : null}
+
+          {phoneCallUrl || whatsappUrl ? (
+            <View style={{ width: '100%', gap: 6, marginTop: 2 }}>
+              <Text variant="label.sm" tone="secondary" style={{ textAlign: 'center' }}>
+                Need help finding the gate?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {phoneCallUrl ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="📞 Call Gate"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      onPress={() => void Linking.openURL(phoneCallUrl).catch(() => undefined)}
+                    />
+                  </View>
+                ) : null}
+                {whatsappUrl ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="💬 WhatsApp Gate"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      onPress={() => void Linking.openURL(whatsappUrl).catch(() => undefined)}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
           {booking.overstay ? (
             <View
               style={{
@@ -746,6 +812,58 @@ export default function BookingScreen() {
             </View>
           </View>
         </View>
+
+        {/* Entrance Landmark Row */}
+        {booking.lot.entranceNotes ? (
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Text style={{ fontSize: 18, marginTop: 2 }}>🚪</Text>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text variant="label.md">Entrance Landmark & Notes</Text>
+              <Text variant="body.sm" tone="secondary">
+                {booking.lot.entranceNotes}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Gate Attendant Contact Row */}
+        {phoneCallUrl || whatsappUrl ? (
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Text style={{ fontSize: 18, marginTop: 2 }}>📞</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text variant="label.md">Gate Attendant Contact</Text>
+              {booking.lot.contactPhone ? (
+                <Text variant="body.sm" tone="secondary">
+                  {booking.lot.contactPhone}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                {phoneCallUrl ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="Call Gate"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      onPress={() => void Linking.openURL(phoneCallUrl).catch(() => undefined)}
+                    />
+                  </View>
+                ) : null}
+                {whatsappUrl ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="WhatsApp"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      onPress={() => void Linking.openURL(whatsappUrl).catch(() => undefined)}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       {/* Receipt & Pricing Card */}

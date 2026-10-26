@@ -98,8 +98,14 @@ export const toBookingExtension = (e: BookingExtensionRow): BookingExtension => 
 
 export function toBooking(
   b: BookingRow,
-  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine' | 'selfCheckinEnabled'>,
-  extra: { qrToken?: string | null; overstay?: Booking['overstay']; stay?: Booking['stay'] } = {},
+  lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine' | 'selfCheckinEnabled'> &
+    Partial<Pick<LotRow, 'area' | 'location' | 'entranceNotes'>>,
+  extra: {
+    qrToken?: string | null;
+    overstay?: Booking['overstay'];
+    stay?: Booking['stay'];
+    contactPhone?: string | null;
+  } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
   return {
@@ -115,6 +121,10 @@ export function toBooking(
       slug: lot.slug,
       name: lot.name,
       addressLine: lot.addressLine,
+      area: lot.area ?? null,
+      location: lot.location ?? null,
+      entranceNotes: lot.entranceNotes ?? null,
+      contactPhone: extra.contactPhone ?? null,
       selfCheckIn: lot.selfCheckinEnabled,
     },
     vehicle: { id: b.vehicleId, plate: b.plateNorm },
@@ -163,8 +173,13 @@ export function bookingRoutes(deps: AppDeps) {
       string,
       Awaited<ReturnType<typeof deps.store.ratePlans.activeFor>>
     >();
-    for (const lotId of new Set(rows.map((r) => r.lotId)))
+    const phoneMap = new Map<string, string | null>();
+    for (const lotId of new Set(rows.map((r) => r.lotId))) {
       plansByLot.set(lotId, await deps.store.ratePlans.activeFor([lotId]));
+      const l = await lotOf(lotId);
+      const op = await deps.store.operators.find(l.operatorId);
+      phoneMap.set(lotId, op?.contactPhoneEnc ? deps.crypto.decrypt(op.contactPhoneEnc) : null);
+    }
     const price = (b: BookingRow, checkOutAt: Date) => {
       try {
         const q = overstayCharge({
@@ -200,6 +215,7 @@ export function bookingRoutes(deps: AppDeps) {
           qrToken: await ticketFor(b),
           overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
           stay,
+          contactPhone: phoneMap.get(b.lotId) ?? null,
         };
       }),
     );
@@ -387,7 +403,12 @@ export function bookingRoutes(deps: AppDeps) {
       throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
     }
     deps.logger.info({ event: 'booking.hold_created', bookingId, lotId: lot.id }, 'booking held');
-    return { booking: toBooking(held.booking, lot), payment: toCheckout(payment, held.booking) };
+    const op = await deps.store.operators.find(lot.operatorId);
+    const contactPhone = op?.contactPhoneEnc ? deps.crypto.decrypt(op.contactPhoneEnc) : null;
+    return {
+      booking: toBooking(held.booking, lot, { contactPhone }),
+      payment: toCheckout(payment, held.booking),
+    };
   }
 
   app.openapi(
