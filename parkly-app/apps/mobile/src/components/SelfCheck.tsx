@@ -80,7 +80,8 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
       ) : (
         <Button
           label={`${verb} (scan barrier or attendant)`}
-          variant="secondary"
+          variant="primary"
+          size="lg"
           fullWidth
           loading={sending}
           onPress={() => void start()}

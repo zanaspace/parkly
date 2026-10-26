@@ -144,26 +144,17 @@ export function SelfCheckinAction({
   }
 
   return (
-    <div style={{ marginTop: '0.75rem' }}>
+    <div style={{ marginTop: '1rem', width: '100%' }}>
       <button
         type="button"
-        className="pk-btn-secondary"
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          padding: '0.625rem 1rem',
-          fontWeight: 600,
-        }}
+        className="pk-self-check-btn"
         onClick={() => {
           setError(null);
           setSuccess(null);
           setOpen(true);
         }}
       >
-        <CameraIcon size={18} />
+        <CameraIcon size={20} />
         <span>{verb} (scan barrier or attendant QR)</span>
       </button>
 
