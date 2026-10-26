@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Booking } from '@parkly/contracts';
 import { verifyQrToken } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
@@ -134,7 +135,7 @@ async function setup(opts: Parameters<typeof addLot>[1] = {}, overrides: Partial
 }
 
 type Created = {
-  booking: { id: string; code: string; status: string; totalKobo: number; holdExpiresAt: string };
+  booking: Booking;
   payment: { reference: string; status: string; authorizationUrl: string };
 };
 
