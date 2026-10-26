@@ -1932,6 +1932,35 @@ a.pk-button {
   color: var(--pk-color-text-secondary, #9da8b3);
 }
 
+.pk-self-check-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #137066 0%, #0d524b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(19, 112, 102, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pk-self-check-btn:hover {
+  background: linear-gradient(135deg, #168074 0%, #0f5c54 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(19, 112, 102, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.pk-self-check-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(19, 112, 102, 0.35);
+}
+
 /* 2-Column Responsive Detail Grid */
 .pk-booking-detail-grid {
   display: grid;
