@@ -13,6 +13,7 @@ describe('schema conventions (doc 02 §1)', () => {
     expect(tables.map((t) => getTableConfig(t).name).sort()).toEqual([
       'attendant_sync_batches',
       'audit_logs',
+      'booking_extensions',
       'booking_status_history',
       'bookings',
       'checkin_events',

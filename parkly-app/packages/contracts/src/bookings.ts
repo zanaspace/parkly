@@ -119,6 +119,51 @@ export const VerifyPaymentResponseSchema = z.object({
   booking: BookingSchema,
 });
 
+/** FR-BOOK-005: `POST /v1/bookings/{id}/extensions`. Times on the 15-minute grid. */
+export const ExtendBookingRequestSchema = z.object({
+  newEndAt: z.iso.datetime(),
+  returnTo: z.url().max(500).optional(),
+});
+
+export const BookingExtensionSchema = z.object({
+  id: z.uuid(),
+  bookingId: z.uuid(),
+  startAt: z.iso.datetime(),
+  newEndAt: z.iso.datetime(),
+  addedMinutes: z.number().int(),
+  priceKobo: z.number().int(),
+  status: BookingStatusSchema,
+  createdAt: z.iso.datetime(),
+});
+
+export const ExtendBookingResponseSchema = z.object({
+  extension: BookingExtensionSchema,
+  booking: BookingSchema,
+  payment: CheckoutSchema.nullable(),
+});
+
+/** FR-BOOK-006: `POST /v1/bookings/{id}/cancel`. */
+export const CancelBookingRequestSchema = z.object({
+  reason: z.string().max(200).optional(),
+});
+
+export const CancelBookingResponseSchema = z.object({
+  booking: BookingSchema,
+  refundKobo: z.number().int(),
+  isFreeCancellation: z.boolean(),
+});
+
+/** FR-BOOK-008: `POST /v1/bookings/{id}/overstay/pay`. */
+export const OverstayPayRequestSchema = z.object({
+  returnTo: z.url().max(500).optional(),
+});
+
+export const OverstayPayResponseSchema = z.object({
+  payment: CheckoutSchema,
+  overstayMinutes: z.number().int(),
+  amountKobo: z.number().int(),
+});
+
 export type BookingStatus = z.infer<typeof BookingStatusSchema>;
 /** What a client sends (defaults applied by the API). */
 export type CreateBookingRequest = z.input<typeof CreateBookingRequestSchema>;
@@ -127,3 +172,11 @@ export type Checkout = z.infer<typeof CheckoutSchema>;
 export type CreateBookingResponse = z.infer<typeof CreateBookingResponseSchema>;
 export type BookingList = z.infer<typeof BookingListSchema>;
 export type VerifyPaymentResponse = z.infer<typeof VerifyPaymentResponseSchema>;
+export type ExtendBookingRequest = z.input<typeof ExtendBookingRequestSchema>;
+export type BookingExtension = z.infer<typeof BookingExtensionSchema>;
+export type ExtendBookingResponse = z.infer<typeof ExtendBookingResponseSchema>;
+export type CancelBookingRequest = z.input<typeof CancelBookingRequestSchema>;
+export type CancelBookingResponse = z.infer<typeof CancelBookingResponseSchema>;
+export type OverstayPayRequest = z.input<typeof OverstayPayRequestSchema>;
+export type OverstayPayResponse = z.infer<typeof OverstayPayResponseSchema>;
+

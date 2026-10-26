@@ -327,3 +327,40 @@ export const ledgerEntries = pgTable(
     ...apiAppendOnly('ledger_entries'),
   ],
 ).enableRLS();
+
+/**
+ * Extensions to an existing stay (FR-BOOK-005, doc 02 §4).
+ * `startAt` is the booking's endAt at the moment of the extension.
+ */
+export const bookingExtensions = pgTable(
+  'booking_extensions',
+  {
+    id: id(),
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'restrict' }),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    newEndAt: timestamp('new_end_at', { withTimezone: true }).notNull(),
+    addedMinutes: integer('added_minutes').notNull(),
+    priceKobo: bigint('price_kobo', { mode: 'number' }).notNull(),
+    platformAmountKobo: bigint('platform_amount_kobo', { mode: 'number' }).notNull(),
+    operatorAmountKobo: bigint('operator_amount_kobo', { mode: 'number' }).notNull(),
+    paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
+    status: bookingStatusEnum('status').notNull().default('PENDING_PAYMENT'),
+    version: integer('version').notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('booking_extensions_booking_idx').on(t.bookingId),
+    index('booking_extensions_payment_idx').on(t.paymentId),
+    index('booking_extensions_status_idx').on(t.status),
+    check('booking_extensions_window_check', sql`${t.newEndAt} > ${t.startAt}`),
+    check(
+      'booking_extensions_price_check',
+      sql`${t.priceKobo} >= 0 and ${t.platformAmountKobo} >= 0 and ${t.operatorAmountKobo} >= 0 and ${t.platformAmountKobo} + ${t.operatorAmountKobo} = ${t.priceKobo}`,
+    ),
+    apiAccess('booking_extensions'),
+  ],
+).enableRLS();
+
