@@ -21,6 +21,7 @@ type Session = PlanSession & {
   plateNorm: string;
   overstayMinutes: number;
   overstayAmountKobo: number;
+  overstayStatus?: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
 };
 type EventRow = AttendEventResult & { type: AttendEventInput['type']; lotId: string };
 
@@ -280,7 +281,39 @@ export class MemoryAttend {
 
     setOverstay: async (sessionId, minutes, amountKobo) => {
       const s = this.sessionRows.find((r) => r.id === sessionId);
-      if (s) Object.assign(s, { overstayMinutes: minutes, overstayAmountKobo: amountKobo });
+      if (s) {
+        Object.assign(s, {
+          overstayMinutes: minutes,
+          overstayAmountKobo: amountKobo,
+          overstayStatus: amountKobo > 0 ? 'DUE' : 'NONE',
+        });
+      }
+    },
+
+    sessionByBooking: async (bookingId) => {
+      const s = this.sessionRows.find((r) => r.bookingId === bookingId);
+      if (!s) return null;
+      return {
+        id: s.id,
+        bookingId: s.bookingId,
+        lotId: s.lotId,
+        overstayMinutes: s.overstayMinutes,
+        overstayAmountKobo: s.overstayAmountKobo,
+        overstayStatus: (s.overstayStatus ?? (s.overstayAmountKobo > 0 ? 'DUE' : 'NONE')) as
+          | 'NONE'
+          | 'DUE'
+          | 'PAID'
+          | 'UNPAID'
+          | 'WAIVED',
+        checkInAt: s.checkInAt,
+        checkOutAt: s.checkOutAt,
+      };
+    },
+
+    markOverstayPaid: async (bookingId) => {
+      const s = this.sessionRows.find((r) => r.bookingId === bookingId);
+      if (!s) throw new Error('SESSION_NOT_FOUND');
+      s.overstayStatus = 'PAID';
     },
   };
 

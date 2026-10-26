@@ -1,18 +1,33 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  BookingExtensionSchema,
   BookingListQuerySchema,
   BookingListSchema,
   BookingSchema,
+  CancelBookingRequestSchema,
+  CancelBookingResponseSchema,
   CreateBookingRequestSchema,
   CreateBookingResponseSchema,
+  ExtendBookingRequestSchema,
+  ExtendBookingResponseSchema,
+  OverstayPayRequestSchema,
+  OverstayPayResponseSchema,
   VerifyPaymentResponseSchema,
   type Booking,
+  type BookingExtension,
   type Checkout,
   type CreateBookingResponse,
 } from '@parkly/contracts';
 import { checkSearchWindow, isOpenDuring } from '@parkly/domain/availability';
-import { holdExpiresAt, paymentSplit } from '@parkly/domain/booking';
+import {
+  calculateExtensionQuote,
+  cancellationPolicy,
+  holdExpiresAt,
+  paymentSplit,
+  validateExtensionWindow,
+} from '@parkly/domain/booking';
 import { generateBookingCode } from '@parkly/domain/codes';
+import { mulDivRoundHalfUp } from '@parkly/domain/money';
 import {
   overstayCharge,
   quote as priceQuote,
@@ -28,6 +43,7 @@ import { qrTickets } from '../../lib/qr-tickets.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
+  type BookingExtensionRow,
   type BookingRow,
   type LotRow,
   type PaymentRow,
@@ -48,6 +64,17 @@ export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
   authorizationUrl: p.status === 'INITIATED' || p.status === 'PENDING' ? p.authorizationUrl : null,
   expiresAt:
     booking.status === 'PENDING_PAYMENT' ? (booking.holdExpiresAt?.toISOString() ?? null) : null,
+});
+
+export const toBookingExtension = (e: BookingExtensionRow): BookingExtension => ({
+  id: e.id,
+  bookingId: e.bookingId,
+  startAt: e.startAt.toISOString(),
+  newEndAt: e.newEndAt.toISOString(),
+  addedMinutes: e.addedMinutes,
+  priceKobo: e.priceKobo,
+  status: e.status,
+  createdAt: e.createdAt.toISOString(),
 });
 
 export function toBooking(
@@ -421,6 +448,366 @@ export function bookingRoutes(deps: AppDeps) {
         {
           payment: toCheckout(current, booking),
           booking: toBooking(booking, await lotOf(booking.lotId), (await viewsFor([booking]))[0]),
+        },
+        200,
+      );
+    },
+  );
+
+  // FR-BOOK-005: extend a booking forward on the 15-minute grid.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/extensions',
+      tags: ['bookings'],
+      ...secured,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        body: { ...json(ExtendBookingRequestSchema), required: true },
+      },
+      responses: {
+        200: { description: 'Booking extension', ...json(ExtendBookingResponseSchema) },
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      const actor = c.get('actor');
+      const booking = await ownBooking(c, id);
+      const now = deps.now();
+
+      const newEndAt = new Date(body.newEndAt);
+      const validation = validateExtensionWindow({
+        startAt: booking.startAt,
+        currentEndAt: booking.endAt,
+        newEndAt,
+        now,
+        status: booking.status,
+        maxDurationMinutes: 24 * 60,
+      });
+      if (!validation.ok) {
+        if (validation.code === 'BOOKING_NOT_EXTENDABLE') {
+          throw new ApiError('BOOKING_NOT_EXTENDABLE', 'This booking cannot be extended');
+        }
+        throw new ApiError('BOOKING_WINDOW_INVALID', `Invalid extension window: ${validation.code}`);
+      }
+
+      const lot = await lotOf(booking.lotId);
+      const hours = await deps.store.lots.openingHours(lot.id);
+      if (
+        !isOpenDuring({
+          hours: hours.map(toOpeningDay),
+          startAt: booking.endAt,
+          endAt: newEndAt,
+          product: booking.product,
+        })
+      ) {
+        throw new ApiError(
+          'BOOKING_OUTSIDE_OPENING_HOURS',
+          'The car park is closed during the extension window',
+        );
+      }
+
+      const plans = await deps.store.ratePlans.activeFor([lot.id]);
+      const plan = plans.find((p) => p.product === booking.product);
+      if (!plan)
+        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot does not have an active rate plan');
+
+      const extQuote = calculateExtensionQuote({
+        ratePlan: plan,
+        settings: { commissionBps: booking.commissionBps },
+        startAt: booking.startAt,
+        currentEndAt: booking.endAt,
+        newEndAt,
+        currentPriceKobo: booking.priceKobo,
+      });
+
+      const extensionId = uuidv7();
+
+      if (extQuote.priceKobo === 0) {
+        try {
+          const held = await deps.store.bookings.holdExtension(
+            {
+              id: extensionId,
+              bookingId: booking.id,
+              newEndAt,
+              priceKobo: 0,
+              platformAmountKobo: 0,
+              operatorAmountKobo: 0,
+            },
+            null,
+            now,
+          );
+          const updatedBooking = await deps.store.bookings.confirmExtension(extensionId, null, now);
+          const extRow = await deps.store.bookings.findExtension(extensionId);
+          const [view] = await viewsFor([updatedBooking]);
+          return c.json(
+            {
+              extension: toBookingExtension(extRow ?? held.extension),
+              booking: toBooking(updatedBooking, lot, view),
+              payment: null,
+            },
+            200,
+          );
+        } catch (err) {
+          if (err instanceof BookingHoldError) throw new ApiError(err.code);
+          throw err;
+        }
+      }
+
+      const payout = await deps.store.payoutAccounts.find(lot.operatorId);
+      const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
+      if (!subaccountCode && deps.config.appEnv === 'prod') {
+        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
+      }
+
+      let callbackUrl: string | null = null;
+      if (body.returnTo) {
+        if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
+          throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+        }
+        callbackUrl = body.returnTo;
+      }
+
+      const paymentId = uuidv7();
+      let held: Awaited<ReturnType<typeof deps.store.bookings.holdExtension>>;
+      try {
+        held = await deps.store.bookings.holdExtension(
+          {
+            id: extensionId,
+            bookingId: booking.id,
+            newEndAt,
+            priceKobo: extQuote.priceKobo,
+            platformAmountKobo: extQuote.commissionKobo,
+            operatorAmountKobo: extQuote.operatorAmountKobo,
+          },
+          {
+            id: paymentId,
+            kind: 'EXTENSION',
+            payerUserId: actor.userId,
+            provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+            amountKobo: extQuote.priceKobo,
+            platformAmountKobo: extQuote.commissionKobo,
+            operatorAmountKobo: extQuote.operatorAmountKobo,
+            operatorId: lot.operatorId,
+            subaccountCode,
+          },
+          now,
+        );
+      } catch (err) {
+        if (err instanceof BookingHoldError) throw new ApiError(err.code);
+        throw err;
+      }
+
+      let payment: PaymentRow;
+      try {
+        const checkout = await deps.payments.initialize({
+          reference: paymentId,
+          amountKobo: extQuote.priceKobo,
+          email: checkoutEmail(actor.userId),
+          subaccountCode,
+          platformShareKobo: extQuote.commissionKobo,
+          callbackUrl,
+          metadata: { bookingCode: booking.code, bookingId: booking.id, extensionId },
+        });
+        payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());
+      } catch (err) {
+        deps.logger.error({ err, bookingId: booking.id, extensionId }, 'extension checkout failed');
+        throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
+      }
+
+      const [view] = await viewsFor([booking]);
+      return c.json(
+        {
+          extension: toBookingExtension(held.extension),
+          booking: toBooking(booking, lot, view),
+          payment: toCheckout(payment, booking),
+        },
+        200,
+      );
+    },
+  );
+
+  // FR-BOOK-006: cancel a booking with policy calculation and optional refund.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/cancel',
+      tags: ['bookings'],
+      ...secured,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        body: { ...json(CancelBookingRequestSchema), required: false },
+      },
+      responses: {
+        200: { description: 'Booking cancellation', ...json(CancelBookingResponseSchema) },
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json') ?? {};
+      const actor = c.get('actor');
+      const booking = await ownBooking(c, id);
+      const now = deps.now();
+
+      const freeLeadMin =
+        (await deps.store.settings.get<number>('booking.free_cancellation_lead_min')) ?? 30;
+      const policy = cancellationPolicy({
+        startAt: booking.startAt,
+        now,
+        status: booking.status,
+        priceKobo: booking.priceKobo,
+        serviceFeeKobo: booking.serviceFeeKobo,
+        totalKobo: booking.totalKobo,
+        actor: 'DRIVER',
+        settings: { freeCancellationLeadMin: freeLeadMin },
+      });
+
+      if (!policy.cancellable) {
+        throw new ApiError('BOOKING_NOT_CANCELLABLE', 'This booking cannot be cancelled');
+      }
+
+      let cancelled: Awaited<ReturnType<typeof deps.store.bookings.cancel>>;
+      try {
+        cancelled = await deps.store.bookings.cancel(
+          booking.id,
+          'DRIVER',
+          actor.userId,
+          body.reason ?? 'DRIVER_CANCEL',
+          policy.refundKobo > 0
+            ? {
+                amountKobo: policy.refundKobo,
+                reason: policy.reason,
+                refundPriceKobo: policy.refundPriceKobo,
+                refundServiceFeeKobo: policy.refundServiceFeeKobo,
+              }
+            : null,
+          now,
+        );
+      } catch (err) {
+        if (err instanceof BookingHoldError) throw new ApiError(err.code);
+        throw err;
+      }
+
+      if (policy.refundKobo > 0 && cancelled.refundId) {
+        const latestPayment = await deps.store.payments.latestForBooking(booking.id);
+        if (latestPayment) {
+          try {
+            const sent = await deps.payments.refund({
+              reference: latestPayment.id,
+              amountKobo: policy.refundKobo,
+            });
+            await deps.store.payments.refundRequested(cancelled.refundId, sent.refundId);
+          } catch (err) {
+            deps.logger.error(
+              { err, bookingId: booking.id, refundId: cancelled.refundId },
+              'cancellation refund request failed',
+            );
+          }
+        }
+      }
+
+      const lot = await lotOf(booking.lotId);
+      const [view] = await viewsFor([cancelled.booking]);
+      return c.json(
+        {
+          booking: toBooking(cancelled.booking, lot, view),
+          refundKobo: policy.refundKobo,
+          isFreeCancellation: policy.isFreeCancellation,
+        },
+        200,
+      );
+    },
+  );
+
+  // FR-BOOK-008: pay overstay charges.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/overstay/pay',
+      tags: ['bookings'],
+      ...secured,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        body: { ...json(OverstayPayRequestSchema), required: false },
+      },
+      responses: {
+        200: { description: 'Overstay checkout initiated', ...json(OverstayPayResponseSchema) },
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json') ?? {};
+      const actor = c.get('actor');
+      const booking = await ownBooking(c, id);
+      const now = deps.now();
+
+      const session = await deps.store.attend.sessionByBooking(booking.id);
+      if (!session || session.overstayStatus !== 'DUE' || session.overstayAmountKobo <= 0) {
+        throw new ApiError('OVERSTAY_NOT_DUE', 'No overstay payment is due for this booking');
+      }
+
+      const lot = await lotOf(booking.lotId);
+      const payout = await deps.store.payoutAccounts.find(lot.operatorId);
+      const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
+      if (!subaccountCode && deps.config.appEnv === 'prod') {
+        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
+      }
+
+      let callbackUrl: string | null = null;
+      if (body.returnTo) {
+        if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
+          throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+        }
+        callbackUrl = body.returnTo;
+      }
+
+      const commissionKobo = mulDivRoundHalfUp(
+        session.overstayAmountKobo,
+        booking.commissionBps,
+        10_000,
+      );
+      const operatorAmountKobo = session.overstayAmountKobo - commissionKobo;
+
+      const paymentId = uuidv7();
+      await deps.store.payments.create(
+        {
+          id: paymentId,
+          payerUserId: actor.userId,
+          bookingId: booking.id,
+          kind: 'OVERSTAY',
+          provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+          amountKobo: session.overstayAmountKobo,
+          platformAmountKobo: commissionKobo,
+          operatorAmountKobo,
+          operatorId: lot.operatorId,
+          subaccountCode,
+        },
+        now,
+      );
+
+      let payment: PaymentRow;
+      try {
+        const checkout = await deps.payments.initialize({
+          reference: paymentId,
+          amountKobo: session.overstayAmountKobo,
+          email: checkoutEmail(actor.userId),
+          subaccountCode,
+          platformShareKobo: commissionKobo,
+          callbackUrl,
+          metadata: { bookingCode: booking.code, bookingId: booking.id, kind: 'OVERSTAY' },
+        });
+        payment = await deps.store.payments.checkoutStarted(paymentId, checkout, now);
+      } catch (err) {
+        deps.logger.error({ err, bookingId: booking.id, paymentId }, 'overstay checkout failed');
+        throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
+      }
+
+      return c.json(
+        {
+          payment: toCheckout(payment, booking),
+          overstayMinutes: session.overstayMinutes,
+          amountKobo: session.overstayAmountKobo,
         },
         200,
       );

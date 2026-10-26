@@ -289,9 +289,25 @@ export type NewBooking = Omit<
   holdExpiresAt: Date;
 };
 
+export type BookingExtensionRow = {
+  id: string;
+  bookingId: string;
+  startAt: Date;
+  newEndAt: Date;
+  addedMinutes: number;
+  priceKobo: number;
+  platformAmountKobo: number;
+  operatorAmountKobo: number;
+  paymentId: string | null;
+  status: BookingStatus;
+  createdAt: Date;
+};
+
+
 export type PaymentRow = {
   /** Also the provider reference. */
   id: string;
+  kind?: 'BOOKING' | 'EXTENSION' | 'OVERSTAY' | 'PASS';
   bookingId: string | null;
   payerUserId: string;
   provider: 'PAYSTACK' | 'FAKE';
@@ -317,7 +333,7 @@ export type NewPayment = Pick<
   | 'operatorAmountKobo'
   | 'operatorId'
   | 'subaccountCode'
->;
+> & { kind?: 'BOOKING' | 'EXTENSION' | 'OVERSTAY' | 'PASS' };
 
 export type SettleResult = {
   decision: ConfirmDecision;
@@ -726,10 +742,44 @@ export type Store = {
      * the driver may still complete stays PENDING, so late money is refunded.
      */
     releaseHold(id: string, reason: string, at: Date): Promise<void>;
+    holdExtension(
+      extension: {
+        id: string;
+        bookingId: string;
+        newEndAt: Date;
+        priceKobo: number;
+        platformAmountKobo: number;
+        operatorAmountKobo: number;
+      },
+      payment: NewPayment | null,
+      at: Date,
+    ): Promise<{ extension: BookingExtensionRow; payment: PaymentRow | null }>;
+    confirmExtension(extensionId: string, paymentId: string | null, at: Date): Promise<BookingRow>;
+    findExtension(id: string): Promise<BookingExtensionRow | null>;
+    cancel(
+      bookingId: string,
+      actor: 'DRIVER' | 'ADMIN' | 'SYSTEM',
+      actorId: string,
+      reason: string,
+      refund: {
+        amountKobo: number;
+        reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+        refundPriceKobo: number;
+        refundServiceFeeKobo: number;
+      } | null,
+      at: Date,
+    ): Promise<{ booking: BookingRow; refundId: string | null }>;
   };
   payments: {
     find(id: string): Promise<PaymentRow | null>;
     latestForBooking(bookingId: string): Promise<PaymentRow | null>;
+    create(
+      payment: NewPayment & {
+        bookingId: string;
+        kind: 'BOOKING' | 'EXTENSION' | 'OVERSTAY' | 'PASS';
+      },
+      at: Date,
+    ): Promise<PaymentRow>;
     /** INITIATED → PENDING with the provider's checkout link. */
     checkoutStarted(
       id: string,
@@ -819,6 +869,17 @@ export type Store = {
       checkOutAt: Date | null;
     } | null>;
     setOverstay(sessionId: string, minutes: number, amountKobo: number): Promise<void>;
+    sessionByBooking(bookingId: string): Promise<{
+      id: string;
+      bookingId: string;
+      lotId: string;
+      overstayMinutes: number;
+      overstayAmountKobo: number;
+      overstayStatus: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
+      checkInAt: Date | null;
+      checkOutAt: Date | null;
+    } | null>;
+    markOverstayPaid(bookingId: string, at: Date): Promise<void>;
     /** Parked (checked in, not out) and expected (paid, due within 24 h, not in) per lot. */
     occupancy(
       lotIds: string[],
@@ -918,7 +979,10 @@ export type BookingHoldCode =
   | 'BOOKING_SLOT_UNAVAILABLE'
   | 'BOOKING_OVERLAP_SAME_VEHICLE'
   | 'LOT_NOT_BOOKABLE'
-  | 'BOOKING_WINDOW_INVALID';
+  | 'BOOKING_WINDOW_INVALID'
+  | 'BOOKING_NOT_EXTENDABLE'
+  | 'BOOKING_NOT_CANCELLABLE'
+  | 'EXTENSION_UNAVAILABLE';
 
 /** `fn_hold_booking` refused; `code` is the problem+json code. */
 export class BookingHoldError extends Error {

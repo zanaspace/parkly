@@ -50,6 +50,7 @@ const RULES = {
   /** Book and pay for parking; see and pay for one's own bookings (doc 02 §6.4). */
   'booking:create:own': { scope: 'own', roles: ['DRIVER'] },
   'booking:read:own': { scope: 'own', roles: ['DRIVER'] },
+  'booking:update:own': { scope: 'own', roles: ['DRIVER'] },
   'operator:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:update': { scope: 'operator', roles: ['OPERATOR_OWNER'] },
   'operator:kyb:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },

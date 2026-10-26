@@ -4,6 +4,7 @@ import { settlePlan, type SettlePlan } from './settle-plan.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
+  type BookingExtensionRow,
   type BookingRow,
   type LotRow,
   type PaymentRow,
@@ -63,10 +64,12 @@ export class MemoryBookings {
     accessCode: string | null;
   })[] = [];
   readonly historyRows: History[] = [];
+  readonly extensionRows: (BookingExtensionRow & { paymentId: string | null })[] = [];
   readonly refundRows: Refund[] = [];
   readonly ledgerRows: (JournalLine & { journalId: string; paymentId: string })[] = [];
   readonly webhookRows: Webhook[] = [];
   readonly idempotencyRows = new Map<string, IdemKey>();
+  onOverstayPaid?: (bookingId: string) => Promise<void> | void;
 
   constructor(
     private readonly lotRows: Map<string, LotRow>,
@@ -246,6 +249,123 @@ export class MemoryBookings {
           p.failureCode = reason.slice(0, 64);
         }
     },
+
+    holdExtension: async (ext, payment, at) => {
+      const b = this.bookingRows.find((r) => r.id === ext.bookingId);
+      if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+      if (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN')
+        throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+      if (ext.newEndAt <= b.endAt || ext.newEndAt.getTime() % SLOT_MS !== 0)
+        throw new BookingHoldError('BOOKING_WINDOW_INVALID');
+      const lot = this.lotRows.get(b.lotId);
+      if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
+
+      const slots = this.windowSlots(lot.id, b.endAt, ext.newEndAt, lot.capacityBookable);
+      if (slots.some((s) => this.free(s) < 1))
+        throw new BookingHoldError('BOOKING_SLOT_UNAVAILABLE');
+      for (const s of slots) s.held += 1;
+
+      const addedMinutes = Math.round((ext.newEndAt.getTime() - b.endAt.getTime()) / 60_000);
+      const extensionRow: BookingExtensionRow & { paymentId: string | null } = {
+        id: ext.id,
+        bookingId: ext.bookingId,
+        startAt: b.endAt,
+        newEndAt: ext.newEndAt,
+        addedMinutes,
+        priceKobo: ext.priceKobo,
+        platformAmountKobo: ext.platformAmountKobo,
+        operatorAmountKobo: ext.operatorAmountKobo,
+        paymentId: payment ? payment.id : null,
+        status: 'PENDING_PAYMENT',
+        createdAt: at,
+      };
+      this.extensionRows.push(extensionRow);
+
+      let paymentRow: PaymentRow | null = null;
+      if (payment) {
+        const row = {
+          ...payment,
+          kind: 'EXTENSION' as const,
+          bookingId: b.id,
+          status: 'INITIATED' as const,
+          authorizationUrl: null,
+          paidAt: null,
+          failureCode: null,
+          createdAt: at,
+          feesKobo: null,
+          channel: null,
+          cardLast4: null,
+          cardBrand: null,
+          accessCode: null,
+        };
+        this.paymentRows.push(row);
+        paymentRow = this.publicPayment(row);
+      }
+      return { extension: { ...extensionRow }, payment: paymentRow };
+    },
+
+    confirmExtension: async (extensionId, paymentId, at) => {
+      const ext = this.extensionRows.find((r) => r.id === extensionId);
+      if (!ext) throw new Error('EXTENSION_NOT_FOUND');
+      if (ext.status !== 'PENDING_PAYMENT')
+        throw new Error('EXTENSION_ALREADY_CONFIRMED');
+      const b = this.bookingRows.find((r) => r.id === ext.bookingId);
+      if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+
+      const slots = this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null);
+      for (const s of slots) {
+        s.held -= 1;
+        s.booked += 1;
+      }
+      ext.status = 'CONFIRMED';
+      ext.paymentId = paymentId;
+      b.endAt = ext.newEndAt;
+      b.priceKobo += ext.priceKobo;
+      b.totalKobo += ext.priceKobo;
+      return { ...b };
+    },
+
+    findExtension: async (id) => {
+      const ext = this.extensionRows.find((r) => r.id === id);
+      return ext ? { ...ext } : null;
+    },
+
+    cancel: async (bookingId, actor, actorId, reason, refund, at) => {
+      const b = this.bookingRows.find((r) => r.id === bookingId);
+      if (!b) throw new BookingHoldError('BOOKING_NOT_CANCELLABLE');
+      if (b.status !== 'PENDING_PAYMENT' && b.status !== 'CONFIRMED')
+        throw new BookingHoldError('BOOKING_NOT_CANCELLABLE');
+
+      if (b.status === 'CONFIRMED') this.move(b, 0, -1);
+      else if (b.status === 'PENDING_PAYMENT') this.move(b, -1, 0);
+
+      const fromStatus = b.status;
+      b.status = 'CANCELLED';
+      this.historyRows.push({
+        bookingId: b.id,
+        from: fromStatus,
+        to: 'CANCELLED',
+        actor,
+        reason,
+      });
+
+      let refundId: string | null = null;
+      if (refund && refund.amountKobo > 0) {
+        const p = this.paymentRows
+          .filter((p) => p.bookingId === bookingId && p.status === 'SUCCEEDED')
+          .slice(-1)[0];
+        if (!p) throw new Error(`no successful payment for booking ${bookingId}`);
+        refundId = randomUUID();
+        this.refundRows.push({
+          id: refundId,
+          paymentId: p.id,
+          amountKobo: refund.amountKobo,
+          reason: refund.reason,
+          providerRefundId: null,
+        });
+      }
+      return { booking: { ...b }, refundId };
+    },
   };
 
   readonly payments: Store['payments'] = {
@@ -258,6 +378,24 @@ export class MemoryBookings {
       const rows = this.paymentRows.filter((p) => p.bookingId === bookingId);
       const p = rows[rows.length - 1];
       return p ? this.publicPayment(p) : null;
+    },
+
+    create: async (payment, at) => {
+      const row = {
+        ...payment,
+        status: 'INITIATED' as const,
+        authorizationUrl: null,
+        paidAt: null,
+        failureCode: null,
+        createdAt: at,
+        feesKobo: null,
+        channel: null,
+        cardLast4: null,
+        cardBrand: null,
+        accessCode: null,
+      };
+      this.paymentRows.push(row);
+      return this.publicPayment(row);
     },
 
     checkoutStarted: async (id, checkout) => {
@@ -274,6 +412,54 @@ export class MemoryBookings {
       const p = this.payment(id);
       const b = this.bookingRows.find((r) => r.id === p.bookingId);
       if (!b) throw new Error(`payment ${id} has no booking`);
+
+      if (p.kind === 'EXTENSION') {
+        const ext = this.extensionRows.find((r) => r.paymentId === p.id);
+        if (charge.status === 'success') {
+          if (ext && ext.status === 'PENDING_PAYMENT') {
+            await this.bookings.confirmExtension(ext.id, p.id, new Date());
+          }
+          p.status = 'SUCCEEDED';
+          p.paidAt = charge.paidAt;
+          return {
+            decision: 'CONFIRM',
+            booking: { ...b },
+            payment: this.publicPayment(p),
+            refund: null,
+          };
+        } else {
+          p.status = 'FAILED';
+          return {
+            decision: 'FAIL',
+            booking: { ...b },
+            payment: this.publicPayment(p),
+            refund: null,
+          };
+        }
+      }
+
+      if (p.kind === 'OVERSTAY') {
+        if (charge.status === 'success') {
+          await this.onOverstayPaid?.(b.id);
+          p.status = 'SUCCEEDED';
+          p.paidAt = charge.paidAt;
+          return {
+            decision: 'CONFIRM',
+            booking: { ...b },
+            payment: this.publicPayment(p),
+            refund: null,
+          };
+        } else {
+          p.status = 'FAILED';
+          return {
+            decision: 'FAIL',
+            booking: { ...b },
+            payment: this.publicPayment(p),
+            refund: null,
+          };
+        }
+      }
+
       let decision = confirmDecision({
         payment: { status: p.status, amountKobo: p.amountKobo },
         verify: charge,

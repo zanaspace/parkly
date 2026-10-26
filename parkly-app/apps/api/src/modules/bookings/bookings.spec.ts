@@ -662,3 +662,251 @@ describe('Paystack webhook sender check (doc 02 §6.9)', () => {
     expect((await send('52.31.139.75')).status).toBe(200);
   });
 });
+
+describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
+  it('extends a confirmed booking, creates an extension hold and starts checkout', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    // Confirm initial booking
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Extend by 1 hour (from 09:00 to 10:00 UTC)
+    const newEnd = '2026-10-20T10:00:00.000Z';
+    const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: newEnd },
+    });
+    expect(extRes.status).toBe(200);
+    const body = extRes.body as any;
+    expect(body.extension).toMatchObject({
+      bookingId: created.booking.id,
+      addedMinutes: 60,
+      priceKobo: 50_000,
+      status: 'PENDING_PAYMENT',
+    });
+    expect(body.payment).toMatchObject({
+      status: 'PENDING',
+      authorizationUrl: expect.stringContaining('https://checkout.fake/'),
+    });
+
+    // Verify payment for extension
+    t.payments.pay(body.payment.reference);
+    const verifyRes = await t.call('POST', `/v1/payments/${body.payment.reference}/verify`, {
+      as: driver.id,
+    });
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body?.booking).toMatchObject({
+      endAt: newEnd,
+      priceKobo: 150_000, // ₦1,000 + ₦500
+      totalKobo: 160_000, // ₦1,500 + ₦100 fee
+    });
+    const extRow = await t.store.bookings.findExtension(body.extension.id);
+    expect(extRow?.status).toBe('CONFIRMED');
+  });
+
+  it('auto-confirms extension with null payment when daily cap is reached (₦0 incremental price)', async () => {
+    const t = await setup();
+    // Update rate plan with daily cap of 100_000 (₦1,000)
+    t.store.ratePlanRows[0]!.dailyCapKobo = 100_000;
+
+    const driver = await t.newDriver();
+    // Book 2 hours: 2h * 500 = 1,000 -> hits the cap
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Extend by 1 hour (from 09:00 to 10:00 UTC) -> incremental quote is 0!
+    const newEnd = '2026-10-20T10:00:00.000Z';
+    const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: newEnd },
+    });
+    expect(extRes.status).toBe(200);
+    const body = extRes.body as any;
+    expect(body.extension).toMatchObject({
+      bookingId: created.booking.id,
+      addedMinutes: 60,
+      priceKobo: 0,
+      status: 'CONFIRMED',
+    });
+    expect(body.payment).toBeNull();
+    expect(body.booking).toMatchObject({
+      endAt: newEnd,
+      priceKobo: 100_000,
+    });
+  });
+
+  it('rejects extension if window is invalid or not slot-aligned', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Earlier or equal to endAt
+    const invalidTime = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: END },
+    });
+    expect(invalidTime.status).toBe(400);
+    expect(invalidTime.body?.code).toBe('BOOKING_WINDOW_INVALID');
+
+    // Not aligned to 15-min slot
+    const notAligned = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: '2026-10-20T09:07:00.000Z' },
+    });
+    expect(notAligned.status).toBe(400);
+    expect(notAligned.body?.code).toBe('BOOKING_WINDOW_INVALID');
+  });
+
+  it('rejects extension if car park is closed during window', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Lot closes at 22:00 Lagos (21:00 UTC)
+    const afterHours = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: '2026-10-20T22:00:00.000Z' },
+    });
+    expect(afterHours.status).toBe(422);
+    expect(afterHours.body?.code).toBe('BOOKING_OUTSIDE_OPENING_HOURS');
+  });
+
+  it('rejects extension if booking is not in extendable status', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    // Initial booking is still PENDING_PAYMENT (not CONFIRMED or CHECKED_IN)
+    const res = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+    });
+    expect(res.status).toBe(409);
+    expect(res.body?.code).toBe('BOOKING_NOT_EXTENDABLE');
+  });
+});
+
+describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
+  it('cancels confirmed booking >= 30m before start with 100% refund', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Cancel now (Monday morning, booking starts Tuesday morning -> > 30m)
+    const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      body: { reason: 'Plans changed' },
+    });
+    expect(cancelRes.status).toBe(200);
+    const body = cancelRes.body as any;
+    expect(body.isFreeCancellation).toBe(true);
+    expect(body.refundKobo).toBe(110_000); // 100% refund of parking + service fee
+    expect(body.booking.status).toBe('CANCELLED');
+
+    // Refund row saved and requested
+    expect(t.store.booking.refundRows).toHaveLength(1);
+    expect(t.store.booking.refundRows[0]?.amountKobo).toBe(110_000);
+  });
+
+  it('cancels confirmed booking < 30m before start with 0 refund', async () => {
+    // START is 2026-10-20T07:00:00.000Z
+    // 10 minutes before start:
+    const lateNow = new Date('2026-10-20T06:50:00.000Z');
+    const t = await setup({}, { now: () => lateNow });
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+    });
+    expect(cancelRes.status).toBe(200);
+    const body = cancelRes.body as any;
+    expect(body.isFreeCancellation).toBe(false);
+    expect(body.refundKobo).toBe(0);
+    expect(body.booking.status).toBe('CANCELLED');
+    expect(t.store.booking.refundRows).toHaveLength(0);
+  });
+
+  it('rejects cancellation when already CANCELLED', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, { as: driver.id });
+
+    const secondCancel = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+    });
+    expect(secondCancel.status).toBe(409);
+    expect(secondCancel.body?.code).toBe('BOOKING_NOT_CANCELLABLE');
+  });
+});
+
+describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
+  it('rejects overstay payment when no overstay is due', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+    });
+    expect(res.status).toBe(409);
+    expect(res.body?.code).toBe('OVERSTAY_NOT_DUE');
+  });
+
+  it('initiates and settles overstay payment', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // Seed session with overstay due
+    const sessionId = randomUUID();
+    t.store.attending.sessionRows.push({
+      id: sessionId,
+      bookingId: created.booking.id,
+      lotId: t.lot.id,
+      plateNorm: 'LND123AB',
+      checkInAt: new Date(START),
+      checkOutAt: new Date(new Date(END).getTime() + 45 * 60_000), // 45m late
+      overstayMinutes: 35,
+      overstayAmountKobo: 37_500,
+      overstayStatus: 'DUE',
+      flags: [],
+    });
+
+    const payRes = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+    });
+    expect(payRes.status).toBe(200);
+    const body = payRes.body as any;
+    expect(body.amountKobo).toBe(37_500);
+    expect(body.payment).toMatchObject({
+      status: 'PENDING',
+      authorizationUrl: expect.stringContaining('https://checkout.fake/'),
+    });
+
+    // Settle overstay payment
+    t.payments.pay(body.payment.reference);
+    const verifyRes = await t.call('POST', `/v1/payments/${body.payment.reference}/verify`, {
+      as: driver.id,
+    });
+    expect(verifyRes.status).toBe(200);
+    const session = await t.store.attend.sessionByBooking(created.booking.id);
+    expect(session?.overstayStatus).toBe('PAID');
+  });
+});
+

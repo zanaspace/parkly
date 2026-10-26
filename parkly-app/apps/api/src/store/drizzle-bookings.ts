@@ -1,12 +1,21 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { accountType, confirmDecision, isBalanced, type JournalLine } from '@parkly/domain/booking';
+import {
+  accountType,
+  bookingPaymentJournal,
+  cancellationRefundJournal,
+  confirmDecision,
+  isBalanced,
+  providerFeeJournal,
+  type JournalLine,
+} from '@parkly/domain/booking';
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { settlePlan, type SettlePlan } from './settle-plan.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
+  type BookingExtensionRow,
   type BookingHoldCode,
   type BookingRow,
   type PaymentRow,
@@ -15,6 +24,7 @@ import {
 
 const {
   bookings,
+  bookingExtensions,
   bookingStatusHistory,
   payments,
   refunds,
@@ -31,6 +41,9 @@ const HOLD_CODES = new Set<BookingHoldCode>([
   'BOOKING_OVERLAP_SAME_VEHICLE',
   'LOT_NOT_BOOKABLE',
   'BOOKING_WINDOW_INVALID',
+  'BOOKING_NOT_EXTENDABLE',
+  'BOOKING_NOT_CANCELLABLE',
+  'EXTENSION_UNAVAILABLE',
 ]);
 const LIVE = ['PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN'] as const;
 
@@ -64,6 +77,7 @@ const bookingColumns = {
 
 const paymentColumns = {
   id: payments.id,
+  kind: payments.kind,
   bookingId: payments.bookingId,
   payerUserId: payments.payerUserId,
   provider: payments.provider,
@@ -77,6 +91,20 @@ const paymentColumns = {
   paidAt: payments.paidAt,
   failureCode: payments.failureCode,
   createdAt: payments.createdAt,
+};
+
+const extensionColumns = {
+  id: bookingExtensions.id,
+  bookingId: bookingExtensions.bookingId,
+  startAt: bookingExtensions.startAt,
+  newEndAt: bookingExtensions.newEndAt,
+  addedMinutes: bookingExtensions.addedMinutes,
+  priceKobo: bookingExtensions.priceKobo,
+  platformAmountKobo: bookingExtensions.platformAmountKobo,
+  operatorAmountKobo: bookingExtensions.operatorAmountKobo,
+  paymentId: bookingExtensions.paymentId,
+  status: bookingExtensions.status,
+  createdAt: bookingExtensions.createdAt,
 };
 
 // The bookings CHECK limits product to HOURLY/DAILY; the column type is the shared enum.
@@ -279,6 +307,153 @@ export function drizzleBookings(
             .where(and(eq(payments.bookingId, id), eq(payments.status, 'INITIATED')));
         });
       },
+
+      async holdExtension(ext, payment, at) {
+        try {
+          return await db.transaction(async (tx) => {
+            await tx.execute(sql`select public.fn_hold_extension(
+              ${ext.id}::uuid, ${ext.bookingId}::uuid, ${ext.newEndAt.toISOString()}::timestamptz,
+              ${ext.priceKobo}, ${ext.platformAmountKobo}, ${ext.operatorAmountKobo}
+            )`);
+
+            let paymentRow: PaymentRow | null = null;
+            if (payment) {
+              await tx.insert(payments).values({
+                ...payment,
+                kind: 'EXTENSION',
+                bookingId: ext.bookingId,
+                providerReference: payment.id,
+                createdAt: at,
+                updatedAt: at,
+              });
+              await tx
+                .update(bookingExtensions)
+                .set({ paymentId: payment.id })
+                .where(eq(bookingExtensions.id, ext.id));
+              const [row] = await tx
+                .select(paymentColumns)
+                .from(payments)
+                .where(eq(payments.id, payment.id));
+              if (row) paymentRow = asPayment(row);
+            }
+
+            const [extension] = await tx
+              .select(extensionColumns)
+              .from(bookingExtensions)
+              .where(eq(bookingExtensions.id, ext.id));
+            if (!extension) throw new Error('extension hold not saved');
+            return { extension: extension as BookingExtensionRow, payment: paymentRow };
+          });
+        } catch (err) {
+          const pg = pgError(err);
+          if (pg.message && HOLD_CODES.has(pg.message as BookingHoldCode)) {
+            throw new BookingHoldError(pg.message as BookingHoldCode);
+          }
+          throw err;
+        }
+      },
+
+      async confirmExtension(extensionId, paymentId, at) {
+        try {
+          return await db.transaction(async (tx) => {
+            await tx.execute(sql`select public.fn_confirm_extension(
+              ${extensionId}::uuid, ${paymentId ? sql`${paymentId}::uuid` : sql`null`}
+            )`);
+            const [ext] = await tx
+              .select(extensionColumns)
+              .from(bookingExtensions)
+              .where(eq(bookingExtensions.id, extensionId));
+            if (!ext) throw new Error(`extension ${extensionId} not found`);
+            const [b] = await tx
+              .select(bookingColumns)
+              .from(bookings)
+              .where(eq(bookings.id, ext.bookingId));
+            if (!b) throw new Error(`booking ${ext.bookingId} not found`);
+            return asBooking(b);
+          });
+        } catch (err) {
+          const pg = pgError(err);
+          if (pg.message && HOLD_CODES.has(pg.message as BookingHoldCode)) {
+            throw new BookingHoldError(pg.message as BookingHoldCode);
+          }
+          throw err;
+        }
+      },
+
+      async findExtension(id) {
+        const [row] = await db
+          .select(extensionColumns)
+          .from(bookingExtensions)
+          .where(eq(bookingExtensions.id, id));
+        return (row as BookingExtensionRow) ?? null;
+      },
+
+      async cancel(bookingId, actor, actorId, reason, refund, at) {
+        try {
+          return await db.transaction(async (tx) => {
+            await tx.execute(sql`select public.fn_cancel_booking(
+              ${bookingId}::uuid, ${actor}::public.booking_actor, ${actorId}::uuid, ${reason}
+            )`);
+
+            let refundId: string | null = null;
+            if (refund && refund.amountKobo > 0) {
+              const [payment] = await tx
+                .select(paymentColumns)
+                .from(payments)
+                .where(and(eq(payments.bookingId, bookingId), eq(payments.status, 'SUCCEEDED')))
+                .orderBy(desc(payments.createdAt))
+                .limit(1);
+              if (!payment) throw new Error(`no successful payment for booking ${bookingId}`);
+
+              const [b] = await tx
+                .select(bookingColumns)
+                .from(bookings)
+                .where(eq(bookings.id, bookingId));
+              if (!b) throw new Error(`booking ${bookingId} not found`);
+
+              refundId = uuidv7();
+              await tx.insert(refunds).values({
+                id: refundId,
+                paymentId: payment.id,
+                amountKobo: refund.amountKobo,
+                reason: refund.reason,
+                status: 'PENDING',
+                requestedBy: actorId,
+                createdAt: at,
+                updatedAt: at,
+              });
+
+              const lines = cancellationRefundJournal({
+                payment: {
+                  provider: payment.provider,
+                  operatorId: payment.operatorId,
+                  priceKobo: b.priceKobo,
+                  serviceFeeKobo: b.serviceFeeKobo,
+                  commissionBps: b.commissionBps,
+                },
+                refundPriceKobo: refund.refundPriceKobo,
+                refundServiceFeeKobo: refund.refundServiceFeeKobo,
+              });
+              if (lines.length > 0) {
+                await postJournal(tx, lines, payment.id);
+              }
+            }
+
+            const [b] = await tx
+              .select(bookingColumns)
+              .from(bookings)
+              .where(eq(bookings.id, bookingId));
+            if (!b) throw new Error(`booking ${bookingId} not found`);
+            return { booking: asBooking(b), refundId };
+          });
+        } catch (err) {
+          const pg = pgError(err);
+          if (pg.message && HOLD_CODES.has(pg.message as BookingHoldCode)) {
+            throw new BookingHoldError(pg.message as BookingHoldCode);
+          }
+          throw err;
+        }
+      },
     },
 
     payments: {
@@ -295,6 +470,18 @@ export function drizzleBookings(
           .orderBy(desc(payments.createdAt))
           .limit(1);
         return row ? asPayment(row) : null;
+      },
+
+      async create(payment, at) {
+        await db.insert(payments).values({
+          ...payment,
+          providerReference: payment.id,
+          createdAt: at,
+          updatedAt: at,
+        });
+        const [row] = await db.select(paymentColumns).from(payments).where(eq(payments.id, payment.id));
+        if (!row) throw new Error('payment not created');
+        return asPayment(row);
       },
 
       async checkoutStarted(id, checkout, at) {
@@ -328,6 +515,106 @@ export function drizzleBookings(
           if (!b) throw new Error(`payment ${id} has no booking`);
           const booking = asBooking(b);
           const payment = asPayment(p);
+
+          if (payment.kind === 'EXTENSION') {
+            if (charge.status === 'success') {
+              const [ext] = await tx
+                .select(extensionColumns)
+                .from(bookingExtensions)
+                .where(eq(bookingExtensions.paymentId, p.id));
+              if (ext && ext.status === 'PENDING_PAYMENT') {
+                await tx.execute(
+                  sql`select public.fn_confirm_extension(${ext.id}::uuid, ${p.id}::uuid)`,
+                );
+              }
+              const journals = [
+                bookingPaymentJournal({
+                  provider: payment.provider,
+                  operatorId: payment.operatorId,
+                  priceKobo: payment.amountKobo,
+                  serviceFeeKobo: 0,
+                  commissionBps: booking.commissionBps,
+                }),
+              ];
+              const fee = providerFeeJournal({
+                provider: payment.provider,
+                feesKobo: charge.feesKobo ?? 0,
+              });
+              if (fee.length > 0) journals.push(fee);
+              for (const lines of journals) await postJournal(tx, lines, p.id);
+              await tx
+                .update(payments)
+                .set({
+                  status: 'SUCCEEDED',
+                  paidAt: charge.paidAt,
+                  feesKobo: charge.feesKobo,
+                  channel: charge.channel,
+                  cardLast4: charge.cardLast4,
+                  cardBrand: charge.cardBrand,
+                  updatedAt: at,
+                })
+                .where(eq(payments.id, p.id));
+              const [after] = await tx
+                .select(bookingColumns)
+                .from(bookings)
+                .where(eq(bookings.id, booking.id));
+              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
+              return { decision: 'CONFIRM', booking: asBooking(after!), payment: asPayment(paid!), refund: null };
+            } else {
+              await tx
+                .update(payments)
+                .set({ status: 'FAILED', failureCode: charge.status.slice(0, 64), updatedAt: at })
+                .where(eq(payments.id, p.id));
+              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
+              return { decision: 'FAIL', booking, payment: asPayment(paid!), refund: null };
+            }
+          }
+
+          if (payment.kind === 'OVERSTAY') {
+            if (charge.status === 'success') {
+              await tx.execute(sql`select public.fn_mark_overstay_paid(${booking.id}::uuid)`);
+              const journals = [
+                bookingPaymentJournal({
+                  provider: payment.provider,
+                  operatorId: payment.operatorId,
+                  priceKobo: payment.amountKobo,
+                  serviceFeeKobo: 0,
+                  commissionBps: booking.commissionBps,
+                }),
+              ];
+              const fee = providerFeeJournal({
+                provider: payment.provider,
+                feesKobo: charge.feesKobo ?? 0,
+              });
+              if (fee.length > 0) journals.push(fee);
+              for (const lines of journals) await postJournal(tx, lines, p.id);
+              await tx
+                .update(payments)
+                .set({
+                  status: 'SUCCEEDED',
+                  paidAt: charge.paidAt,
+                  feesKobo: charge.feesKobo,
+                  channel: charge.channel,
+                  cardLast4: charge.cardLast4,
+                  cardBrand: charge.cardBrand,
+                  updatedAt: at,
+                })
+                .where(eq(payments.id, p.id));
+              const [after] = await tx
+                .select(bookingColumns)
+                .from(bookings)
+                .where(eq(bookings.id, booking.id));
+              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
+              return { decision: 'CONFIRM', booking: asBooking(after!), payment: asPayment(paid!), refund: null };
+            } else {
+              await tx
+                .update(payments)
+                .set({ status: 'FAILED', failureCode: charge.status.slice(0, 64), updatedAt: at })
+                .where(eq(payments.id, p.id));
+              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
+              return { decision: 'FAIL', booking, payment: asPayment(paid!), refund: null };
+            }
+          }
 
           let decision = confirmDecision({
             payment: { status: payment.status, amountKobo: payment.amountKobo },
