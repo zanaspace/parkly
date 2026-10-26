@@ -6,6 +6,7 @@ import {
   CancelBookingResponseSchema,
   CreateBookingResponseSchema,
   ExtendBookingResponseSchema,
+  ExtensionOptionsSchema,
   OverstayPayResponseSchema,
   SelfCheckResultSchema,
   type Booking,
@@ -16,6 +17,7 @@ import {
   type CreateBookingResponse,
   type ExtendBookingRequest,
   type ExtendBookingResponse,
+  type ExtensionOptions,
   type OverstayPayRequest,
   type OverstayPayResponse,
   type SelfCheckRequest,
@@ -119,14 +121,16 @@ export function createApiClient(options: ApiClientOptions) {
     if (!res.ok) {
       const problem = (data ?? {}) as {
         code?: string;
+        detail?: string;
         errors?: { path: string; message: string }[];
       };
       const retry =
         res.status === 429 ? retryAfterSeconds(res.headers.get('retry-after'), now()) : null;
+      const message = problem.detail || messageForCode(problem.code);
       throw new ApiError(
         res.status,
         problem.code,
-        messageForCode(problem.code),
+        message,
         retry,
         problem.errors ?? [],
       );
@@ -237,6 +241,14 @@ export function createApiClient(options: ApiClientOptions) {
         undefined,
         VerifyPaymentResponseSchema,
       ),
+    /** FR-BOOK-005: loads extension options and available window. */
+    extensionOptions: (id: string) =>
+      request<ExtensionOptions>(
+        'GET',
+        `/v1/bookings/${encodeURIComponent(id)}/extensions/options`,
+        undefined,
+        ExtensionOptionsSchema,
+      ),
     /** FR-BOOK-005: extends an active booking. */
     extendBooking: (id: string, body: ExtendBookingRequest, idempotencyKey: string) =>
       request<ExtendBookingResponse>(
@@ -272,8 +284,12 @@ export function createApiClient(options: ApiClientOptions) {
         undefined,
         BookingReceiptSchema,
       ),
-    /** Full HTML receipt URL for opening in browser or sharing. */
-    receiptUrl: (id: string) => `${base}/v1/bookings/${encodeURIComponent(id)}/receipt?format=html`,
+    /** Full HTML receipt URL for opening in browser or sharing, with auth token included. */
+    receiptUrl: async (id: string) => {
+      const token = await options.getAccessToken();
+      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+      return `${base}/v1/bookings/${encodeURIComponent(id)}/receipt?format=html${tokenParam}`;
+    },
     /** Registers device and push token for transaction alerts and stay reminders. */
     registerDevice: (body: {
       deviceId: string;

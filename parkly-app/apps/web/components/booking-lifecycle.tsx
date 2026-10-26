@@ -1,12 +1,13 @@
 'use client';
 
-import type { Booking } from '@parkly/contracts';
+import type { Booking, ExtensionOptions } from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   cancelBooking,
   extendBooking,
+  getExtensionOptions,
   payOverstay,
   type CancelBookingResult,
   type ExtendBookingResult,
@@ -56,8 +57,30 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
   // Extend Modal State
   const [extendOpen, setExtendOpen] = useState(false);
   const [selectedMinutes, setSelectedMinutes] = useState(30);
+  const [extensionOptions, setExtensionOptions] = useState<ExtensionOptions | null>(null);
   const [extending, setExtending] = useState(false);
   const [extendError, setExtendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (extendOpen) {
+      getExtensionOptions(booking.id)
+        .then((opts) => {
+          setExtensionOptions(opts);
+          if (opts?.extendableUntil) {
+            const maxMs = new Date(opts.extendableUntil).getTime();
+            const curEndMs = new Date(booking.endAt).getTime();
+            const allowed = DURATION_OPTIONS.filter(
+              (o) => curEndMs + o.minutes * 60_000 <= maxMs,
+            );
+            const first = allowed[0];
+            if (first && !allowed.some((a) => a.minutes === selectedMinutes)) {
+              setSelectedMinutes(first.minutes);
+            }
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [extendOpen, booking.id, booking.endAt]);
 
   // Cancel Modal State
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -283,21 +306,50 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                 </div>
               </div>
 
+              {extensionOptions && extensionOptions.extendableUntil === null ? (
+                <div className="pk-policy-banner pk-policy-banner--amber">
+                  <div style={{ color: '#f59e0b', flexShrink: 0 }}>
+                    <AlertCircleIcon size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.9rem', color: '#f59e0b' }}>
+                      Car Park Closing
+                    </strong>
+                    <span style={{ fontSize: '0.825rem', color: '#9da8b3' }}>
+                      {extensionOptions.closesAt
+                        ? `The car park closes at ${formatTime(extensionOptions.closesAt)}${extensionOptions.reopensAt ? ` and reopens ${formatTime(extensionOptions.reopensAt)}` : ''}. No extension is available.`
+                        : 'The car park is closed during the extension window.'}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
               <div>
                 <label className="pk-input-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
                   Select Extension Duration
                 </label>
                 <div className="pk-chips-grid">
-                  {DURATION_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.minutes}
-                      type="button"
-                      className={`pk-chip ${selectedMinutes === opt.minutes ? 'pk-chip--active' : ''}`}
-                      onClick={() => setSelectedMinutes(opt.minutes)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                  {DURATION_OPTIONS.map((opt) => {
+                    const isPastClosing = Boolean(
+                      extensionOptions &&
+                        (extensionOptions.extendableUntil === null ||
+                          new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
+                            new Date(extensionOptions.extendableUntil).getTime()),
+                    );
+                    return (
+                      <button
+                        key={opt.minutes}
+                        type="button"
+                        disabled={isPastClosing}
+                        className={`pk-chip ${selectedMinutes === opt.minutes ? 'pk-chip--active' : ''}`}
+                        style={isPastClosing ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                        onClick={() => setSelectedMinutes(opt.minutes)}
+                        title={isPastClosing ? 'Past car park closing time' : undefined}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -331,7 +383,15 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                 type="button"
                 className="pk-btn-primary"
                 onClick={handleExtendSubmit}
-                disabled={extending}
+                disabled={
+                  extending ||
+                  Boolean(
+                    extensionOptions &&
+                      (extensionOptions.extendableUntil === null ||
+                        new Date(booking.endAt).getTime() + selectedMinutes * 60_000 >
+                          new Date(extensionOptions.extendableUntil).getTime()),
+                  )
+                }
               >
                 {extending ? 'Processing...' : `Confirm +${selectedMinutes} Mins`}
               </button>

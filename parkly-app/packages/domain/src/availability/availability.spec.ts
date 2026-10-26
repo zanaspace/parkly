@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availableInWindow,
   checkSearchWindow,
+  extensionWindow,
   isOpenDuring,
   type BookingWindowLimits,
 } from './availability.js';
@@ -140,5 +141,71 @@ describe('isOpenDuring (doc 03 §1.2: "Closed at that time")', () => {
   it('treats a daily stay as open when each day it touches has hours', () => {
     expect(open(weekdays, '2026-10-20 00:00', '2026-10-21 00:00', 'DAILY')).toBe(true);
     expect(open(weekdays, '2026-10-17 00:00', '2026-10-18 00:00', 'DAILY')).toBe(false); // Saturday
+  });
+});
+
+describe('extensionWindow (FR-BOOK-005: how far a stay can be extended)', () => {
+  // Monday 2026-10-26 open 24h, Tuesday 07:00–22:00 (the reported case).
+  const mondayAllDay: OpeningDay[] = [
+    { weekday: 1, is24h: true },
+    { weekday: 2, is24h: false, opensAt: '07:00', closesAt: '22:00' },
+  ];
+  const window = (
+    hours: OpeningDay[],
+    currentEnd: string,
+    maxEnd: string,
+    product: 'HOURLY' | 'DAILY' = 'HOURLY',
+  ) =>
+    extensionWindow({
+      hours,
+      currentEndAt: lagos(currentEnd),
+      maxEndAt: lagos(maxEnd),
+      product,
+    });
+
+  it('cannot extend past midnight when the next day opens later, and says when it reopens', () => {
+    const w = window(mondayAllDay, '2026-10-27 00:00', '2026-10-27 22:00');
+    expect(w.extendableUntil).toBeNull();
+    expect(w.closesAt).toEqual(lagos('2026-10-27 00:00'));
+    expect(w.reopensAt).toEqual(lagos('2026-10-27 07:00'));
+  });
+
+  it('runs straight through consecutive 24-hour days up to the cap', () => {
+    const allWeek: OpeningDay[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, is24h: true }));
+    const w = window(allWeek, '2026-10-27 00:00', '2026-10-27 06:00');
+    expect(w).toEqual({
+      extendableUntil: lagos('2026-10-27 06:00'),
+      closesAt: null,
+      reopensAt: null,
+    });
+  });
+
+  it('stops at the closing time later the same day', () => {
+    const w = window(mondayAllDay, '2026-10-27 20:00', '2026-10-28 08:00');
+    expect(w.extendableUntil).toEqual(lagos('2026-10-27 22:00'));
+    expect(w.closesAt).toEqual(lagos('2026-10-27 22:00'));
+    // Wednesday has no hours and nothing else opens within a week but next Monday.
+    expect(w.reopensAt).toEqual(lagos('2026-11-02 00:00'));
+  });
+
+  it('has nothing to offer when the cap is already reached', () => {
+    expect(window(mondayAllDay, '2026-10-26 20:00', '2026-10-26 20:00')).toEqual({
+      extendableUntil: null,
+      closesAt: null,
+      reopensAt: null,
+    });
+  });
+
+  it('reports no reopening when the car park has no hours at all', () => {
+    const w = window([], '2026-10-26 20:00', '2026-10-26 23:00');
+    expect(w.extendableUntil).toBeNull();
+    expect(w.closesAt).toEqual(lagos('2026-10-26 20:00'));
+    expect(w.reopensAt).toBeNull();
+  });
+
+  it('stops a daily stay at the first day without hours', () => {
+    const w = window(mondayAllDay, '2026-10-27 00:00', '2026-10-28 12:00', 'DAILY');
+    expect(w.extendableUntil).toEqual(lagos('2026-10-28 00:00'));
+    expect(w.closesAt).toEqual(lagos('2026-10-28 00:00'));
   });
 });

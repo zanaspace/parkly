@@ -5,6 +5,7 @@ import type { MemoryStore } from '../../store/memory.js';
 import type { AppDeps } from '../../app.js';
 import { settlePaymentsJob } from '../../jobs/settle-payments.js';
 import { TEST_NOW, testDeps, world } from '../../test-helpers.js';
+import { closedForExtensionDetail } from './routes.js';
 
 // TEST_NOW is Monday 2026-10-19 09:00 Lagos. Tomorrow 08:00–10:00 Lagos:
 const START = '2026-10-20T07:00:00.000Z';
@@ -776,6 +777,87 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     });
     expect(afterHours.status).toBe(422);
     expect(afterHours.body?.code).toBe('BOOKING_OUTSIDE_OPENING_HOURS');
+    // Says exactly when it closes and reopens, in Lagos time.
+    expect(afterHours.body?.detail).toBe('The car park closes at 22:00 and reopens Wed 06:00');
+  });
+
+  it('lists how far a stay can be extended before the car park closes', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('GET', `/v1/bookings/${created.booking.id}/extensions/options`, {
+      as: driver.id,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      extendable: true,
+      extendableUntil: '2026-10-20T21:00:00.000Z', // 22:00 Lagos
+      closesAt: '2026-10-20T21:00:00.000Z',
+      reopensAt: '2026-10-21T05:00:00.000Z', // Wed 06:00 Lagos
+      maxEndAt: '2026-10-21T07:00:00.000Z', // start + 24h
+    });
+  });
+
+  it('runs through back-to-back 24-hour days up to the longest stay allowed', async () => {
+    const t = await setup();
+    await t.store.lots.setOpeningHours(
+      t.lot.id,
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        weekday,
+        is24h: true,
+        opensAt: null,
+        closesAt: null,
+      })),
+    );
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('GET', `/v1/bookings/${created.booking.id}/extensions/options`, {
+      as: driver.id,
+    });
+    expect(res.body).toMatchObject({
+      extendable: true,
+      extendableUntil: '2026-10-21T07:00:00.000Z',
+      closesAt: null,
+      reopensAt: null,
+    });
+  });
+
+  it('offers nothing for an unpaid booking and hides other drivers’ bookings', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+
+    const unpaid = await t.call('GET', `/v1/bookings/${created.booking.id}/extensions/options`, {
+      as: driver.id,
+    });
+    expect(unpaid.body).toMatchObject({ extendable: false, extendableUntil: null });
+
+    const stranger = await t.newDriver();
+    const other = await t.call('GET', `/v1/bookings/${created.booking.id}/extensions/options`, {
+      as: stranger.id,
+    });
+    expect([other.status, other.body?.code]).toEqual([404, 'BOOKING_NOT_FOUND']);
+  });
+
+  it('words the closed-hours refusal for each case', () => {
+    expect(closedForExtensionDetail(null, null)).toBe(
+      'The car park is closed during the extension window',
+    );
+    expect(closedForExtensionDetail(new Date('2026-10-26T23:00:00Z'), null)).toBe(
+      'The car park closes at 00:00, so this stay can’t be extended',
+    );
+    expect(
+      closedForExtensionDetail(
+        new Date('2026-10-26T23:00:00Z'),
+        new Date('2026-10-27T06:00:00Z'),
+      ),
+    ).toBe('The car park closes at 00:00 and reopens Tue 07:00');
   });
 
   it('rejects extension if booking is not in extendable status', async () => {

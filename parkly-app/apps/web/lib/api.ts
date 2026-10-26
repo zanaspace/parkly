@@ -8,8 +8,9 @@ export class ApiProblem extends Error {
   constructor(
     readonly status: number,
     readonly code: ErrorCode | 'UNKNOWN',
+    readonly detail?: string,
   ) {
-    super(code);
+    super(detail ?? code);
     this.name = 'ApiProblem';
   }
 }
@@ -31,10 +32,13 @@ export async function api<T>(
   });
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    const code = (body as { code?: unknown } | null)?.code;
+    const json = body as { code?: unknown; detail?: unknown } | null;
+    const code = json?.code;
+    const detail = typeof json?.detail === 'string' ? json.detail : undefined;
     throw new ApiProblem(
       res.status,
       typeof code === 'string' && code in ERROR_STATUS ? (code as ErrorCode) : 'UNKNOWN',
+      detail,
     );
   }
   return body as T;
@@ -59,10 +63,13 @@ export async function apiAs<T>(
   if (res.status === 204) return undefined as T;
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    const code = (body as { code?: unknown } | null)?.code;
+    const json = body as { code?: unknown; detail?: unknown } | null;
+    const code = json?.code;
+    const detail = typeof json?.detail === 'string' ? json.detail : undefined;
     throw new ApiProblem(
       res.status,
       typeof code === 'string' && code in ERROR_STATUS ? (code as ErrorCode) : 'UNKNOWN',
+      detail,
     );
   }
   return body as T;

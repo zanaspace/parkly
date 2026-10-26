@@ -11,6 +11,7 @@ import {
   CreateBookingResponseSchema,
   ExtendBookingRequestSchema,
   ExtendBookingResponseSchema,
+  ExtensionOptionsSchema,
   OverstayPayRequestSchema,
   OverstayPayResponseSchema,
   VerifyPaymentResponseSchema,
@@ -19,7 +20,7 @@ import {
   type Checkout,
   type CreateBookingResponse,
 } from '@parkly/contracts';
-import { checkSearchWindow, isOpenDuring } from '@parkly/domain/availability';
+import { checkSearchWindow, extensionWindow, isOpenDuring } from '@parkly/domain/availability';
 import {
   calculateExtensionQuote,
   cancellationPolicy,
@@ -59,6 +60,22 @@ const CODE_ATTEMPTS = 3;
 
 /** Paystack needs an email; phone-only drivers get a per-driver address that is never mailed by us. */
 const checkoutEmail = (userId: string) => `driver-${userId}@users.parkly.ng`;
+
+/** Longest stay an extension may reach, measured from the booking's start (doc 02 §4). */
+const MAX_EXTENDED_STAY_MIN = 24 * 60;
+
+const lagosClock = (d: Date) =>
+  d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
+const lagosDay = (d: Date) =>
+  d.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Africa/Lagos' });
+
+/** "The car park closes at 00:00 and reopens Tue 07:00." (Lagos time) */
+export function closedForExtensionDetail(closesAt: Date | null, reopensAt: Date | null): string {
+  if (!closesAt) return 'The car park is closed during the extension window';
+  const closes = `The car park closes at ${lagosClock(closesAt)}`;
+  if (!reopensAt) return `${closes}, so this stay can’t be extended`;
+  return `${closes} and reopens ${lagosDay(reopensAt)} ${lagosClock(reopensAt)}`;
+}
 
 export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
   reference: p.id,
@@ -501,6 +518,54 @@ export function bookingRoutes(deps: AppDeps) {
     },
   );
 
+  // FR-BOOK-005: how far this stay can be extended, so clients only offer valid durations.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/bookings/{id}/extensions/options',
+      tags: ['bookings'],
+      ...secured,
+      request: { params: z.object({ id: z.uuid() }) },
+      responses: {
+        200: { description: 'Extension options', ...json(ExtensionOptionsSchema) },
+      },
+    }),
+    async (c) => {
+      const booking = await ownBooking(c, c.req.valid('param').id);
+      const maxEndAt = new Date(booking.startAt.getTime() + MAX_EXTENDED_STAY_MIN * 60_000);
+      const extendable = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
+      if (!extendable) {
+        return c.json(
+          {
+            extendable: false,
+            extendableUntil: null,
+            closesAt: null,
+            reopensAt: null,
+            maxEndAt: maxEndAt.toISOString(),
+          },
+          200,
+        );
+      }
+      const hours = await deps.store.lots.openingHours(booking.lotId);
+      const w = extensionWindow({
+        hours: hours.map(toOpeningDay),
+        currentEndAt: booking.endAt,
+        maxEndAt,
+        product: booking.product,
+      });
+      return c.json(
+        {
+          extendable: true,
+          extendableUntil: w.extendableUntil?.toISOString() ?? null,
+          closesAt: w.closesAt?.toISOString() ?? null,
+          reopensAt: w.reopensAt?.toISOString() ?? null,
+          maxEndAt: maxEndAt.toISOString(),
+        },
+        200,
+      );
+    },
+  );
+
   // FR-BOOK-005: extend a booking forward on the 15-minute grid.
   app.openapi(
     createRoute({
@@ -530,7 +595,7 @@ export function bookingRoutes(deps: AppDeps) {
         newEndAt,
         now,
         status: booking.status,
-        maxDurationMinutes: 24 * 60,
+        maxDurationMinutes: MAX_EXTENDED_STAY_MIN,
       });
       if (!validation.ok) {
         if (validation.code === 'BOOKING_NOT_EXTENDABLE') {
@@ -540,18 +605,24 @@ export function bookingRoutes(deps: AppDeps) {
       }
 
       const lot = await lotOf(booking.lotId);
-      const hours = await deps.store.lots.openingHours(lot.id);
+      const hours = (await deps.store.lots.openingHours(lot.id)).map(toOpeningDay);
       if (
         !isOpenDuring({
-          hours: hours.map(toOpeningDay),
+          hours,
           startAt: booking.endAt,
           endAt: newEndAt,
           product: booking.product,
         })
       ) {
+        const w = extensionWindow({
+          hours,
+          currentEndAt: booking.endAt,
+          maxEndAt: newEndAt,
+          product: booking.product,
+        });
         throw new ApiError(
           'BOOKING_OUTSIDE_OPENING_HOURS',
-          'The car park is closed during the extension window',
+          closedForExtensionDetail(w.closesAt, w.reopensAt),
         );
       }
 
