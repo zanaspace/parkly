@@ -18,6 +18,7 @@ import {
   ShieldCheckIcon,
   TicketIcon,
 } from '../../../components/icons';
+import { BookingLifecycleActions } from '../../../components/booking-lifecycle';
 import { QrCode } from '../../../components/qr-code';
 import { SelfCheckinAction } from '../../../components/self-checkin';
 import { StayTimer } from '../../../components/stay-timer';
@@ -197,8 +198,11 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
 
           <SelfCheckinAction booking={booking} />
           <StayTimer booking={booking} />
+          <BookingLifecycleActions booking={booking} />
         </section>
       )}
+
+      {!confirmed && <BookingLifecycleActions booking={booking} />}
 
       {/* Structured 2-Column Responsive Detail Grid */}
       <div className="pk-booking-detail-grid">
@@ -281,6 +285,19 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
               totalLabel={isPaid ? 'Total Paid' : 'Total Quote'}
               totalAmount={formatNaira(booking.totalKobo)}
             />
+          </div>
+
+          <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+            <a
+              href={`/bookings/${booking.id}/receipt`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pk-btn-secondary pk-btn-sm"
+              style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
+            >
+              <ExternalLinkIcon size={14} />
+              <span>View Official Tax Receipt & Invoice</span>
+            </a>
           </div>
 
           <div className="pk-receipt-guarantee">

@@ -214,4 +214,105 @@ describe('place search', () => {
     expect(calls[1]?.url).toBe(`http://api.test/v1/payments/${payment.reference}/verify`);
     expect(calls[1]?.init.method).toBe('POST');
   });
+
+  it('supports extension, cancellation, overstay pay, and receipt lifecycle methods', async () => {
+    const booking = {
+      id: '0199f0a0-0000-7000-8000-0000000000b1',
+      code: 'PK-X1Y2Z3',
+      status: 'CONFIRMED',
+      product: 'HOURLY',
+      startAt: '2026-10-19T09:00:00.000Z',
+      endAt: '2026-10-19T11:00:00.000Z',
+      lot: {
+        id: '0199f0a0-0000-7000-8000-000000000001',
+        slug: 'eko-hotel',
+        name: 'Eko Hotel',
+        addressLine: '1415 Adetokunbo Ademola St',
+        selfCheckIn: true,
+      },
+      vehicle: { id: vehicle.id, plate: vehicle.plateNorm },
+      priceKobo: 100000,
+      serviceFeeKobo: 10000,
+      totalKobo: 110000,
+      lines: [],
+      holdExpiresAt: null,
+      qrToken: null,
+      overstay: null,
+      stay: null,
+      createdAt: '2026-10-19T08:00:00.000Z',
+    };
+    const extension = {
+      id: '0199f0a0-0000-7000-8000-0000000000e1',
+      bookingId: booking.id,
+      startAt: booking.endAt,
+      newEndAt: '2026-10-19T12:00:00.000Z',
+      addedMinutes: 60,
+      priceKobo: 50000,
+      status: 'CONFIRMED',
+      createdAt: '2026-10-19T10:00:00.000Z',
+    };
+    const payment = {
+      reference: '0199f0a0-0000-7000-8000-0000000000c2',
+      status: 'PENDING',
+      authorizationUrl: 'https://checkout.paystack.com/ext',
+      expiresAt: '2026-10-19T10:10:00.000Z',
+    };
+    const receipt = {
+      bookingId: booking.id,
+      bookingCode: booking.code,
+      status: 'CONFIRMED',
+      issuedAt: '2026-10-19T10:00:00.000Z',
+      lot: { id: booking.lot.id, name: booking.lot.name, addressLine: booking.lot.addressLine, area: 'VI' },
+      vehicle: { plate: booking.vehicle.plate },
+      driver: { firstName: 'Tunde', lastName: 'Bakare', phoneLast4: '1234' },
+      product: 'HOURLY',
+      startAt: booking.startAt,
+      endAt: booking.endAt,
+      durationMinutes: 120,
+      priceKobo: 100000,
+      serviceFeeKobo: 10000,
+      totalKobo: 110000,
+      lines: [],
+      payments: [],
+      refunds: [],
+    };
+
+    const { fetch, calls } = fakeFetch([
+      // 1. extendBooking
+      { status: 200, body: { extension, booking, payment } },
+      // 2. cancelBooking
+      { status: 200, body: { booking: { ...booking, status: 'CANCELLED' }, refundKobo: 110000, isFreeCancellation: true } },
+      // 3. payOverstay
+      { status: 200, body: { payment, overstayMinutes: 30, amountKobo: 25000 } },
+      // 4. receipt
+      { status: 200, body: receipt },
+      // 5. registerDevice
+      { status: 204 },
+    ]);
+
+    const c = client(fetch);
+
+    // 1. Extend
+    const extRes = await c.extendBooking(booking.id, { newEndAt: '2026-10-19T12:00:00.000Z' }, 'ext-key-1');
+    expect(extRes.extension.addedMinutes).toBe(60);
+    expect((calls[0]?.init.headers as Record<string, string>)['idempotency-key']).toBe('ext-key-1');
+
+    // 2. Cancel
+    const canRes = await c.cancelBooking(booking.id, { reason: 'CHANGE_OF_PLANS' }, 'can-key-1');
+    expect(canRes.isFreeCancellation).toBe(true);
+    expect(canRes.refundKobo).toBe(110000);
+
+    // 3. Pay overstay
+    const ovrRes = await c.payOverstay(booking.id, {}, 'ovr-key-1');
+    expect(ovrRes.amountKobo).toBe(25000);
+
+    // 4. Receipt
+    const recRes = await c.receipt(booking.id);
+    expect(recRes.bookingCode).toBe('PK-X1Y2Z3');
+    expect(c.receiptUrl(booking.id)).toBe(`http://api.test/v1/bookings/${booking.id}/receipt?format=html`);
+
+    // 5. Register device
+    await c.registerDevice({ deviceId: 'dev-1', platform: 'ANDROID', pushToken: 'push-tok' });
+    expect(calls[4]?.url).toBe('http://api.test/v1/me/devices');
+  });
 });

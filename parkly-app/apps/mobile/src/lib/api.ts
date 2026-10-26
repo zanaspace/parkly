@@ -1,15 +1,26 @@
 import {
   BookingListSchema,
+  BookingReceiptSchema,
   BookingSchema,
   BootstrapResponseSchema,
+  CancelBookingResponseSchema,
   CreateBookingResponseSchema,
+  ExtendBookingResponseSchema,
+  OverstayPayResponseSchema,
   SelfCheckResultSchema,
+  type Booking,
+  type BookingReceipt,
+  type CancelBookingRequest,
+  type CancelBookingResponse,
+  type CreateBookingRequest,
+  type CreateBookingResponse,
+  type ExtendBookingRequest,
+  type ExtendBookingResponse,
+  type OverstayPayRequest,
+  type OverstayPayResponse,
   type SelfCheckRequest,
   type SelfCheckResult,
   VerifyPaymentResponseSchema,
-  type Booking,
-  type CreateBookingRequest,
-  type CreateBookingResponse,
   type VerifyPaymentResponse,
   DeletionRequestResponseSchema,
   LotAvailabilitySchema,
@@ -226,6 +237,51 @@ export function createApiClient(options: ApiClientOptions) {
         undefined,
         VerifyPaymentResponseSchema,
       ),
+    /** FR-BOOK-005: extends an active booking. */
+    extendBooking: (id: string, body: ExtendBookingRequest, idempotencyKey: string) =>
+      request<ExtendBookingResponse>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/extensions`,
+        body,
+        ExtendBookingResponseSchema,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    /** FR-BOOK-006: cancels a confirmed booking and initiates refund if eligible. */
+    cancelBooking: (id: string, body: CancelBookingRequest, idempotencyKey: string) =>
+      request<CancelBookingResponse>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/cancel`,
+        body,
+        CancelBookingResponseSchema,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    /** FR-BOOK-008: pays unpaid overstay charges. */
+    payOverstay: (id: string, body: OverstayPayRequest, idempotencyKey: string) =>
+      request<OverstayPayResponse>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/overstay/pay`,
+        body,
+        OverstayPayResponseSchema,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    /** FR-BOOK-007: loads the full booking receipt in JSON. */
+    receipt: (id: string) =>
+      request<BookingReceipt>(
+        'GET',
+        `/v1/bookings/${encodeURIComponent(id)}/receipt?format=json`,
+        undefined,
+        BookingReceiptSchema,
+      ),
+    /** Full HTML receipt URL for opening in browser or sharing. */
+    receiptUrl: (id: string) => `${base}/v1/bookings/${encodeURIComponent(id)}/receipt?format=html`,
+    /** Registers device and push token for transaction alerts and stay reminders. */
+    registerDevice: (body: {
+      deviceId: string;
+      platform: 'IOS' | 'ANDROID' | 'WEB';
+      appVersion?: string;
+      pushToken?: string;
+    }) =>
+      request<void>('POST', '/v1/me/devices', body),
   };
 }
 

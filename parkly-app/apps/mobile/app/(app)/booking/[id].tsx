@@ -5,7 +5,7 @@ import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { Notice } from '../../../src/components/Notice';
 import { QrCode } from '../../../src/components/QrCode';
@@ -20,6 +20,22 @@ const POLL_MS = 3_000;
 /** While waiting for the gate or parked: pick up check-in, check-out and live overstay. */
 const STAY_POLL_MS = 30_000;
 
+const EXTEND_DURATIONS = [
+  { label: '+15m', minutes: 15 },
+  { label: '+30m', minutes: 30 },
+  { label: '+45m', minutes: 45 },
+  { label: '+1h', minutes: 60 },
+  { label: '+2h', minutes: 120 },
+];
+
+const CANCEL_REASONS = [
+  { id: 'CHANGE_OF_PLANS', label: 'Change of plans' },
+  { id: 'FOUND_ALTERNATIVE', label: 'Found other parking' },
+  { id: 'EMERGENCY', label: 'Vehicle issue / emergency' },
+  { id: 'BOOKED_BY_MISTAKE', label: 'Booked by mistake' },
+  { id: 'OTHER', label: 'Other reason' },
+];
+
 export default function BookingScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -31,6 +47,92 @@ export default function BookingScreen() {
   const [offline, setOffline] = useState(false);
   /** Bumped after a self check-in so the screen reloads straight away. */
   const [reload, setReload] = useState(0);
+
+  // Lifecycle state
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendMinutes, setExtendMinutes] = useState(30);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('CHANGE_OF_PLANS');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  const handleExtend = async () => {
+    if (!booking) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const currentEnd = new Date(booking.endAt);
+      const newEndAt = new Date(currentEnd.getTime() + extendMinutes * 60_000).toISOString();
+      const idempotencyKey = `ext-${booking.id}-${new Date(newEndAt).getTime()}`;
+      const res = await api.extendBooking(booking.id, { newEndAt }, idempotencyKey);
+      setExtendOpen(false);
+      setActionLoading(false);
+      if (res.payment?.authorizationUrl) {
+        router.push({
+          pathname: '/pay/[reference]',
+          params: {
+            reference: res.payment.reference,
+            url: res.payment.authorizationUrl,
+            bookingId: booking.id,
+          },
+        });
+      } else {
+        setActionSuccess(`Stay extended by ${extendMinutes} minutes.`);
+        setReload((n) => n + 1);
+      }
+    } catch (err) {
+      setActionLoading(false);
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!booking) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const idempotencyKey = `can-${booking.id}`;
+      const res = await api.cancelBooking(booking.id, { reason: cancelReason }, idempotencyKey);
+      setCancelOpen(false);
+      setActionLoading(false);
+      setActionSuccess(
+        res.isFreeCancellation && res.refundKobo > 0
+          ? `Booking cancelled. A full refund of ${formatNaira(res.refundKobo)} has been initiated.`
+          : 'Booking cancelled.',
+      );
+      setReload((n) => n + 1);
+    } catch (err) {
+      setActionLoading(false);
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    }
+  };
+
+  const handlePayOverstay = async () => {
+    if (!booking) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const idempotencyKey = `ovr-${booking.id}-${Date.now()}`;
+      const res = await api.payOverstay(booking.id, {}, idempotencyKey);
+      setActionLoading(false);
+      if (res.payment.authorizationUrl) {
+        router.push({
+          pathname: '/pay/[reference]',
+          params: {
+            reference: res.payment.reference,
+            url: res.payment.authorizationUrl,
+            bookingId: booking.id,
+          },
+        });
+      } else {
+        setReload((n) => n + 1);
+      }
+    } catch (err) {
+      setActionLoading(false);
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    }
+  };
 
   useEffect(() => {
     let live = true;
@@ -371,6 +473,75 @@ export default function BookingScreen() {
       <StayTimer booking={booking} />
       {offline ? null : <SelfCheck booking={booking} onDone={() => setReload((n) => n + 1)} />}
 
+      {/* Unpaid Overstay Alert Banner */}
+      {booking.stay && booking.stay.overstayKobo > 0 && (
+        <View
+          style={{
+            backgroundColor: theme.color.status.danger.bg,
+            borderWidth: 1,
+            borderColor: 'rgba(239, 68, 68, 0.45)',
+            borderRadius: theme.radius.lg,
+            padding: theme.space[4],
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 20 }}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
+                {`Unpaid Overstay Due · ${formatNaira(booking.stay.overstayKobo)}`}
+              </Text>
+              <Text variant="body.sm" tone="secondary">
+                {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
+              </Text>
+            </View>
+          </View>
+          <Button
+            label={actionLoading ? 'Connecting...' : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`}
+            variant="danger"
+            fullWidth
+            disabled={actionLoading}
+            onPress={handlePayOverstay}
+          />
+        </View>
+      )}
+
+      {/* Action Success / Error Notices */}
+      {actionSuccess ? <Notice kind="success" message={actionSuccess} /> : null}
+      {actionError ? <Notice kind="danger" message={actionError} /> : null}
+
+      {/* Lifecycle Action Buttons */}
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {confirmed && !booking.stay?.checkedOutAt && (
+          <View style={{ flex: 1 }}>
+            <Button
+              label="Extend Stay"
+              variant="primary"
+              fullWidth
+              disabled={offline || actionLoading}
+              onPress={() => {
+                setActionError(null);
+                setExtendOpen(true);
+              }}
+            />
+          </View>
+        )}
+        {booking.status === 'CONFIRMED' && !booking.stay?.checkedInAt && (
+          <View style={{ flex: 1 }}>
+            <Button
+              label="Cancel Booking"
+              variant="secondary"
+              fullWidth
+              disabled={offline || actionLoading}
+              onPress={() => {
+                setActionError(null);
+                setCancelOpen(true);
+              }}
+            />
+          </View>
+        )}
+      </View>
+
       {/* Official Gate Ticket (Confirmed & Active) */}
       {confirmed && !booking.stay?.checkedOutAt && (
         <View
@@ -674,6 +845,13 @@ export default function BookingScreen() {
             Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority (LASPA) permit.
           </Text>
         </View>
+
+        <Button
+          label="View Official Receipt ↗"
+          variant="secondary"
+          fullWidth
+          onPress={() => void Linking.openURL(api.receiptUrl(booking.id)).catch(() => undefined)}
+        />
       </View>
 
       {/* View Car Park Button */}
@@ -683,6 +861,233 @@ export default function BookingScreen() {
         fullWidth
         onPress={() => router.push({ pathname: '/lot/[slug]', params: { slug: booking.lot.slug } })}
       />
+
+      {/* Extend Stay Modal */}
+      <Modal visible={extendOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.card.bg,
+              borderTopLeftRadius: theme.radius.lg,
+              borderTopRightRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.card.border,
+              padding: theme.space[4],
+              gap: theme.space[3],
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text variant="label.lg">Extend Parking Stay</Text>
+                <Text variant="body.sm" tone="secondary">
+                  Choose extra duration for {booking.lot.name}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                onPress={() => setExtendOpen(false)}
+                hitSlop={8}
+              >
+                <Text variant="label.lg" tone="secondary">✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Duration Chips */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {EXTEND_DURATIONS.map((opt) => {
+                const selected = extendMinutes === opt.minutes;
+                return (
+                  <Pressable
+                    key={opt.minutes}
+                    onPress={() => setExtendMinutes(opt.minutes)}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: theme.radius.sm,
+                      backgroundColor: selected ? theme.color.bg.brand : theme.color.bg.surface,
+                      borderWidth: 1,
+                      borderColor: selected ? theme.color.border.brand : theme.color.border.default,
+                    }}
+                  >
+                    <Text
+                      variant="label.md"
+                      style={{
+                        color: selected ? '#ffffff' : theme.color.text.primary,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View
+              style={{
+                backgroundColor: theme.color.bg.subtle,
+                padding: 12,
+                borderRadius: theme.radius.sm,
+                gap: 4,
+              }}
+            >
+              <Text variant="body.sm" tone="secondary">
+                {`New Exit Time: ${new Date(new Date(booking.endAt).getTime() + extendMinutes * 60_000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}`}
+              </Text>
+              <Text variant="body.sm" tone="secondary">
+                Payment will be calculated using car park rates.
+              </Text>
+            </View>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
+              <Button
+                label={actionLoading ? 'Extending...' : `Confirm +${extendMinutes} Mins`}
+                variant="primary"
+                fullWidth
+                loading={actionLoading}
+                onPress={handleExtend}
+              />
+              <Button
+                label="Dismiss"
+                variant="ghost"
+                fullWidth
+                onPress={() => setExtendOpen(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Booking Modal */}
+      <Modal visible={cancelOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.card.bg,
+              borderTopLeftRadius: theme.radius.lg,
+              borderTopRightRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.card.border,
+              padding: theme.space[4],
+              gap: theme.space[3],
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text variant="label.lg">Cancel Reservation</Text>
+                <Text variant="body.sm" tone="secondary">
+                  Pass #{booking.code} at {booking.lot.name}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                onPress={() => setCancelOpen(false)}
+                hitSlop={8}
+              >
+                <Text variant="label.lg" tone="secondary">✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Policy Notice */}
+            {(() => {
+              const msToStart = new Date(booking.startAt).getTime() - Date.now();
+              const isFree = msToStart >= 30 * 60_000;
+              return isFree ? (
+                <View
+                  style={{
+                    backgroundColor: theme.color.status.success.bg,
+                    borderWidth: 1,
+                    borderColor: 'rgba(16, 185, 129, 0.35)',
+                    borderRadius: theme.radius.md,
+                    padding: 12,
+                    gap: 4,
+                  }}
+                >
+                  <Text variant="label.md" style={{ color: theme.color.status.success.fg }}>
+                    Free Cancellation Eligible
+                  </Text>
+                  <Text variant="body.sm" tone="secondary">
+                    {`You are cancelling over 30 mins before start. Full refund of ${formatNaira(booking.totalKobo)} will be returned.`}
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: theme.color.status.danger.bg,
+                    borderWidth: 1,
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    borderRadius: theme.radius.md,
+                    padding: 12,
+                    gap: 4,
+                  }}
+                >
+                  <Text variant="label.md" style={{ color: theme.color.status.danger.fg }}>
+                    Late Cancellation (No Refund)
+                  </Text>
+                  <Text variant="body.sm" tone="secondary">
+                    Cancellations within 30 minutes of booked start time are non-refundable per car park policy.
+                  </Text>
+                </View>
+              );
+            })()}
+
+            {/* Reason selector */}
+            <Text variant="label.sm" tone="secondary">Select cancellation reason:</Text>
+            <View style={{ gap: 6 }}>
+              {CANCEL_REASONS.map((r) => {
+                const selected = cancelReason === r.id;
+                return (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => setCancelReason(r.id)}
+                    style={{
+                      padding: 10,
+                      borderRadius: theme.radius.sm,
+                      backgroundColor: selected ? theme.color.bg.subtle : 'transparent',
+                      borderWidth: 1,
+                      borderColor: selected ? theme.color.border.brand : theme.color.border.default,
+                    }}
+                  >
+                    <Text variant="body.sm" style={{ fontWeight: selected ? '700' : '400' }}>
+                      {r.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
+              <Button
+                label={actionLoading ? 'Cancelling...' : 'Confirm Cancellation'}
+                variant="danger"
+                fullWidth
+                loading={actionLoading}
+                onPress={handleCancel}
+              />
+              <Button
+                label="Keep Booking"
+                variant="ghost"
+                fullWidth
+                onPress={() => setCancelOpen(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

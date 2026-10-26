@@ -1,6 +1,12 @@
 'use server';
 
-import type { CreateBookingResponse, Vehicle } from '@parkly/contracts';
+import type {
+  CancelBookingResponse,
+  CreateBookingResponse,
+  ExtendBookingResponse,
+  OverstayPayResponse,
+  Vehicle,
+} from '@parkly/contracts';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { apiAs, ApiProblem } from './api';
@@ -21,6 +27,11 @@ const MESSAGES: Record<string, string> = {
   IDEMPOTENCY_IN_PROGRESS: 'We’re still working on your booking. One moment, then try again.',
   PLATE_INVALID: 'That doesn’t look like a plate number. Check it and try again.',
   VEHICLE_DUPLICATE: 'This plate is already on your account.',
+  BOOKING_NOT_FOUND: 'Booking could not be found.',
+  BOOKING_ALREADY_CANCELLED: 'This booking has already been cancelled.',
+  BOOKING_NOT_CANCELLABLE: 'Only active un-checked-in bookings can be cancelled.',
+  BOOKING_NOT_EXTENDABLE: 'This booking cannot be extended right now.',
+  NO_OVERSTAY_DUE: 'No overstay payment is due for this booking.',
 };
 const message = (err: unknown) =>
   (err instanceof ApiProblem && MESSAGES[err.code]) || 'Something went wrong. Please try again.';
@@ -103,6 +114,116 @@ export async function submitSelfCheck(
     return { ok: true };
   } catch (err) {
     const msg = (err instanceof ApiProblem && SELF_MESSAGES[err.code]) || message(err);
+    return { ok: false, message: msg };
+  }
+}
+
+export type ExtendBookingResult = {
+  ok: boolean;
+  message?: string;
+  authorizationUrl?: string | null;
+};
+
+/** Extends an active booking by adding minutes on the 15-minute grid. */
+export async function extendBooking(
+  bookingId: string,
+  newEndAt: string,
+): Promise<ExtendBookingResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    const origin = await siteOrigin();
+    const response = await apiAs<ExtendBookingResponse>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/extensions`,
+      {
+        method: 'POST',
+        headers: {
+          'idempotency-key': `ext-${bookingId}-${new Date(newEndAt).getTime()}`,
+        },
+        body: {
+          newEndAt,
+          returnTo: `${origin}/bookings/${bookingId}`,
+        },
+      },
+    );
+    return {
+      ok: true,
+      authorizationUrl: response.payment?.authorizationUrl ?? null,
+    };
+  } catch (err) {
+    const msg = err instanceof ApiProblem ? MESSAGES[err.code] || message(err) : message(err);
+    return { ok: false, message: msg };
+  }
+}
+
+export type CancelBookingResult = {
+  ok: boolean;
+  message?: string;
+  refundKobo?: number;
+  isFreeCancellation?: boolean;
+};
+
+/** Cancels a confirmed booking and initiates refund if eligible. */
+export async function cancelBooking(
+  bookingId: string,
+  reason?: string,
+): Promise<CancelBookingResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    const response = await apiAs<CancelBookingResponse>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/cancel`,
+      {
+        method: 'POST',
+        headers: {
+          'idempotency-key': `can-${bookingId}`,
+        },
+        body: {
+          reason: reason || 'CUSTOMER_REQUEST',
+        },
+      },
+    );
+    return {
+      ok: true,
+      refundKobo: response.refundKobo,
+      isFreeCancellation: response.isFreeCancellation,
+    };
+  } catch (err) {
+    const msg = err instanceof ApiProblem ? MESSAGES[err.code] || message(err) : message(err);
+    return { ok: false, message: msg };
+  }
+}
+
+export type PayOverstayResult = {
+  ok: boolean;
+  message?: string;
+  authorizationUrl?: string | null;
+};
+
+/** Initiates checkout for unpaid overstay fees. */
+export async function payOverstay(bookingId: string): Promise<PayOverstayResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    const origin = await siteOrigin();
+    const response = await apiAs<OverstayPayResponse>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/overstay/pay`,
+      {
+        method: 'POST',
+        headers: {
+          'idempotency-key': `ovr-${bookingId}-${Date.now()}`,
+        },
+        body: {
+          returnTo: `${origin}/bookings/${bookingId}`,
+        },
+      },
+    );
+    return {
+      ok: true,
+      authorizationUrl: response.payment?.authorizationUrl ?? null,
+    };
+  } catch (err) {
+    const msg = err instanceof ApiProblem ? MESSAGES[err.code] || message(err) : message(err);
     return { ok: false, message: msg };
   }
 }
