@@ -172,6 +172,14 @@ export function attendRoutes(deps: AppDeps) {
         approve: isManager,
         at: deps.now(),
       });
+      // A manager's own phone approves itself: still a privileged change (Never-do #3).
+      if (isManager && device.approvedAt?.getTime() === deps.now().getTime())
+        await audit(c, deps, {
+          action: 'attendant_device.self_approve',
+          entityType: 'device',
+          entityId: device.id,
+          after: { lotId: lot.id },
+        });
       return c.json(toDevice(device), 200);
     },
   );
@@ -190,8 +198,12 @@ export function attendRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { lotId } = c.req.valid('param');
+      const { clientDeviceId } = c.req.valid('query');
+      // Before the role check, so a removed attendant's phone still learns to wipe (G-7).
+      if ((await deps.store.attend.device(c.get('actor').userId, clientDeviceId))?.revokedAt)
+        throw new ApiError('DEVICE_REVOKED');
       const lot = await gateLot(c, lotId);
-      await approvedDevice(c.get('actor').userId, c.req.valid('query').clientDeviceId, lotId);
+      await approvedDevice(c.get('actor').userId, clientDeviceId, lotId);
       const now = deps.now();
       const [rows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
         await Promise.all([
@@ -246,10 +258,15 @@ export function attendRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const body = c.req.valid('json');
-      const lot = await gateLot(c, body.lotId);
       const actor = c.get('actor');
-      const device = await approvedDevice(actor.userId, body.clientDeviceId, lot.id);
       const receivedAt = deps.now();
+      // A blocked phone, or one whose attendant was removed, is told so before any
+      // role check, so it wipes its cache; its queue is kept for ops (G-6, G-7).
+      const known = await deps.store.attend.device(actor.userId, body.clientDeviceId);
+      const revoked = Boolean(known?.revokedAt);
+      const lot = revoked && known ? { id: known.lotId } : await gateLot(c, body.lotId);
+      const device =
+        revoked && known ? known : await approvedDevice(actor.userId, body.clientDeviceId, lot.id);
       const events: AttendEventInput[] = body.events.map((e) => {
         const deviceTime = new Date(e.deviceTime);
         switch (e.type) {
@@ -276,9 +293,17 @@ export function attendRoutes(deps: AppDeps) {
           attendantId: actor.userId,
           deviceSentAt: new Date(body.deviceSentAt),
           receivedAt,
+          quarantine: revoked,
         },
         events,
       );
+      if (revoked) {
+        deps.logger.warn(
+          { event: 'attend.revoked_sync', deviceId: device.id, events: results.length },
+          'blocked phone synced; events kept for review',
+        );
+        throw new ApiError('DEVICE_REVOKED');
+      }
 
       await priceOverstay(lot.id, checkedOut);
       deps.logger.info(

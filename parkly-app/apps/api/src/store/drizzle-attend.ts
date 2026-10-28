@@ -66,9 +66,13 @@ export function drizzleAttend(db: Db): {
       },
 
       async registerDevice(input) {
+        // An approval is for one lot of one operator: registering the phone for
+        // another lot starts unapproved unless a manager registers it (gap review G-3).
+        const sameLot = sql`(${devices.lotId} is not distinct from ${input.lotId}::uuid and ${devices.operatorId} is not distinct from ${input.operatorId}::uuid)`;
+        const kept = sql`case when ${sameLot} then ${devices.approvedAt} else null end`;
         const approvedAt = input.approve
-          ? sql`case when ${devices.revokedAt} is null then coalesce(${devices.approvedAt}, ${input.at.toISOString()}::timestamptz) else ${devices.approvedAt} end`
-          : sql`${devices.approvedAt}`;
+          ? sql`case when ${devices.revokedAt} is null then coalesce(${kept}, ${input.at.toISOString()}::timestamptz) else ${kept} end`
+          : kept;
         const [row] = await db
           .insert(devices)
           .values({
@@ -89,6 +93,7 @@ export function drizzleAttend(db: Db): {
               lotId: input.lotId,
               lastSeenAt: input.at,
               approvedAt,
+              approvedBy: sql`case when ${sameLot} then ${devices.approvedBy} else null end`,
             },
           })
           .returning(deviceColumns);

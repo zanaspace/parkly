@@ -235,6 +235,67 @@ describe('attendant phones (doc 05 §4.4)', () => {
     expect((await t.sync([])).body?.code).toBe('DEVICE_REVOKED');
   });
 
+  it('stays blocked when the attendant signs in again on that phone (gap review S-1)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    await t.approve(t.store.attending.deviceRows[0]?.id ?? '', 'revoke');
+    // Sign-in registers the same phone as a driver device, which used to clear the block.
+    await t.call('POST', '/v1/me/devices', {
+      as: t.attendant,
+      body: { deviceId: t.device, platform: 'ANDROID' },
+    });
+    expect((await t.manifest()).body?.code).toBe('DEVICE_REVOKED');
+  });
+
+  it('needs a new approval when the phone moves to another operator’s lot (gap review G-3)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    const other = await addLot(t.store);
+    t.store.roleRows.push({
+      userId: t.attendant,
+      role: 'OPERATOR_ATTENDANT',
+      operatorId: other.operatorId,
+    });
+    const member = t.store.memberRows.find((m) => m.userId === t.attendant);
+    if (member)
+      t.store.memberRows.push({ ...member, id: randomUUID(), operatorId: other.operatorId });
+    const moved = await t.call('POST', '/v1/attend/devices', {
+      as: t.attendant,
+      body: { clientDeviceId: t.device, lotId: other.lot.id },
+    });
+    expect(moved.body).toMatchObject({ approved: false });
+    const there = await t.call(
+      'GET',
+      `/v1/attend/lots/${other.lot.id}/manifest?clientDeviceId=${t.device}`,
+      { as: t.attendant },
+    );
+    expect(there.body?.code).toBe('DEVICE_NOT_APPROVED');
+  });
+
+  it('keeps a blocked phone’s queue for review without applying it (gap review G-6, G-7)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    const { id } = await t.paidBooking('LND 123 AB');
+    await t.approve(t.store.attending.deviceRows[0]?.id ?? '', 'revoke');
+    const res = await t.sync([checkIn(id, min(-5))]);
+    expect(res.body?.code).toBe('DEVICE_REVOKED');
+    expect(t.store.attending.eventRows).toEqual([
+      expect.objectContaining({ result: 'REJECTED', reason: 'DEVICE_REVOKED' }),
+    ]);
+    expect((await t.store.bookings.find(id))?.status).toBe('CONFIRMED');
+
+    // Removed from the team: the phone is told to wipe, not "lot not found".
+    const t2 = await setup();
+    await t2.readyDevice();
+    t2.store.roleRows.splice(
+      t2.store.roleRows.findIndex((r) => r.userId === t2.attendant),
+      1,
+    );
+    await t2.store.devices.revokeAll(t2.attendant);
+    expect((await t2.sync([])).body?.code).toBe('DEVICE_REVOKED');
+    expect((await t2.manifest()).body?.code).toBe('DEVICE_REVOKED');
+  });
+
   it('hides other operators’ lots and refuses drivers', async () => {
     const t = await setup();
     const stranger = t.user([{ role: 'OPERATOR_ATTENDANT', operatorId: randomUUID() }]);

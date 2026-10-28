@@ -236,6 +236,12 @@ export class MemoryStore implements Store {
       );
       if (existing) Object.assign(existing, row, { revokedAt: null });
       else this.deviceRows.push({ ...row, revokedAt: null });
+      // Postgres keeps driver and attendant devices in one table, keyed by
+      // (user, device): signing in again must not touch a blocked attendant phone.
+      const phone = this.attending.deviceRows.find(
+        (d) => d.userId === row.userId && d.clientDeviceId === row.clientDeviceId,
+      );
+      if (phone && !phone.lotId) phone.revokedAt = null;
     },
     revokeBySession: async (userId, sessionId) => {
       for (const d of this.deviceRows)
@@ -243,6 +249,7 @@ export class MemoryStore implements Store {
     },
     revokeAll: async (userId) => {
       for (const d of this.deviceRows) if (d.userId === userId) d.revokedAt = new Date();
+      for (const d of this.attending.deviceRows) if (d.userId === userId) d.revokedAt = new Date();
     },
   };
 

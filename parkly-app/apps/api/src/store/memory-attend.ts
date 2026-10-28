@@ -97,6 +97,8 @@ export class MemoryAttend {
         };
         this.deviceRows.push(d);
       }
+      // As Postgres: an approval is for one lot of one operator (gap review G-3).
+      if (d.lotId !== input.lotId || d.operatorId !== input.operatorId) d.approvedAt = null;
       Object.assign(d, { operatorId: input.operatorId, lotId: input.lotId, lastSeenAt: input.at });
       if (input.approve && !d.approvedAt && !d.revokedAt) d.approvedAt = input.at;
       return { ...d };

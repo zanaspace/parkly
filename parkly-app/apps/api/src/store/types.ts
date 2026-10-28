@@ -443,6 +443,11 @@ export type AttendBatch = {
   attendantId: string;
   deviceSentAt: Date;
   receivedAt: Date;
+  /**
+   * From a phone a manager blocked: every event is kept as REJECTED
+   * (DEVICE_REVOKED) for ops to review, and none is applied (gap review G-6).
+   */
+  quarantine?: boolean;
 };
 
 export type AuditEntry = {

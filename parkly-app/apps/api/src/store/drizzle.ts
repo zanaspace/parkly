@@ -461,7 +461,9 @@ export function drizzleStore(db: Db): Store {
               authSessionId: row.authSessionId,
               ...(row.pushTokenEnc !== undefined ? { pushTokenEnc: row.pushTokenEnc } : {}),
               lastSeenAt: new Date(),
-              revokedAt: null,
+              // Signing in again un-revokes a driver's own device, never an
+              // attendant phone a manager blocked (lot_id set; gap review S-1).
+              revokedAt: sql`case when ${devices.lotId} is null then null else ${devices.revokedAt} end`,
             },
           });
       },
