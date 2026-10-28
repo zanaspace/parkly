@@ -180,6 +180,28 @@ describe('fn_hold_booking (doc 02 §5, ADR 0006)', () => {
     });
   });
 
+  it('keeps back-to-back bookings to their own slots (P-1)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 1, '4b');
+      // 09:00–10:00 exists first, so the 08:00–09:00 hold sits right before a live slot row.
+      const later = await hold(tx, lot, await newDriver(tx), {
+        start: END,
+        end: `${day}T10:00:00Z`,
+      });
+      await tx`select public.fn_convert_hold(${later})`;
+      const first = await hold(tx, lot, await newDriver(tx));
+      await tx`select public.fn_convert_hold(${first})`;
+      const rows = await tx`
+        select count(*)::int as slots, max(booked)::int as max_booked, max(held)::int as max_held
+          from public.lot_slot_inventory where lot_id = ${lot.lotId}`;
+      expect(rows).toEqual([{ slots: 12, max_booked: 1, max_held: 0 }]);
+      await tx`select public.fn_release_slots(${first}, 'booked')`;
+      const [after] = await tx`
+        select sum(booked)::int as booked from public.lot_slot_inventory where lot_id = ${lot.lotId}`;
+      expect(must(after).booked).toBe(4); // only the later booking's four slots
+    });
+  });
+
   it('never lets a counter go negative', async () => {
     await inRolledBackTx(async (tx) => {
       const lot = await newLot(tx, 2, '5');
@@ -258,6 +280,29 @@ describe('ledger and history invariants (doc 02 §2.6–2.7)', () => {
     });
   });
 
+  it('never refunds more than a payment took (gap review P-8)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 1, 'r1');
+      const driver = await newDriver(tx);
+      const id = await hold(tx, lot, driver);
+      const [op] = await tx`select operator_id from public.lots where id = ${lot.lotId}`;
+      const [p] = await tx`
+        insert into public.payments (id, kind, booking_id, payer_user_id, provider,
+          provider_reference, amount_kobo, platform_amount_kobo, operator_amount_kobo,
+          operator_id, status)
+        values (gen_random_uuid(), 'BOOKING', ${id}, ${driver.driverId}, 'FAKE',
+                gen_random_uuid()::text, 110000, 22000, 88000, ${must(op).operator_id}, 'SUCCEEDED')
+        returning id`;
+      const refund = (amount: number, status = 'PENDING') => tx`
+        insert into public.refunds (id, payment_id, amount_kobo, reason, status)
+        values (gen_random_uuid(), ${must(p).id}, ${amount}, 'DRIVER_CANCEL', ${status}::public.refund_status)`;
+      await refund(100000);
+      await refund(50000, 'FAILED'); // a failed refund takes nothing
+      expect(await failsWith(tx, () => refund(10001))).toBe('REFUND_EXCEEDS_PAYMENT');
+      await refund(10000);
+    });
+  });
+
   it('seeds the platform ledger accounts', async () => {
     const rows = await sql`select code, type from public.ledger_accounts order by code`;
     expect(rows.map((r) => `${r.code}:${r.type}`)).toEqual(
@@ -302,8 +347,12 @@ describe('fn_expire_holds (doc 02 §9)', () => {
         abandoned: expect.any(Number),
         purged: expect.any(Number),
       });
-      for (const n of Object.values(must(first).r as Record<string, number>))
-        expect(n).toBeGreaterThanOrEqual(1);
+      const {
+        failed: _f,
+        extensions_expired: _e,
+        ...done
+      } = must(first).r as Record<string, number>;
+      for (const n of Object.values(done)) expect(n).toBeGreaterThanOrEqual(1);
       const [booking] = await tx`select status from public.bookings where id = ${id}`;
       expect(must(booking).status).toBe('EXPIRED');
       const payments = await tx`
@@ -316,6 +365,70 @@ describe('fn_expire_holds (doc 02 §9)', () => {
       const history = await tx`
         select 1 from public.booking_status_history where booking_id = ${id} and to_status = 'EXPIRED'`;
       expect(history).toHaveLength(1);
+    });
+  });
+
+  it('keeps expiring other holds when one cannot be released (P-1)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 2, '7b');
+      const broken = await hold(tx, lot, await newDriver(tx));
+      const fine = await hold(tx, lot, await newDriver(tx), {
+        start: `${day}T10:00:00Z`,
+        end: `${day}T11:00:00Z`,
+      });
+      await tx`update public.bookings set hold_expires_at = now() - interval '1 minute'
+                where id in (${broken}, ${fine})`;
+      // Losing a slot row makes the release raise, as the widened range did.
+      await tx`delete from public.lot_slot_inventory where lot_id = ${lot.lotId} and slot_start = ${START}`;
+      const [run] = await tx`select public.fn_expire_holds() as r`;
+      expect((must(run).r as { failed: number }).failed).toBeGreaterThanOrEqual(1);
+      const statuses = await tx`
+        select id, status::text from public.bookings where id in (${broken}, ${fine})`;
+      expect(Object.fromEntries(statuses.map((r) => [r.id, r.status]))).toEqual({
+        [broken]: 'PENDING_PAYMENT',
+        [fine]: 'EXPIRED',
+      });
+    });
+  });
+
+  it('holds one extension per booking, expires it, and confirms only on a live booking (P-4, P-5)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 2, '7c');
+      const id = await hold(tx, lot, await newDriver(tx));
+      await tx`select public.fn_convert_hold(${id})`;
+      await tx`update public.bookings set status = 'CONFIRMED', hold_expires_at = null where id = ${id}`;
+      const extend = async (expires: string) => {
+        const [row] = await tx`
+          select public.fn_hold_extension(gen_random_uuid(), ${id}, ${`${day}T10:00:00Z`},
+                 50000, 6000, 44000, ${expires}::timestamptz) as id`;
+        return must(row).id as string;
+      };
+      const heldAfter = async () => {
+        const [row] = await tx`
+          select coalesce(sum(held), 0)::int as held from public.lot_slot_inventory
+           where lot_id = ${lot.lotId} and slot_start >= ${END}`;
+        return must(row).held as number;
+      };
+
+      const first = await extend(new Date(Date.now() + 600_000).toISOString());
+      const second = await extend(new Date(Date.now() - 60_000).toISOString());
+      expect(await heldAfter()).toBe(4);
+      const [replaced] =
+        await tx`select status::text from public.booking_extensions where id = ${first}`;
+      expect(must(replaced).status).toBe('EXPIRED');
+
+      await tx`select public.fn_expire_holds()`;
+      expect(await heldAfter()).toBe(0);
+      const [gone] =
+        await tx`select status::text from public.booking_extensions where id = ${second}`;
+      expect(must(gone).status).toBe('EXPIRED');
+
+      const third = await extend(new Date(Date.now() + 600_000).toISOString());
+      await tx`select public.fn_cancel_booking(${id}, 'DRIVER', null, 'test')`;
+      expect(await heldAfter()).toBe(0);
+      expect(
+        await failsWith(tx, () => tx`select public.fn_confirm_extension(${third}, null)`),
+      ).toBe('EXTENSION_ALREADY_CONFIRMED');
     });
   });
 

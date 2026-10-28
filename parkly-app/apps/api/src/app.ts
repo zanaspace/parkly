@@ -43,7 +43,7 @@ export type AppDeps = {
   config: Pick<
     AppConfig,
     'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret' | 'paystackWebhookIps'
-  > & { logPayloads?: boolean };
+  > & { logPayloads?: boolean; testShortStays?: boolean };
   logger: Logger;
   readinessChecks: Record<string, ReadinessCheck>;
   rateLimiter: RateLimiter;
@@ -83,7 +83,12 @@ export function createApp(deps: AppDeps) {
     secureHeaders({
       xFrameOptions: 'DENY',
       strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
-      contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+      // Inline styles only, for the signed receipt page; scripts stay blocked (gap review S-3).
+      contentSecurityPolicy: {
+        defaultSrc: ["'none'"],
+        styleSrc: ["'unsafe-inline'"],
+        frameAncestors: ["'none'"],
+      },
       referrerPolicy: 'no-referrer',
     }),
   );

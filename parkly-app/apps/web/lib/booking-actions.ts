@@ -154,7 +154,8 @@ export async function extendBooking(
       {
         method: 'POST',
         headers: {
-          'idempotency-key': `ext-${bookingId}-${new Date(newEndAt).getTime()}`,
+          // Same key for a double submit within the minute; a later retry gets a fresh checkout.
+          'idempotency-key': `ext-${bookingId}-${new Date(newEndAt).getTime()}-${minuteBucket()}`,
         },
         body: {
           newEndAt,
@@ -227,7 +228,7 @@ export async function payOverstay(bookingId: string): Promise<PayOverstayResult>
       {
         method: 'POST',
         headers: {
-          'idempotency-key': `ovr-${bookingId}-${Date.now()}`,
+          'idempotency-key': `ovr-${bookingId}-${minuteBucket()}`,
         },
         body: {
           returnTo: `${origin}/bookings/${bookingId}`,
@@ -244,3 +245,6 @@ export async function payOverstay(bookingId: string): Promise<PayOverstayResult>
   }
 }
 
+function minuteBucket() {
+  return Math.floor(Date.now() / 60_000);
+}

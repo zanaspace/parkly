@@ -58,6 +58,8 @@ const EnvSchema = z
     SENTRY_DSN: z.url().optional(),
     PORT: z.coerce.number().int().positive().default(4000),
     LOG_PAYLOADS: z.coerce.boolean().optional(),
+    /** 5-minute test stays for overstay testing on dev; refused in prod (gap review L-2). */
+    TEST_SHORT_STAYS: z.enum(['on', 'off']).default('off'),
   })
   .superRefine((env, ctx) => {
     const required = (key: keyof typeof env) => {
@@ -89,6 +91,8 @@ const EnvSchema = z
       if (env.MALWARE_SCANNER === 'fake')
         issue('MALWARE_SCANNER', 'the fake scanner is not allowed in prod');
       required('LOCATIONIQ_API_KEY');
+      if (env.TEST_SHORT_STAYS === 'on')
+        issue('TEST_SHORT_STAYS', 'test stays are not allowed in prod');
     } else if (liveKey) {
       issue('PAYSTACK_SECRET_KEY', 'live keys are only allowed in prod');
     }
@@ -123,6 +127,8 @@ export type AppConfig = {
   upstash: { url: string; token: string } | undefined;
   sentryDsn: string | undefined;
   port: number;
+  /** 5-minute test stays (never in prod). */
+  testShortStays: boolean;
 };
 
 /** Fails fast at boot. Error lists variable names only, never values. */
@@ -189,5 +195,6 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
         : undefined,
     sentryDsn: e.SENTRY_DSN,
     port: e.PORT,
+    testShortStays: e.TEST_SHORT_STAYS === 'on',
   };
 }

@@ -1,6 +1,6 @@
 import type { Booking } from '@parkly/contracts';
 import { describe, expect, it } from 'vitest';
-import { selfCheckKind } from './self-check';
+import { positionProblem, selfCheckKind } from './self-check';
 
 const b = (over: Partial<Booking>, selfCheckIn = true) =>
   ({ status: 'CONFIRMED', stay: null, ...over, lot: { selfCheckIn } }) as unknown as Booking;
@@ -15,5 +15,14 @@ describe('selfCheckKind (ADR 0016)', () => {
       selfCheckKind(b({ status: 'COMPLETED', stay: { ...stay, checkedOutAt: 'y' } })),
     ).toBeNull();
     expect(selfCheckKind(b({ status: 'CANCELLED' }))).toBeNull();
+  });
+});
+
+describe('positionProblem (gap review G-1)', () => {
+  it('refuses fake locations and rough fixes', () => {
+    expect(positionProblem({ coords: { accuracy: 20 } })).toBeNull();
+    expect(positionProblem({ mocked: true, coords: { accuracy: 5 } })).toMatch(/fake-location/);
+    expect(positionProblem({ coords: { accuracy: 400 } })).toMatch(/precise/);
+    expect(positionProblem({ coords: { accuracy: null } })).toMatch(/precise/);
   });
 });

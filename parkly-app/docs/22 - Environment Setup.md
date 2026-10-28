@@ -76,6 +76,9 @@ Run `pnpm exec supabase config diff` to preview, then `pnpm exec supabase config
 | **Leaked-password protection** | on (hosted-only) | Auth → Sign In / Providers → Email |
 | Phone sign-up | on | Auth → Sign In / Providers → Phone |
 | MFA (TOTP) | enroll + verify on | Auth → Multi-Factor |
+| **Email OTP expiry** | **300 s** (doc 05 §4.1; matches `supabase/config.toml`) | Auth → Sign In / Providers → Email |
+| **SMS OTP expiry** | **300 s** | Auth → Sign In / Providers → Phone |
+| Captcha (Turnstile) on sign-in | **on before launch**: needs a Cloudflare Turnstile site key in the apps and the secret here (gap review S-4) | Auth → Bot and Abuse Protection |
 | Site URL + redirect URLs | the env's web, portal and admin URLs + `parkly://` | Auth → URL Configuration |
 | **Test phone numbers** | **dev only**, e.g. `2348061325196=123456`, in **international format without `+`**. **Never in staging or prod.** | Auth → Sign In / Providers → Phone |
 
@@ -85,7 +88,7 @@ Drivers sign in with a 6-digit code by email until SMS is live. In each project:
 
 1. **Auth → Sign In / Providers → Email:** enabled. Keep "Confirm email" on.
 2. **Auth → Email Templates → Magic Link:** make the email show the code, not a link. Subject `Your Parkly code`, body for example:
-   `<p>Your Parkly sign-in code is <strong>{{ .Token }}</strong>.</p><p>It expires in 1 hour. If you didn't ask for it, ignore this email.</p>`
+   `<p>Your Parkly sign-in code is <strong>{{ .Token }}</strong>.</p><p>It expires in 5 minutes. If you didn't ask for it, ignore this email.</p>`
    **Confirm signup** (a brand-new address gets this one): **keep the link and add the code**, because operators confirm with the link and drivers type the code, e.g. `<p>Your Parkly code is <strong>{{ .Token }}</strong>.</p><p>Setting up an operator account? <a href="{{ .ConfirmationURL }}">Confirm your email</a>.</p>`
 3. **Project Settings → Authentication → SMTP Settings: enable custom SMTP.** Supabase's built-in sender only reaches the project's own team members and a few emails an hour. Example with Resend (free tier): create an account, add and verify the sending domain (or start with Resend's test sender), create an API key, then set host `smtp.resend.com`, port `465`, user `resend`, password = the API key, sender `Parkly <no-reply@your-domain>`. The key lives only in Supabase, never in git or Vercel.
 4. **Auth → Rate Limits:** raise "emails sent per hour" once custom SMTP is on (e.g. 100 for dev).
@@ -193,6 +196,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | — | when approved | required | ✅ (key) |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | one DB per env | own | own | ✅ (token) |
 | `SENTRY_DSN` | EU DSN | EU DSN | EU DSN | |
+| `TEST_SHORT_STAYS` | `on` only while testing overstay | `off` | **never `on`** (config refuses it) | 5-minute test stays |
 
 `SETTLEMENT_PROVIDER=paystack` also switches booking checkout to Paystack with the same key (Sprint 4). Then, in the Paystack dashboard for that key (Settings → API Keys & Webhooks), set the **Webhook URL** to `<that env's API URL>/v1/webhooks/paystack` (dev: `https://parkly-api-six.vercel.app/v1/webhooks/paystack`). Paystack signs each webhook with the secret key; nothing else to store. Outside prod, lots whose operator has no active subaccount (the demo lots) take payments with no split, all to the main account; prod refuses them.
 
@@ -205,6 +209,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `NEXT_PUBLIC_SUPABASE_URL` | that env's project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | that env's publishable key |
 | `NEXT_PUBLIC_API_URL` | that env's API URL |
+| `NEXT_PUBLIC_TEST_STAYS` | `on` only on dev, with the API's `TEST_SHORT_STAYS=on` (web only) |
 
 Nothing secret ever goes in a `NEXT_PUBLIC_*` variable.
 

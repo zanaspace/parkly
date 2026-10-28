@@ -154,6 +154,36 @@ describe('quote: hourly', () => {
     expect(price('2026-10-20 08:00', 45, halfHourMin)).toBe(75_000);
   });
 
+  it('refuses a 5-minute stay unless test stays are switched on', () => {
+    expect(quote({ ratePlan: plan, ...at('2026-10-20 08:00', 5), settings }).ok).toBe(false);
+  });
+
+  it('quotes 5-minute test stay at the single 15-minute slot rate', () => {
+    const r = quote({
+      ratePlan: plan,
+      ...at('2026-10-20 08:00', 5),
+      settings,
+      allowTestStays: true,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.quote.priceKobo).toBe(25_000);
+      expect(r.quote.lines).toEqual([
+        {
+          kind: 'HOURLY_DAY',
+          date: '2026-10-20',
+          minutes: 5,
+          amountKobo: 25_000,
+          capped: false,
+        },
+        {
+          kind: 'SERVICE_FEE',
+          amountKobo: 10_000,
+        },
+      ]);
+    }
+  });
+
   it('refuses stays shorter than the minimum or off the 15-minute grid', () => {
     for (const minutes of [0, 15, 45, 61, 70]) {
       const r = quote({ ratePlan: plan, ...at('2026-10-20 08:00', minutes), settings });

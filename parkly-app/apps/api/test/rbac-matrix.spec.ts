@@ -238,6 +238,10 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/bookings',
   'GET /v1/bookings/{id}',
   'GET /v1/bookings/{id}/receipt',
+  // Signed receipt link: other drivers 404 (receipt.spec)
+  'POST /v1/bookings/{id}/receipt-link',
+  // Public, but only with a valid 5-minute signature for that booking (receipt.spec)
+  'GET /v1/receipts/{id}',
   'GET /v1/bookings/{id}/extensions/options',
   'POST /v1/bookings/{id}/extensions',
   'POST /v1/bookings/{id}/cancel',

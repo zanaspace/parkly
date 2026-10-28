@@ -23,7 +23,7 @@ import {
 import { attendStorage, type AttendSettings } from '../../lib/attend/storage';
 import { Scanner } from './scanner';
 import { QrCode } from '../qr-code';
-import { attendantGateCodeFor } from '@parkly/domain/checkin';
+import { attendantCode } from '../../lib/attend/gate-code';
 
 const SYNC_EVERY_MS = 15_000;
 const MANIFEST_EVERY_MS = 5 * 60_000;
@@ -84,6 +84,29 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
   const syncing = useRef(false);
 
   const now = useCallback(() => new Date(Date.now() + (settings?.clockOffsetMs ?? 0)), [settings]);
+
+  // The code drivers scan off this phone is signed and changes every minute (gap review G-2).
+  const [gateCode, setGateCode] = useState<string | null>(null);
+  const showingQr = screen.name === 'show-qr';
+  useEffect(() => {
+    const lotId = manifest?.lot.id;
+    const key = manifest?.lot.gateKey;
+    if (!showingQr || !lotId || !key) {
+      setGateCode(null);
+      return;
+    }
+    let live = true;
+    const refresh = () =>
+      void attendantCode(lotId, key, now()).then((code) => {
+        if (live) setGateCode(code);
+      });
+    refresh();
+    const timer = setInterval(refresh, 15_000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [showingQr, manifest, now]);
 
   const handleAuthError = useCallback(async (err: unknown) => {
     if (!(err instanceof AttendError)) return false;
@@ -272,7 +295,17 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
 
   if (screen.name === 'loading') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', gap: '1rem', textAlign: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem 1rem',
+          gap: '1rem',
+          textAlign: 'center',
+        }}
+      >
         <div className="pk-spinner" />
         <Text variant="body-md" tone="secondary">
           Opening Gate Scanner…
@@ -610,15 +643,16 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
             margin: '0.5rem auto',
           }}
         >
-          <QrCode
-            value={attendantGateCodeFor(manifest.lot.id)}
-            label={`Gate QR code for ${manifest.lot.name}`}
-          />
+          {gateCode ? (
+            <QrCode value={gateCode} label={`Gate QR code for ${manifest.lot.name}`} />
+          ) : (
+            <Text tone="secondary">Connect once to load this car park’s gate code.</Text>
+          )}
         </div>
         <div style={{ marginBottom: '0.5rem' }}>
           <Text variant="heading-sm">{manifest.lot.name}</Text>
-          <Text variant="body-sm" tone="tertiary" style={{ fontFamily: 'monospace' }}>
-            {attendantGateCodeFor(manifest.lot.id)}
+          <Text variant="body-sm" tone="tertiary">
+            The code changes every minute, so a photo of it stops working.
           </Text>
         </div>
         <Button size="lg" fullWidth onClick={() => setScreen({ name: 'home' })}>
@@ -770,7 +804,9 @@ function PinScreen({
         });
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}
+      >
         <div
           style={{
             width: '40px',

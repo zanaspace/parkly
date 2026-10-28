@@ -10,6 +10,9 @@ import {
   distanceM,
   gateCodeFor,
   attendantGateCodeFor,
+  attendantCodeFresh,
+  gateCodePayload,
+  readGateCode,
   isAttendantGateCode,
   parseGateCode,
   type GateBooking,
@@ -227,18 +230,37 @@ describe('self check-in (ADR 0016)', () => {
   const LOT = '01a162b3-dcae-740c-a25a-e148a6951c2e';
   const lot = { lat: 6.4281, lng: 3.4219 };
 
-  it('reads only Parkly entrance codes', () => {
-    expect(gateCodeFor(LOT)).toBe(`PKG1.${LOT}`);
-    expect(attendantGateCodeFor(LOT)).toBe(`PKGA.${LOT}`);
-    expect(isAttendantGateCode(`PKGA.${LOT}`)).toBe(true);
-    expect(isAttendantGateCode(`PKG1.${LOT}`)).toBe(false);
-    expect(parseGateCode(`PKG1.${LOT}`)).toBe(LOT);
-    expect(parseGateCode(` PKG1.${LOT.toUpperCase()} `)).toBe(LOT);
-    expect(parseGateCode(`PKGA.${LOT}`)).toBe(LOT);
-    expect(parseGateCode(` PKGA.${LOT.toUpperCase()} `)).toBe(LOT);
-    expect(parseGateCode('PK1.abc.def.ghi')).toBeNull();
-    expect(parseGateCode('PKG1.not-a-uuid')).toBeNull();
-    expect(parseGateCode('PKGA.not-a-uuid')).toBeNull();
+  const SIG = 'abcdefghij_-1234';
+  const poster = `PKG1.${LOT}.${SIG}`;
+  const phone = `PKGA.${LOT}.29000000.${SIG}`;
+
+  it('reads only signed Parkly entrance codes (gap review G-1, G-2)', () => {
+    expect(gateCodeFor(LOT, SIG)).toBe(poster);
+    expect(attendantGateCodeFor(LOT, 29000000, SIG)).toBe(phone);
+    expect(readGateCode(poster)).toEqual({ kind: 'POSTER', lotId: LOT, sig: SIG });
+    expect(readGateCode(` PKGA.${LOT.toUpperCase()}.29000000.${SIG} `)).toEqual({
+      kind: 'ATTENDANT',
+      lotId: LOT,
+      minute: 29000000,
+      sig: SIG,
+    });
+    expect(isAttendantGateCode(phone)).toBe(true);
+    expect(isAttendantGateCode(poster)).toBe(false);
+    expect(parseGateCode(poster)).toBe(LOT);
+    // The old unsigned codes, which anyone could make from a booking, are refused.
+    expect(parseGateCode(`PKG1.${LOT}`)).toBeNull();
+    expect(parseGateCode(`PKGA.${LOT}`)).toBeNull();
+    expect(parseGateCode(`PKG1.${LOT}.short`)).toBeNull();
+    expect(parseGateCode('PKG1.not-a-uuid.abcdefghij_-1234')).toBeNull();
+    expect(gateCodePayload({ kind: 'ATTENDANT', lotId: LOT, minute: 5 })).toBe(`PKGA.${LOT}.5`);
+  });
+
+  it('keeps an attendant code fresh for two minutes', () => {
+    const now = new Date(29000000 * 60_000 + 30_000);
+    expect(attendantCodeFresh(29000000, now)).toBe(true);
+    expect(attendantCodeFresh(29000000 - 2, now)).toBe(true);
+    expect(attendantCodeFresh(29000000 - 3, now)).toBe(false);
+    expect(attendantCodeFresh(29000000 + 2, now)).toBe(false);
   });
 
   it('measures how far the phone is from the lot', () => {
@@ -249,14 +271,14 @@ describe('self check-in (ADR 0016)', () => {
 
   it('allows it only at the lot, for that lot, inside the booking time', () => {
     const base = { lotId: LOT, lotLocation: lot, enabled: true, now: at(5), rules };
-    const here = { code: `PKG1.${LOT}`, position: { lat: 6.4282, lng: 3.422 } };
+    const here = { code: poster, position: { lat: 6.4282, lng: 3.422 } };
     expect(checkSelf({ ...base, ...here, booking: booking() })).toEqual({ ok: true });
     expect(checkSelf({ ...base, ...here, enabled: false, booking: booking() })).toEqual({
       ok: false,
       code: 'SELF_CHECKIN_OFF',
     });
     // Scanning the attendant's phone barcode works even if unmanned self-checkin is disabled
-    const attendantHere = { code: `PKGA.${LOT}`, position: { lat: 6.4282, lng: 3.422 } };
+    const attendantHere = { code: phone, position: { lat: 6.4282, lng: 3.422 } };
     expect(checkSelf({ ...base, ...attendantHere, enabled: false, booking: booking() })).toEqual({
       ok: true,
     });
@@ -264,7 +286,7 @@ describe('self check-in (ADR 0016)', () => {
       checkSelf({
         ...base,
         ...here,
-        code: 'PKG1.01a162b3-dcae-740c-a25a-e148a6951c2f',
+        code: `PKG1.01a162b3-dcae-740c-a25a-e148a6951c2f.${SIG}`,
         booking: booking(),
       }),
     ).toEqual({ ok: false, code: 'QR_WRONG_LOT' });
@@ -272,7 +294,7 @@ describe('self check-in (ADR 0016)', () => {
       checkSelf({
         ...base,
         ...attendantHere,
-        code: 'PKGA.01a162b3-dcae-740c-a25a-e148a6951c2f',
+        code: `PKGA.01a162b3-dcae-740c-a25a-e148a6951c2f.29000000.${SIG}`,
         booking: booking(),
       }),
     ).toEqual({ ok: false, code: 'QR_WRONG_LOT' });

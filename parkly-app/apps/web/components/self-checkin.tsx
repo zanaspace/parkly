@@ -10,13 +10,7 @@ import { AlertCircleIcon, CameraIcon, CheckCircleIcon } from './icons';
 type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> };
 type DetectorCtor = new (opts: { formats: string[] }) => Detector;
 
-export function SelfCheckinAction({
-  booking,
-  onDone,
-}: {
-  booking: Booking;
-  onDone?: () => void;
-}) {
+export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDone?: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -30,8 +24,8 @@ export function SelfCheckinAction({
     booking.status === 'CONFIRMED' && !booking.stay?.checkedInAt
       ? 'in'
       : booking.status === 'CHECKED_IN' && !booking.stay?.checkedOutAt
-      ? 'out'
-      : null;
+        ? 'out'
+        : null;
 
   useEffect(() => {
     if (!open) return;
@@ -108,6 +102,15 @@ export function SelfCheckinAction({
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        // A rough fix can't show the phone is at the car park (gap review G-1).
+        if (pos.coords.accuracy > 150) {
+          setError(
+            'Your location isn’t precise enough. Step outside or wait a moment, then try again.',
+          );
+          setSending(false);
+          doneRef.current = false;
+          return;
+        }
         try {
           const res = await submitSelfCheck(booking.id, kind, {
             clientEventId: crypto.randomUUID(),
@@ -202,7 +205,13 @@ export function SelfCheckinAction({
               </button>
             </div>
 
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--pk-color-text-secondary, #475569)' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '0.875rem',
+                color: 'var(--pk-color-text-secondary, #475569)',
+              }}
+            >
               Point your camera at the Parkly barcode at the entrance barrier or on the attendant’s
               phone.
             </p>

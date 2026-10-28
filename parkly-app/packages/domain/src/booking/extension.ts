@@ -15,6 +15,7 @@ export type ExtensionWindowValidation =
         | 'EXTENSION_NOT_LATER'
         | 'EXTENSION_NOT_SLOT_ALIGNED'
         | 'EXTENSION_EXCEEDS_MAX_DURATION'
+        | 'EXTENSION_TOO_LATE'
         | 'BOOKING_NOT_EXTENDABLE';
     };
 
@@ -39,8 +40,12 @@ export function validateExtensionWindow(input: {
   now: Date;
   status: BookingStatus;
   maxDurationMinutes: number;
+  /** Overstay grace: past end + grace the time already used is overstay, not extension. */
+  graceMin?: number;
+  /** 5-minute test extensions; switched on only outside prod (gap review L-2). */
+  allowTestStays?: boolean;
 }): ExtensionWindowValidation {
-  const { startAt, currentEndAt, newEndAt, status, maxDurationMinutes } = input;
+  const { startAt, currentEndAt, newEndAt, now, status, maxDurationMinutes } = input;
 
   // Only CONFIRMED or CHECKED_IN bookings can be extended
   if (status !== 'CONFIRMED' && status !== 'CHECKED_IN') {
@@ -52,8 +57,16 @@ export function validateExtensionWindow(input: {
     return { ok: false, code: 'EXTENSION_NOT_LATER' };
   }
 
-  // newEndAt must align to the 15-minute grid
-  if (!isSlotAligned(newEndAt)) {
+  // Extending over time already spent would bill overstay at the normal rate (ADR 0016).
+  if (now.getTime() > currentEndAt.getTime() + (input.graceMin ?? 0) * MINUTE_MS) {
+    return { ok: false, code: 'EXTENSION_TOO_LATE' };
+  }
+
+  const addedMinutes = Math.round((newEndAt.getTime() - currentEndAt.getTime()) / MINUTE_MS);
+  const is5Min = input.allowTestStays === true && addedMinutes === 5;
+
+  // newEndAt must align to the 15-minute grid (or be a 5-minute test extension)
+  if (!isSlotAligned(newEndAt) && !is5Min) {
     return { ok: false, code: 'EXTENSION_NOT_SLOT_ALIGNED' };
   }
 
@@ -62,8 +75,6 @@ export function validateExtensionWindow(input: {
   if (totalMinutes > maxDurationMinutes) {
     return { ok: false, code: 'EXTENSION_EXCEEDS_MAX_DURATION' };
   }
-
-  const addedMinutes = Math.round((newEndAt.getTime() - currentEndAt.getTime()) / MINUTE_MS);
 
   return {
     ok: true,
@@ -106,10 +117,7 @@ export function calculateExtensionQuote(input: {
   }
 
   // Incremental parking price = full stay price minus already paid price (never negative)
-  const incrementalPriceKobo = Math.max(
-    0,
-    fullQuoteRes.quote.priceKobo - currentPriceKobo,
-  ) as Kobo;
+  const incrementalPriceKobo = Math.max(0, fullQuoteRes.quote.priceKobo - currentPriceKobo) as Kobo;
 
   const commissionKobo = mulDivRoundHalfUp(
     incrementalPriceKobo,

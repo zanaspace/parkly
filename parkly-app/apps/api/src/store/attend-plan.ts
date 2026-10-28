@@ -68,6 +68,7 @@ export function planEvent(input: {
   });
   const occurredAt = clock.occurredAt;
   const skew = clock.skewed ? ['CLOCK_SKEW'] : [];
+  if (batch.quarantine) return nothing('REJECTED', 'DEVICE_REVOKED', occurredAt);
 
   if (event.type === 'WALK_IN')
     return { ...nothing('APPLIED', null, occurredAt), walkInDelta: event.delta };

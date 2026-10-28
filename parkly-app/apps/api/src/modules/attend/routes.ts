@@ -21,7 +21,6 @@ import { can } from '@parkly/domain/authz';
 import {
   checkSelf,
   distanceM,
-  gateCodeFor,
   isAttendantGateCode,
   parseGateCode,
   SELF_CHECKIN_RADIUS_M,
@@ -32,6 +31,7 @@ import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
+import { gateCodes } from '../../lib/gate-codes.js';
 import type { AttendDeviceRow, AttendEventInput } from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -53,6 +53,7 @@ export function attendRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
   const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const secured = { security: [{ bearerAuth: [] }], middleware };
+  const codes = gateCodes(deps.crypto);
 
   async function settingNumber(key: string, fallback: number) {
     return (await deps.store.settings.get<number>(key)) ?? fallback;
@@ -172,6 +173,14 @@ export function attendRoutes(deps: AppDeps) {
         approve: isManager,
         at: deps.now(),
       });
+      // A manager's own phone approves itself: still a privileged change (Never-do #3).
+      if (isManager && device.approvedAt?.getTime() === deps.now().getTime())
+        await audit(c, deps, {
+          action: 'attendant_device.self_approve',
+          entityType: 'device',
+          entityId: device.id,
+          after: { lotId: lot.id },
+        });
       return c.json(toDevice(device), 200);
     },
   );
@@ -190,8 +199,12 @@ export function attendRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { lotId } = c.req.valid('param');
+      const { clientDeviceId } = c.req.valid('query');
+      // Before the role check, so a removed attendant's phone still learns to wipe (G-7).
+      if ((await deps.store.attend.device(c.get('actor').userId, clientDeviceId))?.revokedAt)
+        throw new ApiError('DEVICE_REVOKED');
       const lot = await gateLot(c, lotId);
-      await approvedDevice(c.get('actor').userId, c.req.valid('query').clientDeviceId, lotId);
+      await approvedDevice(c.get('actor').userId, clientDeviceId, lotId);
       const now = deps.now();
       const [rows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
         await Promise.all([
@@ -209,7 +222,12 @@ export function attendRoutes(deps: AppDeps) {
       return c.json(
         {
           serverTime: now.toISOString(),
-          lot: { id: lot.id, name: lot.name, capacityBookable: lot.capacityBookable },
+          lot: {
+            id: lot.id,
+            name: lot.name,
+            capacityBookable: lot.capacityBookable,
+            gateKey: codes.attendantKey(lot.id),
+          },
           rules: { earlyArrivalMin, noShowGraceMin, overstayGraceMin },
           keys: keys.valid.map((k) => ({
             kid: k.kid,
@@ -246,10 +264,15 @@ export function attendRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const body = c.req.valid('json');
-      const lot = await gateLot(c, body.lotId);
       const actor = c.get('actor');
-      const device = await approvedDevice(actor.userId, body.clientDeviceId, lot.id);
       const receivedAt = deps.now();
+      // A blocked phone, or one whose attendant was removed, is told so before any
+      // role check, so it wipes its cache; its queue is kept for ops (G-6, G-7).
+      const known = await deps.store.attend.device(actor.userId, body.clientDeviceId);
+      const revoked = Boolean(known?.revokedAt);
+      const lot = revoked && known ? { id: known.lotId } : await gateLot(c, body.lotId);
+      const device =
+        revoked && known ? known : await approvedDevice(actor.userId, body.clientDeviceId, lot.id);
       const events: AttendEventInput[] = body.events.map((e) => {
         const deviceTime = new Date(e.deviceTime);
         switch (e.type) {
@@ -276,9 +299,17 @@ export function attendRoutes(deps: AppDeps) {
           attendantId: actor.userId,
           deviceSentAt: new Date(body.deviceSentAt),
           receivedAt,
+          quarantine: revoked,
         },
         events,
       );
+      if (revoked) {
+        deps.logger.warn(
+          { event: 'attend.revoked_sync', deviceId: device.id, events: results.length },
+          'blocked phone synced; events kept for review',
+        );
+        throw new ApiError('DEVICE_REVOKED');
+      }
 
       await priceOverstay(lot.id, checkedOut);
       deps.logger.info(
@@ -330,7 +361,7 @@ export function attendRoutes(deps: AppDeps) {
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
       const lot = await ownLot(c, operatorId, lotId, false);
-      return c.json({ lotId, enabled: lot.selfCheckinEnabled, gateCode: gateCodeFor(lotId) }, 200);
+      return c.json({ lotId, enabled: lot.selfCheckinEnabled, gateCode: codes.poster(lotId) }, 200);
     },
   );
 
@@ -355,7 +386,7 @@ export function attendRoutes(deps: AppDeps) {
         entityId: lotId,
         after: { selfCheckinEnabled: enabled },
       });
-      return c.json({ lotId, enabled, gateCode: gateCodeFor(lotId) }, 200);
+      return c.json({ lotId, enabled, gateCode: codes.poster(lotId) }, 200);
     },
   );
 
@@ -392,6 +423,8 @@ export function attendRoutes(deps: AppDeps) {
     const lot = await deps.store.lots.findById(booking.lotId);
     if (!lot) throw new ApiError('LOT_NOT_FOUND');
     const now = deps.now();
+    // Only a code Parkly signed: the lot id alone, which every booking carries, is not enough.
+    if (!codes.verify(body.code, now)) throw new ApiError('QR_WRONG_LOT');
     const stay = (await deps.store.attend.sessionsForBookings([booking.id])).get(booking.id);
     const rules = {
       earlyArrivalMin: await settingNumber('booking.early_arrival_min', 30),

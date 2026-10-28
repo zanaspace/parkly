@@ -204,6 +204,16 @@ describe('POST /v1/bookings (FR-BOOK-001)', () => {
     expect(full.body?.code).toBe('BOOKING_SLOT_UNAVAILABLE');
   });
 
+  it('takes a 5-minute test stay only when test stays are switched on (gap review L-2)', async () => {
+    const fiveMin = { startAt: START, endAt: '2026-10-20T07:05:00.000Z' };
+    const off = await setup();
+    const res = await off.book(await off.newDriver(), undefined, fiveMin);
+    expect(res.body?.code).toBe('BOOKING_WINDOW_INVALID');
+
+    const on = await setup({}, { config: { ...testDeps().config, testShortStays: true } });
+    expect((await on.book(await on.newDriver(), undefined, fiveMin)).status).toBe(201);
+  });
+
   it('checks the window, opening hours and the driver’s own car', async () => {
     const t = await setup();
     const driver = await t.newDriver();
@@ -362,6 +372,51 @@ describe('POST /v1/webhooks/paystack (doc 02 §7)', () => {
     });
     expect(res.status).toBe(401);
     expect(t.store.booking.webhookRows).toEqual([]);
+  });
+
+  it('records the refund outcome and marks the charge refunded (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    const refund = t.store.booking.refundRows[0];
+    expect(refund?.providerRefundId).toBe('rf_1');
+    const res = await t.app.request('/v1/webhooks/paystack', {
+      method: 'POST',
+      headers: { 'x-paystack-signature': 'valid', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        event: 'refund.processed',
+        data: { id: 'rf_1', transaction_reference: created.payment.reference, status: 'processed' },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(refund?.status).toBe('SUCCEEDED');
+    expect((await t.store.payments.find(created.payment.reference))?.status).toBe('REFUNDED');
+  });
+
+  it('asks the provider again for a refund it never accepted (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const refund = t.payments.refund.bind(t.payments);
+    t.payments.refund = async () => {
+      throw new Error('provider down');
+    };
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(t.store.booking.refundRows[0]?.providerRefundId).toBeNull();
+    t.payments.refund = refund;
+    await settlePaymentsJob(t.deps)({ payload: {}, deadline: new Date('2100-01-01T00:00:00Z') });
+    expect(t.store.booking.refundRows[0]?.providerRefundId).toBe('rf_1');
   });
 
   it('confirms through verify, once, however often the event arrives', async () => {
@@ -678,6 +733,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     const newEnd = '2026-10-20T10:00:00.000Z';
     const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
@@ -708,6 +764,84 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     expect(extRow?.status).toBe('CONFIRMED');
   });
 
+  it('settles an extension payment once, and never on a short charge (gap review P-2, P-3)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const extend = async (newEndAt: string) =>
+      (
+        await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+          as: driver.id,
+          headers: { 'idempotency-key': randomUUID() },
+          body: { newEndAt },
+        })
+      ).body as unknown as { extension: { id: string }; payment: { reference: string } };
+    const verify = (ref: string) => t.call('POST', `/v1/payments/${ref}/verify`, { as: driver.id });
+    const linesFor = (ref: string) => t.store.booking.ledgerRows.filter((l) => l.paymentId === ref);
+
+    const short = await extend('2026-10-20T10:00:00.000Z');
+    t.payments.pay(short.payment.reference, { amountKobo: 100 });
+    await verify(short.payment.reference);
+    expect((await t.store.bookings.findExtension(short.extension.id))?.status).toBe(
+      'PENDING_PAYMENT',
+    );
+    expect(linesFor(short.payment.reference)).toEqual([]);
+
+    const paid = await extend('2026-10-20T10:00:00.000Z');
+    t.payments.pay(paid.payment.reference);
+    await verify(paid.payment.reference);
+    const posted = linesFor(paid.payment.reference).length;
+    expect(posted).toBeGreaterThan(0);
+    // The webhook settles the same payment again after the app's verify.
+    await verify(paid.payment.reference);
+    expect(linesFor(paid.payment.reference)).toHaveLength(posted);
+    expect((await t.store.bookings.findExtension(paid.extension.id))?.status).toBe('CONFIRMED');
+  });
+
+  it('holds one extension at a time and gives it back when it cannot go ahead (gap review P-4, P-5)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const extend = () =>
+      t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+        as: driver.id,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+      });
+    const heldAfterEnd = () =>
+      t.store.slotRows
+        .filter((s) => s.lotId === t.lot.id && s.slotStart.toISOString() >= END)
+        .reduce((n, s) => n + s.held, 0);
+
+    for (let i = 0; i < 5; i++) await extend();
+    expect(heldAfterEnd()).toBe(4); // one extension's four slots, not five times that
+
+    t.payments.failInitialize = true;
+    expect((await extend()).body?.code).toBe('PAYMENT_PROVIDER_UNAVAILABLE');
+    expect(heldAfterEnd()).toBe(0);
+    t.payments.failInitialize = false;
+
+    // Paid after the booking was cancelled: nothing to extend, so the money goes back.
+    const late = (await extend()).body as unknown as { payment: { reference: string } };
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(heldAfterEnd()).toBe(0);
+    t.payments.pay(late.payment.reference);
+    const res = await t.call('POST', `/v1/payments/${late.payment.reference}/verify`, {
+      as: driver.id,
+    });
+    expect(res.body?.booking).toMatchObject({ status: 'CANCELLED', endAt: END });
+    expect(t.payments.refunds).toEqual(
+      expect.arrayContaining([{ reference: late.payment.reference, amountKobo: 50_000 }]),
+    );
+  });
+
   it('auto-confirms extension with null payment when daily cap is reached (₦0 incremental price)', async () => {
     const t = await setup();
     // Update rate plan with daily cap of 100_000 (₦1,000)
@@ -723,6 +857,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     const newEnd = '2026-10-20T10:00:00.000Z';
     const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
@@ -750,6 +885,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Earlier or equal to endAt
     const invalidTime = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: END },
     });
     expect(invalidTime.status).toBe(400);
@@ -758,6 +894,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Not aligned to 15-min slot
     const notAligned = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T09:07:00.000Z' },
     });
     expect(notAligned.status).toBe(400);
@@ -774,6 +911,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Lot closes at 22:00 Lagos (21:00 UTC)
     const afterHours = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T22:00:00.000Z' },
     });
     expect(afterHours.status).toBe(422);
@@ -854,10 +992,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
       'The car park closes at 00:00, so this stay can’t be extended',
     );
     expect(
-      closedForExtensionDetail(
-        new Date('2026-10-26T23:00:00Z'),
-        new Date('2026-10-27T06:00:00Z'),
-      ),
+      closedForExtensionDetail(new Date('2026-10-26T23:00:00Z'), new Date('2026-10-27T06:00:00Z')),
     ).toBe('The car park closes at 00:00 and reopens Tue 07:00');
   });
 
@@ -868,6 +1003,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Initial booking is still PENDING_PAYMENT (not CONFIRMED or CHECKED_IN)
     const res = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T10:00:00.000Z' },
     });
     expect(res.status).toBe(409);
@@ -886,6 +1022,7 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     // Cancel now (Monday morning, booking starts Tuesday morning -> > 30m)
     const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { reason: 'Plans changed' },
     });
     expect(cancelRes.status).toBe(200);
@@ -897,6 +1034,33 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     // Refund row saved and requested
     expect(t.store.booking.refundRows).toHaveLength(1);
     expect(t.store.booking.refundRows[0]?.amountKobo).toBe(110_000);
+  });
+
+  it('refunds an extended booking charge by charge (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const ext = (
+      await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+        as: driver.id,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+      })
+    ).body as unknown as Created;
+    t.payments.pay(ext.payment.reference);
+    await t.call('POST', `/v1/payments/${ext.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect((res.body as unknown as { refundKobo: number }).refundKobo).toBe(160_000);
+    expect(t.payments.refunds).toEqual([
+      { reference: ext.payment.reference, amountKobo: 50_000 },
+      { reference: created.payment.reference, amountKobo: 110_000 },
+    ]);
   });
 
   it('cancels confirmed booking < 30m before start with 0 refund', async () => {
@@ -911,6 +1075,7 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
 
     const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(cancelRes.status).toBe(200);
     const body = cancelRes.body as any;
@@ -924,10 +1089,14 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     const t = await setup();
     const driver = await t.newDriver();
     const created = (await t.book(driver)).body as unknown as Created;
-    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, { as: driver.id });
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
 
     const secondCancel = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(secondCancel.status).toBe(409);
     expect(secondCancel.body?.code).toBe('BOOKING_NOT_CANCELLABLE');
@@ -944,6 +1113,7 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
 
     const res = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(res.status).toBe(409);
     expect(res.body?.code).toBe('OVERSTAY_NOT_DUE');
@@ -973,6 +1143,7 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
 
     const payRes = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(payRes.status).toBe(200);
     const body = payRes.body as any;
@@ -981,6 +1152,31 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
       status: 'PENDING',
       authorizationUrl: expect.stringContaining('https://checkout.fake/'),
     });
+
+    // A second tap (new key) or a retry (same key) never opens a second checkout (P-7, P-13).
+    const again = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect((again.body as unknown as Created).payment.reference).toBe(body.payment.reference);
+    const key = randomUUID();
+    const first = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': key },
+    });
+    const replay = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': key },
+    });
+    expect(replay.headers.get('idempotent-replayed')).toBe('true');
+    expect(replay.body).toEqual(first.body);
+    expect(
+      (await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, { as: driver.id }))
+        .body?.code,
+    ).toBe('IDEMPOTENCY_KEY_MISSING');
+    expect(
+      t.payments.initialized.filter((i) => i.reference !== created.payment.reference),
+    ).toHaveLength(1);
 
     // Settle overstay payment
     t.payments.pay(body.payment.reference);
@@ -1019,5 +1215,3 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
     });
   });
 });
-
-

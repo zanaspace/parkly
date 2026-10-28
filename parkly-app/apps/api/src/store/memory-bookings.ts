@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { confirmDecision, isBalanced, type JournalLine } from '@parkly/domain/booking';
-import { settlePlan, type SettlePlan } from './settle-plan.js';
+import {
+  addOnDecision,
+  allocateRefund,
+  confirmDecision,
+  isBalanced,
+  type JournalLine,
+} from '@parkly/domain/booking';
+import { addOnSettlePlan, settlePlan, type SettlePlan } from './settle-plan.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
@@ -29,6 +35,7 @@ type Refund = {
   amountKobo: number;
   reason: string;
   providerRefundId: string | null;
+  status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
 };
 type Webhook = {
   id: string;
@@ -71,6 +78,7 @@ export class MemoryBookings {
   readonly webhookRows: Webhook[] = [];
   readonly idempotencyRows = new Map<string, IdemKey>();
   onOverstayPaid?: (bookingId: string) => Promise<void> | void;
+  overstayDue?: (bookingId: string) => boolean;
 
   constructor(
     private readonly lotRows: Map<string, LotRow>,
@@ -154,7 +162,12 @@ export class MemoryBookings {
   readonly bookings: Store['bookings'] = {
     hold: async (input, payment, at) => {
       const { startAt, endAt } = input;
-      if (endAt <= startAt || startAt.getTime() % SLOT_MS !== 0 || endAt.getTime() % SLOT_MS !== 0)
+      const is5Min = endAt.getTime() - startAt.getTime() === 5 * 60_000;
+      if (
+        endAt <= startAt ||
+        startAt.getTime() % SLOT_MS !== 0 ||
+        (!is5Min && endAt.getTime() % SLOT_MS !== 0)
+      )
         throw new BookingHoldError('BOOKING_WINDOW_INVALID');
       const lot = this.lotRows.get(input.lotId);
       if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
@@ -256,17 +269,34 @@ export class MemoryBookings {
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
       if (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN')
         throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
-      if (ext.newEndAt <= b.endAt || ext.newEndAt.getTime() % SLOT_MS !== 0)
+      const addedMinutes = Math.round((ext.newEndAt.getTime() - b.endAt.getTime()) / 60_000);
+      const is5Min = addedMinutes === 5;
+      if (ext.newEndAt <= b.endAt || (!is5Min && ext.newEndAt.getTime() % SLOT_MS !== 0))
         throw new BookingHoldError('BOOKING_WINDOW_INVALID');
       const lot = this.lotRows.get(b.lotId);
       if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
+      // As fn_hold_extension: a new request replaces the driver's own unpaid one.
+      for (const prev of this.extensionRows.filter(
+        (r) => r.bookingId === b.id && r.status === 'PENDING_PAYMENT',
+      ))
+        await this.bookings.releaseExtension(prev.id, 'EXPIRED', at);
+      if (
+        this.bookingRows.some(
+          (o) =>
+            o.id !== b.id &&
+            o.vehicleId === b.vehicleId &&
+            LIVE_STATUSES.has(o.status) &&
+            o.startAt < ext.newEndAt &&
+            o.endAt > b.endAt,
+        )
+      )
+        throw new BookingHoldError('BOOKING_OVERLAP_SAME_VEHICLE');
 
       const slots = this.windowSlots(lot.id, b.endAt, ext.newEndAt, lot.capacityBookable);
       if (slots.some((s) => this.free(s) < 1))
         throw new BookingHoldError('BOOKING_SLOT_UNAVAILABLE');
       for (const s of slots) s.held += 1;
 
-      const addedMinutes = Math.round((ext.newEndAt.getTime() - b.endAt.getTime()) / 60_000);
       const extensionRow: BookingExtensionRow & { paymentId: string | null } = {
         id: ext.id,
         bookingId: ext.bookingId,
@@ -305,13 +335,30 @@ export class MemoryBookings {
       return { extension: { ...extensionRow }, payment: paymentRow };
     },
 
+    releaseExtension: async (id, status) => {
+      const ext = this.extensionRows.find((r) => r.id === id);
+      if (!ext || ext.status !== 'PENDING_PAYMENT') return false;
+      const b = this.bookingRows.find((r) => r.id === ext.bookingId);
+      if (b)
+        for (const s of this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null)) s.held -= 1;
+      ext.status = status;
+      const p = this.paymentRows.find((r) => r.id === ext.paymentId);
+      if (p?.status === 'INITIATED')
+        Object.assign(p, { status: 'FAILED', failureCode: 'extension.released' });
+      return true;
+    },
+
     confirmExtension: async (extensionId, paymentId, at) => {
       const ext = this.extensionRows.find((r) => r.id === extensionId);
       if (!ext) throw new Error('EXTENSION_NOT_FOUND');
-      if (ext.status !== 'PENDING_PAYMENT')
-        throw new Error('EXTENSION_ALREADY_CONFIRMED');
+      if (ext.status !== 'PENDING_PAYMENT') throw new Error('EXTENSION_ALREADY_CONFIRMED');
       const b = this.bookingRows.find((r) => r.id === ext.bookingId);
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+      if (
+        (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN') ||
+        ext.startAt.getTime() !== b.endAt.getTime()
+      )
+        throw new Error('EXTENSION_NOT_APPLICABLE');
 
       const slots = this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null);
       for (const s of slots) {
@@ -337,6 +384,10 @@ export class MemoryBookings {
       if (b.status !== 'PENDING_PAYMENT' && b.status !== 'CONFIRMED')
         throw new BookingHoldError('BOOKING_NOT_CANCELLABLE');
 
+      for (const ext of this.extensionRows.filter(
+        (r) => r.bookingId === b.id && r.status === 'PENDING_PAYMENT',
+      ))
+        await this.bookings.releaseExtension(ext.id, 'CANCELLED', at);
       if (b.status === 'CONFIRMED') this.move(b, 0, -1);
       else if (b.status === 'PENDING_PAYMENT') this.move(b, -1, 0);
 
@@ -350,22 +401,42 @@ export class MemoryBookings {
         reason,
       });
 
-      let refundId: string | null = null;
+      const created: { id: string; paymentId: string; amountKobo: number }[] = [];
       if (refund && refund.amountKobo > 0) {
-        const p = this.paymentRows
-          .filter((p) => p.bookingId === bookingId && p.status === 'SUCCEEDED')
-          .slice(-1)[0];
-        if (!p) throw new Error(`no successful payment for booking ${bookingId}`);
-        refundId = randomUUID();
-        this.refundRows.push({
-          id: refundId,
-          paymentId: p.id,
-          amountKobo: refund.amountKobo,
-          reason: refund.reason,
-          providerRefundId: null,
-        });
+        const paid = this.paymentRows
+          .filter(
+            (p) =>
+              p.bookingId === bookingId &&
+              (p.kind ?? 'BOOKING') !== 'OVERSTAY' &&
+              (p.status === 'SUCCEEDED' || p.status === 'PARTIALLY_REFUNDED'),
+          )
+          .reverse();
+        if (paid.length === 0) throw new Error(`no successful payment for booking ${bookingId}`);
+        const split = allocateRefund(
+          refund.amountKobo,
+          paid.map((p) => ({
+            id: p.id,
+            amountKobo: p.amountKobo,
+            refundedKobo: this.refundRows
+              .filter((r) => r.paymentId === p.id && r.status !== 'FAILED')
+              .reduce((n, r) => n + r.amountKobo, 0),
+          })),
+        );
+        if (!split) throw new Error(`refund exceeds what booking ${bookingId} paid`);
+        for (const part of split) {
+          const id = randomUUID();
+          this.refundRows.push({
+            id,
+            paymentId: part.paymentId,
+            amountKobo: part.amountKobo,
+            reason: refund.reason,
+            providerRefundId: null,
+            status: 'PENDING',
+          });
+          created.push({ id, ...part });
+        }
       }
-      return { booking: { ...b }, refundId };
+      return { booking: { ...b }, refunds: created };
     },
 
     markNoShows: async (at) => {
@@ -460,51 +531,33 @@ export class MemoryBookings {
       const b = this.bookingRows.find((r) => r.id === p.bookingId);
       if (!b) throw new Error(`payment ${id} has no booking`);
 
-      if (p.kind === 'EXTENSION') {
-        const ext = this.extensionRows.find((r) => r.paymentId === p.id);
-        if (charge.status === 'success') {
-          if (ext && ext.status === 'PENDING_PAYMENT') {
-            await this.bookings.confirmExtension(ext.id, p.id, new Date());
-          }
-          p.status = 'SUCCEEDED';
-          p.paidAt = charge.paidAt;
-          return {
-            decision: 'CONFIRM',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        } else {
-          p.status = 'FAILED';
-          return {
-            decision: 'FAIL',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
+      if (p.kind === 'EXTENSION' || p.kind === 'OVERSTAY') {
+        const ext =
+          p.kind === 'EXTENSION' ? this.extensionRows.find((r) => r.paymentId === p.id) : undefined;
+        const applicable =
+          p.kind === 'EXTENSION'
+            ? !!ext &&
+              ext.status === 'PENDING_PAYMENT' &&
+              (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') &&
+              ext.startAt.getTime() === b.endAt.getTime()
+            : (this.overstayDue?.(b.id) ?? false);
+        const decision = addOnDecision({
+          payment: { status: p.status, amountKobo: p.amountKobo },
+          verify: charge,
+          applicable,
+        });
+        const plan = addOnSettlePlan(decision, charge, b, this.publicPayment(p));
+        if (plan.applyAddOn) {
+          if (ext) await this.bookings.confirmExtension(ext.id, p.id, new Date());
+          else await this.onOverstayPaid?.(b.id);
         }
-      }
-
-      if (p.kind === 'OVERSTAY') {
-        if (charge.status === 'success') {
-          await this.onOverstayPaid?.(b.id);
-          p.status = 'SUCCEEDED';
-          p.paidAt = charge.paidAt;
-          return {
-            decision: 'CONFIRM',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        } else {
-          p.status = 'FAILED';
-          return {
-            decision: 'FAIL',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        }
+        const refund = this.apply(plan, b, p);
+        return {
+          decision,
+          booking: { ...b },
+          payment: this.publicPayment(p),
+          refund: refund && { id: refund.id, amountKobo: refund.amountKobo },
+        };
       }
 
       let decision = confirmDecision({
@@ -537,6 +590,29 @@ export class MemoryBookings {
     refundRequested: async (refundId, providerRefundId) => {
       const r = this.refundRows.find((x) => x.id === refundId);
       if (r) r.providerRefundId = providerRefundId;
+    },
+
+    refundsToRetry: async ({ limit }) =>
+      this.refundRows
+        .filter((r) => (r.status ?? 'PENDING') === 'PENDING' && r.providerRefundId === null)
+        .slice(0, limit)
+        .map((r) => ({ id: r.id, paymentId: r.paymentId, amountKobo: r.amountKobo })),
+
+    refundOutcome: async ({ providerRefundId, paymentId, status }) => {
+      const rows = this.refundRows.filter((r) => r.paymentId === paymentId);
+      const match =
+        rows.find((r) => providerRefundId && r.providerRefundId === providerRefundId) ??
+        rows.find((r) => (r.status ?? 'PENDING') === 'PENDING');
+      if (!match || (match.status ?? 'PENDING') !== 'PENDING') return Boolean(match);
+      match.status = status;
+      const p = this.paymentRows.find((r) => r.id === paymentId);
+      if (p && status === 'SUCCEEDED') {
+        const refunded = rows
+          .filter((r) => r.status === 'SUCCEEDED')
+          .reduce((n, r) => n + r.amountKobo, 0);
+        p.status = refunded >= p.amountKobo ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+      }
+      return true;
     },
   };
 

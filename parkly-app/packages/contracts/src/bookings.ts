@@ -203,6 +203,10 @@ export const BookingReceiptRefundSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
+/** A receipt link for a browser, signed for one booking and valid for minutes (gap review S-2). */
+export const ReceiptLinkSchema = z.object({ url: z.url(), expiresAt: z.iso.datetime() });
+export type ReceiptLink = z.infer<typeof ReceiptLinkSchema>;
+
 export const BookingReceiptSchema = z.object({
   bookingId: z.uuid(),
   bookingCode: z.string(),
@@ -251,4 +255,3 @@ export type CancelBookingResponse = z.infer<typeof CancelBookingResponseSchema>;
 export type OverstayPayRequest = z.input<typeof OverstayPayRequestSchema>;
 export type OverstayPayResponse = z.infer<typeof OverstayPayResponseSchema>;
 export type BookingReceipt = z.infer<typeof BookingReceiptSchema>;
-

@@ -26,6 +26,11 @@ describe('reading a search from the URL', () => {
     expect(s).toMatchObject({ place: 'Ikoyi', duration: 'day', sort: 'price', radiusM: 5000 });
   });
 
+  it('reads 5m test duration', () => {
+    const s = readSearch({ area: 'ikoyi', duration: '5m' }, NOW);
+    expect(s).toMatchObject({ place: 'Ikoyi', duration: '5m' });
+  });
+
   it('uses the device location for "near me" and ignores bad values', () => {
     const s = readSearch(
       { lat: '6.43', lng: '3.42', time: '09:10', duration: '7', radius: '9' },

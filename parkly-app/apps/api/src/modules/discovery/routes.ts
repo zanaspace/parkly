@@ -93,6 +93,7 @@ export function discoveryRoutes(deps: AppDeps) {
       now: deps.now(),
       limits,
       product: input.product,
+      allowTestStays: deps.config.testShortStays,
     });
     if (problem)
       throw new ApiError(
@@ -122,6 +123,7 @@ export function discoveryRoutes(deps: AppDeps) {
       startAt: ctx.startAt,
       endAt: ctx.endAt,
       settings: { ...ctx.fees, commissionBps: lot.commissionBps },
+      allowTestStays: deps.config.testShortStays,
     });
     // e.g. a 1-hour search at a lot whose minimum stay is 2 hours.
     if (!priced.ok) return null;
@@ -361,6 +363,7 @@ export function discoveryRoutes(deps: AppDeps) {
         startAt,
         endAt,
         settings: { ...fees, commissionBps: lot.commissionBps },
+        allowTestStays: deps.config.testShortStays,
       });
       if (!priced.ok)
         throw new ApiError(

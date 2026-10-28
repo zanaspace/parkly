@@ -7,6 +7,7 @@ export {
   dayLabel,
   distanceLabel,
   DURATIONS,
+  durationsFor,
   lagosWeekday,
   lineLabel,
   searchWindow,
@@ -49,8 +50,14 @@ export function readSearch(
     : fallback.time;
   const rawDuration = pick(params.duration);
   const hours = Number(rawDuration);
-  const duration =
-    rawDuration === 'day' ? 'day' : (DURATIONS as readonly number[]).includes(hours) ? hours : 2;
+  const duration: Duration =
+    rawDuration === 'day'
+      ? 'day'
+      : rawDuration === '5m'
+        ? '5m'
+        : (DURATIONS as readonly unknown[]).includes(hours)
+          ? (hours as Duration)
+          : 2;
   const radius = Number(pick(params.radius));
   return {
     lat: useCoords ? lat : area.lat,

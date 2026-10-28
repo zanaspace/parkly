@@ -135,7 +135,13 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
         totalKobo: 135_000,
         commissionBps: 1200,
         pricingBreakdown: [
-          { kind: 'HOURLY_DAY', date: '2026-10-20', minutes: 135, amountKobo: 125_000, capped: false },
+          {
+            kind: 'HOURLY_DAY',
+            date: '2026-10-20',
+            minutes: 135,
+            amountKobo: 125_000,
+            capped: false,
+          },
           { kind: 'SERVICE_FEE', amountKobo: 10_000 },
         ],
         source: 'MOBILE',
@@ -337,14 +343,48 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     });
     expect(unauthorizedRes.status).toBe(404);
 
-    // 5. Query parameter token authentication (external browser without Authorization header)
+    // 5. A token in the URL is never accepted (gap review S-2).
     const driverToken = await w.tokenFor(driver);
     const tokenRes = await w.call(
       'GET',
       `/v1/bookings/${bookingId}/receipt?format=html&token=${driverToken}`,
     );
-    expect(tokenRes.status).toBe(200);
-    expect(tokenRes.raw).toContain('Official Parking Receipt');
+    expect(tokenRes.status).toBe(401);
+
+    // 6. A signed, short-lived link opens in any browser, for this booking only.
+    const link = await w.call('POST', `/v1/bookings/${bookingId}/receipt-link`, { as: driver });
+    expect(link.status).toBe(200);
+    const url = new URL(link.body.url as string);
+    expect(url.search).not.toContain(driverToken);
+    const opened = await w.call('GET', url.pathname + url.search);
+    expect(opened.status).toBe(200);
+    expect(opened.raw).toContain('Official Parking Receipt');
+    const forged = url.search.replace(/sig=[^&]+/, 'sig=forged');
+    expect((await w.call('GET', url.pathname + forged)).status).toBe(404);
+    const otherBooking = `/v1/receipts/${randomUUID()}${url.search}`;
+    expect((await w.call('GET', otherBooking)).status).toBe(404);
+    expect(
+      (await w.call('POST', `/v1/bookings/${bookingId}/receipt-link`, { as: otherDriver })).status,
+    ).toBe(404);
+  });
+
+  it('escapes what operators and drivers typed (gap review S-3)', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const driver = w.user([{ role: 'DRIVER', operatorId: null }], 'D');
+    const vehicle = await addVehicle(w.store, driver);
+    const hold = await w.call('POST', '/v1/bookings', {
+      as: driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { lotId: lot.id, vehicleId: vehicle.id, product: 'HOURLY', startAt: START, endAt: END },
+    });
+    const row = w.store.lotRows.get(lot.id);
+    if (row) row.name = '<img src=x onerror=alert(1)>';
+    const res = await w.call('GET', `/v1/bookings/${hold.body.booking.id}/receipt?format=html`, {
+      as: driver,
+    });
+    expect(res.raw).not.toContain('<img src=x');
+    expect(res.raw).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 
   it('renders HTML for cancelled, no-show, and refunded bookings with proper badges', () => {

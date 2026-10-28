@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../../src/auth/AuthProvider';
+import { config } from '../../../src/lib/config';
 import { Notice } from '../../../src/components/Notice';
 import { QrCode } from '../../../src/components/QrCode';
 import { Screen } from '../../../src/components/Screen';
@@ -21,6 +22,7 @@ const POLL_MS = 3_000;
 const STAY_POLL_MS = 30_000;
 
 const EXTEND_DURATIONS = [
+  ...(config.testStays ? [{ label: '+5m (Test)', minutes: 5 }] : []),
   { label: '+15m', minutes: 15 },
   { label: '+30m', minutes: 30 },
   { label: '+45m', minutes: 45 },
@@ -67,9 +69,7 @@ export default function BookingScreen() {
           if (opts.extendableUntil) {
             const maxMs = new Date(opts.extendableUntil).getTime();
             const curEndMs = new Date(booking.endAt).getTime();
-            const allowed = EXTEND_DURATIONS.filter(
-              (o) => curEndMs + o.minutes * 60_000 <= maxMs,
-            );
+            const allowed = EXTEND_DURATIONS.filter((o) => curEndMs + o.minutes * 60_000 <= maxMs);
             const first = allowed[0];
             if (first && !allowed.some((a) => a.minutes === extendMinutes)) {
               setExtendMinutes(first.minutes);
@@ -211,9 +211,7 @@ export default function BookingScreen() {
 
   const confirmed = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
   const expiredOrCancelled =
-    booking.status === 'EXPIRED' ||
-    booking.status === 'CANCELLED' ||
-    booking.status === 'NO_SHOW';
+    booking.status === 'EXPIRED' || booking.status === 'CANCELLED' || booking.status === 'NO_SHOW';
 
   const destinationCoords = booking.lot.location
     ? `${booking.lot.location.lat},${booking.lot.location.lng}`
@@ -500,7 +498,8 @@ export default function BookingScreen() {
             </Text>
           </View>
           <Text variant="body.sm" tone="secondary">
-            We are waiting for Paystack to complete your transaction. This page automatically updates every 3 seconds.
+            We are waiting for Paystack to complete your transaction. This page automatically
+            updates every 3 seconds.
           </Text>
         </View>
       )}
@@ -533,7 +532,11 @@ export default function BookingScreen() {
             </View>
           </View>
           <Button
-            label={actionLoading ? 'Connecting...' : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`}
+            label={
+              actionLoading
+                ? 'Connecting...'
+                : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`
+            }
             variant="danger"
             fullWidth
             disabled={actionLoading}
@@ -954,9 +957,7 @@ export default function BookingScreen() {
             alignItems: 'center',
           }}
         >
-          <Text variant="label.lg">
-            {confirmed ? 'Total Paid' : 'Total Quote'}
-          </Text>
+          <Text variant="label.lg">{confirmed ? 'Total Paid' : 'Total Quote'}</Text>
           <Text
             variant="heading.md"
             style={{
@@ -983,7 +984,8 @@ export default function BookingScreen() {
         >
           <Text style={{ fontSize: 14 }}>🛡️</Text>
           <Text variant="body.sm" tone="secondary" style={{ flex: 1, lineHeight: 16 }}>
-            Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority (LASPA) permit.
+            Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority
+            (LASPA) permit.
           </Text>
         </View>
 
@@ -1030,7 +1032,13 @@ export default function BookingScreen() {
               gap: theme.space[3],
             }}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <View>
                 <Text variant="label.lg">Extend Parking Stay</Text>
                 <Text variant="body.sm" tone="secondary">
@@ -1043,7 +1051,9 @@ export default function BookingScreen() {
                 onPress={() => setExtendOpen(false)}
                 hitSlop={8}
               >
-                <Text variant="label.lg" tone="secondary">✕</Text>
+                <Text variant="label.lg" tone="secondary">
+                  ✕
+                </Text>
               </Pressable>
             </View>
 
@@ -1064,9 +1074,9 @@ export default function BookingScreen() {
                 const selected = extendMinutes === opt.minutes;
                 const isPastClosing = Boolean(
                   extensionOptions &&
-                    (extensionOptions.extendableUntil === null ||
-                      new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
-                        new Date(extensionOptions.extendableUntil).getTime()),
+                  (extensionOptions.extendableUntil === null ||
+                    new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
+                      new Date(extensionOptions.extendableUntil).getTime()),
                 );
                 return (
                   <Pressable
@@ -1125,9 +1135,9 @@ export default function BookingScreen() {
                   actionLoading ||
                   Boolean(
                     extensionOptions &&
-                      (extensionOptions.extendableUntil === null ||
-                        new Date(booking.endAt).getTime() + extendMinutes * 60_000 >
-                          new Date(extensionOptions.extendableUntil).getTime()),
+                    (extensionOptions.extendableUntil === null ||
+                      new Date(booking.endAt).getTime() + extendMinutes * 60_000 >
+                        new Date(extensionOptions.extendableUntil).getTime()),
                   )
                 }
                 onPress={handleExtend}
@@ -1163,7 +1173,13 @@ export default function BookingScreen() {
               gap: theme.space[3],
             }}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <View>
                 <Text variant="label.lg">Cancel Reservation</Text>
                 <Text variant="body.sm" tone="secondary">
@@ -1176,7 +1192,9 @@ export default function BookingScreen() {
                 onPress={() => setCancelOpen(false)}
                 hitSlop={8}
               >
-                <Text variant="label.lg" tone="secondary">✕</Text>
+                <Text variant="label.lg" tone="secondary">
+                  ✕
+                </Text>
               </Pressable>
             </View>
 
@@ -1217,14 +1235,17 @@ export default function BookingScreen() {
                     Late Cancellation (No Refund)
                   </Text>
                   <Text variant="body.sm" tone="secondary">
-                    Cancellations within 30 minutes of booked start time are non-refundable per car park policy.
+                    Cancellations within 30 minutes of booked start time are non-refundable per car
+                    park policy.
                   </Text>
                 </View>
               );
             })()}
 
             {/* Reason selector */}
-            <Text variant="label.sm" tone="secondary">Select cancellation reason:</Text>
+            <Text variant="label.sm" tone="secondary">
+              Select cancellation reason:
+            </Text>
             <View style={{ gap: 6 }}>
               {CANCEL_REASONS.map((r) => {
                 const selected = cancelReason === r.id;

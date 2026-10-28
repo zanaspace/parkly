@@ -123,16 +123,46 @@ export function buildReceiptData(params: {
   };
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** Escapes every string in the receipt: lot names, addresses and plates are typed by people. */
+function escapeStrings<T>(value: T): T {
+  if (typeof value === 'string')
+    return value.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] ?? ch) as T;
+  if (Array.isArray(value)) return value.map(escapeStrings) as T;
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, escapeStrings(v)])) as T;
+  return value;
+}
+
+/** The receipt as a standalone page; every value is HTML-escaped (gap review S-3). */
 export function renderReceiptHtml(receipt: BookingReceipt): string {
+  return renderEscaped(escapeStrings(receipt));
+}
+
+/** Content-Security-Policy for the receipt page: its own inline styles, nothing else. */
+export const RECEIPT_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'";
+
+function renderEscaped(receipt: BookingReceipt): string {
   const startStr = formatLagosDateTime(receipt.startAt);
   const endStr = formatLagosDateTime(receipt.endAt);
   const issuedStr = formatLagosDateTime(receipt.issuedAt);
 
   const hours = Math.floor(receipt.durationMinutes / 60);
   const mins = receipt.durationMinutes % 60;
-  const durationStr = `${hours > 0 ? `${hours} hr${hours > 1 ? 's' : ''} ` : ''}${mins > 0 ? `${mins} min${mins > 1 ? 's' : ''}` : ''}`.trim() || '0 mins';
+  const durationStr =
+    `${hours > 0 ? `${hours} hr${hours > 1 ? 's' : ''} ` : ''}${mins > 0 ? `${mins} min${mins > 1 ? 's' : ''}` : ''}`.trim() ||
+    '0 mins';
 
-  const driverName = [receipt.driver.firstName, receipt.driver.lastName].filter(Boolean).join(' ') || 'Parkly Driver';
+  const driverName =
+    [receipt.driver.firstName, receipt.driver.lastName].filter(Boolean).join(' ') ||
+    'Parkly Driver';
 
   const statusColors: Record<string, { bg: string; text: string; border: string }> = {
     CONFIRMED: { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' },
@@ -144,12 +174,23 @@ export function renderReceiptHtml(receipt: BookingReceipt): string {
     PENDING_PAYMENT: { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
   };
 
-  const statusBadge = statusColors[receipt.status] ?? { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' };
+  const statusBadge = statusColors[receipt.status] ?? {
+    bg: '#f3f4f6',
+    text: '#374151',
+    border: '#e5e7eb',
+  };
 
-  const successfulPayments = receipt.payments.filter((p: BookingReceipt['payments'][number]) => p.status === 'SUCCEEDED');
-  const totalPaidKobo = successfulPayments.reduce((sum: number, p: BookingReceipt['payments'][number]) => sum + p.amountKobo, 0);
+  const successfulPayments = receipt.payments.filter(
+    (p: BookingReceipt['payments'][number]) => p.status === 'SUCCEEDED',
+  );
+  const totalPaidKobo = successfulPayments.reduce(
+    (sum: number, p: BookingReceipt['payments'][number]) => sum + p.amountKobo,
+    0,
+  );
   const totalRefundedKobo = receipt.refunds
-    .filter((r: BookingReceipt['refunds'][number]) => r.status === 'SUCCEEDED' || r.status === 'PENDING')
+    .filter(
+      (r: BookingReceipt['refunds'][number]) => r.status === 'SUCCEEDED' || r.status === 'PENDING',
+    )
     .reduce((sum: number, r: BookingReceipt['refunds'][number]) => sum + r.amountKobo, 0);
 
   const paymentItemsHtml = receipt.payments

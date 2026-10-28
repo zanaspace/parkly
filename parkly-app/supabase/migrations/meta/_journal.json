@@ -64,6 +64,20 @@
       "when": 1792711842964,
       "tag": "20261023100000_self_checkin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793186519259,
+      "tag": "20261028112159_booking_extensions_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793187182379,
+      "tag": "20261028113302_one_open_overstay_payment",
+      "breakpoints": true
     }
   ]
 }

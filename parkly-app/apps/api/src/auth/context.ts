@@ -15,13 +15,16 @@ export type AuthEnv = {
   };
 };
 
-/** Verifies the bearer token (or ?token= query param). Sets `identity`; does not need a users row yet (bootstrap). */
+/**
+ * Verifies the bearer token. Sets `identity`; does not need a users row yet
+ * (bootstrap). Only the Authorization header counts: a token in a URL ends up
+ * in browser history and access logs (gap review S-2).
+ */
 export function authenticate(verify: TokenVerifier): MiddlewareHandler<AuthEnv> {
   return async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const [scheme, token] = header.split(' ');
-    const authToken =
-      scheme?.toLowerCase() === 'bearer' && token ? token : (c.req.query('token') ?? null);
+    const authToken = scheme?.toLowerCase() === 'bearer' && token ? token : null;
     if (!authToken) throw new ApiError('AUTH_REQUIRED');
     try {
       c.set('identity', await verify(authToken));

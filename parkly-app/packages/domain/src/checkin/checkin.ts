@@ -220,32 +220,66 @@ export const GATE_PREFIX = 'PKG1.';
 export const ATTENDANT_GATE_PREFIX = 'PKGA.';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** What the entrance poster's QR says: the lot, nothing secret (location + booking time do the checking). */
-export const gateCodeFor = (lotId: string) => `${GATE_PREFIX}${lotId}`;
+/**
+ * Gate codes are signed by the API (gap review G-1, G-2), so they cannot be
+ * built from the lot id that every booking carries:
+ * - the entrance poster: `PKG1.<lotId>.<sig>`, printed by the owner;
+ * - the attendant's phone: `PKGA.<lotId>.<minute>.<sig>`, changing every minute,
+ *   worked out offline from the lot's gate key in the manifest.
+ * This module only reads and builds them; the signatures are checked by the API.
+ */
+const SIG = /^[A-Za-z0-9_-]{16}$/;
+/** An attendant code stays valid for this many minutes after it is shown. */
+export const ATTENDANT_CODE_TTL_MIN = 2;
 
-/** What the attendant's phone screen displays to drivers. */
-export const attendantGateCodeFor = (lotId: string) => `${ATTENDANT_GATE_PREFIX}${lotId}`;
+export type GateCode =
+  | { kind: 'POSTER'; lotId: string; sig: string }
+  | { kind: 'ATTENDANT'; lotId: string; minute: number; sig: string };
+
+export const gateCodeFor = (lotId: string, sig: string) => `${GATE_PREFIX}${lotId}.${sig}`;
+
+export const attendantGateCodeFor = (lotId: string, minute: number, sig: string) =>
+  `${ATTENDANT_GATE_PREFIX}${lotId}.${minute}.${sig}`;
+
+/** The minute an attendant code made at `now` carries (minutes since the epoch). */
+export const gateMinute = (now: Date) => Math.floor(now.getTime() / 60_000);
+
+/** The text signed for each code; the API and the attendant app sign exactly this. */
+export const gateCodePayload = (
+  code: { kind: 'POSTER'; lotId: string } | { kind: 'ATTENDANT'; lotId: string; minute: number },
+) =>
+  code.kind === 'POSTER'
+    ? `${GATE_PREFIX}${code.lotId}`
+    : `${ATTENDANT_GATE_PREFIX}${code.lotId}.${code.minute}`;
+
+export function readGateCode(text: string): GateCode | null {
+  const parts = text.trim().split('.');
+  const prefix = `${(parts[0] ?? '').toUpperCase()}.`;
+  const lotId = (parts[1] ?? '').toLowerCase();
+  if (!UUID.test(lotId)) return null;
+  if (prefix === GATE_PREFIX && parts.length === 3 && SIG.test(parts[2] ?? ''))
+    return { kind: 'POSTER', lotId, sig: parts[2] as string };
+  if (prefix === ATTENDANT_GATE_PREFIX && parts.length === 4 && SIG.test(parts[3] ?? '')) {
+    const minute = Number(parts[2]);
+    if (!Number.isSafeInteger(minute)) return null;
+    return { kind: 'ATTENDANT', lotId, minute, sig: parts[3] as string };
+  }
+  return null;
+}
+
+/** Still inside its two minutes (a little early is fine: clocks differ). */
+export function attendantCodeFresh(minute: number, now: Date): boolean {
+  const current = gateMinute(now);
+  return minute >= current - ATTENDANT_CODE_TTL_MIN && minute <= current + 1;
+}
 
 /** True when the scanned code was displayed on an attendant's phone. */
 export function isAttendantGateCode(text: string): boolean {
-  const t = text.trim();
-  if (!t.toUpperCase().startsWith(ATTENDANT_GATE_PREFIX)) return false;
-  const lotId = t.slice(ATTENDANT_GATE_PREFIX.length).toLowerCase();
-  return UUID.test(lotId);
+  return readGateCode(text)?.kind === 'ATTENDANT';
 }
 
 export function parseGateCode(text: string): string | null {
-  const t = text.trim();
-  const upper = t.toUpperCase();
-  let lotId: string;
-  if (upper.startsWith(GATE_PREFIX)) {
-    lotId = t.slice(GATE_PREFIX.length).toLowerCase();
-  } else if (upper.startsWith(ATTENDANT_GATE_PREFIX)) {
-    lotId = t.slice(ATTENDANT_GATE_PREFIX.length).toLowerCase();
-  } else {
-    return null;
-  }
-  return UUID.test(lotId) ? lotId : null;
+  return readGateCode(text)?.lotId ?? null;
 }
 
 /** Great-circle distance in metres. */

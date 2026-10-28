@@ -303,7 +303,6 @@ export type BookingExtensionRow = {
   createdAt: Date;
 };
 
-
 export type PaymentRow = {
   /** Also the provider reference. */
   id: string;
@@ -351,7 +350,14 @@ export type RefundRow = {
   id: string;
   paymentId: string;
   amountKobo: number;
-  reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+  reason:
+    | 'DRIVER_CANCEL'
+    | 'HOLD_EXPIRED'
+    | 'LOT_UNAVAILABLE'
+    | 'OPS_GOODWILL'
+    | 'DUPLICATE'
+    | 'PERMIT_SUSPENSION'
+    | 'OTHER';
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   providerRefundId: string | null;
   requestedBy: string | null;
@@ -437,6 +443,11 @@ export type AttendBatch = {
   attendantId: string;
   deviceSentAt: Date;
   receivedAt: Date;
+  /**
+   * From a phone a manager blocked: every event is kept as REJECTED
+   * (DEVICE_REVOKED) for ops to review, and none is applied (gap review G-6).
+   */
+  quarantine?: boolean;
 };
 
 export type AuditEntry = {
@@ -767,10 +778,17 @@ export type Store = {
         priceKobo: number;
         platformAmountKobo: number;
         operatorAmountKobo: number;
+        /** The unpaid hold gives its space back after this (fn_expire_holds). */
+        holdExpiresAt: Date;
       },
       payment: NewPayment | null,
       at: Date,
     ): Promise<{ extension: BookingExtensionRow; payment: PaymentRow | null }>;
+    /**
+     * Gives a pending extension's held space back and closes it (checkout could
+     * not start). False when it was not pending. An INITIATED payment becomes FAILED.
+     */
+    releaseExtension(id: string, status: 'EXPIRED' | 'CANCELLED', at: Date): Promise<boolean>;
     confirmExtension(extensionId: string, paymentId: string | null, at: Date): Promise<BookingRow>;
     findExtension(id: string): Promise<BookingExtensionRow | null>;
     cancel(
@@ -780,12 +798,23 @@ export type Store = {
       reason: string,
       refund: {
         amountKobo: number;
-        reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+        reason:
+          | 'DRIVER_CANCEL'
+          | 'HOLD_EXPIRED'
+          | 'LOT_UNAVAILABLE'
+          | 'OPS_GOODWILL'
+          | 'DUPLICATE'
+          | 'PERMIT_SUSPENSION'
+          | 'OTHER';
         refundPriceKobo: number;
         refundServiceFeeKobo: number;
       } | null,
       at: Date,
-    ): Promise<{ booking: BookingRow; refundId: string | null }>;
+    ): Promise<{
+      booking: BookingRow;
+      /** One refund row per paid charge it is split across, newest first (gap review P-8). */
+      refunds: { id: string; paymentId: string; amountKobo: number }[];
+    }>;
     markNoShows(at: Date): Promise<{ markedCount: number }>;
   };
   payments: {
@@ -814,6 +843,23 @@ export type Store = {
     settle(id: string, charge: VerifiedCharge, at: Date): Promise<SettleResult>;
     /** Records the provider's id for a refund we asked for. */
     refundRequested(refundId: string, providerRefundId: string): Promise<void>;
+    /** Refunds the provider never accepted (no provider id), created before `before`. */
+    refundsToRetry(q: {
+      before: Date;
+      limit: number;
+    }): Promise<{ id: string; paymentId: string; amountKobo: number }[]>;
+    /**
+     * The provider's final word on a refund (refund.processed / refund.failed).
+     * Matched by provider id, else the oldest pending refund of that payment.
+     * A processed refund moves the payment to PARTIALLY_REFUNDED or REFUNDED.
+     * False when no refund matched.
+     */
+    refundOutcome(o: {
+      providerRefundId: string | null;
+      paymentId: string;
+      status: 'SUCCEEDED' | 'FAILED';
+      at: Date;
+    }): Promise<boolean>;
     /** Checkouts still open (PENDING) that were started in [from, to): the job asks the provider. */
     unsettled(window: { from: Date; to: Date; limit: number }): Promise<string[]>;
   };

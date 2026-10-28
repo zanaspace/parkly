@@ -1,6 +1,8 @@
 import {
   BookingListSchema,
   BookingReceiptSchema,
+  ReceiptLinkSchema,
+  type ReceiptLink,
   BookingSchema,
   BootstrapResponseSchema,
   CancelBookingResponseSchema,
@@ -127,13 +129,7 @@ export function createApiClient(options: ApiClientOptions) {
       const retry =
         res.status === 429 ? retryAfterSeconds(res.headers.get('retry-after'), now()) : null;
       const message = problem.detail || messageForCode(problem.code);
-      throw new ApiError(
-        res.status,
-        problem.code,
-        message,
-        retry,
-        problem.errors ?? [],
-      );
+      throw new ApiError(res.status, problem.code, message, retry, problem.errors ?? []);
     }
     return parser ? parser.parse(data) : (undefined as T);
   }
@@ -284,20 +280,26 @@ export function createApiClient(options: ApiClientOptions) {
         undefined,
         BookingReceiptSchema,
       ),
-    /** Full HTML receipt URL for opening in browser or sharing, with auth token included. */
-    receiptUrl: async (id: string) => {
-      const token = await options.getAccessToken();
-      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-      return `${base}/v1/bookings/${encodeURIComponent(id)}/receipt?format=html${tokenParam}`;
-    },
+    /**
+     * A receipt URL to open in the browser or share: signed by the API for this
+     * booking and valid for five minutes. Never carries the access token.
+     */
+    receiptUrl: async (id: string) =>
+      (
+        await request<ReceiptLink>(
+          'POST',
+          `/v1/bookings/${encodeURIComponent(id)}/receipt-link`,
+          undefined,
+          ReceiptLinkSchema,
+        )
+      ).url,
     /** Registers device and push token for transaction alerts and stay reminders. */
     registerDevice: (body: {
       deviceId: string;
       platform: 'IOS' | 'ANDROID' | 'WEB';
       appVersion?: string;
       pushToken?: string;
-    }) =>
-      request<void>('POST', '/v1/me/devices', body),
+    }) => request<void>('POST', '/v1/me/devices', body),
   };
 }
 

@@ -39,6 +39,7 @@ describe('mobile search state', () => {
     expect(stepTime('23:30', 4)).toBe('23:45');
     expect(durationLabel(3)).toBe('3 h');
     expect(durationLabel('day')).toBe('Full day');
+    expect(durationLabel('5m')).toBe('5 min (Test)');
   });
 
   it('centres on the area or the device', () => {
@@ -60,6 +61,11 @@ describe('mobile search state', () => {
       sort: 'price' as const,
     };
     expect(fromParams(toParams(s), NOW)).toEqual(s);
+    const s5m = {
+      ...initialSearch(NOW),
+      duration: '5m' as const,
+    };
+    expect(fromParams(toParams(s5m), NOW)).toEqual(s5m);
     const near = {
       ...initialSearch(NOW),
       area: null,

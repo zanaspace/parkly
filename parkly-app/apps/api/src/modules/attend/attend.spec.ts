@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { verifyQrToken, fromBase64Url } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
+import { attendantGateCodeFor, gateCodePayload, gateMinute } from '@parkly/domain/checkin';
+import { gateCodes, signGatePayload } from '../../lib/gate-codes.js';
 import { TEST_NOW, world } from '../../test-helpers.js';
 
 // TEST_NOW is Monday 2026-10-19 09:00 Lagos; bookings 10:00–12:00 Lagos today.
@@ -233,6 +235,67 @@ describe('attendant phones (doc 05 §4.4)', () => {
     expect((await t.manifest()).body?.code).toBe('DEVICE_REVOKED');
     expect((await t.register(t.attendant)).body).toMatchObject({ approved: false, revoked: true });
     expect((await t.sync([])).body?.code).toBe('DEVICE_REVOKED');
+  });
+
+  it('stays blocked when the attendant signs in again on that phone (gap review S-1)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    await t.approve(t.store.attending.deviceRows[0]?.id ?? '', 'revoke');
+    // Sign-in registers the same phone as a driver device, which used to clear the block.
+    await t.call('POST', '/v1/me/devices', {
+      as: t.attendant,
+      body: { deviceId: t.device, platform: 'ANDROID' },
+    });
+    expect((await t.manifest()).body?.code).toBe('DEVICE_REVOKED');
+  });
+
+  it('needs a new approval when the phone moves to another operator’s lot (gap review G-3)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    const other = await addLot(t.store);
+    t.store.roleRows.push({
+      userId: t.attendant,
+      role: 'OPERATOR_ATTENDANT',
+      operatorId: other.operatorId,
+    });
+    const member = t.store.memberRows.find((m) => m.userId === t.attendant);
+    if (member)
+      t.store.memberRows.push({ ...member, id: randomUUID(), operatorId: other.operatorId });
+    const moved = await t.call('POST', '/v1/attend/devices', {
+      as: t.attendant,
+      body: { clientDeviceId: t.device, lotId: other.lot.id },
+    });
+    expect(moved.body).toMatchObject({ approved: false });
+    const there = await t.call(
+      'GET',
+      `/v1/attend/lots/${other.lot.id}/manifest?clientDeviceId=${t.device}`,
+      { as: t.attendant },
+    );
+    expect(there.body?.code).toBe('DEVICE_NOT_APPROVED');
+  });
+
+  it('keeps a blocked phone’s queue for review without applying it (gap review G-6, G-7)', async () => {
+    const t = await setup();
+    await t.readyDevice();
+    const { id } = await t.paidBooking('LND 123 AB');
+    await t.approve(t.store.attending.deviceRows[0]?.id ?? '', 'revoke');
+    const res = await t.sync([checkIn(id, min(-5))]);
+    expect(res.body?.code).toBe('DEVICE_REVOKED');
+    expect(t.store.attending.eventRows).toEqual([
+      expect.objectContaining({ result: 'REJECTED', reason: 'DEVICE_REVOKED' }),
+    ]);
+    expect((await t.store.bookings.find(id))?.status).toBe('CONFIRMED');
+
+    // Removed from the team: the phone is told to wipe, not "lot not found".
+    const t2 = await setup();
+    await t2.readyDevice();
+    t2.store.roleRows.splice(
+      t2.store.roleRows.findIndex((r) => r.userId === t2.attendant),
+      1,
+    );
+    await t2.store.devices.revokeAll(t2.attendant);
+    expect((await t2.sync([])).body?.code).toBe('DEVICE_REVOKED');
+    expect((await t2.manifest()).body?.code).toBe('DEVICE_REVOKED');
   });
 
   it('hides other operators’ lots and refuses drivers', async () => {
@@ -499,6 +562,15 @@ describe('self check-in (ADR 0016)', () => {
         aal: 'aal2',
         body: { enabled },
       });
+    const codes = gateCodes(t.deps.crypto);
+    const poster = codes.poster(t.lot.id);
+    /** What the attendant's phone shows at `at` (it signs with the manifest's gate key). */
+    const phoneCode = (at: Date) => {
+      const minute = gateMinute(at);
+      const key = Buffer.from(codes.attendantKey(t.lot.id), 'base64url');
+      const payload = gateCodePayload({ kind: 'ATTENDANT', lotId: t.lot.id, minute });
+      return attendantGateCodeFor(t.lot.id, minute, signGatePayload(key, payload));
+    };
     const self = (
       kind: 'in' | 'out',
       body: Partial<{ code: string; lat: number; lng: number; clientEventId: string }> = {},
@@ -506,9 +578,9 @@ describe('self check-in (ADR 0016)', () => {
     ) =>
       t.call('POST', `/v1/bookings/${paid.id}/self-check-${kind}`, {
         as,
-        body: { clientEventId: randomUUID(), code: `PKG1.${t.lot.id}`, ...AT_LOT, ...body },
+        body: { clientEventId: randomUUID(), code: poster, ...AT_LOT, ...body },
       });
-    return { ...t, paid, toggle, self };
+    return { ...t, paid, toggle, self, poster, phoneCode };
   }
 
   it('is off until the owner turns it on; managers and attendants cannot switch it', async () => {
@@ -519,7 +591,7 @@ describe('self check-in (ADR 0016)', () => {
 
     const on = await t.toggle(true);
     expect(on.status).toBe(200);
-    expect(on.body).toEqual({ lotId: t.lot.id, enabled: true, gateCode: `PKG1.${t.lot.id}` });
+    expect(on.body).toEqual({ lotId: t.lot.id, enabled: true, gateCode: t.poster });
     expect(t.store.auditRows.at(-1)).toMatchObject({ action: 'lot.self_checkin_on' });
     const read = await t.call(
       'GET',
@@ -559,6 +631,15 @@ describe('self check-in (ADR 0016)', () => {
     await t.toggle(true);
     t.deps.now = () => new Date(min(55));
     expect((await t.self('in', { code: `PKG1.${randomUUID()}` })).body?.code).toBe('QR_WRONG_LOT');
+    // The old unsigned code, which anyone could build from a booking (gap review G-1).
+    expect((await t.self('in', { code: `PKG1.${t.lot.id}` })).body?.code).toBe('QR_WRONG_LOT');
+    expect((await t.self('in', { code: `PKGA.${t.lot.id}` })).body?.code).toBe('QR_WRONG_LOT');
+    // An attendant code from three minutes ago, or with someone else's signature.
+    expect((await t.self('in', { code: t.phoneCode(new Date(min(52))) })).body?.code).toBe(
+      'QR_WRONG_LOT',
+    );
+    const forged = t.phoneCode(new Date(min(55))).replace(/.[^.]+$/, '.AAAAAAAAAAAAAAAA');
+    expect((await t.self('in', { code: forged })).body?.code).toBe('QR_WRONG_LOT');
     expect((await t.self('in', { code: 'hello' })).body?.code).toBe('QR_WRONG_LOT');
     expect((await t.self('in', { lat: 6.44, lng: 3.42 })).body?.code).toBe('SELF_CHECKIN_TOO_FAR');
     expect((await t.self('out')).body?.code).toBe('BOOKING_NOT_ACTIVE');
@@ -573,14 +654,14 @@ describe('self check-in (ADR 0016)', () => {
     // unmanned self-checkin is off by default
     t.deps.now = () => new Date(min(55));
     // Poster code is refused because unmanned self-checkin is off
-    expect((await t.self('in', { code: `PKG1.${t.lot.id}` })).body?.code).toBe('SELF_CHECKIN_OFF');
+    expect((await t.self('in')).body?.code).toBe('SELF_CHECKIN_OFF');
 
-    // Attendant barcode code PKGA.<lotId> succeeds!
-    const inRes = await t.self('in', { code: `PKGA.${t.lot.id}` });
+    // The code on the attendant's phone, signed for this minute, succeeds.
+    const inRes = await t.self('in', { code: t.phoneCode(new Date(min(55))) });
     expect(inRes.body).toEqual({ result: 'APPLIED', reason: null });
 
     t.deps.now = () => new Date(min(226));
-    const outRes = await t.self('out', { code: `PKGA.${t.lot.id}` });
+    const outRes = await t.self('out', { code: t.phoneCode(new Date(min(226))) });
     expect(outRes.body?.result).toBe('APPLIED');
   });
 

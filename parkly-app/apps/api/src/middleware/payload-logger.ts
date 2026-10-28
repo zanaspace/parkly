@@ -63,7 +63,7 @@ export function payloadLogger(): MiddlewareHandler {
 
     console.log(`\n\x1b[36m--> [API REQ] ${method} ${path}\x1b[0m${reqId ? ` (${reqId})` : ''}`);
     if (hasQuery) {
-      console.log(`   \x1b[90mQuery:\x1b[0m`, JSON.stringify(query, null, 2));
+      console.log(`   \x1b[90mQuery:\x1b[0m`, JSON.stringify(sanitizePayload(query), null, 2));
     }
     if (hasBody) {
       console.log(`   \x1b[90mPayload:\x1b[0m`, JSON.stringify(sanitizePayload(reqBody), null, 2));

@@ -17,14 +17,16 @@ export function ceilToSlot(date: Date): Date {
   return new Date(Math.ceil(date.getTime() / SLOT_MS) * SLOT_MS);
 }
 
-/** Slot start times covering [start, end). Both ends must be slot-aligned. */
+/** Slot start times covering [start, end). Both ends must be slot-aligned, or cover a 5-minute test stay. */
 export function slotStartsBetween(start: Date, end: Date): Date[] {
-  if (!isSlotAligned(start) || !isSlotAligned(end)) {
+  if (end.getTime() < start.getTime()) throw new RangeError('Window end is before start');
+  const is5Min = end.getTime() - start.getTime() === 5 * 60_000;
+  if (!isSlotAligned(start) || (!isSlotAligned(end) && !is5Min)) {
     throw new RangeError('Window must be aligned to 15-minute slots');
   }
-  if (end.getTime() < start.getTime()) throw new RangeError('Window end is before start');
   const slots: Date[] = [];
-  for (let t = start.getTime(); t < end.getTime(); t += SLOT_MS) slots.push(new Date(t));
+  const limit = is5Min ? ceilToSlot(end).getTime() : end.getTime();
+  for (let t = start.getTime(); t < limit; t += SLOT_MS) slots.push(new Date(t));
   return slots;
 }
 

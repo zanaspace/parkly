@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { ApiError } from '../lib/api';
 import { api } from '../lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../logic/errors';
-import { selfCheckKind } from '../logic/self-check';
+import { positionProblem, selfCheckKind } from '../logic/self-check';
 import { Notice } from './Notice';
 
 /**
@@ -31,7 +31,9 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
     setError(null);
     const cam = permission?.granted ? permission : await requestPermission();
     if (!cam.granted) {
-      setError('Allow the camera for Parkly to scan the barrier poster or attendant’s phone, or show your ticket at the gate.');
+      setError(
+        'Allow the camera for Parkly to scan the barrier poster or attendant’s phone, or show your ticket at the gate.',
+      );
       return;
     }
     const loc = await Location.requestForegroundPermissionsAsync();
@@ -48,6 +50,11 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
     setSending(true);
     try {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const problem = positionProblem(pos);
+      if (problem) {
+        setError(problem);
+        return;
+      }
       eventId.current ??= Crypto.randomUUID();
       await api.selfCheck(booking.id, kind, {
         clientEventId: eventId.current,
@@ -68,7 +75,9 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
     <View style={{ gap: theme.space.stack.sm }}>
       {scanning ? (
         <>
-          <Text tone="secondary">Point the camera at the Parkly barcode at the barrier or on the attendant’s phone.</Text>
+          <Text tone="secondary">
+            Point the camera at the Parkly barcode at the barrier or on the attendant’s phone.
+          </Text>
           <CameraView
             style={{ width: '100%', aspectRatio: 1, borderRadius: theme.card.radius }}
             facing="back"

@@ -114,6 +114,21 @@ describe('settlement plans (doc 02 §7.5)', () => {
     });
   });
 
+  it('reverses the payment journal for every refund, so the operator is not owed it (P-9, P-12)', () => {
+    for (const d of ['REFUND_HOLD_EXPIRED', 'NEEDS_REVIEW'] as const) {
+      const plan = settlePlan(d, charge(), booking('EXPIRED'), payment);
+      const payable = plan.journals
+        .flat()
+        .filter((l) => l.account.startsWith('OPERATOR_PAYABLE:'))
+        .reduce((n, l) => n + (l.direction === 'CREDIT' ? l.amountKobo : -l.amountKobo), 0);
+      expect(payable).toBe(0);
+      expect(plan.refund?.amountKobo).toBe(110_000);
+    }
+    expect(settlePlan('NEEDS_REVIEW', charge(), booking('CONFIRMED'), payment).refund?.reason).toBe(
+      'DUPLICATE',
+    );
+  });
+
   it('only flags a wrong amount, and does nothing for the rest', () => {
     expect(
       settlePlan('AMOUNT_MISMATCH', charge(), booking('PENDING_PAYMENT'), payment),
@@ -122,7 +137,7 @@ describe('settlement plans (doc 02 §7.5)', () => {
       booking: null,
       journals: [],
     });
-    for (const d of ['WAIT', 'NOOP', 'NEEDS_REVIEW'] as const)
+    for (const d of ['WAIT', 'NOOP'] as const)
       expect(settlePlan(d, charge(), booking('PENDING_PAYMENT'), payment)).toEqual({
         payment: null,
         booking: null,

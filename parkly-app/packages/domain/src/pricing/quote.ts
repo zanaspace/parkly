@@ -144,6 +144,8 @@ export function quote(input: {
   startAt: Date;
   endAt: Date;
   settings: PricingSettings;
+  /** 5-minute test stays; switched on only outside prod (gap review L-2). */
+  allowTestStays?: boolean;
 }): QuoteResult {
   const { ratePlan: plan, startAt, endAt, settings } = input;
   if (plan.product === 'MONTHLY') {
@@ -161,13 +163,32 @@ export function quote(input: {
   }
 
   const minutes = (endAt.getTime() - startAt.getTime()) / MINUTE_MS;
-  if (!isSlotAligned(startAt) || !isSlotAligned(endAt) || minutes <= 0) return invalid;
-  if (plan.product === 'HOURLY' && minutes < plan.minMinutes) return invalid;
+  const is5Min = input.allowTestStays === true && minutes === 5;
+  if (!is5Min) {
+    if (!isSlotAligned(startAt) || !isSlotAligned(endAt) || minutes <= 0) return invalid;
+    if (plan.product === 'HOURLY' && minutes < plan.minMinutes) return invalid;
+  } else {
+    if (minutes <= 0) return invalid;
+  }
 
   const lines =
-    plan.product === 'HOURLY'
-      ? hourlyLines(plan, startAt, minutes)
-      : dailyLines(plan, startAt, endAt);
+    is5Min && plan.product === 'HOURLY'
+      ? [
+          {
+            kind: 'HOURLY_DAY' as const,
+            date: lagosDateKey(startAt),
+            minutes: 5,
+            amountKobo: mulDivRoundHalfUp(
+              required(plan.hourlyRateKobo, 'hourly rate'),
+              SLOT_MINUTES,
+              60,
+            ),
+            capped: false,
+          },
+        ]
+      : plan.product === 'HOURLY'
+        ? hourlyLines(plan, startAt, minutes)
+        : dailyLines(plan, startAt, endAt);
   const fee = minutes < settings.serviceFeeMaxDurationMin ? settings.serviceFeeKobo : 0;
   return { ok: true, quote: settle(plan.product, sum(lines), fee, settings.commissionBps, lines) };
 }
