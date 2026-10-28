@@ -303,7 +303,6 @@ export type BookingExtensionRow = {
   createdAt: Date;
 };
 
-
 export type PaymentRow = {
   /** Also the provider reference. */
   id: string;
@@ -351,7 +350,14 @@ export type RefundRow = {
   id: string;
   paymentId: string;
   amountKobo: number;
-  reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+  reason:
+    | 'DRIVER_CANCEL'
+    | 'HOLD_EXPIRED'
+    | 'LOT_UNAVAILABLE'
+    | 'OPS_GOODWILL'
+    | 'DUPLICATE'
+    | 'PERMIT_SUSPENSION'
+    | 'OTHER';
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   providerRefundId: string | null;
   requestedBy: string | null;
@@ -767,10 +773,17 @@ export type Store = {
         priceKobo: number;
         platformAmountKobo: number;
         operatorAmountKobo: number;
+        /** The unpaid hold gives its space back after this (fn_expire_holds). */
+        holdExpiresAt: Date;
       },
       payment: NewPayment | null,
       at: Date,
     ): Promise<{ extension: BookingExtensionRow; payment: PaymentRow | null }>;
+    /**
+     * Gives a pending extension's held space back and closes it (checkout could
+     * not start). False when it was not pending. An INITIATED payment becomes FAILED.
+     */
+    releaseExtension(id: string, status: 'EXPIRED' | 'CANCELLED', at: Date): Promise<boolean>;
     confirmExtension(extensionId: string, paymentId: string | null, at: Date): Promise<BookingRow>;
     findExtension(id: string): Promise<BookingExtensionRow | null>;
     cancel(
@@ -780,7 +793,14 @@ export type Store = {
       reason: string,
       refund: {
         amountKobo: number;
-        reason: 'DRIVER_CANCEL' | 'HOLD_EXPIRED' | 'LOT_UNAVAILABLE' | 'OPS_GOODWILL' | 'DUPLICATE' | 'PERMIT_SUSPENSION' | 'OTHER';
+        reason:
+          | 'DRIVER_CANCEL'
+          | 'HOLD_EXPIRED'
+          | 'LOT_UNAVAILABLE'
+          | 'OPS_GOODWILL'
+          | 'DUPLICATE'
+          | 'PERMIT_SUSPENSION'
+          | 'OTHER';
         refundPriceKobo: number;
         refundServiceFeeKobo: number;
       } | null,

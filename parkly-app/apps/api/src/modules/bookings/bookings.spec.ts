@@ -753,6 +753,44 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     expect((await t.store.bookings.findExtension(paid.extension.id))?.status).toBe('CONFIRMED');
   });
 
+  it('holds one extension at a time and gives it back when it cannot go ahead (gap review P-4, P-5)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const extend = () =>
+      t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+        as: driver.id,
+        body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+      });
+    const heldAfterEnd = () =>
+      t.store.slotRows
+        .filter((s) => s.lotId === t.lot.id && s.slotStart.toISOString() >= END)
+        .reduce((n, s) => n + s.held, 0);
+
+    for (let i = 0; i < 5; i++) await extend();
+    expect(heldAfterEnd()).toBe(4); // one extension's four slots, not five times that
+
+    t.payments.failInitialize = true;
+    expect((await extend()).body?.code).toBe('PAYMENT_PROVIDER_UNAVAILABLE');
+    expect(heldAfterEnd()).toBe(0);
+    t.payments.failInitialize = false;
+
+    // Paid after the booking was cancelled: nothing to extend, so the money goes back.
+    const late = (await extend()).body as unknown as { payment: { reference: string } };
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, { as: driver.id });
+    expect(heldAfterEnd()).toBe(0);
+    t.payments.pay(late.payment.reference);
+    const res = await t.call('POST', `/v1/payments/${late.payment.reference}/verify`, {
+      as: driver.id,
+    });
+    expect(res.body?.booking).toMatchObject({ status: 'CANCELLED', endAt: END });
+    expect(t.payments.refunds).toEqual(
+      expect.arrayContaining([{ reference: late.payment.reference, amountKobo: 50_000 }]),
+    );
+  });
+
   it('auto-confirms extension with null payment when daily cap is reached (₦0 incremental price)', async () => {
     const t = await setup();
     // Update rate plan with daily cap of 100_000 (₦1,000)

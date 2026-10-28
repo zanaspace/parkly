@@ -273,6 +273,22 @@ export class MemoryBookings {
         throw new BookingHoldError('BOOKING_WINDOW_INVALID');
       const lot = this.lotRows.get(b.lotId);
       if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
+      // As fn_hold_extension: a new request replaces the driver's own unpaid one.
+      for (const prev of this.extensionRows.filter(
+        (r) => r.bookingId === b.id && r.status === 'PENDING_PAYMENT',
+      ))
+        await this.bookings.releaseExtension(prev.id, 'EXPIRED', at);
+      if (
+        this.bookingRows.some(
+          (o) =>
+            o.id !== b.id &&
+            o.vehicleId === b.vehicleId &&
+            LIVE_STATUSES.has(o.status) &&
+            o.startAt < ext.newEndAt &&
+            o.endAt > b.endAt,
+        )
+      )
+        throw new BookingHoldError('BOOKING_OVERLAP_SAME_VEHICLE');
 
       const slots = this.windowSlots(lot.id, b.endAt, ext.newEndAt, lot.capacityBookable);
       if (slots.some((s) => this.free(s) < 1))
@@ -317,12 +333,30 @@ export class MemoryBookings {
       return { extension: { ...extensionRow }, payment: paymentRow };
     },
 
+    releaseExtension: async (id, status) => {
+      const ext = this.extensionRows.find((r) => r.id === id);
+      if (!ext || ext.status !== 'PENDING_PAYMENT') return false;
+      const b = this.bookingRows.find((r) => r.id === ext.bookingId);
+      if (b)
+        for (const s of this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null)) s.held -= 1;
+      ext.status = status;
+      const p = this.paymentRows.find((r) => r.id === ext.paymentId);
+      if (p?.status === 'INITIATED')
+        Object.assign(p, { status: 'FAILED', failureCode: 'extension.released' });
+      return true;
+    },
+
     confirmExtension: async (extensionId, paymentId, at) => {
       const ext = this.extensionRows.find((r) => r.id === extensionId);
       if (!ext) throw new Error('EXTENSION_NOT_FOUND');
       if (ext.status !== 'PENDING_PAYMENT') throw new Error('EXTENSION_ALREADY_CONFIRMED');
       const b = this.bookingRows.find((r) => r.id === ext.bookingId);
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+      if (
+        (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN') ||
+        ext.startAt.getTime() !== b.endAt.getTime()
+      )
+        throw new Error('EXTENSION_NOT_APPLICABLE');
 
       const slots = this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null);
       for (const s of slots) {
@@ -348,6 +382,10 @@ export class MemoryBookings {
       if (b.status !== 'PENDING_PAYMENT' && b.status !== 'CONFIRMED')
         throw new BookingHoldError('BOOKING_NOT_CANCELLABLE');
 
+      for (const ext of this.extensionRows.filter(
+        (r) => r.bookingId === b.id && r.status === 'PENDING_PAYMENT',
+      ))
+        await this.bookings.releaseExtension(ext.id, 'CANCELLED', at);
       if (b.status === 'CONFIRMED') this.move(b, 0, -1);
       else if (b.status === 'PENDING_PAYMENT') this.move(b, -1, 0);
 

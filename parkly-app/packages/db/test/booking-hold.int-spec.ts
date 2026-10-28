@@ -324,7 +324,11 @@ describe('fn_expire_holds (doc 02 §9)', () => {
         abandoned: expect.any(Number),
         purged: expect.any(Number),
       });
-      const { failed: _failed, ...done } = must(first).r as Record<string, number>;
+      const {
+        failed: _f,
+        extensions_expired: _e,
+        ...done
+      } = must(first).r as Record<string, number>;
       for (const n of Object.values(done)) expect(n).toBeGreaterThanOrEqual(1);
       const [booking] = await tx`select status from public.bookings where id = ${id}`;
       expect(must(booking).status).toBe('EXPIRED');
@@ -361,6 +365,47 @@ describe('fn_expire_holds (doc 02 §9)', () => {
         [broken]: 'PENDING_PAYMENT',
         [fine]: 'EXPIRED',
       });
+    });
+  });
+
+  it('holds one extension per booking, expires it, and confirms only on a live booking (P-4, P-5)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 2, '7c');
+      const id = await hold(tx, lot, await newDriver(tx));
+      await tx`select public.fn_convert_hold(${id})`;
+      await tx`update public.bookings set status = 'CONFIRMED', hold_expires_at = null where id = ${id}`;
+      const extend = async (expires: string) => {
+        const [row] = await tx`
+          select public.fn_hold_extension(gen_random_uuid(), ${id}, ${`${day}T10:00:00Z`},
+                 50000, 6000, 44000, ${expires}::timestamptz) as id`;
+        return must(row).id as string;
+      };
+      const heldAfter = async () => {
+        const [row] = await tx`
+          select coalesce(sum(held), 0)::int as held from public.lot_slot_inventory
+           where lot_id = ${lot.lotId} and slot_start >= ${END}`;
+        return must(row).held as number;
+      };
+
+      const first = await extend(new Date(Date.now() + 600_000).toISOString());
+      const second = await extend(new Date(Date.now() - 60_000).toISOString());
+      expect(await heldAfter()).toBe(4);
+      const [replaced] =
+        await tx`select status::text from public.booking_extensions where id = ${first}`;
+      expect(must(replaced).status).toBe('EXPIRED');
+
+      await tx`select public.fn_expire_holds()`;
+      expect(await heldAfter()).toBe(0);
+      const [gone] =
+        await tx`select status::text from public.booking_extensions where id = ${second}`;
+      expect(must(gone).status).toBe('EXPIRED');
+
+      const third = await extend(new Date(Date.now() + 600_000).toISOString());
+      await tx`select public.fn_cancel_booking(${id}, 'DRIVER', null, 'test')`;
+      expect(await heldAfter()).toBe(0);
+      expect(
+        await failsWith(tx, () => tx`select public.fn_confirm_extension(${third}, null)`),
+      ).toBe('EXTENSION_ALREADY_CONFIRMED');
     });
   });
 

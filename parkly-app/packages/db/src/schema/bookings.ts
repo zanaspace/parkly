@@ -347,6 +347,8 @@ export const bookingExtensions = pgTable(
     operatorAmountKobo: bigint('operator_amount_kobo', { mode: 'number' }).notNull(),
     paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
     status: bookingStatusEnum('status').notNull().default('PENDING_PAYMENT'),
+    /** When an unpaid extension gives its held space back (fn_expire_holds). */
+    holdExpiresAt: timestamp('hold_expires_at', { withTimezone: true }),
     version: integer('version').notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -355,6 +357,12 @@ export const bookingExtensions = pgTable(
     index('booking_extensions_booking_idx').on(t.bookingId),
     index('booking_extensions_payment_idx').on(t.paymentId),
     index('booking_extensions_status_idx').on(t.status),
+    uniqueIndex('booking_extensions_one_pending_idx')
+      .on(t.bookingId)
+      .where(sql`${t.status} = 'PENDING_PAYMENT'`),
+    index('booking_extensions_hold_expiry_idx')
+      .on(t.holdExpiresAt)
+      .where(sql`${t.status} = 'PENDING_PAYMENT'`),
     check('booking_extensions_window_check', sql`${t.newEndAt} > ${t.startAt}`),
     check(
       'booking_extensions_price_check',
@@ -363,4 +371,3 @@ export const bookingExtensions = pgTable(
     apiAccess('booking_extensions'),
   ],
 ).enableRLS();
-

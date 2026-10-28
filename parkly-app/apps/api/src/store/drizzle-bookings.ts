@@ -357,7 +357,8 @@ export function drizzleBookings(
           return await db.transaction(async (tx) => {
             await tx.execute(sql`select public.fn_hold_extension(
               ${ext.id}::uuid, ${ext.bookingId}::uuid, ${ext.newEndAt.toISOString()}::timestamptz,
-              ${ext.priceKobo}, ${ext.platformAmountKobo}, ${ext.operatorAmountKobo}
+              ${ext.priceKobo}, ${ext.platformAmountKobo}, ${ext.operatorAmountKobo},
+              ${ext.holdExpiresAt.toISOString()}::timestamptz
             )`);
 
             let paymentRow: PaymentRow | null = null;
@@ -395,6 +396,13 @@ export function drizzleBookings(
           }
           throw err;
         }
+      },
+
+      async releaseExtension(id, status) {
+        const [r] = await db.execute<{ ok: boolean }>(
+          sql`select public.fn_release_extension(${id}::uuid, ${status}::public.booking_status) as ok`,
+        );
+        return r?.ok ?? false;
       },
 
       async confirmExtension(extensionId, paymentId, at) {

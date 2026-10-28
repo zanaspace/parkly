@@ -689,6 +689,7 @@ export function bookingRoutes(deps: AppDeps) {
               priceKobo: 0,
               platformAmountKobo: 0,
               operatorAmountKobo: 0,
+              holdExpiresAt: now,
             },
             null,
             now,
@@ -735,6 +736,10 @@ export function bookingRoutes(deps: AppDeps) {
             priceKobo: extQuote.priceKobo,
             platformAmountKobo: extQuote.commissionKobo,
             operatorAmountKobo: extQuote.operatorAmountKobo,
+            holdExpiresAt: holdExpiresAt(
+              now,
+              (await deps.store.settings.get<number>('booking.hold_minutes')) ?? 10,
+            ),
           },
           {
             id: paymentId,
@@ -768,6 +773,8 @@ export function bookingRoutes(deps: AppDeps) {
         payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());
       } catch (err) {
         deps.logger.error({ err, bookingId: booking.id, extensionId }, 'extension checkout failed');
+        // Give the space back now rather than when the hold runs out (gap review P-4).
+        await deps.store.bookings.releaseExtension(extensionId, 'EXPIRED', deps.now());
         throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
       }
 

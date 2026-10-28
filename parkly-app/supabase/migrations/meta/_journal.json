@@ -64,6 +64,13 @@
       "when": 1792711842964,
       "tag": "20261023100000_self_checkin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793186519259,
+      "tag": "20261028112159_booking_extensions_snapshot",
+      "breakpoints": true
     }
   ]
 }
