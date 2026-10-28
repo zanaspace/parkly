@@ -4,6 +4,7 @@ import {
   accountType,
   bookingPaymentJournal,
   cancellationRefundJournal,
+  addOnDecision,
   confirmDecision,
   isBalanced,
   providerFeeJournal,
@@ -11,7 +12,7 @@ import {
 } from '@parkly/domain/booking';
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { settlePlan, type SettlePlan } from './settle-plan.js';
+import { addOnSettlePlan, settlePlan, type SettlePlan } from './settle-plan.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
@@ -32,6 +33,7 @@ const {
   idempotencyKeys,
   ledgerAccounts,
   ledgerEntries,
+  sessions,
 } = schema;
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -155,6 +157,46 @@ async function postJournal(tx: Tx, lines: JournalLine[], paymentId: string) {
       paymentId,
     })),
   );
+}
+
+/**
+ * Locks what an extension or overstay payment pays for and says whether it can
+ * still be applied: the extension is pending, the booking is live and still ends
+ * where the extension starts; or the overstay is still due. The booking row is
+ * already locked by the caller.
+ */
+async function lockAddOn(tx: Tx, payment: PaymentRow, booking: BookingRow) {
+  if (payment.kind === 'EXTENSION') {
+    const [ext] = await tx
+      .select(extensionColumns)
+      .from(bookingExtensions)
+      .where(eq(bookingExtensions.paymentId, payment.id))
+      .for('update');
+    const applicable =
+      !!ext &&
+      ext.status === 'PENDING_PAYMENT' &&
+      (booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN') &&
+      ext.startAt.getTime() === booking.endAt.getTime();
+    return {
+      applicable,
+      apply: async () => {
+        await tx.execute(
+          sql`select public.fn_confirm_extension(${ext!.id}::uuid, ${payment.id}::uuid)`,
+        );
+      },
+    };
+  }
+  const [session] = await tx
+    .select({ overstayStatus: sessions.overstayStatus })
+    .from(sessions)
+    .where(eq(sessions.bookingId, booking.id))
+    .for('update');
+  return {
+    applicable: session?.overstayStatus === 'DUE',
+    apply: async () => {
+      await tx.execute(sql`select public.fn_mark_overstay_paid(${booking.id}::uuid)`);
+    },
+  };
 }
 
 async function applyPlan(
@@ -520,7 +562,10 @@ export function drizzleBookings(
           createdAt: at,
           updatedAt: at,
         });
-        const [row] = await db.select(paymentColumns).from(payments).where(eq(payments.id, payment.id));
+        const [row] = await db
+          .select(paymentColumns)
+          .from(payments)
+          .where(eq(payments.id, payment.id));
         if (!row) throw new Error('payment not created');
         return asPayment(row);
       },
@@ -557,104 +602,26 @@ export function drizzleBookings(
           const booking = asBooking(b);
           const payment = asPayment(p);
 
-          if (payment.kind === 'EXTENSION') {
-            if (charge.status === 'success') {
-              const [ext] = await tx
-                .select(extensionColumns)
-                .from(bookingExtensions)
-                .where(eq(bookingExtensions.paymentId, p.id));
-              if (ext && ext.status === 'PENDING_PAYMENT') {
-                await tx.execute(
-                  sql`select public.fn_confirm_extension(${ext.id}::uuid, ${p.id}::uuid)`,
-                );
-              }
-              const journals = [
-                bookingPaymentJournal({
-                  provider: payment.provider,
-                  operatorId: payment.operatorId,
-                  priceKobo: payment.amountKobo,
-                  serviceFeeKobo: 0,
-                  commissionBps: booking.commissionBps,
-                }),
-              ];
-              const fee = providerFeeJournal({
-                provider: payment.provider,
-                feesKobo: charge.feesKobo ?? 0,
-              });
-              if (fee.length > 0) journals.push(fee);
-              for (const lines of journals) await postJournal(tx, lines, p.id);
-              await tx
-                .update(payments)
-                .set({
-                  status: 'SUCCEEDED',
-                  paidAt: charge.paidAt,
-                  feesKobo: charge.feesKobo,
-                  channel: charge.channel,
-                  cardLast4: charge.cardLast4,
-                  cardBrand: charge.cardBrand,
-                  updatedAt: at,
-                })
-                .where(eq(payments.id, p.id));
-              const [after] = await tx
-                .select(bookingColumns)
-                .from(bookings)
-                .where(eq(bookings.id, booking.id));
-              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
-              return { decision: 'CONFIRM', booking: asBooking(after!), payment: asPayment(paid!), refund: null };
-            } else {
-              await tx
-                .update(payments)
-                .set({ status: 'FAILED', failureCode: charge.status.slice(0, 64), updatedAt: at })
-                .where(eq(payments.id, p.id));
-              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
-              return { decision: 'FAIL', booking, payment: asPayment(paid!), refund: null };
-            }
-          }
-
-          if (payment.kind === 'OVERSTAY') {
-            if (charge.status === 'success') {
-              await tx.execute(sql`select public.fn_mark_overstay_paid(${booking.id}::uuid)`);
-              const journals = [
-                bookingPaymentJournal({
-                  provider: payment.provider,
-                  operatorId: payment.operatorId,
-                  priceKobo: payment.amountKobo,
-                  serviceFeeKobo: 0,
-                  commissionBps: booking.commissionBps,
-                }),
-              ];
-              const fee = providerFeeJournal({
-                provider: payment.provider,
-                feesKobo: charge.feesKobo ?? 0,
-              });
-              if (fee.length > 0) journals.push(fee);
-              for (const lines of journals) await postJournal(tx, lines, p.id);
-              await tx
-                .update(payments)
-                .set({
-                  status: 'SUCCEEDED',
-                  paidAt: charge.paidAt,
-                  feesKobo: charge.feesKobo,
-                  channel: charge.channel,
-                  cardLast4: charge.cardLast4,
-                  cardBrand: charge.cardBrand,
-                  updatedAt: at,
-                })
-                .where(eq(payments.id, p.id));
-              const [after] = await tx
-                .select(bookingColumns)
-                .from(bookings)
-                .where(eq(bookings.id, booking.id));
-              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
-              return { decision: 'CONFIRM', booking: asBooking(after!), payment: asPayment(paid!), refund: null };
-            } else {
-              await tx
-                .update(payments)
-                .set({ status: 'FAILED', failureCode: charge.status.slice(0, 64), updatedAt: at })
-                .where(eq(payments.id, p.id));
-              const [paid] = await tx.select(paymentColumns).from(payments).where(eq(payments.id, id));
-              return { decision: 'FAIL', booking, payment: asPayment(paid!), refund: null };
-            }
+          if (payment.kind === 'EXTENSION' || payment.kind === 'OVERSTAY') {
+            const addOn = await lockAddOn(tx, payment, booking);
+            const decision = addOnDecision({
+              payment: { status: payment.status, amountKobo: payment.amountKobo },
+              verify: charge,
+              applicable: addOn.applicable,
+            });
+            const plan = addOnSettlePlan(decision, charge, booking, payment);
+            if (plan.applyAddOn) await addOn.apply();
+            const refund = await applyPlan(tx, plan, booking, payment.id, at);
+            const [after] = await tx
+              .select(bookingColumns)
+              .from(bookings)
+              .where(eq(bookings.id, booking.id));
+            const [paid] = await tx
+              .select(paymentColumns)
+              .from(payments)
+              .where(eq(payments.id, id));
+            if (!after || !paid) throw new Error('settlement rows vanished');
+            return { decision, booking: asBooking(after), payment: asPayment(paid), refund };
           }
 
           let decision = confirmDecision({

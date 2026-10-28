@@ -718,6 +718,41 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     expect(extRow?.status).toBe('CONFIRMED');
   });
 
+  it('settles an extension payment once, and never on a short charge (gap review P-2, P-3)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const extend = async (newEndAt: string) =>
+      (
+        await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+          as: driver.id,
+          body: { newEndAt },
+        })
+      ).body as unknown as { extension: { id: string }; payment: { reference: string } };
+    const verify = (ref: string) => t.call('POST', `/v1/payments/${ref}/verify`, { as: driver.id });
+    const linesFor = (ref: string) => t.store.booking.ledgerRows.filter((l) => l.paymentId === ref);
+
+    const short = await extend('2026-10-20T10:00:00.000Z');
+    t.payments.pay(short.payment.reference, { amountKobo: 100 });
+    await verify(short.payment.reference);
+    expect((await t.store.bookings.findExtension(short.extension.id))?.status).toBe(
+      'PENDING_PAYMENT',
+    );
+    expect(linesFor(short.payment.reference)).toEqual([]);
+
+    const paid = await extend('2026-10-20T10:00:00.000Z');
+    t.payments.pay(paid.payment.reference);
+    await verify(paid.payment.reference);
+    const posted = linesFor(paid.payment.reference).length;
+    expect(posted).toBeGreaterThan(0);
+    // The webhook settles the same payment again after the app's verify.
+    await verify(paid.payment.reference);
+    expect(linesFor(paid.payment.reference)).toHaveLength(posted);
+    expect((await t.store.bookings.findExtension(paid.extension.id))?.status).toBe('CONFIRMED');
+  });
+
   it('auto-confirms extension with null payment when daily cap is reached (₦0 incremental price)', async () => {
     const t = await setup();
     // Update rate plan with daily cap of 100_000 (₦1,000)

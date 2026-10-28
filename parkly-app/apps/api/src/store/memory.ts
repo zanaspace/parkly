@@ -106,6 +106,8 @@ export class MemoryStore implements Store {
     this.booking.onOverstayPaid = async (bookingId) => {
       await this.attend.markOverstayPaid(bookingId, new Date());
     };
+    this.booking.overstayDue = (bookingId) =>
+      this.attending.sessionRows.find((s) => s.bookingId === bookingId)?.overstayStatus === 'DUE';
   }
 
   /** Test helper: what the on_auth_user_created trigger does. */

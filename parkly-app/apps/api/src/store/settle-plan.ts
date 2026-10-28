@@ -1,4 +1,5 @@
 import {
+  type addOnDecision,
   bookingPaymentJournal,
   providerFeeJournal,
   type BookingStatus,
@@ -24,7 +25,9 @@ export type SettlePlan = {
   /** convert: held → booked. release: give the held space back. */
   slots: 'convert' | 'release' | null;
   journals: JournalLine[][];
-  refund: { amountKobo: number; reason: 'HOLD_EXPIRED' | 'DRIVER_CANCEL' } | null;
+  refund: { amountKobo: number; reason: 'HOLD_EXPIRED' | 'DRIVER_CANCEL' | 'OTHER' } | null;
+  /** Extension or overstay: confirm the extension or mark the overstay paid. */
+  applyAddOn?: boolean;
 };
 
 const NOTHING: SettlePlan = {
@@ -35,14 +38,19 @@ const NOTHING: SettlePlan = {
   refund: null,
 };
 
-/** The rows a successful charge writes: payment details plus the ledger journals (doc 02 §2.7). */
+/**
+ * The rows a successful charge writes: payment details plus the ledger journals (doc 02 §2.7).
+ * A booking payment carries the booking's price and fee; an extension or overstay
+ * payment carries only its own amount, with no service fee.
+ */
 function paid(charge: VerifiedCharge, booking: BookingRow, payment: PaymentRow) {
+  const addOn = payment.kind === 'EXTENSION' || payment.kind === 'OVERSTAY';
   const journals = [
     bookingPaymentJournal({
       provider: payment.provider,
       operatorId: payment.operatorId,
-      priceKobo: booking.priceKobo,
-      serviceFeeKobo: booking.serviceFeeKobo,
+      priceKobo: addOn ? payment.amountKobo : booking.priceKobo,
+      serviceFeeKobo: addOn ? 0 : booking.serviceFeeKobo,
       commissionBps: booking.commissionBps,
     }),
   ];
@@ -105,11 +113,44 @@ export function settlePlan(
         journals: [],
         refund: null,
       };
+    case 'REFUND_NOT_APPLIED':
+      return {
+        ...paid(charge, booking, payment),
+        booking: null,
+        slots: null,
+        refund: { amountKobo: payment.amountKobo, reason: 'OTHER' },
+      };
     case 'AMOUNT_MISMATCH':
       return { ...NOTHING, payment: { failureCode: 'AMOUNT_MISMATCH' } };
     case 'WAIT':
     case 'NOOP':
     case 'NEEDS_REVIEW':
       return NOTHING;
+  }
+}
+
+/**
+ * What `payments.settle` writes for an extension or overstay payment (gap review
+ * P-2, P-3, P-6). The booking itself never changes status here.
+ */
+export function addOnSettlePlan(
+  decision: ReturnType<typeof addOnDecision>,
+  charge: VerifiedCharge,
+  booking: BookingRow,
+  payment: PaymentRow,
+): SettlePlan {
+  switch (decision) {
+    case 'CONFIRM':
+      return {
+        ...paid(charge, booking, payment),
+        booking: null,
+        slots: null,
+        refund: null,
+        applyAddOn: true,
+      };
+    case 'FAIL':
+      return { ...NOTHING, payment: { status: 'FAILED', failureCode: charge.status.slice(0, 64) } };
+    default:
+      return settlePlan(decision, charge, booking, payment);
   }
 }

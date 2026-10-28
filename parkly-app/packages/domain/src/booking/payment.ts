@@ -78,7 +78,9 @@ export type ConfirmDecision =
   /** Never confirm; raise a `payment.amount_mismatch` incident. */
   | 'AMOUNT_MISMATCH'
   /** States disagree (e.g. money for a payment we marked failed); ops look at it. */
-  | 'NEEDS_REVIEW';
+  | 'NEEDS_REVIEW'
+  /** Extension or overstay money arrived but there is nothing left to apply it to: refund in full. */
+  | 'REFUND_NOT_APPLIED';
 
 const SETTLED: readonly PaymentStatus[] = ['SUCCEEDED', 'PARTIALLY_REFUNDED', 'REFUNDED'];
 const FAILED: readonly string[] = ['failed', 'reversed'];
@@ -109,4 +111,27 @@ export function confirmDecision(input: ConfirmInput): ConfirmDecision {
     default:
       return 'NEEDS_REVIEW';
   }
+}
+
+/**
+ * The same checks for an extension or overstay payment (gap review P-2, P-3, P-6).
+ * `applicable`: the extension is still pending on a live booking that still ends
+ * where it starts, or the overstay is still due. Checked by the caller under lock.
+ */
+export function addOnDecision(input: {
+  payment: { status: PaymentStatus; amountKobo: Kobo };
+  verify: VerifyResult;
+  applicable: boolean;
+}): 'CONFIRM' | 'REFUND_NOT_APPLIED' | 'FAIL' | 'WAIT' | 'NOOP' | 'AMOUNT_MISMATCH' {
+  const { payment, verify } = input;
+  if (SETTLED.includes(payment.status)) return 'NOOP';
+  if (FAILED.includes(verify.status)) {
+    return payment.status === 'FAILED' || payment.status === 'ABANDONED' ? 'NOOP' : 'FAIL';
+  }
+  if (verify.status !== 'success') return 'WAIT';
+  if (verify.amountKobo !== payment.amountKobo || verify.currency !== 'NGN') {
+    return 'AMOUNT_MISMATCH';
+  }
+  // Money that arrives late, even after the checkout was abandoned, is applied or given back.
+  return input.applicable ? 'CONFIRM' : 'REFUND_NOT_APPLIED';
 }

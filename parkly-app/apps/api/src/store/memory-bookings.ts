@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { confirmDecision, isBalanced, type JournalLine } from '@parkly/domain/booking';
-import { settlePlan, type SettlePlan } from './settle-plan.js';
+import {
+  addOnDecision,
+  confirmDecision,
+  isBalanced,
+  type JournalLine,
+} from '@parkly/domain/booking';
+import { addOnSettlePlan, settlePlan, type SettlePlan } from './settle-plan.js';
 import {
   BookingCodeTakenError,
   BookingHoldError,
@@ -71,6 +76,7 @@ export class MemoryBookings {
   readonly webhookRows: Webhook[] = [];
   readonly idempotencyRows = new Map<string, IdemKey>();
   onOverstayPaid?: (bookingId: string) => Promise<void> | void;
+  overstayDue?: (bookingId: string) => boolean;
 
   constructor(
     private readonly lotRows: Map<string, LotRow>,
@@ -314,8 +320,7 @@ export class MemoryBookings {
     confirmExtension: async (extensionId, paymentId, at) => {
       const ext = this.extensionRows.find((r) => r.id === extensionId);
       if (!ext) throw new Error('EXTENSION_NOT_FOUND');
-      if (ext.status !== 'PENDING_PAYMENT')
-        throw new Error('EXTENSION_ALREADY_CONFIRMED');
+      if (ext.status !== 'PENDING_PAYMENT') throw new Error('EXTENSION_ALREADY_CONFIRMED');
       const b = this.bookingRows.find((r) => r.id === ext.bookingId);
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
 
@@ -466,51 +471,33 @@ export class MemoryBookings {
       const b = this.bookingRows.find((r) => r.id === p.bookingId);
       if (!b) throw new Error(`payment ${id} has no booking`);
 
-      if (p.kind === 'EXTENSION') {
-        const ext = this.extensionRows.find((r) => r.paymentId === p.id);
-        if (charge.status === 'success') {
-          if (ext && ext.status === 'PENDING_PAYMENT') {
-            await this.bookings.confirmExtension(ext.id, p.id, new Date());
-          }
-          p.status = 'SUCCEEDED';
-          p.paidAt = charge.paidAt;
-          return {
-            decision: 'CONFIRM',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        } else {
-          p.status = 'FAILED';
-          return {
-            decision: 'FAIL',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
+      if (p.kind === 'EXTENSION' || p.kind === 'OVERSTAY') {
+        const ext =
+          p.kind === 'EXTENSION' ? this.extensionRows.find((r) => r.paymentId === p.id) : undefined;
+        const applicable =
+          p.kind === 'EXTENSION'
+            ? !!ext &&
+              ext.status === 'PENDING_PAYMENT' &&
+              (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') &&
+              ext.startAt.getTime() === b.endAt.getTime()
+            : (this.overstayDue?.(b.id) ?? false);
+        const decision = addOnDecision({
+          payment: { status: p.status, amountKobo: p.amountKobo },
+          verify: charge,
+          applicable,
+        });
+        const plan = addOnSettlePlan(decision, charge, b, this.publicPayment(p));
+        if (plan.applyAddOn) {
+          if (ext) await this.bookings.confirmExtension(ext.id, p.id, new Date());
+          else await this.onOverstayPaid?.(b.id);
         }
-      }
-
-      if (p.kind === 'OVERSTAY') {
-        if (charge.status === 'success') {
-          await this.onOverstayPaid?.(b.id);
-          p.status = 'SUCCEEDED';
-          p.paidAt = charge.paidAt;
-          return {
-            decision: 'CONFIRM',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        } else {
-          p.status = 'FAILED';
-          return {
-            decision: 'FAIL',
-            booking: { ...b },
-            payment: this.publicPayment(p),
-            refund: null,
-          };
-        }
+        const refund = this.apply(plan, b, p);
+        return {
+          decision,
+          booking: { ...b },
+          payment: this.publicPayment(p),
+          refund: refund && { id: refund.id, amountKobo: refund.amountKobo },
+        };
       }
 
       let decision = confirmDecision({
