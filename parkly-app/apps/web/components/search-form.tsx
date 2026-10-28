@@ -3,7 +3,7 @@
 import type { PlaceSuggestion } from '@parkly/contracts';
 import { Button, Select } from '@parkly/ui';
 import { useEffect, useId, useState } from 'react';
-import { AREAS, DURATIONS, type SearchInput } from '../lib/search';
+import { AREAS, durationsFor, type SearchInput } from '../lib/search';
 
 /**
  * D-11 destination search (ADR 0014): suggestions from the API through
@@ -60,7 +60,12 @@ function PlaceSearch({
         onChange={(e) => setQ(e.target.value)}
       />
       {items.length > 0 && (
-        <ul id={listId} className="pk-places__list" role="listbox" aria-label="Car parks and places">
+        <ul
+          id={listId}
+          className="pk-places__list"
+          role="listbox"
+          aria-label="Car parks and places"
+        >
           {items.map((p) => (
             <li key={p.id} role="option" aria-selected="false">
               <button
@@ -80,7 +85,9 @@ function PlaceSearch({
       )}
       {status === 'loading' && <p className="pk-hint">Searching…</p>}
       {status === 'none' && (
-        <p className="pk-hint">No car parks or places found. Try another name, a landmark or an area.</p>
+        <p className="pk-hint">
+          No car parks or places found. Try another name, a landmark or an area.
+        </p>
       )}
       {status === 'error' && (
         <p className="pk-hint">Place search isn’t available right now. Pick an area instead.</p>
@@ -200,7 +207,7 @@ export function SearchForm(props: {
           value={duration}
           onChange={(e) => setDuration(e.target.value)}
           options={[
-            ...DURATIONS.map((h) => ({
+            ...durationsFor(process.env.NEXT_PUBLIC_TEST_STAYS === 'on').map((h) => ({
               value: String(h),
               label: h === '5m' ? '5 min (Test)' : `${h} hour${h === 1 ? '' : 's'}`,
             })),

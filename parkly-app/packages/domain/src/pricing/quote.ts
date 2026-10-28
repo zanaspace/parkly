@@ -144,6 +144,8 @@ export function quote(input: {
   startAt: Date;
   endAt: Date;
   settings: PricingSettings;
+  /** 5-minute test stays; switched on only outside prod (gap review L-2). */
+  allowTestStays?: boolean;
 }): QuoteResult {
   const { ratePlan: plan, startAt, endAt, settings } = input;
   if (plan.product === 'MONTHLY') {
@@ -161,7 +163,7 @@ export function quote(input: {
   }
 
   const minutes = (endAt.getTime() - startAt.getTime()) / MINUTE_MS;
-  const is5Min = minutes === 5;
+  const is5Min = input.allowTestStays === true && minutes === 5;
   if (!is5Min) {
     if (!isSlotAligned(startAt) || !isSlotAligned(endAt) || minutes <= 0) return invalid;
     if (plan.product === 'HOURLY' && minutes < plan.minMinutes) return invalid;
@@ -176,7 +178,11 @@ export function quote(input: {
             kind: 'HOURLY_DAY' as const,
             date: lagosDateKey(startAt),
             minutes: 5,
-            amountKobo: mulDivRoundHalfUp(required(plan.hourlyRateKobo, 'hourly rate'), SLOT_MINUTES, 60),
+            amountKobo: mulDivRoundHalfUp(
+              required(plan.hourlyRateKobo, 'hourly rate'),
+              SLOT_MINUTES,
+              60,
+            ),
             capped: false,
           },
         ]

@@ -197,14 +197,13 @@ export function bookingRoutes(deps: AppDeps) {
     };
     return Promise.all(
       rows.map(async (b) => {
-        const stayDurationMin = (b.endAt.getTime() - b.startAt.getTime()) / 60_000;
-        const effectiveGrace = stayDurationMin <= 5 ? 1 : graceMin;
-        const one = price(b, new Date(b.endAt.getTime() + (effectiveGrace + 1) * 60_000));
+        // Same grace as check-out pricing (attend routes), so drivers see what they'll be charged.
+        const one = price(b, new Date(b.endAt.getTime() + (graceMin + 1) * 60_000));
         const s = stays.get(b.id);
         let stay: Booking['stay'] = null;
         if (s) {
           const late =
-            !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + effectiveGrace * 60_000;
+            !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + graceMin * 60_000;
           const live = late ? price(b, now) : null;
           stay = {
             checkedInAt: s.checkInAt?.toISOString() ?? null,
@@ -215,7 +214,7 @@ export function bookingRoutes(deps: AppDeps) {
         }
         return {
           qrToken: await ticketFor(b),
-          overstay: one ? { graceMin: effectiveGrace, per15Kobo: one.kobo } : null,
+          overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };
@@ -299,7 +298,8 @@ export function bookingRoutes(deps: AppDeps) {
     const { fees, limits } = await loadSettings(deps.store);
     const startAt = new Date(body.startAt);
     const endAt = new Date(body.endAt);
-    if (checkSearchWindow({ startAt, endAt, now, limits, product: body.product }))
+    const allowTestStays = deps.config.testShortStays;
+    if (checkSearchWindow({ startAt, endAt, now, limits, product: body.product, allowTestStays }))
       throw new ApiError(
         'BOOKING_WINDOW_INVALID',
         'Pick a time on the quarter hour, from now up to 30 days ahead, of at most 24 hours',
@@ -316,6 +316,7 @@ export function bookingRoutes(deps: AppDeps) {
       startAt,
       endAt,
       settings: { ...fees, commissionBps: lot.commissionBps },
+      allowTestStays,
     });
     if (!priced.ok)
       throw new ApiError(
@@ -619,12 +620,25 @@ export function bookingRoutes(deps: AppDeps) {
         now,
         status: booking.status,
         maxDurationMinutes: MAX_EXTENDED_STAY_MIN,
+        graceMin: await deps.store.settings
+          .get<number>('session.overstay_grace_min')
+          .then((v) => v ?? 10),
+        allowTestStays: deps.config.testShortStays,
       });
       if (!validation.ok) {
         if (validation.code === 'BOOKING_NOT_EXTENDABLE') {
           throw new ApiError('BOOKING_NOT_EXTENDABLE', 'This booking cannot be extended');
         }
-        throw new ApiError('BOOKING_WINDOW_INVALID', `Invalid extension window: ${validation.code}`);
+        if (validation.code === 'EXTENSION_TOO_LATE') {
+          throw new ApiError(
+            'BOOKING_WINDOW_INVALID',
+            'This stay has already ended. Pay the overstay at check-out instead',
+          );
+        }
+        throw new ApiError(
+          'BOOKING_WINDOW_INVALID',
+          `Invalid extension window: ${validation.code}`,
+        );
       }
 
       const lot = await lotOf(booking.lotId);

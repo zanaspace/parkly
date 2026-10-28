@@ -63,6 +63,40 @@ describe('validateExtensionWindow (FR-BOOK-005, doc 02 §4)', () => {
     }
   });
 
+  it('refuses a +5 min extension unless test stays are switched on', () => {
+    const input = {
+      startAt,
+      currentEndAt,
+      newEndAt: new Date('2026-10-27T12:05:00Z'),
+      now: new Date('2026-10-27T11:00:00Z'),
+      status: 'CONFIRMED' as const,
+      maxDurationMinutes,
+    };
+    expect(validateExtensionWindow(input)).toEqual({
+      ok: false,
+      code: 'EXTENSION_NOT_SLOT_ALIGNED',
+    });
+    expect(validateExtensionWindow({ ...input, allowTestStays: true }).ok).toBe(true);
+  });
+
+  it('refuses to extend over time already spent past end + grace (gap review P-11)', () => {
+    const input = {
+      startAt,
+      currentEndAt,
+      newEndAt: new Date('2026-10-27T14:00:00Z'),
+      status: 'CHECKED_IN' as const,
+      maxDurationMinutes,
+      graceMin: 10,
+    };
+    expect(validateExtensionWindow({ ...input, now: new Date('2026-10-27T12:10:00Z') }).ok).toBe(
+      true,
+    );
+    expect(validateExtensionWindow({ ...input, now: new Date('2026-10-27T13:40:00Z') })).toEqual({
+      ok: false,
+      code: 'EXTENSION_TOO_LATE',
+    });
+  });
+
   it('rejects an extension exceeding the maximum booking duration (24 hours)', () => {
     // 25 hours from start
     const newEndAt = new Date('2026-10-28T11:00:00Z');
@@ -98,7 +132,13 @@ describe('validateExtensionWindow (FR-BOOK-005, doc 02 §4)', () => {
 
   it('rejects extension for non-extendable statuses (COMPLETED, CANCELLED, EXPIRED, NO_SHOW, PENDING_PAYMENT)', () => {
     const newEndAt = new Date('2026-10-27T13:00:00Z');
-    for (const status of ['COMPLETED', 'CANCELLED', 'EXPIRED', 'NO_SHOW', 'PENDING_PAYMENT'] as const) {
+    for (const status of [
+      'COMPLETED',
+      'CANCELLED',
+      'EXPIRED',
+      'NO_SHOW',
+      'PENDING_PAYMENT',
+    ] as const) {
       const res = validateExtensionWindow({
         startAt,
         currentEndAt,

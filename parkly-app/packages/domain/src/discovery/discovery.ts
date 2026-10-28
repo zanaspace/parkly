@@ -24,8 +24,14 @@ export const AREAS = [
 export type Area = (typeof AREAS)[number];
 
 /** Hourly stays offered in the pickers; '5m' is a 5-minute test stay (for testing overstay); 'day' is a full Lagos day. */
-export const DURATIONS = ['5m', 1, 2, 3, 4, 6, 8, 10, 12] as const;
-export type Duration = (typeof DURATIONS)[number] | 'day';
+export const DURATIONS = [1, 2, 3, 4, 6, 8, 10, 12] as const;
+/** Pickers with the 5-minute test stay first; only where test stays are switched on, never in prod. */
+export const TEST_DURATIONS = ['5m', ...DURATIONS] as const;
+export type Duration = (typeof TEST_DURATIONS)[number] | 'day';
+
+export function durationsFor(testStays: boolean): readonly Exclude<Duration, 'day'>[] {
+  return testStays ? TEST_DURATIONS : DURATIONS;
+}
 
 /** Doc 03 §1.2: widen an empty 2 km search to 3 km, then offer 5 km. */
 export const SEARCH_RADII = [2000, 3000, 5000] as const;

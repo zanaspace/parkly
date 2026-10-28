@@ -28,6 +28,14 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it('keeps 5-minute test stays off unless asked, and refuses them in prod', () => {
+    expect(loadConfig({}).testShortStays).toBe(false);
+    expect(loadConfig({ TEST_SHORT_STAYS: 'on' }).testShortStays).toBe(true);
+    expect(() => loadConfig({ APP_ENV: 'prod', TEST_SHORT_STAYS: 'on' })).toThrow(
+      /TEST_SHORT_STAYS: test stays are not allowed in prod/,
+    );
+  });
+
   it('requires Termii in prod', () => {
     expect(() => loadConfig({ APP_ENV: 'prod' })).toThrow(/SMS_PROVIDER: must be termii in prod/);
   });

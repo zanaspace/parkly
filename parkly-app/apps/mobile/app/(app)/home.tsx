@@ -1,10 +1,11 @@
-import { AREAS, DURATIONS } from '@parkly/domain/discovery';
+import { AREAS, durationsFor } from '@parkly/domain/discovery';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, View, Pressable } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { config } from '../../src/lib/config';
 import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { PlaceSearch } from '../../src/components/PlaceSearch';
@@ -79,7 +80,9 @@ export default function Home() {
         />
       }
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
+      >
         <View style={{ gap: 2 }}>
           <Text variant="overline" tone="brand">
             Parkly
@@ -88,7 +91,9 @@ export default function Home() {
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={defaultVehicle ? `Vehicle ${defaultVehicle.plateNorm}` : 'Add vehicle'}
+          accessibilityLabel={
+            defaultVehicle ? `Vehicle ${defaultVehicle.plateNorm}` : 'Add vehicle'
+          }
           onPress={() => router.push(defaultVehicle ? '/account' : '/add-vehicle')}
           style={({ pressed }) => ({
             flexDirection: 'row',
@@ -155,7 +160,7 @@ export default function Home() {
       <View style={section}>
         <Text variant="label.lg">How long</Text>
         <Row>
-          {[...DURATIONS, 'day' as const].map((d) => (
+          {[...durationsFor(config.testStays), 'day' as const].map((d) => (
             <Chip
               key={String(d)}
               label={durationLabel(d)}
@@ -164,7 +169,10 @@ export default function Home() {
                 if (d === '5m') {
                   const nowLagos = new Date(Date.now() + 60 * 60_000);
                   const hh = String(nowLagos.getUTCHours()).padStart(2, '0');
-                  const mm = String(Math.floor(nowLagos.getUTCMinutes() / 15) * 15).padStart(2, '0');
+                  const mm = String(Math.floor(nowLagos.getUTCMinutes() / 15) * 15).padStart(
+                    2,
+                    '0',
+                  );
                   set({ duration: d, date: days[0]?.date ?? search.date, time: `${hh}:${mm}` });
                 } else {
                   set({ duration: d });

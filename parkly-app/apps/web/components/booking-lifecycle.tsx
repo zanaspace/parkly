@@ -21,8 +21,11 @@ import {
   ExternalLinkIcon,
 } from './icons';
 
+// 5-minute test extensions only where test stays are on; the API enforces it too.
+const TEST_STAYS = process.env.NEXT_PUBLIC_TEST_STAYS === 'on';
+
 const DURATION_OPTIONS = [
-  { label: '+5 min (Test)', minutes: 5 },
+  ...(TEST_STAYS ? [{ label: '+5 min (Test)', minutes: 5 }] : []),
   { label: '+15 min', minutes: 15 },
   { label: '+30 min', minutes: 30 },
   { label: '+45 min', minutes: 45 },
@@ -70,9 +73,7 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
           if (opts?.extendableUntil) {
             const maxMs = new Date(opts.extendableUntil).getTime();
             const curEndMs = new Date(booking.endAt).getTime();
-            const allowed = DURATION_OPTIONS.filter(
-              (o) => curEndMs + o.minutes * 60_000 <= maxMs,
-            );
+            const allowed = DURATION_OPTIONS.filter((o) => curEndMs + o.minutes * 60_000 <= maxMs);
             const first = allowed[0];
             if (first && !allowed.some((a) => a.minutes === selectedMinutes)) {
               setSelectedMinutes(first.minutes);
@@ -117,10 +118,7 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
     setExtending(true);
     setExtendError(null);
     try {
-      const res: ExtendBookingResult = await extendBooking(
-        booking.id,
-        projectedEnd.toISOString(),
-      );
+      const res: ExtendBookingResult = await extendBooking(booking.id, projectedEnd.toISOString());
       if (!res.ok) {
         setExtendError(res.message || 'Could not extend stay. Please try again.');
         setExtending(false);
@@ -210,7 +208,9 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
               disabled={payingOverstay}
             >
               <CreditCardIcon size={16} />
-              <span>{payingOverstay ? 'Connecting...' : `Pay Overstay (${formatNaira(overstayKobo)})`}</span>
+              <span>
+                {payingOverstay ? 'Connecting...' : `Pay Overstay (${formatNaira(overstayKobo)})`}
+              </span>
             </button>
           </div>
         </div>
@@ -273,7 +273,12 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
 
       {/* Extend Stay Modal */}
       {extendOpen && (
-        <div className="pk-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="extend-title">
+        <div
+          className="pk-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="extend-title"
+        >
           <div className="pk-modal-sheet">
             <div className="pk-modal-header">
               <div>
@@ -326,16 +331,19 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
               ) : null}
 
               <div>
-                <label className="pk-input-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                <label
+                  className="pk-input-label"
+                  style={{ marginBottom: '0.5rem', display: 'block' }}
+                >
                   Select Extension Duration
                 </label>
                 <div className="pk-chips-grid">
                   {DURATION_OPTIONS.map((opt) => {
                     const isPastClosing = Boolean(
                       extensionOptions &&
-                        (extensionOptions.extendableUntil === null ||
-                          new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
-                            new Date(extensionOptions.extendableUntil).getTime()),
+                      (extensionOptions.extendableUntil === null ||
+                        new Date(booking.endAt).getTime() + opt.minutes * 60_000 >
+                          new Date(extensionOptions.extendableUntil).getTime()),
                     );
                     return (
                       <button
@@ -358,7 +366,8 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                 <div className="pk-tip-box">
                   <ClockIcon size={14} />
                   <span>
-                    Rates are charged per standard car park hourly rate. Extending prevents overstay fees.
+                    Rates are charged per standard car park hourly rate. Extending prevents overstay
+                    fees.
                   </span>
                 </div>
               )}
@@ -388,9 +397,9 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                   extending ||
                   Boolean(
                     extensionOptions &&
-                      (extensionOptions.extendableUntil === null ||
-                        new Date(booking.endAt).getTime() + selectedMinutes * 60_000 >
-                          new Date(extensionOptions.extendableUntil).getTime()),
+                    (extensionOptions.extendableUntil === null ||
+                      new Date(booking.endAt).getTime() + selectedMinutes * 60_000 >
+                        new Date(extensionOptions.extendableUntil).getTime()),
                   )
                 }
               >
@@ -403,14 +412,21 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
 
       {/* Cancel Booking Modal */}
       {cancelOpen && (
-        <div className="pk-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+        <div
+          className="pk-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-title"
+        >
           <div className="pk-modal-sheet">
             <div className="pk-modal-header">
               <div>
                 <h3 id="cancel-title" className="pk-modal-title">
                   Cancel Reservation
                 </h3>
-                <p className="pk-modal-sub">Pass #{booking.code} at {booking.lot.name}</p>
+                <p className="pk-modal-sub">
+                  Pass #{booking.code} at {booking.lot.name}
+                </p>
               </div>
               <button
                 type="button"
@@ -434,7 +450,9 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                       Free Cancellation (100% Refund)
                     </strong>
                     <span style={{ fontSize: '0.825rem', color: '#9da8b3' }}>
-                      You are cancelling more than 30 minutes before your booked start time ({formatTime(booking.startAt)}). Full refund of {formatNaira(booking.totalKobo)} will be returned to your payment method.
+                      You are cancelling more than 30 minutes before your booked start time (
+                      {formatTime(booking.startAt)}). Full refund of{' '}
+                      {formatNaira(booking.totalKobo)} will be returned to your payment method.
                     </span>
                   </div>
                 </div>
@@ -448,14 +466,19 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                       Late Cancellation (No Refund)
                     </strong>
                     <span style={{ fontSize: '0.825rem', color: '#9da8b3' }}>
-                      Per car park policy, bookings cancelled within 30 minutes of reservation start time are not eligible for a refund.
+                      Per car park policy, bookings cancelled within 30 minutes of reservation start
+                      time are not eligible for a refund.
                     </span>
                   </div>
                 </div>
               )}
 
               <div>
-                <label htmlFor="cancel-reason-select" className="pk-input-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                <label
+                  htmlFor="cancel-reason-select"
+                  className="pk-input-label"
+                  style={{ marginBottom: '0.5rem', display: 'block' }}
+                >
                   Reason for Cancellation
                 </label>
                 <select

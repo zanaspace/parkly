@@ -76,6 +76,18 @@ describe('checkSearchWindow (doc 02 §5 booking window limits)', () => {
     expect(check('2026-10-21 00:00', '2026-10-23 00:00', 'DAILY')).toBeNull();
   });
 
+  it('accepts a 5-minute stay only when test stays are switched on', () => {
+    const input = {
+      startAt: lagos('2026-10-20 08:15'),
+      endAt: lagos('2026-10-20 08:20'),
+      now,
+      limits,
+      product: 'HOURLY' as const,
+    };
+    expect(checkSearchWindow(input)).toBe('SEARCH_INVALID_WINDOW');
+    expect(checkSearchWindow({ ...input, allowTestStays: true })).toBeNull();
+  });
+
   it('honours a minimum lead time', () => {
     const r = checkSearchWindow({
       startAt: lagos('2026-10-20 08:15'),
@@ -171,7 +183,10 @@ describe('extensionWindow (FR-BOOK-005: how far a stay can be extended)', () => 
   });
 
   it('runs straight through consecutive 24-hour days up to the cap', () => {
-    const allWeek: OpeningDay[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, is24h: true }));
+    const allWeek: OpeningDay[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      is24h: true,
+    }));
     const w = window(allWeek, '2026-10-27 00:00', '2026-10-27 06:00');
     expect(w).toEqual({
       extendableUntil: lagos('2026-10-27 06:00'),

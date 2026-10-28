@@ -204,6 +204,16 @@ describe('POST /v1/bookings (FR-BOOK-001)', () => {
     expect(full.body?.code).toBe('BOOKING_SLOT_UNAVAILABLE');
   });
 
+  it('takes a 5-minute test stay only when test stays are switched on (gap review L-2)', async () => {
+    const fiveMin = { startAt: START, endAt: '2026-10-20T07:05:00.000Z' };
+    const off = await setup();
+    const res = await off.book(await off.newDriver(), undefined, fiveMin);
+    expect(res.body?.code).toBe('BOOKING_WINDOW_INVALID');
+
+    const on = await setup({}, { config: { ...testDeps().config, testShortStays: true } });
+    expect((await on.book(await on.newDriver(), undefined, fiveMin)).status).toBe(201);
+  });
+
   it('checks the window, opening hours and the driver’s own car', async () => {
     const t = await setup();
     const driver = await t.newDriver();
@@ -854,10 +864,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
       'The car park closes at 00:00, so this stay can’t be extended',
     );
     expect(
-      closedForExtensionDetail(
-        new Date('2026-10-26T23:00:00Z'),
-        new Date('2026-10-27T06:00:00Z'),
-      ),
+      closedForExtensionDetail(new Date('2026-10-26T23:00:00Z'), new Date('2026-10-27T06:00:00Z')),
     ).toBe('The car park closes at 00:00 and reopens Tue 07:00');
   });
 
@@ -1019,5 +1026,3 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
     });
   });
 });
-
-

@@ -43,7 +43,7 @@ export type AppDeps = {
   config: Pick<
     AppConfig,
     'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret' | 'paystackWebhookIps'
-  > & { logPayloads?: boolean };
+  > & { logPayloads?: boolean; testShortStays?: boolean };
   logger: Logger;
   readinessChecks: Record<string, ReadinessCheck>;
   rateLimiter: RateLimiter;

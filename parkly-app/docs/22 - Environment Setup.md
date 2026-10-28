@@ -193,6 +193,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | — | when approved | required | ✅ (key) |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | one DB per env | own | own | ✅ (token) |
 | `SENTRY_DSN` | EU DSN | EU DSN | EU DSN | |
+| `TEST_SHORT_STAYS` | `on` only while testing overstay | `off` | **never `on`** (config refuses it) | 5-minute test stays |
 
 `SETTLEMENT_PROVIDER=paystack` also switches booking checkout to Paystack with the same key (Sprint 4). Then, in the Paystack dashboard for that key (Settings → API Keys & Webhooks), set the **Webhook URL** to `<that env's API URL>/v1/webhooks/paystack` (dev: `https://parkly-api-six.vercel.app/v1/webhooks/paystack`). Paystack signs each webhook with the secret key; nothing else to store. Outside prod, lots whose operator has no active subaccount (the demo lots) take payments with no split, all to the main account; prod refuses them.
 
@@ -205,6 +206,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `NEXT_PUBLIC_SUPABASE_URL` | that env's project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | that env's publishable key |
 | `NEXT_PUBLIC_API_URL` | that env's API URL |
+| `NEXT_PUBLIC_TEST_STAYS` | `on` only on dev, with the API's `TEST_SHORT_STAYS=on` (web only) |
 
 Nothing secret ever goes in a `NEXT_PUBLIC_*` variable.
 

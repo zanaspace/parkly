@@ -7,6 +7,7 @@ export {
   dayLabel,
   distanceLabel,
   DURATIONS,
+  durationsFor,
   lagosWeekday,
   lineLabel,
   searchWindow,
