@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
+import { timingSafeEqual } from 'node:crypto';
 import {
   BookingExtensionSchema,
   BookingListQuerySchema,
@@ -15,6 +16,7 @@ import {
   ExtensionOptionsSchema,
   OverstayPayRequestSchema,
   OverstayPayResponseSchema,
+  ReceiptLinkSchema,
   VerifyPaymentResponseSchema,
   type Booking,
   type BookingExtension,
@@ -528,6 +530,80 @@ export function bookingRoutes(deps: AppDeps) {
         return c.html(renderReceiptHtml(receipt), 200);
       }
       return c.json(receipt, 200);
+    },
+  );
+
+  /**
+   * A receipt link that opens in any browser without the driver's token (gap
+   * review S-2): signed for this booking only and valid for five minutes.
+   */
+  const RECEIPT_LINK_MS = 5 * 60_000;
+  const receiptSignature = (bookingId: string, exp: number) =>
+    deps.crypto.lookupHash(`receipt-link:${bookingId}:${exp}`).toString('base64url');
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/receipt-link',
+      tags: ['bookings'],
+      ...secured,
+      request: { params: z.object({ id: z.uuid() }) },
+      responses: {
+        200: {
+          description: 'Short-lived receipt link',
+          ...json(ReceiptLinkSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const booking = await ownBooking(c, c.req.valid('param').id);
+      const exp = deps.now().getTime() + RECEIPT_LINK_MS;
+      const origin = new URL(c.req.url).origin;
+      const url = `${origin}/v1/receipts/${booking.id}?exp=${exp}&sig=${receiptSignature(booking.id, exp)}`;
+      return c.json({ url, expiresAt: new Date(exp).toISOString() }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/receipts/{id}',
+      tags: ['bookings'],
+      request: {
+        params: z.object({ id: z.uuid() }),
+        query: z.object({ exp: z.coerce.number().int(), sig: z.string().max(100) }),
+      },
+      responses: {
+        200: { description: 'Receipt page', content: { 'text/html': { schema: z.string() } } },
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const { exp, sig } = c.req.valid('query');
+      const now = deps.now().getTime();
+      const expected = Buffer.from(receiptSignature(id, exp));
+      const given = Buffer.from(sig);
+      const valid =
+        exp > now &&
+        exp <= now + RECEIPT_LINK_MS &&
+        given.length === expected.length &&
+        timingSafeEqual(given, expected);
+      if (!valid) throw new ApiError('NOT_FOUND', 'This receipt link has expired');
+      const booking = await deps.store.bookings.find(id);
+      if (!booking) throw new ApiError('BOOKING_NOT_FOUND');
+      const [lot, user, payments, refunds] = await Promise.all([
+        lotOf(booking.lotId),
+        deps.store.users.find(booking.driverId),
+        deps.store.payments.listForBooking(booking.id),
+        deps.store.payments.refundsForBooking(booking.id),
+      ]);
+      c.header('cache-control', 'private, no-store');
+      return c.html(
+        renderReceiptHtml(
+          buildReceiptData({ booking, lot, user, payments, refunds, now: deps.now() }),
+        ),
+        200,
+      );
     },
   );
 

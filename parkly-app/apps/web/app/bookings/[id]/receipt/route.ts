@@ -2,10 +2,7 @@ import { notFound } from 'next/navigation';
 import { apiUrl, ApiProblem } from '../../../../lib/api';
 import { requireDriver } from '../../../../lib/session';
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const driver = await requireDriver(`/bookings/${id}/receipt`);
   try {
@@ -27,6 +24,10 @@ export async function GET(
     return new Response(html, {
       headers: {
         'content-type': 'text/html; charset=utf-8',
+        // The receipt's own inline styles only; no scripts on the site origin (gap review S-3).
+        'content-security-policy':
+          "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+        'cache-control': 'private, no-store',
       },
     });
   } catch (err) {

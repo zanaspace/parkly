@@ -262,7 +262,12 @@ describe('place search', () => {
       bookingCode: booking.code,
       status: 'CONFIRMED',
       issuedAt: '2026-10-19T10:00:00.000Z',
-      lot: { id: booking.lot.id, name: booking.lot.name, addressLine: booking.lot.addressLine, area: 'VI' },
+      lot: {
+        id: booking.lot.id,
+        name: booking.lot.name,
+        addressLine: booking.lot.addressLine,
+        area: 'VI',
+      },
       vehicle: { plate: booking.vehicle.plate },
       driver: { firstName: 'Tunde', lastName: 'Bakare', phoneLast4: '1234' },
       product: 'HOURLY',
@@ -281,11 +286,25 @@ describe('place search', () => {
       // 1. extendBooking
       { status: 200, body: { extension, booking, payment } },
       // 2. cancelBooking
-      { status: 200, body: { booking: { ...booking, status: 'CANCELLED' }, refundKobo: 110000, isFreeCancellation: true } },
+      {
+        status: 200,
+        body: {
+          booking: { ...booking, status: 'CANCELLED' },
+          refundKobo: 110000,
+          isFreeCancellation: true,
+        },
+      },
       // 3. payOverstay
       { status: 200, body: { payment, overstayMinutes: 30, amountKobo: 25000 } },
-      // 4. receipt
+      // 4. receipt, then a signed receipt link
       { status: 200, body: receipt },
+      {
+        status: 200,
+        body: {
+          url: 'http://api.test/v1/receipts/b?exp=1&sig=s',
+          expiresAt: '2026-10-19T08:05:00.000Z',
+        },
+      },
       // 5. registerDevice
       { status: 204 },
     ]);
@@ -293,7 +312,11 @@ describe('place search', () => {
     const c = client(fetch);
 
     // 1. Extend
-    const extRes = await c.extendBooking(booking.id, { newEndAt: '2026-10-19T12:00:00.000Z' }, 'ext-key-1');
+    const extRes = await c.extendBooking(
+      booking.id,
+      { newEndAt: '2026-10-19T12:00:00.000Z' },
+      'ext-key-1',
+    );
     expect(extRes.extension.addedMinutes).toBe(60);
     expect((calls[0]?.init.headers as Record<string, string>)['idempotency-key']).toBe('ext-key-1');
 
@@ -309,10 +332,11 @@ describe('place search', () => {
     // 4. Receipt
     const recRes = await c.receipt(booking.id);
     expect(recRes.bookingCode).toBe('PK-X1Y2Z3');
-    expect(await c.receiptUrl(booking.id)).toBe(`http://api.test/v1/bookings/${booking.id}/receipt?format=html&token=tok`);
+    expect(await c.receiptUrl(booking.id)).toBe('http://api.test/v1/receipts/b?exp=1&sig=s');
+    expect(calls[4]?.url).toBe(`http://api.test/v1/bookings/${booking.id}/receipt-link`);
 
     // 5. Register device
     await c.registerDevice({ deviceId: 'dev-1', platform: 'ANDROID', pushToken: 'push-tok' });
-    expect(calls[4]?.url).toBe('http://api.test/v1/me/devices');
+    expect(calls[5]?.url).toBe('http://api.test/v1/me/devices');
   });
 });
