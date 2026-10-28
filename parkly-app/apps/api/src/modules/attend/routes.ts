@@ -21,7 +21,6 @@ import { can } from '@parkly/domain/authz';
 import {
   checkSelf,
   distanceM,
-  gateCodeFor,
   isAttendantGateCode,
   parseGateCode,
   SELF_CHECKIN_RADIUS_M,
@@ -32,6 +31,7 @@ import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
+import { gateCodes } from '../../lib/gate-codes.js';
 import type { AttendDeviceRow, AttendEventInput } from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -53,6 +53,7 @@ export function attendRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
   const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const secured = { security: [{ bearerAuth: [] }], middleware };
+  const codes = gateCodes(deps.crypto);
 
   async function settingNumber(key: string, fallback: number) {
     return (await deps.store.settings.get<number>(key)) ?? fallback;
@@ -221,7 +222,12 @@ export function attendRoutes(deps: AppDeps) {
       return c.json(
         {
           serverTime: now.toISOString(),
-          lot: { id: lot.id, name: lot.name, capacityBookable: lot.capacityBookable },
+          lot: {
+            id: lot.id,
+            name: lot.name,
+            capacityBookable: lot.capacityBookable,
+            gateKey: codes.attendantKey(lot.id),
+          },
           rules: { earlyArrivalMin, noShowGraceMin, overstayGraceMin },
           keys: keys.valid.map((k) => ({
             kid: k.kid,
@@ -355,7 +361,7 @@ export function attendRoutes(deps: AppDeps) {
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
       const lot = await ownLot(c, operatorId, lotId, false);
-      return c.json({ lotId, enabled: lot.selfCheckinEnabled, gateCode: gateCodeFor(lotId) }, 200);
+      return c.json({ lotId, enabled: lot.selfCheckinEnabled, gateCode: codes.poster(lotId) }, 200);
     },
   );
 
@@ -380,7 +386,7 @@ export function attendRoutes(deps: AppDeps) {
         entityId: lotId,
         after: { selfCheckinEnabled: enabled },
       });
-      return c.json({ lotId, enabled, gateCode: gateCodeFor(lotId) }, 200);
+      return c.json({ lotId, enabled, gateCode: codes.poster(lotId) }, 200);
     },
   );
 
@@ -417,6 +423,8 @@ export function attendRoutes(deps: AppDeps) {
     const lot = await deps.store.lots.findById(booking.lotId);
     if (!lot) throw new ApiError('LOT_NOT_FOUND');
     const now = deps.now();
+    // Only a code Parkly signed: the lot id alone, which every booking carries, is not enough.
+    if (!codes.verify(body.code, now)) throw new ApiError('QR_WRONG_LOT');
     const stay = (await deps.store.attend.sessionsForBookings([booking.id])).get(booking.id);
     const rules = {
       earlyArrivalMin: await settingNumber('booking.early_arrival_min', 30),

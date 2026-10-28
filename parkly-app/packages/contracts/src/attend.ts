@@ -41,7 +41,16 @@ export const ManifestBookingSchema = z.object({
 export const ManifestSchema = z.object({
   /** For the device's clock offset (doc 03 §3.8). */
   serverTime: z.iso.datetime(),
-  lot: z.object({ id: z.uuid(), name: z.string(), capacityBookable: z.number().int() }),
+  lot: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    capacityBookable: z.number().int(),
+    /**
+     * Key for the code the phone shows drivers, which changes every minute
+     * (gap review G-2); base64url. Absent from manifests cached before it existed.
+     */
+    gateKey: z.string().optional(),
+  }),
   rules: z.object({
     earlyArrivalMin: z.number().int(),
     noShowGraceMin: z.number().int(),
