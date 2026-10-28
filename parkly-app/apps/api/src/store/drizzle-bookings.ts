@@ -2,12 +2,10 @@ import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import {
   accountType,
-  bookingPaymentJournal,
-  cancellationRefundJournal,
   addOnDecision,
+  cancellationRefundJournal,
   confirmDecision,
   isBalanced,
-  providerFeeJournal,
   type JournalLine,
 } from '@parkly/domain/booking';
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
@@ -165,6 +163,8 @@ async function postJournal(tx: Tx, lines: JournalLine[], paymentId: string) {
  * where the extension starts; or the overstay is still due. The booking row is
  * already locked by the caller.
  */
+const noop = async () => {};
+
 async function lockAddOn(tx: Tx, payment: PaymentRow, booking: BookingRow) {
   if (payment.kind === 'EXTENSION') {
     const [ext] = await tx
@@ -172,16 +172,14 @@ async function lockAddOn(tx: Tx, payment: PaymentRow, booking: BookingRow) {
       .from(bookingExtensions)
       .where(eq(bookingExtensions.paymentId, payment.id))
       .for('update');
-    const applicable =
-      !!ext &&
-      ext.status === 'PENDING_PAYMENT' &&
-      (booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN') &&
-      ext.startAt.getTime() === booking.endAt.getTime();
+    const live = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
+    if (!ext || ext.status !== 'PENDING_PAYMENT' || !live)
+      return { applicable: false, apply: noop };
     return {
-      applicable,
+      applicable: ext.startAt.getTime() === booking.endAt.getTime(),
       apply: async () => {
         await tx.execute(
-          sql`select public.fn_confirm_extension(${ext!.id}::uuid, ${payment.id}::uuid)`,
+          sql`select public.fn_confirm_extension(${ext.id}::uuid, ${payment.id}::uuid)`,
         );
       },
     };
