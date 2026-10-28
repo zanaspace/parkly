@@ -135,3 +135,25 @@ export function addOnDecision(input: {
   // Money that arrives late, even after the checkout was abandoned, is applied or given back.
   return input.applicable ? 'CONFIRM' : 'REFUND_NOT_APPLIED';
 }
+
+/**
+ * Splits one refund across a booking's paid charges, newest first, never more
+ * than any charge has left (gap review P-8): after an extension the booking
+ * total is two charges, and a provider refunds each transaction separately.
+ * Null when the charges cannot cover the amount.
+ */
+export function allocateRefund(
+  amountKobo: Kobo,
+  charges: readonly { id: string; amountKobo: Kobo; refundedKobo: Kobo }[],
+): { paymentId: string; amountKobo: Kobo }[] | null {
+  let left = amountKobo;
+  const out: { paymentId: string; amountKobo: Kobo }[] = [];
+  for (const c of charges) {
+    if (left <= 0) break;
+    const take = Math.min(left, c.amountKobo - c.refundedKobo) as Kobo;
+    if (take <= 0) continue;
+    out.push({ paymentId: c.id, amountKobo: take });
+    left = (left - take) as Kobo;
+  }
+  return left > 0 ? null : out;
+}

@@ -805,7 +805,11 @@ export type Store = {
         refundServiceFeeKobo: number;
       } | null,
       at: Date,
-    ): Promise<{ booking: BookingRow; refundId: string | null }>;
+    ): Promise<{
+      booking: BookingRow;
+      /** One refund row per paid charge it is split across, newest first (gap review P-8). */
+      refunds: { id: string; paymentId: string; amountKobo: number }[];
+    }>;
     markNoShows(at: Date): Promise<{ markedCount: number }>;
   };
   payments: {
@@ -834,6 +838,23 @@ export type Store = {
     settle(id: string, charge: VerifiedCharge, at: Date): Promise<SettleResult>;
     /** Records the provider's id for a refund we asked for. */
     refundRequested(refundId: string, providerRefundId: string): Promise<void>;
+    /** Refunds the provider never accepted (no provider id), created before `before`. */
+    refundsToRetry(q: {
+      before: Date;
+      limit: number;
+    }): Promise<{ id: string; paymentId: string; amountKobo: number }[]>;
+    /**
+     * The provider's final word on a refund (refund.processed / refund.failed).
+     * Matched by provider id, else the oldest pending refund of that payment.
+     * A processed refund moves the payment to PARTIALLY_REFUNDED or REFUNDED.
+     * False when no refund matched.
+     */
+    refundOutcome(o: {
+      providerRefundId: string | null;
+      paymentId: string;
+      status: 'SUCCEEDED' | 'FAILED';
+      at: Date;
+    }): Promise<boolean>;
     /** Checkouts still open (PENDING) that were started in [from, to): the job asks the provider. */
     unsettled(window: { from: Date; to: Date; limit: number }): Promise<string[]>;
   };

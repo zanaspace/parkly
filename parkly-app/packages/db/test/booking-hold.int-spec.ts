@@ -280,6 +280,29 @@ describe('ledger and history invariants (doc 02 §2.6–2.7)', () => {
     });
   });
 
+  it('never refunds more than a payment took (gap review P-8)', async () => {
+    await inRolledBackTx(async (tx) => {
+      const lot = await newLot(tx, 1, 'r1');
+      const driver = await newDriver(tx);
+      const id = await hold(tx, lot, driver);
+      const [op] = await tx`select operator_id from public.lots where id = ${lot.lotId}`;
+      const [p] = await tx`
+        insert into public.payments (id, kind, booking_id, payer_user_id, provider,
+          provider_reference, amount_kobo, platform_amount_kobo, operator_amount_kobo,
+          operator_id, status)
+        values (gen_random_uuid(), 'BOOKING', ${id}, ${driver.driverId}, 'FAKE',
+                gen_random_uuid()::text, 110000, 22000, 88000, ${must(op).operator_id}, 'SUCCEEDED')
+        returning id`;
+      const refund = (amount: number, status = 'PENDING') => tx`
+        insert into public.refunds (id, payment_id, amount_kobo, reason, status)
+        values (gen_random_uuid(), ${must(p).id}, ${amount}, 'DRIVER_CANCEL', ${status}::public.refund_status)`;
+      await refund(100000);
+      await refund(50000, 'FAILED'); // a failed refund takes nothing
+      expect(await failsWith(tx, () => refund(10001))).toBe('REFUND_EXCEEDS_PAYMENT');
+      await refund(10000);
+    });
+  });
+
   it('seeds the platform ledger accounts', async () => {
     const rows = await sql`select code, type from public.ledger_accounts order by code`;
     expect(rows.map((r) => `${r.code}:${r.type}`)).toEqual(

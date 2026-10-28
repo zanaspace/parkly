@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   addOnDecision,
+  allocateRefund,
   confirmDecision,
   isBalanced,
   type JournalLine,
@@ -34,6 +35,7 @@ type Refund = {
   amountKobo: number;
   reason: string;
   providerRefundId: string | null;
+  status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
 };
 type Webhook = {
   id: string;
@@ -399,22 +401,42 @@ export class MemoryBookings {
         reason,
       });
 
-      let refundId: string | null = null;
+      const created: { id: string; paymentId: string; amountKobo: number }[] = [];
       if (refund && refund.amountKobo > 0) {
-        const p = this.paymentRows
-          .filter((p) => p.bookingId === bookingId && p.status === 'SUCCEEDED')
-          .slice(-1)[0];
-        if (!p) throw new Error(`no successful payment for booking ${bookingId}`);
-        refundId = randomUUID();
-        this.refundRows.push({
-          id: refundId,
-          paymentId: p.id,
-          amountKobo: refund.amountKobo,
-          reason: refund.reason,
-          providerRefundId: null,
-        });
+        const paid = this.paymentRows
+          .filter(
+            (p) =>
+              p.bookingId === bookingId &&
+              (p.kind ?? 'BOOKING') !== 'OVERSTAY' &&
+              (p.status === 'SUCCEEDED' || p.status === 'PARTIALLY_REFUNDED'),
+          )
+          .reverse();
+        if (paid.length === 0) throw new Error(`no successful payment for booking ${bookingId}`);
+        const split = allocateRefund(
+          refund.amountKobo,
+          paid.map((p) => ({
+            id: p.id,
+            amountKobo: p.amountKobo,
+            refundedKobo: this.refundRows
+              .filter((r) => r.paymentId === p.id && r.status !== 'FAILED')
+              .reduce((n, r) => n + r.amountKobo, 0),
+          })),
+        );
+        if (!split) throw new Error(`refund exceeds what booking ${bookingId} paid`);
+        for (const part of split) {
+          const id = randomUUID();
+          this.refundRows.push({
+            id,
+            paymentId: part.paymentId,
+            amountKobo: part.amountKobo,
+            reason: refund.reason,
+            providerRefundId: null,
+            status: 'PENDING',
+          });
+          created.push({ id, ...part });
+        }
       }
-      return { booking: { ...b }, refundId };
+      return { booking: { ...b }, refunds: created };
     },
 
     markNoShows: async (at) => {
@@ -568,6 +590,29 @@ export class MemoryBookings {
     refundRequested: async (refundId, providerRefundId) => {
       const r = this.refundRows.find((x) => x.id === refundId);
       if (r) r.providerRefundId = providerRefundId;
+    },
+
+    refundsToRetry: async ({ limit }) =>
+      this.refundRows
+        .filter((r) => (r.status ?? 'PENDING') === 'PENDING' && r.providerRefundId === null)
+        .slice(0, limit)
+        .map((r) => ({ id: r.id, paymentId: r.paymentId, amountKobo: r.amountKobo })),
+
+    refundOutcome: async ({ providerRefundId, paymentId, status }) => {
+      const rows = this.refundRows.filter((r) => r.paymentId === paymentId);
+      const match =
+        rows.find((r) => providerRefundId && r.providerRefundId === providerRefundId) ??
+        rows.find((r) => (r.status ?? 'PENDING') === 'PENDING');
+      if (!match || (match.status ?? 'PENDING') !== 'PENDING') return Boolean(match);
+      match.status = status;
+      const p = this.paymentRows.find((r) => r.id === paymentId);
+      if (p && status === 'SUCCEEDED') {
+        const refunded = rows
+          .filter((r) => r.status === 'SUCCEEDED')
+          .reduce((n, r) => n + r.amountKobo, 0);
+        p.status = refunded >= p.amountKobo ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+      }
+      return true;
     },
   };
 

@@ -893,21 +893,20 @@ export function bookingRoutes(deps: AppDeps) {
           throw err;
         }
 
-        if (policy.refundKobo > 0 && cancelled.refundId) {
-          const latestPayment = await deps.store.payments.latestForBooking(booking.id);
-          if (latestPayment) {
-            try {
-              const sent = await deps.payments.refund({
-                reference: latestPayment.id,
-                amountKobo: policy.refundKobo,
-              });
-              await deps.store.payments.refundRequested(cancelled.refundId, sent.refundId);
-            } catch (err) {
-              deps.logger.error(
-                { err, bookingId: booking.id, refundId: cancelled.refundId },
-                'cancellation refund request failed',
-              );
-            }
+        // One provider refund per charge, against that charge (gap review P-8). A
+        // failure here is retried by the retry-refunds job; it never blocks the cancel.
+        for (const r of cancelled.refunds) {
+          try {
+            const sent = await deps.payments.refund({
+              reference: r.paymentId,
+              amountKobo: r.amountKobo,
+            });
+            await deps.store.payments.refundRequested(r.id, sent.refundId);
+          } catch (err) {
+            deps.logger.error(
+              { err, bookingId: booking.id, refundId: r.id },
+              'cancellation refund request failed',
+            );
           }
         }
 

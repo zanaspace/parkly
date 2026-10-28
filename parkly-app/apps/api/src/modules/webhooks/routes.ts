@@ -14,7 +14,16 @@ type PaystackEvent = {
     currency?: unknown;
     channel?: unknown;
     paid_at?: unknown;
+    /** Refund events: the charge the refund was made against. */
+    transaction_reference?: unknown;
+    transaction?: { reference?: unknown };
   };
+};
+
+/** Refund events and the refund status each one means (gap review P-8). */
+const REFUND_EVENTS: Record<string, 'SUCCEEDED' | 'FAILED'> = {
+  'refund.processed': 'SUCCEEDED',
+  'refund.failed': 'FAILED',
 };
 
 const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : null);
@@ -53,7 +62,10 @@ export function webhookRoutes(deps: AppDeps) {
       throw new ApiError('VALIDATION_FAILED', 'Body is not JSON');
     }
     const eventType = str(body.event) ?? 'unknown';
-    const reference = str(body.data?.reference);
+    const refundOutcome = REFUND_EVENTS[eventType];
+    const reference = refundOutcome
+      ? (str(body.data?.transaction_reference) ?? str(body.data?.transaction?.reference))
+      : str(body.data?.reference);
     const now = deps.now();
     const recorded = await deps.store.webhooks.record({
       provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
@@ -75,6 +87,32 @@ export function webhookRoutes(deps: AppDeps) {
       at: now,
     });
     if (recorded.duplicate) return c.json({ received: true }, 200);
+
+    if (refundOutcome && reference) {
+      try {
+        const matched = await deps.store.payments.refundOutcome({
+          providerRefundId: str(body.data?.id),
+          paymentId: reference,
+          status: refundOutcome,
+          at: now,
+        });
+        if (refundOutcome === 'FAILED' && matched)
+          deps.logger.error(
+            { paymentId: reference },
+            'provider refused a refund; finance must follow up',
+          );
+        await deps.store.webhooks.finish(
+          recorded.id,
+          matched ? 'PROCESSED' : 'IGNORED',
+          matched ? null : 'unknown refund',
+          deps.now(),
+        );
+      } catch (err) {
+        deps.logger.error({ err, webhookId: recorded.id }, 'refund webhook failed');
+        await deps.store.webhooks.finish(recorded.id, 'FAILED', 'processing failed', deps.now());
+      }
+      return c.json({ received: true }, 200);
+    }
 
     if (eventType !== 'charge.success' || !reference) {
       await deps.store.webhooks.finish(recorded.id, 'IGNORED', null, now);

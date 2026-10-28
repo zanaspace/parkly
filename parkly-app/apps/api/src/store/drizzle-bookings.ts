@@ -3,6 +3,7 @@ import { schema } from '@parkly/db';
 import {
   accountType,
   addOnDecision,
+  allocateRefund,
   cancellationRefundJournal,
   confirmDecision,
   isBalanced,
@@ -447,15 +448,45 @@ export function drizzleBookings(
               ${bookingId}::uuid, ${actor}::public.booking_actor, ${actorId}::uuid, ${reason}
             )`);
 
-            let refundId: string | null = null;
+            const created: { id: string; paymentId: string; amountKobo: number }[] = [];
             if (refund && refund.amountKobo > 0) {
-              const [payment] = await tx
+              const paid = await tx
                 .select(paymentColumns)
                 .from(payments)
-                .where(and(eq(payments.bookingId, bookingId), eq(payments.status, 'SUCCEEDED')))
+                .where(
+                  and(
+                    eq(payments.bookingId, bookingId),
+                    inArray(payments.kind, ['BOOKING', 'EXTENSION']),
+                    inArray(payments.status, ['SUCCEEDED', 'PARTIALLY_REFUNDED']),
+                  ),
+                )
                 .orderBy(desc(payments.createdAt))
-                .limit(1);
+                .for('update');
+              const payment = paid[0];
               if (!payment) throw new Error(`no successful payment for booking ${bookingId}`);
+              const already = await tx
+                .select({ paymentId: refunds.paymentId, amountKobo: refunds.amountKobo })
+                .from(refunds)
+                .where(
+                  and(
+                    inArray(
+                      refunds.paymentId,
+                      paid.map((p) => p.id),
+                    ),
+                    notInArray(refunds.status, ['FAILED']),
+                  ),
+                );
+              const split = allocateRefund(
+                refund.amountKobo,
+                paid.map((p) => ({
+                  id: p.id,
+                  amountKobo: p.amountKobo,
+                  refundedKobo: already
+                    .filter((r) => r.paymentId === p.id)
+                    .reduce((n, r) => n + r.amountKobo, 0),
+                })),
+              );
+              if (!split) throw new Error(`refund exceeds what booking ${bookingId} paid`);
 
               const [b] = await tx
                 .select(bookingColumns)
@@ -463,17 +494,20 @@ export function drizzleBookings(
                 .where(eq(bookings.id, bookingId));
               if (!b) throw new Error(`booking ${bookingId} not found`);
 
-              refundId = uuidv7();
-              await tx.insert(refunds).values({
-                id: refundId,
-                paymentId: payment.id,
-                amountKobo: refund.amountKobo,
-                reason: refund.reason,
-                status: 'PENDING',
-                requestedBy: actorId,
-                createdAt: at,
-                updatedAt: at,
-              });
+              for (const part of split) {
+                const id = uuidv7();
+                await tx.insert(refunds).values({
+                  id,
+                  paymentId: part.paymentId,
+                  amountKobo: part.amountKobo,
+                  reason: refund.reason,
+                  status: 'PENDING',
+                  requestedBy: actorId,
+                  createdAt: at,
+                  updatedAt: at,
+                });
+                created.push({ id, ...part });
+              }
 
               const lines = cancellationRefundJournal({
                 payment: {
@@ -496,7 +530,7 @@ export function drizzleBookings(
               .from(bookings)
               .where(eq(bookings.id, bookingId));
             if (!b) throw new Error(`booking ${bookingId} not found`);
-            return { booking: asBooking(b), refundId };
+            return { booking: asBooking(b), refunds: created };
           });
         } catch (err) {
           const pg = pgError(err);
@@ -677,6 +711,61 @@ export function drizzleBookings(
 
       async refundRequested(refundId, providerRefundId) {
         await db.update(refunds).set({ providerRefundId }).where(eq(refunds.id, refundId));
+      },
+
+      async refundsToRetry({ before, limit }) {
+        return db
+          .select({ id: refunds.id, paymentId: refunds.paymentId, amountKobo: refunds.amountKobo })
+          .from(refunds)
+          .where(
+            and(
+              eq(refunds.status, 'PENDING'),
+              sql`${refunds.providerRefundId} is null`,
+              lt(refunds.createdAt, before),
+            ),
+          )
+          .orderBy(asc(refunds.createdAt))
+          .limit(limit);
+      },
+
+      async refundOutcome({ providerRefundId, paymentId, status, at }) {
+        return db.transaction(async (tx) => {
+          const [p] = await tx
+            .select(paymentColumns)
+            .from(payments)
+            .where(eq(payments.id, paymentId))
+            .for('update');
+          if (!p) return false;
+          const rows = await tx
+            .select({
+              id: refunds.id,
+              status: refunds.status,
+              amountKobo: refunds.amountKobo,
+              providerRefundId: refunds.providerRefundId,
+            })
+            .from(refunds)
+            .where(eq(refunds.paymentId, paymentId))
+            .orderBy(asc(refunds.createdAt));
+          const match =
+            rows.find((r) => providerRefundId && r.providerRefundId === providerRefundId) ??
+            rows.find((r) => r.status === 'PENDING');
+          if (!match || match.status !== 'PENDING') return Boolean(match);
+          await tx.update(refunds).set({ status, updatedAt: at }).where(eq(refunds.id, match.id));
+          if (status === 'SUCCEEDED') {
+            const refunded = rows
+              .filter((r) => r.status === 'SUCCEEDED' || r.id === match.id)
+              .reduce((n, r) => n + r.amountKobo, 0);
+            await tx
+              .update(payments)
+              .set({
+                status: refunded >= p.amountKobo ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+                version: sql`${payments.version} + 1`,
+                updatedAt: at,
+              })
+              .where(eq(payments.id, paymentId));
+          }
+          return true;
+        });
       },
     },
 

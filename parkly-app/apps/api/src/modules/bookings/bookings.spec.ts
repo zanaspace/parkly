@@ -374,6 +374,51 @@ describe('POST /v1/webhooks/paystack (doc 02 §7)', () => {
     expect(t.store.booking.webhookRows).toEqual([]);
   });
 
+  it('records the refund outcome and marks the charge refunded (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    const refund = t.store.booking.refundRows[0];
+    expect(refund?.providerRefundId).toBe('rf_1');
+    const res = await t.app.request('/v1/webhooks/paystack', {
+      method: 'POST',
+      headers: { 'x-paystack-signature': 'valid', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        event: 'refund.processed',
+        data: { id: 'rf_1', transaction_reference: created.payment.reference, status: 'processed' },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(refund?.status).toBe('SUCCEEDED');
+    expect((await t.store.payments.find(created.payment.reference))?.status).toBe('REFUNDED');
+  });
+
+  it('asks the provider again for a refund it never accepted (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const refund = t.payments.refund.bind(t.payments);
+    t.payments.refund = async () => {
+      throw new Error('provider down');
+    };
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(t.store.booking.refundRows[0]?.providerRefundId).toBeNull();
+    t.payments.refund = refund;
+    await settlePaymentsJob(t.deps)({ payload: {}, deadline: new Date('2100-01-01T00:00:00Z') });
+    expect(t.store.booking.refundRows[0]?.providerRefundId).toBe('rf_1');
+  });
+
   it('confirms through verify, once, however often the event arrives', async () => {
     const t = await setup();
     const driver = await t.newDriver();
@@ -989,6 +1034,33 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     // Refund row saved and requested
     expect(t.store.booking.refundRows).toHaveLength(1);
     expect(t.store.booking.refundRows[0]?.amountKobo).toBe(110_000);
+  });
+
+  it('refunds an extended booking charge by charge (gap review P-8)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    const ext = (
+      await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+        as: driver.id,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+      })
+    ).body as unknown as Created;
+    t.payments.pay(ext.payment.reference);
+    await t.call('POST', `/v1/payments/${ext.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect((res.body as unknown as { refundKobo: number }).refundKobo).toBe(160_000);
+    expect(t.payments.refunds).toEqual([
+      { reference: ext.payment.reference, amountKobo: 50_000 },
+      { reference: created.payment.reference, amountKobo: 110_000 },
+    ]);
   });
 
   it('cancels confirmed booking < 30m before start with 0 refund', async () => {
