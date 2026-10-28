@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import {
   BookingExtensionSchema,
   BookingListQuerySchema,
@@ -229,6 +230,35 @@ export function bookingRoutes(deps: AppDeps) {
   }
 
   /** The driver's own booking, or 404 (never 403: no enumeration). */
+  /**
+   * Runs a mutating booking request once per Idempotency-Key (AGENTS.md §5, gap
+   * review P-13): a double tap or a retry gets the first response back instead
+   * of a second checkout. Same store and rules as POST /bookings.
+   */
+  async function replayable<R extends Response>(
+    c: Context<AuthEnv>,
+    path: string,
+    run: () => Promise<R>,
+  ): Promise<R> {
+    const result = await idempotent<unknown>(
+      deps.store,
+      {
+        actorId: c.get('actor').userId,
+        key: c.req.header('idempotency-key'),
+        method: 'POST',
+        path,
+        body: await c.req.json().catch(() => null),
+        now: deps.now(),
+      },
+      async () => {
+        const res = await run();
+        return { status: res.status, body: await res.json() };
+      },
+    );
+    if (result.replayed) c.header('idempotent-replayed', 'true');
+    return c.json(result.body, result.status as 200) as unknown as R;
+  }
+
   async function ownBooking(c: Parameters<typeof authorize>[0], id: string) {
     const booking = await deps.store.bookings.find(id);
     if (!booking) throw new ApiError('BOOKING_NOT_FOUND');
@@ -599,6 +629,7 @@ export function bookingRoutes(deps: AppDeps) {
       ...secured,
       request: {
         params: z.object({ id: z.uuid() }),
+        headers: z.object({ 'idempotency-key': z.string().optional() }),
         body: { ...json(ExtendBookingRequestSchema), required: true },
       },
       responses: {
@@ -607,186 +638,195 @@ export function bookingRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const body = c.req.valid('json');
-      const actor = c.get('actor');
-      const booking = await ownBooking(c, id);
-      const now = deps.now();
+      return replayable(c, `/v1/bookings/${id}/extensions`, async () => {
+        const body = c.req.valid('json');
+        const actor = c.get('actor');
+        const booking = await ownBooking(c, id);
+        const now = deps.now();
 
-      const newEndAt = new Date(body.newEndAt);
-      const validation = validateExtensionWindow({
-        startAt: booking.startAt,
-        currentEndAt: booking.endAt,
-        newEndAt,
-        now,
-        status: booking.status,
-        maxDurationMinutes: MAX_EXTENDED_STAY_MIN,
-        graceMin: await deps.store.settings
-          .get<number>('session.overstay_grace_min')
-          .then((v) => v ?? 10),
-        allowTestStays: deps.config.testShortStays,
-      });
-      if (!validation.ok) {
-        if (validation.code === 'BOOKING_NOT_EXTENDABLE') {
-          throw new ApiError('BOOKING_NOT_EXTENDABLE', 'This booking cannot be extended');
-        }
-        if (validation.code === 'EXTENSION_TOO_LATE') {
+        const newEndAt = new Date(body.newEndAt);
+        const validation = validateExtensionWindow({
+          startAt: booking.startAt,
+          currentEndAt: booking.endAt,
+          newEndAt,
+          now,
+          status: booking.status,
+          maxDurationMinutes: MAX_EXTENDED_STAY_MIN,
+          graceMin: await deps.store.settings
+            .get<number>('session.overstay_grace_min')
+            .then((v) => v ?? 10),
+          allowTestStays: deps.config.testShortStays,
+        });
+        if (!validation.ok) {
+          if (validation.code === 'BOOKING_NOT_EXTENDABLE') {
+            throw new ApiError('BOOKING_NOT_EXTENDABLE', 'This booking cannot be extended');
+          }
+          if (validation.code === 'EXTENSION_TOO_LATE') {
+            throw new ApiError(
+              'BOOKING_WINDOW_INVALID',
+              'This stay has already ended. Pay the overstay at check-out instead',
+            );
+          }
           throw new ApiError(
             'BOOKING_WINDOW_INVALID',
-            'This stay has already ended. Pay the overstay at check-out instead',
+            `Invalid extension window: ${validation.code}`,
           );
         }
-        throw new ApiError(
-          'BOOKING_WINDOW_INVALID',
-          `Invalid extension window: ${validation.code}`,
-        );
-      }
 
-      const lot = await lotOf(booking.lotId);
-      const hours = (await deps.store.lots.openingHours(lot.id)).map(toOpeningDay);
-      if (
-        !isOpenDuring({
-          hours,
-          startAt: booking.endAt,
-          endAt: newEndAt,
-          product: booking.product,
-        })
-      ) {
-        const w = extensionWindow({
-          hours,
+        const lot = await lotOf(booking.lotId);
+        const hours = (await deps.store.lots.openingHours(lot.id)).map(toOpeningDay);
+        if (
+          !isOpenDuring({
+            hours,
+            startAt: booking.endAt,
+            endAt: newEndAt,
+            product: booking.product,
+          })
+        ) {
+          const w = extensionWindow({
+            hours,
+            currentEndAt: booking.endAt,
+            maxEndAt: newEndAt,
+            product: booking.product,
+          });
+          throw new ApiError(
+            'BOOKING_OUTSIDE_OPENING_HOURS',
+            closedForExtensionDetail(w.closesAt, w.reopensAt),
+          );
+        }
+
+        const plans = await deps.store.ratePlans.activeFor([lot.id]);
+        const plan = plans.find((p) => p.product === booking.product);
+        if (!plan)
+          throw new ApiError('LOT_NOT_BOOKABLE', 'This lot does not have an active rate plan');
+
+        const extQuote = calculateExtensionQuote({
+          ratePlan: plan,
+          settings: { commissionBps: booking.commissionBps },
+          startAt: booking.startAt,
           currentEndAt: booking.endAt,
-          maxEndAt: newEndAt,
-          product: booking.product,
+          newEndAt,
+          currentPriceKobo: booking.priceKobo,
         });
-        throw new ApiError(
-          'BOOKING_OUTSIDE_OPENING_HOURS',
-          closedForExtensionDetail(w.closesAt, w.reopensAt),
-        );
-      }
 
-      const plans = await deps.store.ratePlans.activeFor([lot.id]);
-      const plan = plans.find((p) => p.product === booking.product);
-      if (!plan)
-        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot does not have an active rate plan');
+        const extensionId = uuidv7();
 
-      const extQuote = calculateExtensionQuote({
-        ratePlan: plan,
-        settings: { commissionBps: booking.commissionBps },
-        startAt: booking.startAt,
-        currentEndAt: booking.endAt,
-        newEndAt,
-        currentPriceKobo: booking.priceKobo,
-      });
+        if (extQuote.priceKobo === 0) {
+          try {
+            const held = await deps.store.bookings.holdExtension(
+              {
+                id: extensionId,
+                bookingId: booking.id,
+                newEndAt,
+                priceKobo: 0,
+                platformAmountKobo: 0,
+                operatorAmountKobo: 0,
+                holdExpiresAt: now,
+              },
+              null,
+              now,
+            );
+            const updatedBooking = await deps.store.bookings.confirmExtension(
+              extensionId,
+              null,
+              now,
+            );
+            const extRow = await deps.store.bookings.findExtension(extensionId);
+            const [view] = await viewsFor([updatedBooking]);
+            return c.json(
+              {
+                extension: toBookingExtension(extRow ?? held.extension),
+                booking: toBooking(updatedBooking, lot, view),
+                payment: null,
+              },
+              200,
+            );
+          } catch (err) {
+            if (err instanceof BookingHoldError) throw new ApiError(err.code);
+            throw err;
+          }
+        }
 
-      const extensionId = uuidv7();
+        const payout = await deps.store.payoutAccounts.find(lot.operatorId);
+        const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
+        if (!subaccountCode && deps.config.appEnv === 'prod') {
+          throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
+        }
 
-      if (extQuote.priceKobo === 0) {
+        let callbackUrl: string | null = null;
+        if (body.returnTo) {
+          if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
+            throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+          }
+          callbackUrl = body.returnTo;
+        }
+
+        const paymentId = uuidv7();
+        let held: Awaited<ReturnType<typeof deps.store.bookings.holdExtension>>;
         try {
-          const held = await deps.store.bookings.holdExtension(
+          held = await deps.store.bookings.holdExtension(
             {
               id: extensionId,
               bookingId: booking.id,
               newEndAt,
-              priceKobo: 0,
-              platformAmountKobo: 0,
-              operatorAmountKobo: 0,
-              holdExpiresAt: now,
+              priceKobo: extQuote.priceKobo,
+              platformAmountKobo: extQuote.commissionKobo,
+              operatorAmountKobo: extQuote.operatorAmountKobo,
+              holdExpiresAt: holdExpiresAt(
+                now,
+                (await deps.store.settings.get<number>('booking.hold_minutes')) ?? 10,
+              ),
             },
-            null,
-            now,
-          );
-          const updatedBooking = await deps.store.bookings.confirmExtension(extensionId, null, now);
-          const extRow = await deps.store.bookings.findExtension(extensionId);
-          const [view] = await viewsFor([updatedBooking]);
-          return c.json(
             {
-              extension: toBookingExtension(extRow ?? held.extension),
-              booking: toBooking(updatedBooking, lot, view),
-              payment: null,
+              id: paymentId,
+              kind: 'EXTENSION',
+              payerUserId: actor.userId,
+              provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+              amountKobo: extQuote.priceKobo,
+              platformAmountKobo: extQuote.commissionKobo,
+              operatorAmountKobo: extQuote.operatorAmountKobo,
+              operatorId: lot.operatorId,
+              subaccountCode,
             },
-            200,
+            now,
           );
         } catch (err) {
           if (err instanceof BookingHoldError) throw new ApiError(err.code);
           throw err;
         }
-      }
 
-      const payout = await deps.store.payoutAccounts.find(lot.operatorId);
-      const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
-      if (!subaccountCode && deps.config.appEnv === 'prod') {
-        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
-      }
-
-      let callbackUrl: string | null = null;
-      if (body.returnTo) {
-        if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
-          throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
-        }
-        callbackUrl = body.returnTo;
-      }
-
-      const paymentId = uuidv7();
-      let held: Awaited<ReturnType<typeof deps.store.bookings.holdExtension>>;
-      try {
-        held = await deps.store.bookings.holdExtension(
-          {
-            id: extensionId,
-            bookingId: booking.id,
-            newEndAt,
-            priceKobo: extQuote.priceKobo,
-            platformAmountKobo: extQuote.commissionKobo,
-            operatorAmountKobo: extQuote.operatorAmountKobo,
-            holdExpiresAt: holdExpiresAt(
-              now,
-              (await deps.store.settings.get<number>('booking.hold_minutes')) ?? 10,
-            ),
-          },
-          {
-            id: paymentId,
-            kind: 'EXTENSION',
-            payerUserId: actor.userId,
-            provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+        let payment: PaymentRow;
+        try {
+          const checkout = await deps.payments.initialize({
+            reference: paymentId,
             amountKobo: extQuote.priceKobo,
-            platformAmountKobo: extQuote.commissionKobo,
-            operatorAmountKobo: extQuote.operatorAmountKobo,
-            operatorId: lot.operatorId,
+            email: checkoutEmail(actor.userId),
             subaccountCode,
+            platformShareKobo: extQuote.commissionKobo,
+            callbackUrl,
+            metadata: { bookingCode: booking.code, bookingId: booking.id, extensionId },
+          });
+          payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());
+        } catch (err) {
+          deps.logger.error(
+            { err, bookingId: booking.id, extensionId },
+            'extension checkout failed',
+          );
+          // Give the space back now rather than when the hold runs out (gap review P-4).
+          await deps.store.bookings.releaseExtension(extensionId, 'EXPIRED', deps.now());
+          throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
+        }
+
+        const [view] = await viewsFor([booking]);
+        return c.json(
+          {
+            extension: toBookingExtension(held.extension),
+            booking: toBooking(booking, lot, view),
+            payment: toCheckout(payment, booking),
           },
-          now,
+          200,
         );
-      } catch (err) {
-        if (err instanceof BookingHoldError) throw new ApiError(err.code);
-        throw err;
-      }
-
-      let payment: PaymentRow;
-      try {
-        const checkout = await deps.payments.initialize({
-          reference: paymentId,
-          amountKobo: extQuote.priceKobo,
-          email: checkoutEmail(actor.userId),
-          subaccountCode,
-          platformShareKobo: extQuote.commissionKobo,
-          callbackUrl,
-          metadata: { bookingCode: booking.code, bookingId: booking.id, extensionId },
-        });
-        payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());
-      } catch (err) {
-        deps.logger.error({ err, bookingId: booking.id, extensionId }, 'extension checkout failed');
-        // Give the space back now rather than when the hold runs out (gap review P-4).
-        await deps.store.bookings.releaseExtension(extensionId, 'EXPIRED', deps.now());
-        throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
-      }
-
-      const [view] = await viewsFor([booking]);
-      return c.json(
-        {
-          extension: toBookingExtension(held.extension),
-          booking: toBooking(booking, lot, view),
-          payment: toCheckout(payment, booking),
-        },
-        200,
-      );
+      });
     },
   );
 
@@ -799,6 +839,7 @@ export function bookingRoutes(deps: AppDeps) {
       ...secured,
       request: {
         params: z.object({ id: z.uuid() }),
+        headers: z.object({ 'idempotency-key': z.string().optional() }),
         body: { ...json(CancelBookingRequestSchema), required: false },
       },
       responses: {
@@ -807,78 +848,80 @@ export function bookingRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const body = c.req.valid('json') ?? {};
-      const actor = c.get('actor');
-      const booking = await ownBooking(c, id);
-      const now = deps.now();
+      return replayable(c, `/v1/bookings/${id}/cancel`, async () => {
+        const body = c.req.valid('json') ?? {};
+        const actor = c.get('actor');
+        const booking = await ownBooking(c, id);
+        const now = deps.now();
 
-      const freeLeadMin =
-        (await deps.store.settings.get<number>('booking.free_cancellation_lead_min')) ?? 30;
-      const policy = cancellationPolicy({
-        startAt: booking.startAt,
-        now,
-        status: booking.status,
-        priceKobo: booking.priceKobo,
-        serviceFeeKobo: booking.serviceFeeKobo,
-        totalKobo: booking.totalKobo,
-        actor: 'DRIVER',
-        settings: { freeCancellationLeadMin: freeLeadMin },
-      });
-
-      if (!policy.cancellable) {
-        throw new ApiError('BOOKING_NOT_CANCELLABLE', 'This booking cannot be cancelled');
-      }
-
-      let cancelled: Awaited<ReturnType<typeof deps.store.bookings.cancel>>;
-      try {
-        cancelled = await deps.store.bookings.cancel(
-          booking.id,
-          'DRIVER',
-          actor.userId,
-          body.reason ?? 'DRIVER_CANCEL',
-          policy.refundKobo > 0
-            ? {
-                amountKobo: policy.refundKobo,
-                reason: policy.reason,
-                refundPriceKobo: policy.refundPriceKobo,
-                refundServiceFeeKobo: policy.refundServiceFeeKobo,
-              }
-            : null,
+        const freeLeadMin =
+          (await deps.store.settings.get<number>('booking.free_cancellation_lead_min')) ?? 30;
+        const policy = cancellationPolicy({
+          startAt: booking.startAt,
           now,
-        );
-      } catch (err) {
-        if (err instanceof BookingHoldError) throw new ApiError(err.code);
-        throw err;
-      }
+          status: booking.status,
+          priceKobo: booking.priceKobo,
+          serviceFeeKobo: booking.serviceFeeKobo,
+          totalKobo: booking.totalKobo,
+          actor: 'DRIVER',
+          settings: { freeCancellationLeadMin: freeLeadMin },
+        });
 
-      if (policy.refundKobo > 0 && cancelled.refundId) {
-        const latestPayment = await deps.store.payments.latestForBooking(booking.id);
-        if (latestPayment) {
-          try {
-            const sent = await deps.payments.refund({
-              reference: latestPayment.id,
-              amountKobo: policy.refundKobo,
-            });
-            await deps.store.payments.refundRequested(cancelled.refundId, sent.refundId);
-          } catch (err) {
-            deps.logger.error(
-              { err, bookingId: booking.id, refundId: cancelled.refundId },
-              'cancellation refund request failed',
-            );
+        if (!policy.cancellable) {
+          throw new ApiError('BOOKING_NOT_CANCELLABLE', 'This booking cannot be cancelled');
+        }
+
+        let cancelled: Awaited<ReturnType<typeof deps.store.bookings.cancel>>;
+        try {
+          cancelled = await deps.store.bookings.cancel(
+            booking.id,
+            'DRIVER',
+            actor.userId,
+            body.reason ?? 'DRIVER_CANCEL',
+            policy.refundKobo > 0
+              ? {
+                  amountKobo: policy.refundKobo,
+                  reason: policy.reason,
+                  refundPriceKobo: policy.refundPriceKobo,
+                  refundServiceFeeKobo: policy.refundServiceFeeKobo,
+                }
+              : null,
+            now,
+          );
+        } catch (err) {
+          if (err instanceof BookingHoldError) throw new ApiError(err.code);
+          throw err;
+        }
+
+        if (policy.refundKobo > 0 && cancelled.refundId) {
+          const latestPayment = await deps.store.payments.latestForBooking(booking.id);
+          if (latestPayment) {
+            try {
+              const sent = await deps.payments.refund({
+                reference: latestPayment.id,
+                amountKobo: policy.refundKobo,
+              });
+              await deps.store.payments.refundRequested(cancelled.refundId, sent.refundId);
+            } catch (err) {
+              deps.logger.error(
+                { err, bookingId: booking.id, refundId: cancelled.refundId },
+                'cancellation refund request failed',
+              );
+            }
           }
         }
-      }
 
-      const lot = await lotOf(booking.lotId);
-      const [view] = await viewsFor([cancelled.booking]);
-      return c.json(
-        {
-          booking: toBooking(cancelled.booking, lot, view),
-          refundKobo: policy.refundKobo,
-          isFreeCancellation: policy.isFreeCancellation,
-        },
-        200,
-      );
+        const lot = await lotOf(booking.lotId);
+        const [view] = await viewsFor([cancelled.booking]);
+        return c.json(
+          {
+            booking: toBooking(cancelled.booking, lot, view),
+            refundKobo: policy.refundKobo,
+            isFreeCancellation: policy.isFreeCancellation,
+          },
+          200,
+        );
+      });
     },
   );
 
@@ -891,6 +934,7 @@ export function bookingRoutes(deps: AppDeps) {
       ...secured,
       request: {
         params: z.object({ id: z.uuid() }),
+        headers: z.object({ 'idempotency-key': z.string().optional() }),
         body: { ...json(OverstayPayRequestSchema), required: false },
       },
       responses: {
@@ -899,80 +943,99 @@ export function bookingRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const body = c.req.valid('json') ?? {};
-      const actor = c.get('actor');
-      const booking = await ownBooking(c, id);
-      const now = deps.now();
+      return replayable(c, `/v1/bookings/${id}/overstay/pay`, async () => {
+        const body = c.req.valid('json') ?? {};
+        const actor = c.get('actor');
+        const booking = await ownBooking(c, id);
+        const now = deps.now();
 
-      const session = await deps.store.attend.sessionByBooking(booking.id);
-      if (!session || session.overstayStatus !== 'DUE' || session.overstayAmountKobo <= 0) {
-        throw new ApiError('OVERSTAY_NOT_DUE', 'No overstay payment is due for this booking');
-      }
-
-      const lot = await lotOf(booking.lotId);
-      const payout = await deps.store.payoutAccounts.find(lot.operatorId);
-      const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
-      if (!subaccountCode && deps.config.appEnv === 'prod') {
-        throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
-      }
-
-      let callbackUrl: string | null = null;
-      if (body.returnTo) {
-        if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
-          throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+        const session = await deps.store.attend.sessionByBooking(booking.id);
+        if (!session || session.overstayStatus !== 'DUE' || session.overstayAmountKobo <= 0) {
+          throw new ApiError('OVERSTAY_NOT_DUE', 'No overstay payment is due for this booking');
         }
-        callbackUrl = body.returnTo;
-      }
 
-      const commissionKobo = mulDivRoundHalfUp(
-        session.overstayAmountKobo,
-        booking.commissionBps,
-        10_000,
-      );
-      const operatorAmountKobo = session.overstayAmountKobo - commissionKobo;
+        // One open checkout per overstay: a second tap or tab gets the same one (gap review P-7).
+        const openCheckout = async () =>
+          (await deps.store.payments.listForBooking(booking.id)).find(
+            (p) =>
+              p.kind === 'OVERSTAY' &&
+              p.status === 'PENDING' &&
+              p.authorizationUrl !== null &&
+              p.amountKobo === session.overstayAmountKobo,
+          );
+        const reply = (payment: PaymentRow) =>
+          c.json(
+            {
+              payment: toCheckout(payment, booking),
+              overstayMinutes: session.overstayMinutes,
+              amountKobo: session.overstayAmountKobo,
+            },
+            200,
+          );
+        const open = await openCheckout();
+        if (open) return reply(open);
 
-      const paymentId = uuidv7();
-      await deps.store.payments.create(
-        {
-          id: paymentId,
-          payerUserId: actor.userId,
-          bookingId: booking.id,
-          kind: 'OVERSTAY',
-          provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
-          amountKobo: session.overstayAmountKobo,
-          platformAmountKobo: commissionKobo,
-          operatorAmountKobo,
-          operatorId: lot.operatorId,
-          subaccountCode,
-        },
-        now,
-      );
+        const lot = await lotOf(booking.lotId);
+        const payout = await deps.store.payoutAccounts.find(lot.operatorId);
+        const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
+        if (!subaccountCode && deps.config.appEnv === 'prod') {
+          throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
+        }
 
-      let payment: PaymentRow;
-      try {
-        const checkout = await deps.payments.initialize({
-          reference: paymentId,
-          amountKobo: session.overstayAmountKobo,
-          email: checkoutEmail(actor.userId),
-          subaccountCode,
-          platformShareKobo: commissionKobo,
-          callbackUrl,
-          metadata: { bookingCode: booking.code, bookingId: booking.id, kind: 'OVERSTAY' },
-        });
-        payment = await deps.store.payments.checkoutStarted(paymentId, checkout, now);
-      } catch (err) {
-        deps.logger.error({ err, bookingId: booking.id, paymentId }, 'overstay checkout failed');
-        throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
-      }
+        let callbackUrl: string | null = null;
+        if (body.returnTo) {
+          if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin)) {
+            throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+          }
+          callbackUrl = body.returnTo;
+        }
 
-      return c.json(
-        {
-          payment: toCheckout(payment, booking),
-          overstayMinutes: session.overstayMinutes,
-          amountKobo: session.overstayAmountKobo,
-        },
-        200,
-      );
+        const commissionKobo = mulDivRoundHalfUp(
+          session.overstayAmountKobo,
+          booking.commissionBps,
+          10_000,
+        );
+        const operatorAmountKobo = session.overstayAmountKobo - commissionKobo;
+
+        const paymentId = uuidv7();
+        await deps.store.payments.create(
+          {
+            id: paymentId,
+            payerUserId: actor.userId,
+            bookingId: booking.id,
+            kind: 'OVERSTAY',
+            provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+            amountKobo: session.overstayAmountKobo,
+            platformAmountKobo: commissionKobo,
+            operatorAmountKobo,
+            operatorId: lot.operatorId,
+            subaccountCode,
+          },
+          now,
+        );
+
+        let payment: PaymentRow;
+        try {
+          const checkout = await deps.payments.initialize({
+            reference: paymentId,
+            amountKobo: session.overstayAmountKobo,
+            email: checkoutEmail(actor.userId),
+            subaccountCode,
+            platformShareKobo: commissionKobo,
+            callbackUrl,
+            metadata: { bookingCode: booking.code, bookingId: booking.id, kind: 'OVERSTAY' },
+          });
+          payment = await deps.store.payments.checkoutStarted(paymentId, checkout, now);
+        } catch (err) {
+          // Another tab opened a checkout at the same moment: hand back that one.
+          const raced = await openCheckout();
+          if (raced) return reply(raced);
+          deps.logger.error({ err, bookingId: booking.id, paymentId }, 'overstay checkout failed');
+          throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
+        }
+
+        return reply(payment);
+      });
     },
   );
 

@@ -198,6 +198,10 @@ export const payments = pgTable(
     index('payments_booking_idx').on(t.bookingId),
     index('payments_payer_idx').on(t.payerUserId),
     index('payments_operator_idx').on(t.operatorId),
+    // One open overstay checkout per booking: a second tap reuses it (gap review P-7).
+    uniqueIndex('payments_one_open_overstay_idx')
+      .on(t.bookingId)
+      .where(sql`${t.kind} = 'OVERSTAY' and ${t.status} = 'PENDING'`),
     check('payments_target_check', sql`${t.kind} <> 'BOOKING' or ${t.bookingId} is not null`),
     check(
       'payments_amounts_check',

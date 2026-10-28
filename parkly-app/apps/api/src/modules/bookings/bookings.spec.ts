@@ -688,6 +688,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     const newEnd = '2026-10-20T10:00:00.000Z';
     const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
@@ -728,6 +729,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
       (
         await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
           as: driver.id,
+          headers: { 'idempotency-key': randomUUID() },
           body: { newEndAt },
         })
       ).body as unknown as { extension: { id: string }; payment: { reference: string } };
@@ -762,6 +764,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     const extend = () =>
       t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
         as: driver.id,
+        headers: { 'idempotency-key': randomUUID() },
         body: { newEndAt: '2026-10-20T10:00:00.000Z' },
       });
     const heldAfterEnd = () =>
@@ -779,7 +782,10 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
 
     // Paid after the booking was cancelled: nothing to extend, so the money goes back.
     const late = (await extend()).body as unknown as { payment: { reference: string } };
-    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, { as: driver.id });
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
     expect(heldAfterEnd()).toBe(0);
     t.payments.pay(late.payment.reference);
     const res = await t.call('POST', `/v1/payments/${late.payment.reference}/verify`, {
@@ -806,6 +812,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     const newEnd = '2026-10-20T10:00:00.000Z';
     const extRes = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
@@ -833,6 +840,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Earlier or equal to endAt
     const invalidTime = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: END },
     });
     expect(invalidTime.status).toBe(400);
@@ -841,6 +849,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Not aligned to 15-min slot
     const notAligned = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T09:07:00.000Z' },
     });
     expect(notAligned.status).toBe(400);
@@ -857,6 +866,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Lot closes at 22:00 Lagos (21:00 UTC)
     const afterHours = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T22:00:00.000Z' },
     });
     expect(afterHours.status).toBe(422);
@@ -948,6 +958,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
     // Initial booking is still PENDING_PAYMENT (not CONFIRMED or CHECKED_IN)
     const res = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { newEndAt: '2026-10-20T10:00:00.000Z' },
     });
     expect(res.status).toBe(409);
@@ -966,6 +977,7 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     // Cancel now (Monday morning, booking starts Tuesday morning -> > 30m)
     const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
       body: { reason: 'Plans changed' },
     });
     expect(cancelRes.status).toBe(200);
@@ -991,6 +1003,7 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
 
     const cancelRes = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(cancelRes.status).toBe(200);
     const body = cancelRes.body as any;
@@ -1004,10 +1017,14 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     const t = await setup();
     const driver = await t.newDriver();
     const created = (await t.book(driver)).body as unknown as Created;
-    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, { as: driver.id });
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
 
     const secondCancel = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(secondCancel.status).toBe(409);
     expect(secondCancel.body?.code).toBe('BOOKING_NOT_CANCELLABLE');
@@ -1024,6 +1041,7 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
 
     const res = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(res.status).toBe(409);
     expect(res.body?.code).toBe('OVERSTAY_NOT_DUE');
@@ -1053,6 +1071,7 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
 
     const payRes = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
       as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
     });
     expect(payRes.status).toBe(200);
     const body = payRes.body as any;
@@ -1061,6 +1080,31 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
       status: 'PENDING',
       authorizationUrl: expect.stringContaining('https://checkout.fake/'),
     });
+
+    // A second tap (new key) or a retry (same key) never opens a second checkout (P-7, P-13).
+    const again = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect((again.body as unknown as Created).payment.reference).toBe(body.payment.reference);
+    const key = randomUUID();
+    const first = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': key },
+    });
+    const replay = await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': key },
+    });
+    expect(replay.headers.get('idempotent-replayed')).toBe('true');
+    expect(replay.body).toEqual(first.body);
+    expect(
+      (await t.call('POST', `/v1/bookings/${created.booking.id}/overstay/pay`, { as: driver.id }))
+        .body?.code,
+    ).toBe('IDEMPOTENCY_KEY_MISSING');
+    expect(
+      t.payments.initialized.filter((i) => i.reference !== created.payment.reference),
+    ).toHaveLength(1);
 
     // Settle overstay payment
     t.payments.pay(body.payment.reference);
