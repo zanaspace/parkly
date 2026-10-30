@@ -35,3 +35,8 @@ Thumbs.db
 expoErrors/
 product doc/WhatsApp*
 product doc/errors.md
+
+# Personal notes with keys and passwords (pasted into dashboards, never used by code)
+urlpages/tunrstilSecrets.md
+urlpages/parklyapppassword.md
+urlpages/resendsmtp.md
