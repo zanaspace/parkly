@@ -1,6 +1,6 @@
 'use client';
 
-import { ActionForm, Button, Input } from '@parkly/ui';
+import { ActionForm, Button, Input, Turnstile } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import {
   sendSignInCode,
@@ -62,6 +62,7 @@ export function CodeSignInForm({ next, inviteToken }: { next?: string; inviteTok
             required
           />
         )}
+        <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
         {!restart && error}
         <Button type="submit" loading={pending} fullWidth>
           Send code

@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { isDevBypass } from '../../src/auth/dev-auth';
 import { requestCode, requestEmailCode } from '../../src/auth/request-code';
+import { useCaptcha } from '../../src/components/Captcha';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { useCountdown } from '../../src/hooks/useCountdown';
@@ -31,6 +32,7 @@ export default function Otp() {
   const [info, setInfo] = useState<string | null>(null);
   const resend = useCountdown();
   const { start } = resend;
+  const captcha = useCaptcha();
 
   useEffect(() => start(RESEND_AFTER_SEC), [start]);
 
@@ -71,8 +73,14 @@ export default function Otp() {
   }
 
   async function resendCode() {
+    if (!captcha.ready) return;
     setError(null);
-    const result = email ? await requestEmailCode(email) : phone ? await requestCode(phone) : null;
+    const result = email
+      ? await requestEmailCode(email, captcha.token)
+      : phone
+        ? await requestCode(phone, captcha.token)
+        : null;
+    captcha.used();
     if (!result) return;
     if (result.ok) {
       setInfo('A new code is on its way.');
@@ -129,14 +137,14 @@ export default function Otp() {
             }
             variant="ghost"
             fullWidth
-            disabled={resend.running}
+            disabled={resend.running || !captcha.ready}
             onPress={() => void resendCode()}
           />
         </>
       }
     >
       <Text variant="heading.lg">Enter the code</Text>
-      <Text tone="secondary">{`We sent a 6-digit code to ${email ?? formatPhone(phone ?? '')}. It expires in ${email ? '1 hour' : '5 minutes'}.`}</Text>
+      <Text tone="secondary">{`We sent a 6-digit code to ${email ?? formatPhone(phone ?? '')}. It expires in 5 minutes.`}</Text>
       <Input
         label="6-digit code"
         value={code}
@@ -152,6 +160,7 @@ export default function Otp() {
         autoFocus
         editable={!busy}
       />
+      {resend.running ? null : captcha.widget}
       {error ? <Notice message={error} /> : null}
       {info ? <Notice kind="info" message={info} /> : null}
       {isDevBypass() ? (

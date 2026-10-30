@@ -14,6 +14,7 @@ export type ClientAuthErrorCode =
   | 'AUTH_REFRESH_INVALID'
   | 'AUTH_PASSWORD_WEAK'
   | 'AUTH_RESET_INVALID'
+  | 'AUTH_CAPTCHA_FAILED'
   | 'AUTH_UNKNOWN';
 
 const BY_SUPABASE_CODE: Record<string, ClientAuthErrorCode> = {
@@ -33,6 +34,7 @@ const BY_SUPABASE_CODE: Record<string, ClientAuthErrorCode> = {
   weak_password: 'AUTH_PASSWORD_WEAK',
   same_password: 'AUTH_PASSWORD_WEAK',
   flow_state_expired: 'AUTH_RESET_INVALID',
+  captcha_failed: 'AUTH_CAPTCHA_FAILED',
 };
 
 export const AUTH_ERROR_MESSAGES: Record<ClientAuthErrorCode, string> = {
@@ -46,8 +48,21 @@ export const AUTH_ERROR_MESSAGES: Record<ClientAuthErrorCode, string> = {
   AUTH_REFRESH_INVALID: 'Your session has ended. Please sign in again.',
   AUTH_PASSWORD_WEAK: 'Choose a longer password that isn’t easy to guess.',
   AUTH_RESET_INVALID: 'This reset link has expired. Request a new one.',
+  AUTH_CAPTCHA_FAILED: 'Please complete the security check, then try again.',
   AUTH_UNKNOWN: 'Something went wrong signing you in. Please try again.',
 };
+
+/**
+ * The form field carrying the Turnstile token (ADR 0019); the same name the
+ * `@parkly/ui` widget writes. Server actions pass it to Supabase as `captchaToken`.
+ */
+export const CAPTCHA_FIELD = 'cf-turnstile-response';
+
+/** The captcha token from a submitted form, or undefined when captcha is off. */
+export function captchaToken(form: { get(name: string): unknown }): string | undefined {
+  const value = form.get(CAPTCHA_FIELD);
+  return typeof value === 'string' && value ? value : undefined;
+}
 
 /** Accepts a Supabase AuthError-like object ({ code?, status?, message? }). */
 export function mapSupabaseAuthError(error: {

@@ -93,6 +93,18 @@ Drivers sign in with a 6-digit code by email until SMS is live. In each project:
 3. **Project Settings → Authentication → SMTP Settings: enable custom SMTP.** Supabase's built-in sender only reaches the project's own team members and a few emails an hour. Example with Resend (free tier): create an account, add and verify the sending domain (or start with Resend's test sender), create an API key, then set host `smtp.resend.com`, port `465`, user `resend`, password = the API key, sender `Parkly <no-reply@your-domain>`. The key lives only in Supabase, never in git or Vercel.
 4. **Auth → Rate Limits:** raise "emails sent per hour" once custom SMTP is on (e.g. 100 for dev).
 
+### 2.3b Security check on sign-in (ADR 0019)
+
+Cloudflare Turnstile stops scripts from requesting codes or trying passwords. The apps send a token only when they have a site key; Supabase checks it only when captcha is on. **Turn it on in this order**, or sign-in breaks on any screen without a token:
+
+1. **Cloudflare → Turnstile → Add widget.** Mode "Managed". Hostnames: the portal, admin and website domains for this environment (and `localhost` for dev). Copy the **site key** (public) and **secret key**.
+2. **Vercel:** set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` on the portal, admin and web projects, then redeploy. Sign-in forms now show the check.
+3. **Mobile:** set `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_TURNSTILE_ORIGIN` (one of the widget's hostnames, e.g. `https://parkly-web.vercel.app`) in the EAS build profile, and **ship that build**. Older app builds can't send a token, so they stop signing in after step 4.
+4. **Supabase → Authentication → Attack Protection → Enable Captcha protection:** provider Turnstile, paste the **secret key**, save.
+5. Test: sign in on each app. A request without the check should fail with "Please complete the security check".
+
+To turn it off, reverse the order: disable it in Supabase first, then remove the keys.
+
 ### 2.4 Auth hooks
 
 | Hook | Type | Target | Envs |
