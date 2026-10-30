@@ -92,6 +92,28 @@ describe('priceLabel', () => {
       }),
     ).toBe('₦2,500.50 per day');
   });
+
+  it('shows the operator’s overstay terms once set (ADR 0016)', () => {
+    const hourly = {
+      product: 'HOURLY' as const,
+      hourlyRateKobo: 50_000,
+      minMinutes: 60,
+      dailyCapKobo: null,
+      dailyRateKobo: null,
+      monthlyRateKobo: null,
+    };
+    expect(priceLabel({ ...hourly, overstayRateKobo: 20_000, overstayGraceMin: 20 })).toBe(
+      '₦500 per hour (minimum 1 h); overstay ₦200 per 15 min after 20 min grace',
+    );
+    // Only the grace changed: the standard price applies.
+    expect(priceLabel({ ...hourly, overstayRateKobo: null, overstayGraceMin: 30 })).toBe(
+      '₦500 per hour (minimum 1 h); overstay ₦125 per 15 min after 30 min grace',
+    );
+    // Neither set: nothing extra.
+    expect(priceLabel({ ...hourly, overstayRateKobo: null, overstayGraceMin: null })).toBe(
+      '₦500 per hour (minimum 1 h)',
+    );
+  });
 });
 
 describe('describeLotGaps', () => {
