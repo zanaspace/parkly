@@ -312,8 +312,15 @@ export function drizzleStore(db: Db): Store {
         if (!row) throw new Error('user row missing after upsert');
         return { user: row as UserRow, created: false };
       },
-      async setLookupHashes(id, hashes) {
-        await db.update(users).set(hashes).where(eq(users.id, id));
+      async setContact(id, contact) {
+        await db.update(users).set(contact).where(eq(users.id, id));
+      },
+      async contact(id) {
+        const [row] = await db
+          .select({ phoneEnc: users.phoneEnc, emailEnc: users.emailEnc })
+          .from(users)
+          .where(eq(users.id, id));
+        return row ?? null;
       },
       async updateProfile(id, patch) {
         const [row] = await db

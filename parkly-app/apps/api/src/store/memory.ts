@@ -37,7 +37,12 @@ type Consent = { userId: string; type: ConsentType; version: string; granted: bo
 export class MemoryStore implements Store {
   readonly userRows = new Map<
     string,
-    UserRow & { phoneHash?: Buffer | null; emailHash?: Buffer | null }
+    UserRow & {
+      phoneHash?: Buffer | null;
+      emailHash?: Buffer | null;
+      phoneEnc?: string | null;
+      emailEnc?: string | null;
+    }
   >();
   readonly roleRows: (RoleGrant & { userId: string })[] = [];
   readonly consentRows: Consent[] = [];
@@ -138,9 +143,13 @@ export class MemoryStore implements Store {
       });
       return { user: { ...this.mustUser(id) }, created: true };
     },
-    setLookupHashes: async (id, hashes) => {
+    setContact: async (id, contact) => {
       const u = this.userRows.get(id);
-      if (u) Object.assign(u, hashes);
+      if (u) Object.assign(u, contact);
+    },
+    contact: async (id) => {
+      const u = this.userRows.get(id);
+      return u ? { phoneEnc: u.phoneEnc ?? null, emailEnc: u.emailEnc ?? null } : null;
     },
     updateProfile: async (id, patch) => {
       const u = this.userRows.get(id);

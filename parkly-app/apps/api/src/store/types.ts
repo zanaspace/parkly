@@ -473,10 +473,18 @@ export type Store = {
       id: string,
       init: { phoneLast4: string | null },
     ): Promise<{ user: UserRow; created: boolean }>;
-    setLookupHashes(
+    /** Lookup hashes and the encrypted contact copy, from the signed-in identity. */
+    setContact(
       id: string,
-      hashes: { phoneHash: Buffer | null; emailHash: Buffer | null },
+      contact: {
+        phoneHash: Buffer | null;
+        emailHash: Buffer | null;
+        phoneEnc: string | null;
+        emailEnc: string | null;
+      },
     ): Promise<void>;
+    /** The encrypted contact copy for sending notifications; null for an unknown user. */
+    contact(id: string): Promise<{ phoneEnc: string | null; emailEnc: string | null } | null>;
     updateProfile(id: string, patch: { firstName?: string; lastName?: string }): Promise<UserRow>;
     setStatus(id: string, status: UserStatus): Promise<void>;
     setMarketingOptIn(id: string, value: boolean): Promise<void>;

@@ -47,6 +47,9 @@ export const users = pgTable(
     phoneHash: bytea('phone_hash'), // C3: HMAC of E.164 phone
     phoneLast4: text('phone_last4'), // C3
     emailHash: bytea('email_hash'), // C3
+    // Copies of the Supabase Auth contact, for notifications (doc 06 §2). Set at bootstrap.
+    phoneEnc: text('phone_enc'), // C3 [enc]
+    emailEnc: text('email_enc'), // C3 [enc]
     firstName: varchar('first_name', { length: 50 }), // C3
     lastName: varchar('last_name', { length: 50 }), // C3
     status: userStatusEnum('status').notNull().default('ACTIVE'),

@@ -80,9 +80,12 @@ export function authRoutes(deps: AppDeps) {
       if (['LOCKED', 'SUSPENDED', 'DELETED'].includes(user.status))
         throw new ApiError('AUTH_ACCOUNT_LOCKED');
 
-      await deps.store.users.setLookupHashes(user.id, {
+      // The encrypted copies let jobs send SMS and email later (doc 06 §2).
+      await deps.store.users.setContact(user.id, {
         phoneHash: identity.phone ? deps.crypto.lookupHash(identity.phone) : null,
         emailHash: identity.email ? deps.crypto.lookupHash(identity.email) : null,
+        phoneEnc: identity.phone ? deps.crypto.encrypt(identity.phone) : null,
+        emailEnc: identity.email ? deps.crypto.encrypt(identity.email) : null,
       });
       await deps.store.devices.upsert({
         userId: user.id,
