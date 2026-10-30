@@ -343,8 +343,8 @@ stateDiagram-v2
 | PENDING_PAYMENT | CANCELLED | DRIVER | — | release held; abandon payment |
 | CONFIRMED | CHECKED_IN | ATTENDANT/SYSTEM(sync) | lot matches; now ≥ start − 30 min | create session |
 | CONFIRMED | CANCELLED | DRIVER/ADMIN | driver: refund per policy | release booked; refund |
-| CONFIRMED | NO_SHOW | SYSTEM | now > start + grace | release remaining future slots |
-| NO_SHOW | CHECKED_IN | ATTENDANT | now < end_at, capacity re-acquired | create session |
+| CONFIRMED | NO_SHOW | SYSTEM | now > start + grace; the lot has a way to check in (an approved gate phone or self check-in); every gate phone on shift has synced since the deadline, or 12 h have passed (G-4) | release remaining future slots |
+| NO_SHOW | CHECKED_IN | ATTENDANT | now < end_at, capacity re-acquired from the current slot on (never past slots) | create session |
 | CHECKED_IN | COMPLETED | ATTENDANT/SYSTEM | — | close session; overstay calc; rating prompt |
 
 Refunds don't change booking status beyond CANCELLED; refund state lives on `payments`/`refunds` (doc 00: `REFUNDED`/`PARTIALLY_REFUNDED` are **payment** states).
@@ -673,7 +673,7 @@ See 01 for the schedule. Two kinds of job:
 
 | Kind | Where | Trigger | Examples |
 |---|---|---|---|
-| **SQL job** (no external calls) | SQL function in `supabase/migrations`, e.g. `fn_expire_holds()` | `cron.schedule('expire-holds', '* * * * *', 'select fn_expire_holds()')` | expire unpaid holds + release `held`, mark payments `ABANDONED`, purge expired `idempotency_keys` (built S4: `fn_expire_holds`, every minute, 500 per run); mark `NO_SHOW` (built S5: `fn_mark_no_shows`, every 5 min; releases the slots from now to the end, and `fn_rebook_no_show` takes them again for a late arrival); materialise next 30 days of `lot_slot_inventory` (not needed while rows are created on demand) |
+| **SQL job** (no external calls) | SQL function in `supabase/migrations`, e.g. `fn_expire_holds()` | `cron.schedule('expire-holds', '* * * * *', 'select fn_expire_holds()')` | expire unpaid holds + release `held`, mark payments `ABANDONED`, purge expired `idempotency_keys` (built S4: `fn_expire_holds`, every minute, 500 per run); mark `NO_SHOW` (built S5: `fn_mark_no_shows`, every 5 min; releases the slots from now to the end, and `fn_rebook_no_show` takes them again from the current slot for a late arrival. S6: skips lots with no way to check in, and waits for every gate phone on shift to sync, G-4); materialise next 30 days of `lot_slot_inventory` (not needed while rows are created on demand) |
 | **App job** (needs providers or TS logic) | `apps/api/src/modules/<module>/jobs/<name>.job.ts`, exposed at `POST /internal/jobs/<name>` (§6.10) | `pg_cron` → `pg_net.http_post(url, headers incl. HMAC, body)`; signing done by SQL helper `fn_call_job(name, body)` reading `JOB_HMAC_SECRET` from Supabase Vault | `process-webhooks`, `dispatch-outbox`, `deliver-notifications` (each minute; ADR 0020), `sweep-reminders` (every 5 minutes); `reconcile-payments` (daily 02:00 WAT), `permit-reminders` + `suspend-expired-permits` (daily 06:00 WAT), `operator-daily-statement` (daily 07:00 WAT), `retention-sweeps` (daily 03:00 WAT), `paystack-settlements-sync` (hourly) |
 
 Work queues use **pgmq** (`webhooks`, `outbox`, `reconciliation`; notifications use the `notifications` outbox table instead, ADR 0020): producers `pgmq.send` inside the business transaction; the job reads with `pgmq.read(queue, vt, qty)`, processes, then `pgmq.delete`; failures become visible again after `vt`; after 5 reads → `pgmq.archive` + Sentry. The transactional **outbox** (`outbox_events`) remains the source for domain events; `dispatch-outbox` fans them out to queues.

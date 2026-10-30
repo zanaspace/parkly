@@ -20,7 +20,6 @@ describe('job registry', () => {
     });
     expect(Object.keys(jobs).sort()).toEqual([
       'deliver-notifications',
-      'mark-no-shows',
       'permit-expiry-check',
       'ping',
       'settle-payments',
@@ -32,10 +31,6 @@ describe('job registry', () => {
       remaining: 0,
     });
     expect(await jobs['settle-payments']?.({ payload: {}, deadline })).toEqual({
-      processed: 0,
-      remaining: 0,
-    });
-    expect(await jobs['mark-no-shows']?.({ payload: {}, deadline })).toEqual({
       processed: 0,
       remaining: 0,
     });

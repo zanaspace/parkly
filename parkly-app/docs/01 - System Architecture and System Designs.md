@@ -439,7 +439,7 @@ Queues (`pgmq`): `webhooks`, `notifications`, `reconciliation`, `exports`. Messa
 | `drain-webhooks` | App | every 10 s | Max 8 reads, then DLQ alert; verifies with provider before acting |
 | `drain-notifications` (`send-sms`, `send-push`, `send-email`) | App | every 10 s | Max 5 reads; SMS falls back to secondary provider after 2 failures |
 | `expire-pending-bookings` | SQL (`fn_expire_pending_bookings`) | every 1 min | Releases holds, status EXPIRED, writes outbox event |
-| `mark-no-shows` | App | every 5 min | CONFIRMED and start+30 min passed, no check-in → NO_SHOW (no refund by default) |
+| `mark-no-shows` | SQL (`fn_mark_no_shows`) | every 5 min | CONFIRMED and start+30 min passed, no check-in → NO_SHOW (no refund by default); waits for offline gate phones to sync and skips lots with no way to check in (G-4) |
 | `booking-reminders` | App | every 5 min | 30 min before start; 15 min before end (extend nudge) |
 | `detect-overstays` | App | every 5 min | Checked-in past end+grace → flag, notify driver with extend/pay link |
 | `verify-stale-payments` | App | every 5 min | PENDING > 3 min → provider verify |

@@ -10,65 +10,9 @@ import {
   FakeSmsProvider,
 } from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
-import { markNoShowsJob } from './mark-no-shows.js';
 import { reminderSweepJob } from './reminder-sweep.js';
 
-describe('Story 4 Background Jobs: mark-no-shows and sweep-reminders', () => {
-  it('markNoShowsJob marks expired confirmed bookings as NO_SHOW and releases space', async () => {
-    const store = new MemoryStore();
-    const clock = new FakeClock(new Date('2026-10-20T10:00:00Z'));
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    const lotId = randomUUID();
-
-    // 1. Expired booking (start 08:00, now 10:00 -> > 30m passed)
-    const b1 = {
-      id: randomUUID(),
-      code: 'PK-EXPIRE1',
-      driverId,
-      vehicleId: randomUUID(),
-      plateNorm: 'ABC123XY',
-      lotId,
-      ratePlanId: randomUUID(),
-      product: 'HOURLY' as const,
-      startAt: new Date('2026-10-20T08:00:00Z'),
-      endAt: new Date('2026-10-20T11:00:00Z'),
-      status: 'CONFIRMED' as const,
-      holdExpiresAt: null,
-      priceKobo: 100_000,
-      serviceFeeKobo: 10_000,
-      totalKobo: 110_000,
-      commissionBps: 1200,
-      pricingBreakdown: null,
-      source: 'MOBILE' as const,
-      version: 1,
-      createdAt: new Date('2026-10-20T07:00:00Z'),
-    };
-
-    // 2. Fresh booking (start 09:45, now 10:00 -> 15m passed, <= 30m grace)
-    const b2 = {
-      ...b1,
-      id: randomUUID(),
-      code: 'PK-FRESH2',
-      startAt: new Date('2026-10-20T09:45:00Z'),
-      endAt: new Date('2026-10-20T11:45:00Z'),
-    };
-
-    store.booking.bookingRows.push(b1, b2);
-
-    const job = markNoShowsJob({
-      store,
-      logger,
-      now: () => clock.now(),
-    });
-
-    const result = await job({ payload: {}, deadline: new Date(Date.now() + 10_000) });
-    expect(result.processed).toBe(1);
-    expect(b1.status).toBe('NO_SHOW');
-    expect(b2.status).toBe('CONFIRMED');
-  });
-
+describe('sweep-reminders job', () => {
   it('reminderSweepJob sweeps for upcoming starts and expiring bookings', async () => {
     const store = new MemoryStore();
     const clock = new FakeClock(new Date('2026-10-20T08:00:00Z'));

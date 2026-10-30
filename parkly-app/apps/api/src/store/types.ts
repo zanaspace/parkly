@@ -872,7 +872,6 @@ export type Store = {
       /** One refund row per paid charge it is split across, newest first (gap review P-8). */
       refunds: { id: string; paymentId: string; amountKobo: number }[];
     }>;
-    markNoShows(at: Date): Promise<{ markedCount: number }>;
   };
   payments: {
     find(id: string): Promise<PaymentRow | null>;

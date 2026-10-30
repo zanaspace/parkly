@@ -545,13 +545,6 @@ export function drizzleBookings(
           throw err;
         }
       },
-
-      async markNoShows(_at: Date) {
-        const [r] = await db.execute<{ marked: number }>(
-          sql`select public.fn_mark_no_shows() as marked`,
-        );
-        return { markedCount: r?.marked ?? 0 };
-      },
     },
 
     payments: {
