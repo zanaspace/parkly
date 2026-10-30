@@ -1385,6 +1385,7 @@ export function storeContract(
         await store.payments.settle(payment.id, charge(), AT);
         expect((await store.bookings.findByCode(booking.code))?.id).toBe(booking.id);
         expect(await store.bookings.findByCode('PK-NOPE00')).toBeNull();
+        expect((await store.bookings.listRecent(10)).some((b) => b.id === booking.id)).toBe(true);
         expect((await store.payments.listForBooking(booking.id)).map((p) => p.status)).toEqual([
           'SUCCEEDED',
         ]);

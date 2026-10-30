@@ -811,6 +811,8 @@ export type Store = {
     find(id: string): Promise<BookingRow | null>;
     /** Support looks a booking up by its PK-XXXXXX code. */
     findByCode(code: string): Promise<BookingRow | null>;
+    /** Recent bookings across the platform (for admin views), latest first. */
+    listRecent(limit?: number): Promise<BookingRow[]>;
     /** Upcoming: live and not yet ended, soonest first. Past: the rest, latest first. */
     listForDriver(
       driverId: string,
