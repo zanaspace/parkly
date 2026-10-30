@@ -5,7 +5,7 @@ import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, View } from 'react-native';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { config } from '../../../src/lib/config';
 import { Notice } from '../../../src/components/Notice';

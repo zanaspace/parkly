@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { Kobo } from '../money/money.js';
 import type { RatePlanPrices } from '../pricing/quote.js';
 import { calculateOverstay, validateOverstayRatePlan, type OverstaySettings } from './overstay.js';
 

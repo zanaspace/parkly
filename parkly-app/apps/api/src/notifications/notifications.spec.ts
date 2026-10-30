@@ -578,7 +578,9 @@ describe('NotificationService Dispatcher', () => {
       (userRow as unknown as { phoneEnc: string; emailEnc: string }).phoneEnc = 'bad:phone';
       (userRow as unknown as { phoneEnc: string; emailEnc: string }).emailEnc = 'bad:email';
     }
-    store.deviceRows[0]!.pushTokenEnc = 'bad:token';
+    const device = store.deviceRows[0];
+    if (!device) throw new Error('no device');
+    device.pushTokenEnc = 'bad:token';
     const resBad = await service.dispatch(event);
     expect(resBad.deliveredChannels).not.toContain('SMS');
     expect(resBad.deliveredChannels).not.toContain('EMAIL');

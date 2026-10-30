@@ -149,7 +149,7 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
       setCancelOpen(false);
       setCancelSuccess(
         res.isFreeCancellation && (res.refundKobo ?? 0) > 0
-          ? `Booking cancelled. A full refund of ${formatNaira(res.refundKobo!)} has been initiated.`
+          ? `Booking cancelled. A full refund of ${formatNaira(res.refundKobo ?? 0)} has been initiated.`
           : 'Booking has been cancelled.',
       );
       router.refresh();

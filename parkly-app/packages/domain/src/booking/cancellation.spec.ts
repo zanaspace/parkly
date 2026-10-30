@@ -3,7 +3,6 @@ import type { Kobo } from '../money/money.js';
 import {
   cancellationPolicy,
   cancellationRefundJournal,
-  type CancellationInput,
   type CancellationSettings,
 } from './cancellation.js';
 import type { BookingPayment } from './ledger.js';

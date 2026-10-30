@@ -1,10 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
-import { testDeps, world } from '../../test-helpers.js';
+import { world } from '../../test-helpers.js';
 import { buildReceiptData, renderReceiptHtml } from './receipt.js';
 
 const START = '2026-10-20T07:00:00.000Z';
+
+type Held = { booking: { id: string }; payment: { reference: string } };
+type ReceiptJson = {
+  bookingId: string;
+  bookingCode: string;
+  status: string;
+  lot: { name: string };
+  vehicle: { plate: string };
+  totalKobo: number;
+  payments: { status: string }[];
+};
 const END = '2026-10-20T09:00:00.000Z';
 
 async function addLot(store: MemoryStore) {
@@ -299,8 +310,9 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
       },
     });
     expect(holdRes.status).toBe(201);
-    const bookingId = holdRes.body.booking.id as string;
-    const ref = holdRes.body.payment.reference as string;
+    const held = holdRes.body as unknown as Held;
+    const bookingId = held.booking.id;
+    const ref = held.payment.reference;
 
     // Settle payment
     w.payments.pay(ref);
@@ -310,14 +322,15 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     // 1. Default JSON receipt
     const jsonRes = await w.call('GET', `/v1/bookings/${bookingId}/receipt`, { as: driver });
     expect(jsonRes.status).toBe(200);
-    expect(jsonRes.body.bookingId).toBe(bookingId);
-    expect(jsonRes.body.bookingCode).toMatch(/^PK-/);
-    expect(jsonRes.body.status).toBe('CONFIRMED');
-    expect(jsonRes.body.lot.name).toBe('Eko Hotel Car Park');
-    expect(jsonRes.body.vehicle.plate).toBe('LND123XY');
-    expect(jsonRes.body.totalKobo).toBe(110_000);
-    expect(jsonRes.body.payments).toHaveLength(1);
-    expect(jsonRes.body.payments[0].status).toBe('SUCCEEDED');
+    const receipt = jsonRes.body as unknown as ReceiptJson;
+    expect(receipt.bookingId).toBe(bookingId);
+    expect(receipt.bookingCode).toMatch(/^PK-/);
+    expect(receipt.status).toBe('CONFIRMED');
+    expect(receipt.lot.name).toBe('Eko Hotel Car Park');
+    expect(receipt.vehicle.plate).toBe('LND123XY');
+    expect(receipt.totalKobo).toBe(110_000);
+    expect(receipt.payments).toHaveLength(1);
+    expect(receipt.payments[0]?.status).toBe('SUCCEEDED');
 
     // 2. HTML format query
     const htmlRes = await w.call('GET', `/v1/bookings/${bookingId}/receipt?format=html`, {
@@ -354,7 +367,7 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     // 6. A signed, short-lived link opens in any browser, for this booking only.
     const link = await w.call('POST', `/v1/bookings/${bookingId}/receipt-link`, { as: driver });
     expect(link.status).toBe(200);
-    const url = new URL(link.body.url as string);
+    const url = new URL((link.body as unknown as { url: string }).url);
     expect(url.search).not.toContain(driverToken);
     const opened = await w.call('GET', url.pathname + url.search);
     expect(opened.status).toBe(200);
@@ -380,7 +393,8 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     });
     const row = w.store.lotRows.get(lot.id);
     if (row) row.name = '<img src=x onerror=alert(1)>';
-    const res = await w.call('GET', `/v1/bookings/${hold.body.booking.id}/receipt?format=html`, {
+    const heldId = (hold.body as unknown as Held).booking.id;
+    const res = await w.call('GET', `/v1/bookings/${heldId}/receipt?format=html`, {
       as: driver,
     });
     expect(res.raw).not.toContain('<img src=x');

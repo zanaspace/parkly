@@ -299,7 +299,7 @@ export function createApiClient(options: ApiClientOptions) {
       platform: 'IOS' | 'ANDROID' | 'WEB';
       appVersion?: string;
       pushToken?: string;
-    }) => request<void>('POST', '/v1/me/devices', body),
+    }) => request<undefined>('POST', '/v1/me/devices', body),
   };
 }
 

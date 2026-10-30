@@ -1,4 +1,4 @@
-import { assertKobo, mulDivRoundHalfUp, type Kobo } from '../money/money.js';
+import { mulDivRoundHalfUp, type Kobo } from '../money/money.js';
 import { quote, type RatePlanPrices } from '../pricing/quote.js';
 import { isSlotAligned } from '../time/slots.js';
 import type { BookingStatus } from './booking.js';

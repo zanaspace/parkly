@@ -180,19 +180,6 @@ function renderEscaped(receipt: BookingReceipt): string {
     border: '#e5e7eb',
   };
 
-  const successfulPayments = receipt.payments.filter(
-    (p: BookingReceipt['payments'][number]) => p.status === 'SUCCEEDED',
-  );
-  const totalPaidKobo = successfulPayments.reduce(
-    (sum: number, p: BookingReceipt['payments'][number]) => sum + p.amountKobo,
-    0,
-  );
-  const totalRefundedKobo = receipt.refunds
-    .filter(
-      (r: BookingReceipt['refunds'][number]) => r.status === 'SUCCEEDED' || r.status === 'PENDING',
-    )
-    .reduce((sum: number, r: BookingReceipt['refunds'][number]) => sum + r.amountKobo, 0);
-
   const paymentItemsHtml = receipt.payments
     .map(
       (p: BookingReceipt['payments'][number]) => `

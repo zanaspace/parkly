@@ -406,7 +406,7 @@ export function drizzleBookings(
         return r?.ok ?? false;
       },
 
-      async confirmExtension(extensionId, paymentId, at) {
+      async confirmExtension(extensionId, paymentId, _at) {
         try {
           return await db.transaction(async (tx) => {
             await tx.execute(sql`select public.fn_confirm_extension(
