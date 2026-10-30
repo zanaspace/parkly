@@ -13,8 +13,9 @@ overrides:
   undici@>=8.0.0 <8.12.2: 8.12.2
 
 # Advisories with no compatible fix, accepted until the upstream package moves
-# (doc 05 CI gates). Review on every Expo SDK upgrade; remove an entry once
-# `pnpm why <package>` no longer shows the vulnerable version.
+# (doc 05 CI gates). Review by 2027-01-31 or at the next Expo SDK upgrade,
+# whichever comes first; remove an entry once `pnpm why <package>` no longer
+# shows the vulnerable version.
 auditConfig:
   ignoreGhsas:
     # node-forge ≤1.4.0 (no patched release), via expo > @expo/cli: the developer

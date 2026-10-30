@@ -215,7 +215,7 @@ The full security design is in doc 05.
 
 ## 6. How quality is enforced
 
-Every change has to pass automatic checks before it can be merged. They live in `.github/workflows/ci.yml` and run on GitHub once the repo is pushed:
+Every change has to pass automatic checks before it can be merged. They live in `.github/workflows/ci.yml` **at the repository root** (one level above `parkly-app/`, because GitHub only reads workflows from there) and run on every pull request and every push to `main`:
 
 1. **Formatting and lint**: consistent code style, common mistakes caught
 2. **Type check**: catches mismatched data before the code runs

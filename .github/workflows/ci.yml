@@ -1,4 +1,5 @@
 # Required checks on every PR and on main (doc 02 §12.10, doc 05 CI gates).
+# The app lives in parkly-app/; GitHub only reads workflows from the repository root.
 name: CI
 
 on:
@@ -13,6 +14,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    working-directory: parkly-app
+
 jobs:
   check:
     name: Lint, typecheck, test, build
@@ -20,10 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: parkly-app/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: parkly-app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
@@ -41,10 +49,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: parkly-app/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: parkly-app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - name: Drizzle schema matches committed migrations
         run: |
@@ -68,8 +79,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: parkly-app/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: parkly-app/pnpm-lock.yaml
       - run: pnpm audit --audit-level high
