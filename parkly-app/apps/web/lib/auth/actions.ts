@@ -1,6 +1,11 @@
 'use server';
 
-import { AUTH_ERROR_MESSAGES, mapSupabaseAuthError, type Me } from '@parkly/contracts';
+import {
+  AUTH_ERROR_MESSAGES,
+  captchaToken,
+  mapSupabaseAuthError,
+  type Me,
+} from '@parkly/contracts';
 import { normaliseNigerianPhone } from '@parkly/domain/phone';
 import { redirect } from 'next/navigation';
 import { api, apiAs, ApiProblem } from '../api';
@@ -56,7 +61,7 @@ export async function sendCode(_prev: SignInState, form: FormData): Promise<Sign
   if (method === 'email') {
     const { error } = await supabase.auth.signInWithOtp({
       email: contact,
-      options: { shouldCreateUser: true },
+      options: { shouldCreateUser: true, captchaToken: captchaToken(form) },
     });
     if (error) return { step: 'start', method, error: authMessage(error) };
     return { step: 'code', method, contact };
@@ -76,7 +81,10 @@ export async function sendCode(_prev: SignInState, form: FormData): Promise<Sign
         : 'We couldn’t send a code just now. Please try again.',
     };
   }
-  const { error } = await supabase.auth.signInWithOtp({ phone: contact });
+  const { error } = await supabase.auth.signInWithOtp({
+    phone: contact,
+    options: { captchaToken: captchaToken(form) },
+  });
   if (error) return { step: 'start', method, error: authMessage(error) };
   return { step: 'code', method, contact };
 }

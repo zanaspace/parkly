@@ -1,15 +1,19 @@
 // Security headers for every Next.js app (doc 05 web headers). Used from next.config.ts.
 // Next needs inline scripts for hydration; moving to nonce-based CSP is tracked for Sprint 9 hardening.
 
-/** @param {{ isDev: boolean, connectSrc?: string[], imgSrc?: string[] }} options */
-export function securityHeaders({ isDev, connectSrc = [], imgSrc = [] }) {
+// Cloudflare Turnstile (ADR 0019) loads its script and runs in an iframe from here.
+const TURNSTILE = 'https://challenges.cloudflare.com';
+
+/** @param {{ isDev: boolean, connectSrc?: string[], imgSrc?: string[], captcha?: boolean }} options */
+export function securityHeaders({ isDev, connectSrc = [], imgSrc = [], captcha = false }) {
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}${captcha ? ` ${TURNSTILE}` : ''}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob:${imgSrc.map((s) => ` ${s}`).join('')}`,
     "font-src 'self'",
     `connect-src 'self' ${connectSrc.join(' ')}${isDev ? ' ws:' : ''}`.trim(),
+    ...(captcha ? [`frame-src ${TURNSTILE}`] : []),
     // MapLibre (ADR 0014) runs its tile parser in a worker created from a blob URL.
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",

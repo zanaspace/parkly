@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { isDevBypass } from '../../src/auth/dev-auth';
 import { requestCode } from '../../src/auth/request-code';
+import { useCaptcha } from '../../src/components/Captcha';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { useCountdown } from '../../src/hooks/useCountdown';
@@ -21,6 +22,7 @@ export default function Phone() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wait = useCountdown();
+  const captcha = useCaptcha();
 
   const phone = phoneFromInput(input);
   const fieldError =
@@ -28,10 +30,11 @@ export default function Phone() {
 
   async function submit() {
     setTouched(true);
-    if (!phone || wait.running) return;
+    if (!phone || wait.running || !captcha.ready) return;
     setBusy(true);
     setError(null);
-    const result = await requestCode(phone);
+    const result = await requestCode(phone, captcha.token);
+    captcha.used();
     setBusy(false);
     if (result.ok) {
       router.push({ pathname: '/otp', params: { phone } });
@@ -62,7 +65,7 @@ export default function Phone() {
             size="lg"
             fullWidth
             loading={busy}
-            disabled={!phone || wait.running}
+            disabled={!phone || wait.running || !captcha.ready}
             onPress={() => void submit()}
           />
           {isDevBypass() ? (
@@ -116,6 +119,7 @@ export default function Phone() {
           message="⚡ Dev Mode: Paid SMS is bypassed. Tap 'Quick Dev Sign In' or enter any number and code 123456."
         />
       ) : null}
+      {captcha.widget}
       {error ? <Notice message={error} /> : null}
       <Button label="Use email instead" variant="ghost" onPress={() => router.replace('/email')} />
     </Screen>

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { requestEmailCode } from '../../src/auth/request-code';
+import { useCaptcha } from '../../src/components/Captcha';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { useCountdown } from '../../src/hooks/useCountdown';
@@ -18,16 +19,18 @@ export default function Email() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wait = useCountdown();
+  const captcha = useCaptcha();
 
   const email = emailFromInput(input);
   const fieldError = touched && input.trim() && !email ? 'Enter a valid email address.' : undefined;
 
   async function submit() {
     setTouched(true);
-    if (!email || wait.running) return;
+    if (!email || wait.running || !captcha.ready) return;
     setBusy(true);
     setError(null);
-    const result = await requestEmailCode(email);
+    const result = await requestEmailCode(email, captcha.token);
+    captcha.used();
     setBusy(false);
     if (result.ok) {
       router.push({ pathname: '/otp', params: { email } });
@@ -46,7 +49,7 @@ export default function Email() {
             size="lg"
             fullWidth
             loading={busy}
-            disabled={!email || wait.running}
+            disabled={!email || wait.running || !captcha.ready}
             onPress={() => void submit()}
           />
           <Button
@@ -77,6 +80,7 @@ export default function Email() {
         onSubmitEditing={() => void submit()}
         {...(fieldError ? { error: fieldError } : {})}
       />
+      {captcha.widget}
       {error ? <Notice message={error} /> : null}
     </Screen>
   );

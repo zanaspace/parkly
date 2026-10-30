@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input, Text, ActionForm } from '@parkly/ui';
+import { Button, Input, Text, ActionForm, Turnstile } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import {
   confirmEnrollment,
@@ -34,6 +34,7 @@ export function SignInForm({ next }: { next: string }) {
         autoComplete="current-password"
         required
       />
+      <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       <Button type="submit" loading={pending} fullWidth>
         Sign in
@@ -167,6 +168,7 @@ export function ResetRequestForm() {
   return (
     <ActionForm action={action} className="pk-form" noValidate>
       <Input label="Work email" name="email" type="email" autoComplete="username" required />
+      <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       {state?.message && <Notice tone="info">{state.message}</Notice>}
       <Button type="submit" loading={pending} fullWidth>

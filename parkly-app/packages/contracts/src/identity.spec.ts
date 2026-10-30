@@ -32,6 +32,8 @@ describe('mapSupabaseAuthError', () => {
     [{ code: 'over_sms_send_rate_limit' }, 'OTP_RATE_LIMITED'],
     [{ code: 'invalid_credentials' }, 'AUTH_INVALID_CREDENTIALS'],
     [{ code: 'mfa_verification_failed' }, 'AUTH_MFA_INVALID'],
+    // Supabase's captcha check (S-4) answers 400 with this code.
+    [{ code: 'captcha_failed', status: 400 }, 'AUTH_CAPTCHA_FAILED'],
     [{ status: 403 }, 'AUTH_OTP_INVALID'],
     [{ status: 429 }, 'AUTH_OTP_LOCKED'],
     [{ code: 'something_new', status: 500 }, 'AUTH_UNKNOWN'],

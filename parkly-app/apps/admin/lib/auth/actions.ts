@@ -1,6 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
+import { AUTH_ERROR_MESSAGES, captchaToken, mapSupabaseAuthError } from '@parkly/contracts';
 import { redirect } from 'next/navigation';
 import { apiFetch } from '../api';
 import { publicEnv } from '../env';
@@ -21,7 +22,11 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
   if (!email || !password) return { error: 'Enter your email and password.' };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: { captchaToken: captchaToken(form) },
+  });
   if (error || !data.session) return { error: signInErrorMessage(error ?? {}) };
 
   // Records this browser against the new Supabase session and makes sure the profile exists.
@@ -113,9 +118,13 @@ export async function requestPasswordReset(_prev: FormState, form: FormData): Pr
   if (!email.includes('@')) return { error: 'Enter the email address you sign in with.' };
   const supabase = await createClient();
   // The redirect URL must be on the project's Auth redirect allowlist.
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${await origin()}/auth/confirm?next=/update-password`,
+    captchaToken: captchaToken(form),
   });
+  // A failed security check is safe to report; nothing else is (no account enumeration).
+  if (error && mapSupabaseAuthError(error) === 'AUTH_CAPTCHA_FAILED')
+    return { error: AUTH_ERROR_MESSAGES.AUTH_CAPTCHA_FAILED };
   // Same answer whether or not the account exists.
   return {
     message:

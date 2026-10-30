@@ -13,7 +13,10 @@ export type RequestCodeResult =
  * then ask Supabase Auth to send it. Supabase calls our Send SMS Hook, which
  * enforces the real limits.
  */
-export async function requestCode(phone: string): Promise<RequestCodeResult> {
+export async function requestCode(
+  phone: string,
+  captchaToken?: string,
+): Promise<RequestCodeResult> {
   try {
     await api.precheckOtp(phone, await getDeviceId());
   } catch (err) {
@@ -28,7 +31,7 @@ export async function requestCode(phone: string): Promise<RequestCodeResult> {
     return { ok: true };
   }
 
-  const { error } = await supabase.auth.signInWithOtp({ phone });
+  const { error } = await supabase.auth.signInWithOtp({ phone, options: { captchaToken } });
   if (error) {
     const code = mapSupabaseAuthError({ code: error.code, status: error.status });
     return {
@@ -44,10 +47,13 @@ export async function requestCode(phone: string): Promise<RequestCodeResult> {
  * ADR 0015: sign in with a 6-digit code sent by email (until SMS is live).
  * Supabase sends it; its email template must contain {{ .Token }} (doc 22).
  */
-export async function requestEmailCode(email: string): Promise<RequestCodeResult> {
+export async function requestEmailCode(
+  email: string,
+  captchaToken?: string,
+): Promise<RequestCodeResult> {
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true },
+    options: { shouldCreateUser: true, captchaToken },
   });
   if (error) {
     const code = mapSupabaseAuthError({ code: error.code, status: error.status });

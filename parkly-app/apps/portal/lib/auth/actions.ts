@@ -7,7 +7,7 @@ import { publicEnv } from '../env';
 import { createClient } from '../supabase/server';
 import { getOrCreateDeviceId } from './device';
 import { safeNext } from './guard';
-import { AUTH_ERROR_MESSAGES, mapSupabaseAuthError } from '@parkly/contracts';
+import { AUTH_ERROR_MESSAGES, captchaToken, mapSupabaseAuthError } from '@parkly/contracts';
 import {
   authErrorMessage,
   isEmailAddress,
@@ -27,7 +27,11 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
   if (!email || !password) return { error: 'Enter your email and password.' };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: { captchaToken: captchaToken(form) },
+  });
   if (error || !data.session) return { error: signInErrorMessage(error ?? {}) };
 
   // Records this browser against the new Supabase session and makes sure the profile exists.
@@ -70,11 +74,17 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
       // Read only by the "Confirm signup" email template: operators get the link,
       // code sign-ins (drivers, attendants) get the code. Grants nothing.
       data: { operator_signup: true },
+      captchaToken: captchaToken(form),
     },
   });
   // Weak/leaked passwords and rate limits are safe to report; anything else gets the generic answer.
   const code = error ? mapSupabaseAuthError(error) : null;
-  if (code === 'AUTH_PASSWORD_WEAK' || code === 'OTP_RATE_LIMITED' || code === 'AUTH_OTP_LOCKED')
+  if (
+    code === 'AUTH_PASSWORD_WEAK' ||
+    code === 'OTP_RATE_LIMITED' ||
+    code === 'AUTH_OTP_LOCKED' ||
+    code === 'AUTH_CAPTCHA_FAILED'
+  )
     return { error: AUTH_ERROR_MESSAGES[code] };
   return {
     message:
@@ -158,9 +168,13 @@ export async function requestPasswordReset(_prev: FormState, form: FormData): Pr
   if (!email.includes('@')) return { error: 'Enter the email address you sign in with.' };
   const supabase = await createClient();
   // The redirect URL must be on the project's Auth redirect allowlist.
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${await origin()}/auth/confirm?next=/update-password`,
+    captchaToken: captchaToken(form),
   });
+  // A failed security check is safe to report; nothing else is (no account enumeration).
+  if (error && mapSupabaseAuthError(error) === 'AUTH_CAPTCHA_FAILED')
+    return { error: AUTH_ERROR_MESSAGES.AUTH_CAPTCHA_FAILED };
   // Same answer whether or not the account exists.
   return {
     message:

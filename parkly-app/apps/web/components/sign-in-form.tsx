@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Input, ActionForm } from '@parkly/ui';
+import { Button, Input, ActionForm, Turnstile } from '@parkly/ui';
 import { useActionState, useState } from 'react';
 import { sendCode, verifyCode, type SignInMethod, type SignInState } from '../lib/auth/actions';
 
@@ -45,6 +45,7 @@ export function SignInForm({ next }: { next: string }) {
             required
           />
         )}
+        <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
         {error && (
           <p className="pk-notice pk-notice--error" role="alert">
             {error}

@@ -180,7 +180,8 @@ Supabase Auth settings that are **MUST** (kept in `supabase/config.toml` and ver
 | Parameter | Value (MUST) |
 |---|---|
 | OTP generation / storage / TTL | Supabase Auth (6 digits, hashed at rest, 5 min) |
-| Verify attempts | Supabase Auth verify rate limit + Upstash limit of 5 failed verifications per phone per 15 min (API wrapper / hook counter); then require a new OTP |
+| Verify attempts | Supabase Auth verify rate limit (30 per IP per 5 min) + 5-minute codes. A per-phone failed-verify counter isn't enforceable: Supabase has no verify hook and apps verify directly (ADR 0019 records the remaining risk) |
+| Bot check | Cloudflare Turnstile, checked by Supabase Auth on every code send, password sign-in, sign-up and reset (ADR 0019) |
 | Resend cooldown | 60 s (Supabase `sms` resend interval), escalating to 120 s / 300 s enforced in the Send SMS Hook; max 5 sends / phone / hour, 10 / day |
 | Per-IP / per-device | Max 20 OTP requests / IP / hour (Supabase Auth IP limit + Vercel Firewall); max 10 / device / day |
 | Choke point | **The Send SMS Hook is the enforcement point** for every SMS: it verifies the hook signature, applies Upstash per-phone, per-prefix and global budget limits, blocks non-Nigerian or premium-rate prefixes, and returns an error (no SMS sent) when limits are exceeded |

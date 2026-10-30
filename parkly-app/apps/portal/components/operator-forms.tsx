@@ -1,7 +1,7 @@
 'use client';
 
 import type { Operator } from '@parkly/contracts';
-import { Button, Input, Select, ActionForm } from '@parkly/ui';
+import { Button, Input, Select, ActionForm, Turnstile } from '@parkly/ui';
 import { useActionState } from 'react';
 import { signUp } from '../lib/auth/actions';
 import { MIN_PASSWORD_LENGTH } from '../lib/auth/messages';
@@ -40,6 +40,7 @@ export function SignUpForm({ next }: { next?: string }) {
         autoComplete="new-password"
         required
       />
+      <Turnstile siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       <Button type="submit" loading={pending} fullWidth>
         Create account

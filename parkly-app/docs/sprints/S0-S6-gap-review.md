@@ -117,6 +117,8 @@ The security base is strong. RLS is on all 37 tables, `security definer` functio
 
 ### S-4 (Medium): OTP controls are weaker than doc 05 requires
 
+**Status (Oct 30):** done as far as Supabase allows (ADR 0019). Codes last 5 minutes. Every code send and password sign-in carries a Turnstile token that Supabase checks. Per-phone send caps stay in the SMS hook. A per-phone failed-verify counter can't be enforced (no Supabase verify hook); ADR 0019 records that risk.
+
 **Where:** `supabase/config.toml:213,239`. Hosted dashboard values still need checking.
 
 **What's wrong:**
