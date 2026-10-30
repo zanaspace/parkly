@@ -442,26 +442,6 @@ export class MemoryBookings {
       }
       return { booking: { ...b }, refunds: created };
     },
-
-    markNoShows: async (at) => {
-      let markedCount = 0;
-      const graceMin = 30;
-      const threshold = new Date(at.getTime() - graceMin * 60_000);
-      for (const b of this.bookingRows) {
-        if (b.status === 'CONFIRMED' && b.startAt < threshold) {
-          b.status = 'NO_SHOW';
-          this.historyRows.push({
-            bookingId: b.id,
-            from: 'CONFIRMED',
-            to: 'NO_SHOW',
-            actor: 'SYSTEM',
-            reason: 'no_show.grace_over',
-          });
-          markedCount += 1;
-        }
-      }
-      return { markedCount };
-    },
   };
 
   readonly payments: Store['payments'] = {

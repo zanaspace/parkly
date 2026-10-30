@@ -183,6 +183,20 @@ A paid or waived overstay is final: a phone re-syncing an old check-out can't ma
 3. In Supabase, set that session's `overstay_status` to `UNPAID` (as the hourly job does after 24 h), then try to book again: the site asks you to pay first.
 4. Admin console → Bookings → the code → waive with a reason. The driver can book again, and the audit log has the reason.
 
+### Item 14: no-shows when a gate phone is offline
+
+**The problem.** Thirty minutes after a booking starts, the database marks it a **no-show** if nobody checked the car in, and gives the space back for others to book. But a gate phone without network keeps its check-ins on the phone until it reconnects. So a driver who *was* checked in could be marked a no-show and lose their space, and when the check-in finally arrived, some slots were counted twice. Car parks with no attendant phone and self check-in switched off turned **every** booking into a no-show, because nobody there could check anyone in.
+
+**What changed.**
+- **No gate, no no-shows:** a car park with no approved gate phone and self check-in off never marks no-shows.
+- **Wait for the gate:** if any gate phone that was in use around the booking hasn't synced since the 30-minute deadline, the booking is left alone and checked again 5 minutes later. Once every phone on shift has reported in without that car, it's a no-show. After 12 hours of silence it is marked anyway.
+- **No double counting:** when a "no-show" turns out to have checked in, the space is taken again only from now on; past time is not counted twice.
+- A copy of the no-show job in the API that never worked (it failed silently on every run) was removed; the database job is the one that runs.
+
+**For you.** Apply `20261031090000_no_show_offline_gates.sql` to dev before merging. Nothing else changes.
+
+**To test.** Hard to do by hand, because it needs a gate phone to go offline. The cases are covered by database tests in CI (`packages/db/test/no-show.int-spec.ts`): a self check-in lot, a lot with no way to check in, a silent phone then a sync, an old unused phone, and the late check-in.
+
 ### The Expo Go fix
 
 Turning on push made the app crash in **Expo Go** on start ("Cannot find native module"), because Expo Go doesn't contain the push module. Push now loads only in a real build, so Expo Go works again, without push. On its own branch, `fix/mobile-push-expo-go`.
@@ -194,7 +208,7 @@ Turning on push made the app crash in **Expo Go** on start ("Cannot find native 
 | 1. Extension: availability, incremental payment, manifest update | **Done.** Idempotent; holds expire. |
 | 2. Overstay at checkout, pay link, unpaid block, ops waive | **Done.** Priced from the booking's own plan with the operator's overstay terms; pay link by message; unpaid after 24 h blocks new bookings; ops waive with a reason (item 13). |
 | 3. Cancellation policy engine and refund via provider; refund webhooks | **Done** |
-| 4. No-show job every 5 minutes | **Done in SQL**, but wrong while a gate is offline (Wave 3, item 14) |
+| 4. No-show job every 5 minutes | **Done in SQL**; waits for offline gate phones and skips lots with no way to check in (item 14) |
 | 5. Receipts: HTML/PDF, email, in-app, private bucket | **Partial.** HTML only, now escaped and served by signed link. PDF and email are Wave 3 (item 15). |
 | 6. Notification service: templates, pgmq queue, retries, SMS fallback, quiet hours | **Done** with an outbox table instead of pgmq (ADR 0020). Real email and push need their switches (doc 22 §2.3c). |
 | 7. Reminders 60 minutes before start, 15 before end | **Done**, every 5 minutes (pg_cron) |
@@ -233,7 +247,7 @@ Turning on push made the app crash in **Expo Go** on start ("Cannot find native 
 | 11 | CI green: lint, Prettier, OpenAPI regen, audit; workflows moved to the repository root | T-1 | **Done** |
 | 12 | Notifications: outbox, retries, SMS fallback, quiet hours, reminders, push registration, invite emails (ADR 0020) | L-1, O-4, U-6 | **Done** |
 | 13 | Overstay: priced from the booking's plan, unpaid block, ops waive with audit; extensions from the booking's plan | L-3, L-4, U-2, U-12, P-14 | **Done** |
-| 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 | Open |
+| 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 | **Done** |
 | 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 | Open |
 | 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 | Open |
 

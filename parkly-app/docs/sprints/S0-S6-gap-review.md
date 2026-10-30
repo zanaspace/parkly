@@ -320,6 +320,8 @@ The offline gate works, but trust at the gate is weak. Driver self check-in trus
 
 ### G-4 (High): no-shows are marked while the car is inside, and rebooking skews inventory
 
+**Status (Oct 31):** fixed. `fn_mark_no_shows` skips lots with no way to check in and waits until every gate phone on shift has synced since the deadline (12 h at most); `fn_rebook_no_show` re-takes only slots from now on. A `no_show_released_from` column turned out unnecessary: the release always starts at or before now. Covered by `packages/db/test/no-show.int-spec.ts`.
+
 **Where:** `supabase/migrations/20261023090100_checkin_grants_no_show.sql:30-66` (`fn_mark_no_shows`) and `:71-114` (`fn_rebook_no_show`).
 
 **What's wrong:**
@@ -346,7 +348,7 @@ The offline gate works, but trust at the gate is weak. Driver self check-in trus
 | G-9 | Medium | Occupancy drifts. Sessions never checked out count as parked forever, and walk-ins have no reset (`drizzle-attend.ts:226-233,354-392`). | Nightly job that closes stale sessions with a flag and reconciles walk-ins. Warn when parked + walk-ins exceeds capacity. |
 | G-10 | Medium | The opening-hours edit checks bookings, then writes, with no lock (`lots/routes.ts:414-449`). It ignores `NO_SHOW` bookings, and the audit row lacks before/after values. | One transaction with the lot row locked. Include `NO_SHOW`. Audit before and after. |
 | G-11 | Low | `client_event_id` is unique across all devices, so a reused id from another device turns a real event into `DUPLICATE`. | Scope uniqueness to `(device_id, client_event_id)`. |
-| G-12 | Low | `fn_mark_no_shows` is not granted to `parkly_api`, so the API job always fails and the error is swallowed (`jobs/mark-no-shows.ts:18-21`). pg\_cron does the real work. | Grant it or delete the API job, and rethrow errors. |
+| G-12 | Low | `fn_mark_no_shows` is not granted to `parkly_api`, so the API job always fails and the error is swallowed (`jobs/mark-no-shows.ts:18-21`). pg\_cron does the real work. | Grant it or delete the API job, and rethrow errors. **Done (Oct 31):** the API job is deleted. |
 | G-13 | Low | The manifest is capped at 5,000 rows with no flag (`drizzle-attend.ts:148`). A 500-event sync runs one transaction per event and may time out. | Return `truncated: true` and page the manifest. Chunk sync within the time limit. |
 | G-14 | Low | The service worker is network-first with no timeout (`public/attend-sw.js:49`), so on 2G the offline page can hang. | Add a 3-second network timeout, then fall back to cache. |
 
