@@ -442,6 +442,9 @@ describe('fn_mark_no_shows and fn_rebook_no_show (doc 02 §3.1)', () => {
   it('marks a paid booking nobody checked in, keeps past slots, and re-books a late car', async () => {
     await inRolledBackTx(async (tx) => {
       const lot = await newLot(tx, 1, '8');
+      // Someone must be able to check the car in for it to be a no-show (G-4):
+      // self check-in on, no gate phone to wait for. Offline gates: no-show.int-spec.
+      await tx`update public.lots set self_checkin_enabled = true where id = ${lot.lotId}`;
       const [floor] = await tx`select public.fn_slot_floor(now()) - interval '60 minutes' as s`;
       const start = must(floor).s as Date;
       const end = new Date(start.getTime() + 2 * 3600_000);
