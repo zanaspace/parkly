@@ -1085,6 +1085,26 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
     expect(t.store.booking.refundRows).toHaveLength(0);
   });
 
+  it('reads the free-cancellation window from platform settings (doc 02 §8)', async () => {
+    // START is 2026-10-20T07:00:00.000Z; 45 minutes before it, with a 60-minute window.
+    const now = new Date('2026-10-20T06:15:00.000Z');
+    const t = await setup({}, { now: () => now });
+    t.store.settingRows.set('booking.free_cancel_before_start_min', 60);
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const res = await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as unknown as { isFreeCancellation: boolean; refundKobo: number };
+    expect(body.isFreeCancellation).toBe(false);
+    expect(body.refundKobo).toBe(0);
+  });
+
   it('rejects cancellation when already CANCELLED', async () => {
     const t = await setup();
     const driver = await t.newDriver();

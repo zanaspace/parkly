@@ -931,7 +931,7 @@ export function bookingRoutes(deps: AppDeps) {
         const now = deps.now();
 
         const freeLeadMin =
-          (await deps.store.settings.get<number>('booking.free_cancellation_lead_min')) ?? 30;
+          (await deps.store.settings.get<number>('booking.free_cancel_before_start_min')) ?? 30;
         const policy = cancellationPolicy({
           startAt: booking.startAt,
           now,
