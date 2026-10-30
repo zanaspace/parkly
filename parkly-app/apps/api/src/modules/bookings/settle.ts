@@ -37,10 +37,7 @@ export async function verifyAndSettle(
 }
 
 /** FR-NOT-002: a confirmed booking or a paid extension. Settling twice queues once. */
-async function notifySettled(
-  deps: Pick<AppDeps, 'store' | 'notifications'>,
-  result: SettleResult,
-) {
+async function notifySettled(deps: Pick<AppDeps, 'store' | 'notifications'>, result: SettleResult) {
   if (result.decision !== 'CONFIRM' && result.decision !== 'REACQUIRE_AND_CONFIRM') return;
   const notice = await bookingNotice(deps.store, result.booking);
   if (!notice) return;

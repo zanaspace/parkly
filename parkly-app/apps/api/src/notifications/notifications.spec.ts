@@ -406,6 +406,19 @@ describe('NotificationService', () => {
     expect(res.failedChannels).toEqual([]);
   });
 
+  it('does not retry push to devices that are no longer registered', async () => {
+    const t = setup();
+    await t.withContact({ push: 'expo-gone' });
+    t.push.invalid.add('expo-gone');
+    expect(await t.service.dispatch(t.confirmed())).toEqual({
+      deliveredChannels: [],
+      failedChannels: [],
+    });
+    // A provider error is still worth retrying.
+    t.push.failNext = true;
+    expect((await t.service.dispatch(t.confirmed())).failedChannels).toEqual(['PUSH']);
+  });
+
   it('skips channels it has no address for, and unreadable ciphertext, without throwing', async () => {
     const t = setup();
     expect(await t.service.dispatch(t.confirmed())).toEqual({

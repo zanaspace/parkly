@@ -21,8 +21,11 @@ import {
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
+import { expoPushProvider } from './providers/expo-push.js';
 import type {
+  EmailProvider,
   PaymentProvider,
+  PushProvider,
   SettlementProvider,
   SmsProvider,
   StorageProvider,
@@ -31,6 +34,7 @@ import { logOnlyEmail } from './providers/log-email.js';
 import { locationIqMaps } from './providers/locationiq.js';
 import { paystackPaymentProvider } from './providers/paystack-payments.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
+import { resendEmailProvider } from './providers/resend.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
   FakeSessionRevoker,
@@ -151,11 +155,19 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     currentEncVersion: config.encKeyCurrent,
     pepper: config.hashPepper,
   });
-  const email = logOnlyEmail(logger);
+  // Real email needs a domain verified in Resend; until then dev only logs (ADR 0020).
+  const email: EmailProvider =
+    config.email.provider === 'resend'
+      ? resendEmailProvider({ apiKey: config.email.apiKey, from: config.email.from })
+      : logOnlyEmail(logger);
+  const push: PushProvider =
+    config.push.provider === 'expo'
+      ? expoPushProvider(config.push.accessToken ? { accessToken: config.push.accessToken } : {})
+      : new FakePushProvider();
   const notifications = new NotificationService({
     sms: primary,
     email,
-    push: new FakePushProvider(),
+    push,
     store,
     logger,
     crypto,

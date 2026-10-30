@@ -40,6 +40,36 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ APP_ENV: 'prod' })).toThrow(/SMS_PROVIDER: must be termii in prod/);
   });
 
+  it('needs real email and push in prod, and a key and sender for Resend (ADR 0020)', () => {
+    const fail = (env: Record<string, string>) => {
+      try {
+        loadConfig(env);
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+    expect(fail({ APP_ENV: 'prod' })).toMatch(/EMAIL_PROVIDER: must be resend in prod/);
+    expect(fail({ APP_ENV: 'prod' })).toMatch(/PUSH_PROVIDER: must be expo in prod/);
+    expect(fail({ EMAIL_PROVIDER: 'resend' })).toMatch(/RESEND_API_KEY/);
+    expect(fail({ EMAIL_PROVIDER: 'resend' })).toMatch(/EMAIL_FROM/);
+
+    const local = loadConfig({
+      EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_0123456789abcdef',
+      EMAIL_FROM: 'Parkly <no-reply@parkly.example>',
+      PUSH_PROVIDER: 'expo',
+    });
+    expect(local.email).toEqual({
+      provider: 'resend',
+      apiKey: 're_0123456789abcdef',
+      from: 'Parkly <no-reply@parkly.example>',
+    });
+    expect(local.push).toEqual({ provider: 'expo', accessToken: undefined });
+    expect(loadConfig({}).email).toEqual({ provider: 'log' });
+    expect(loadConfig({}).push).toEqual({ provider: 'fake' });
+  });
+
   it('never falls back to the local secret outside local', () => {
     expect(() => loadConfig({ APP_ENV: 'staging' })).toThrow(/JOB_HMAC_SECRET/);
   });

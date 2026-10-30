@@ -140,7 +140,8 @@ export class NotificationService {
         if (res.delivered > 0) {
           pushDelivered = true;
           deliveredChannels.push('PUSH');
-        } else failedChannels.push('PUSH');
+          // Every device is gone (app uninstalled): nothing to retry.
+        } else if (res.invalidTokens.length < pushMsg.tokens.length) failedChannels.push('PUSH');
       } catch (err) {
         this.deps.logger.error({ err, ...log }, 'push notification failed');
         failedChannels.push('PUSH');
