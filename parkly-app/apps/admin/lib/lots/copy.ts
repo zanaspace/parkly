@@ -42,7 +42,11 @@ export function describePrice(plan: RatePlan): string {
   switch (plan.product) {
     case 'HOURLY': {
       const cap = plan.dailyCapKobo ? `, capped at ${formatKobo(plan.dailyCapKobo)} a day` : '';
-      return `${formatKobo(plan.hourlyRateKobo ?? 0)} an hour, minimum ${plan.minMinutes} min${cap}`;
+      const overstay =
+        plan.overstayRateKobo || plan.overstayGraceMin
+          ? `; overstay ${plan.overstayRateKobo ? formatKobo(plan.overstayRateKobo) : 'hourly ÷ 4'} per 15 min after ${plan.overstayGraceMin ?? 10} min grace`
+          : '';
+      return `${formatKobo(plan.hourlyRateKobo ?? 0)} an hour, minimum ${plan.minMinutes} min${cap}${overstay}`;
     }
     case 'DAILY':
       return `${formatKobo(plan.dailyRateKobo ?? 0)} a day`;

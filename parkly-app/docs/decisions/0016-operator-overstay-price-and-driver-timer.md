@@ -26,6 +26,12 @@ Drivers pay in advance for a booked window (ADR 0004). Some don't know how long 
    - the gate phone (owner, manager or attendant) keeps working as before
    - *as built (S5):* the poster's QR holds `PKG1.<lotId>` (not secret: being there, in time, with your own paid booking is what counts); the owner switches it on the lot page and prints the poster from `/lots/:lotId/poster`; the driver app shows "Check in yourself" / "Check out yourself" on the ticket; the server applies it as a normal check-in event with method `SELF`, so overstay pricing and occupancy are the same; the phone's position is checked and not stored
 
+## As built (Sprint 6, Oct 30)
+
+- `rate_plans.overstay_rate_kobo` (per 15 minutes) and `overstay_grace_min` on hourly plans; empty means hourly ÷ 4 and the platform grace. The API refuses a price above `fees.overstay_max_multiplier` × the hourly block and a grace outside 10–240 minutes; the portal price form has both fields and the admin review shows them.
+- Check-out, the booking view and extensions all price from the **booking's own** plan, so a later price change never alters a sold stay.
+- An overstay still due 24 hours after check-out becomes `UNPAID` and blocks new bookings until paid. Ops (ops, finance, super admin) can waive it with a reason from the admin console's Bookings page; it is audited.
+
 ## Consequences
 
 - No pay-at-exit for the pilot: a saved-card option (`saved_cards_enabled`) can come later if drivers ask for it.

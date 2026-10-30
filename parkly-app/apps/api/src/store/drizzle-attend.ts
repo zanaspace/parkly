@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, eq, gt, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { planEvent } from './attend-plan.js';
 import type { AttendDeviceRow, AttendEventResult, Store } from './types.js';
@@ -405,6 +405,7 @@ export function drizzleAttend(db: Db): {
             checkOutAt: sessions.checkOutAt,
             overstayMinutes: sessions.overstayMinutes,
             overstayAmountKobo: sessions.overstayAmountKobo,
+            overstayStatus: sessions.overstayStatus,
           })
           .from(sessions)
           .where(inArray(sessions.bookingId, ids));
@@ -419,7 +420,13 @@ export function drizzleAttend(db: Db): {
             overstayAmountKobo: amountKobo,
             overstayStatus: amountKobo > 0 ? 'DUE' : 'NONE',
           })
-          .where(eq(sessions.id, sessionId));
+          // Paid or waived is final: a re-synced check-out must not reopen it (L-4).
+          .where(
+            and(
+              eq(sessions.id, sessionId),
+              notInArray(sessions.overstayStatus, ['PAID', 'WAIVED']),
+            ),
+          );
       },
 
       async sessionByBooking(bookingId) {
@@ -441,6 +448,35 @@ export function drizzleAttend(db: Db): {
 
       async markOverstayPaid(bookingId) {
         await db.execute(sql`select public.fn_mark_overstay_paid(${bookingId}::uuid)`);
+      },
+
+      async unpaidOverstay(driverId) {
+        const [row] = await db
+          .select({
+            bookingId: bookings.id,
+            bookingCode: bookings.code,
+            lotId: bookings.lotId,
+            amountKobo: sessions.overstayAmountKobo,
+          })
+          .from(sessions)
+          .innerJoin(bookings, eq(bookings.id, sessions.bookingId))
+          .where(and(eq(bookings.driverId, driverId), eq(sessions.overstayStatus, 'UNPAID')))
+          .limit(1);
+        return row ?? null;
+      },
+
+      async waiveOverstay(bookingId) {
+        const rows = await db
+          .update(sessions)
+          .set({ overstayStatus: 'WAIVED' })
+          .where(
+            and(
+              eq(sessions.bookingId, bookingId),
+              inArray(sessions.overstayStatus, ['DUE', 'UNPAID']),
+            ),
+          )
+          .returning({ id: sessions.id });
+        return rows.length > 0;
       },
     },
 

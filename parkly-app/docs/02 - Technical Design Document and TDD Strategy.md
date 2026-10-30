@@ -399,7 +399,7 @@ quote(input: {
 **DAILY** — `daily_rate_kobo × number of Africa/Lagos calendar days touched`; service fee applies (< 24 h is one day; exactly the lot's opening hours).
 **MONTHLY** — `monthly_rate_kobo` per calendar month; partial first month not supported in MVP (pass starts on chosen date, runs 30 days → `period_end = start + 29 days`). Service fee 0.
 **EXTENSION** — price of the *whole new duration* minus price already paid for the original duration (so caps and blocks stay consistent); never negative.
-**OVERSTAY** — `overstayMin = ceil15(checkOutAt − (endAt + overstay_grace_min))`; amount = blocks × block price at hourly rate (falls back to `daily_rate_kobo/24` per hour if lot has only DAILY). No service fee.
+**OVERSTAY** — priced from the **booking's own rate plan** (never the lot's current one; ADR 0016). `grace = max(session.overstay_grace_min, plan.overstay_grace_min)`; `overstayMin = ceil15(checkOutAt − (endAt + grace))`; amount = blocks × the plan's `overstay_rate_kobo` per 15 minutes, or the hourly block (hourly ÷ 4; `daily_rate_kobo/24` per hour if the plan is DAILY). No service fee. Status: `DUE` at check-out → `UNPAID` 24 h later (`fn_mark_overstay_unpaid`, hourly), which blocks new bookings with `OVERSTAY_UNPAID` → `PAID` or `WAIVED` (ops, with a reason, audited); `PAID` and `WAIVED` are final. Extensions are priced from the booking's own plan too.
 
 **Worked examples** (rate ₦1,000/h = 100,000 kobo; block 15 min; min 60; fee ₦100 = 10,000 kobo; commission 1200 bps)
 
@@ -643,7 +643,8 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | `booking.free_cancel_before_start_min` | 30 | |
 | `booking.no_show_grace_min` | 30 | |
 | `booking.early_arrival_min` | 30 | |
-| `session.overstay_grace_min` | 10 | |
+| `session.overstay_grace_min` | 10 | Minimum grace; a plan may give more (ADR 0016) |
+| `fees.overstay_max_multiplier` | 2 | Operator overstay price per 15 min ≤ this × hourly ÷ 4 (ADR 0016) |
 | `session.overstay_payment_wait_min` | 10 | |
 | `pass.max_share_of_capacity` | 0.5 | |
 | `pass.length_days` | 30 | |

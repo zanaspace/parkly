@@ -510,12 +510,17 @@ export class MemoryStore implements Store {
         (p) =>
           p.lotId === row.lotId && p.product === row.product && p.status === 'PENDING_APPROVAL',
       );
+      const overstay = {
+        overstayRateKobo: row.overstayRateKobo ?? null,
+        overstayGraceMin: row.overstayGraceMin ?? null,
+      };
       if (pending) {
-        Object.assign(pending, row);
+        Object.assign(pending, row, overstay);
         return { ...pending };
       }
       const plan: RatePlanRow = {
         ...row,
+        ...overstay,
         id: randomUUID(),
         status: 'PENDING_APPROVAL',
         rejectionReason: null,

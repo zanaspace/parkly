@@ -126,7 +126,17 @@ export type RatePlanInput = {
   dailyCapKobo?: number | null;
   dailyRateKobo?: number | null;
   monthlyRateKobo?: number | null;
+  /** Hourly plans: the operator's overstay price per 15 minutes (ADR 0016); null = hourly ÷ 4. */
+  overstayRateKobo?: number | null;
+  /** Hourly plans: extra grace after the end; null = the platform minimum. */
+  overstayGraceMin?: number | null;
 };
+
+/** Platform limits on the operator's overstay terms (`fees.overstay_max_multiplier`, `session.overstay_grace_min`). */
+export type OverstayRules = { overstayMaxMultiplier: number; minGraceMin: number };
+const DEFAULT_OVERSTAY_RULES: OverstayRules = { overstayMaxMultiplier: 2, minGraceMin: 10 };
+/** Longer than this and it is a free extra stay, not grace. */
+const MAX_GRACE_MIN = 240;
 
 export type RatePlanError = { field: keyof RatePlanInput; message: string };
 
@@ -134,7 +144,10 @@ const isPositiveKobo = (v: number | null | undefined): v is number =>
   typeof v === 'number' && Number.isSafeInteger(v) && v > 0;
 
 /** Field-level checks for an operator's rate plan; an empty list means valid. */
-export function validateRatePlan(plan: RatePlanInput): RatePlanError[] {
+export function validateRatePlan(
+  plan: RatePlanInput,
+  rules: OverstayRules = DEFAULT_OVERSTAY_RULES,
+): RatePlanError[] {
   const errors: RatePlanError[] = [];
   switch (plan.product) {
     case 'HOURLY': {
@@ -152,6 +165,23 @@ export function validateRatePlan(plan: RatePlanInput): RatePlanError[] {
           errors.push({
             field: 'dailyCapKobo',
             message: 'The daily cap must be at least one hour’s price.',
+          });
+      }
+      if (plan.overstayRateKobo !== null && plan.overstayRateKobo !== undefined) {
+        const hourly = isPositiveKobo(plan.hourlyRateKobo) ? plan.hourlyRateKobo : 0;
+        const max = Math.round((hourly / 4) * rules.overstayMaxMultiplier);
+        if (!isPositiveKobo(plan.overstayRateKobo) || plan.overstayRateKobo > max)
+          errors.push({
+            field: 'overstayRateKobo',
+            message: `The overstay price can be at most ${rules.overstayMaxMultiplier}× the hourly price per 15 minutes.`,
+          });
+      }
+      if (plan.overstayGraceMin !== null && plan.overstayGraceMin !== undefined) {
+        const g = plan.overstayGraceMin;
+        if (!Number.isInteger(g) || g < rules.minGraceMin || g > MAX_GRACE_MIN)
+          errors.push({
+            field: 'overstayGraceMin',
+            message: `Grace must be ${rules.minGraceMin} to ${MAX_GRACE_MIN} minutes.`,
           });
       }
       break;

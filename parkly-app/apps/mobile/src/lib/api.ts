@@ -10,6 +10,8 @@ import {
   ExtendBookingResponseSchema,
   ExtensionOptionsSchema,
   OverstayPayResponseSchema,
+  UnpaidOverstaySchema,
+  type UnpaidOverstay,
   SelfCheckResultSchema,
   type Booking,
   type BookingReceipt,
@@ -221,6 +223,9 @@ export function createApiClient(options: ApiClientOptions) {
       (await request('GET', `/v1/bookings?status=${status}`, undefined, BookingListSchema)).items,
     booking: (id: string) =>
       request<Booking>('GET', `/v1/bookings/${encodeURIComponent(id)}`, undefined, BookingSchema),
+    /** FR-BOOK-008: an overstay unpaid for 24 hours blocks new bookings until paid. */
+    unpaidOverstay: () =>
+      request<UnpaidOverstay>('GET', '/v1/me/unpaid-overstay', undefined, UnpaidOverstaySchema),
     /** ADR 0016: the driver scanned the entrance poster; the server checks place and time. */
     selfCheck: (id: string, kind: 'in' | 'out', body: SelfCheckRequest) =>
       request<SelfCheckResult>(

@@ -1,5 +1,5 @@
 import { assertKobo, mulDivRoundHalfUp, type Kobo } from '../money/money.js';
-import { ceil15Minutes, isSlotAligned, lagosDateKey, SLOT_MINUTES } from '../time/slots.js';
+import { isSlotAligned, lagosDateKey, SLOT_MINUTES } from '../time/slots.js';
 
 /**
  * Prices are computed only here, on the server (doc 00 §3.4, doc 02 §4).
@@ -16,6 +16,10 @@ export type RatePlanPrices = {
   dailyCapKobo: number | null;
   dailyRateKobo: number | null;
   monthlyRateKobo: number | null;
+  /** Hourly plans: the operator's overstay price per 15 minutes (ADR 0016); null = hourly ÷ 4. */
+  overstayRateKobo?: number | null;
+  /** Hourly plans: grace after the end, at least the platform's; null = the platform's. */
+  overstayGraceMin?: number | null;
 };
 
 export type PricingSettings = {
@@ -221,32 +225,4 @@ export function extensionQuote(input: {
       { kind: 'EXTENSION', minutes, amountKobo: price },
     ]),
   };
-}
-
-/**
- * Doc 02 §4 OVERSTAY: minutes past `endAt + grace`, rounded up to 15-minute
- * blocks, at the hourly block price (or daily rate / 24 per hour when the lot
- * has no hourly price). No service fee.
- */
-export function overstayCharge(input: {
-  ratePlans: readonly RatePlanPrices[];
-  endAt: Date;
-  checkOutAt: Date;
-  graceMin: number;
-  commissionBps: number;
-}): Quote {
-  const hourly = input.ratePlans.find((p) => p.product === 'HOURLY' && p.hourlyRateKobo !== null);
-  const daily = input.ratePlans.find((p) => p.product === 'DAILY' && p.dailyRateKobo !== null);
-  let blockKobo: Kobo;
-  if (hourly) blockKobo = mulDivRoundHalfUp(hourly.hourlyRateKobo as number, SLOT_MINUTES, 60);
-  else if (daily)
-    blockKobo = mulDivRoundHalfUp(daily.dailyRateKobo as number, SLOT_MINUTES, 24 * 60);
-  else throw new RangeError('Overstay needs an hourly or daily price');
-
-  const late = (input.checkOutAt.getTime() - input.endAt.getTime()) / MINUTE_MS - input.graceMin;
-  const minutes = ceil15Minutes(late);
-  const price = (minutes / SLOT_MINUTES) * blockKobo;
-  return settle(hourly ? 'HOURLY' : 'DAILY', price, 0, input.commissionBps, [
-    { kind: 'OVERSTAY', minutes, amountKobo: price },
-  ]);
 }

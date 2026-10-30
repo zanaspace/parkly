@@ -15,6 +15,7 @@ import {
   ExtensionOptionsSchema,
   OverstayPayRequestSchema,
   OverstayPayResponseSchema,
+  UnpaidOverstaySchema,
   ReceiptLinkSchema,
   VerifyPaymentResponseSchema,
   type Booking,
@@ -32,11 +33,7 @@ import {
 } from '@parkly/domain/booking';
 import { generateBookingCode } from '@parkly/domain/codes';
 import { mulDivRoundHalfUp } from '@parkly/domain/money';
-import {
-  overstayCharge,
-  quote as priceQuote,
-  type Quote as DomainQuote,
-} from '@parkly/domain/pricing';
+import { quote as priceQuote, type Quote as DomainQuote } from '@parkly/domain/pricing';
 import { lagosDateKey } from '@parkly/domain/time';
 import { v7 as uuidv7 } from 'uuid';
 import type { AppDeps } from '../../app.js';
@@ -54,6 +51,7 @@ import {
 } from '../../store/types.js';
 import { loadSettings, toOpeningDay, toPublicQuote } from '../discovery/routes.js';
 import { buildReceiptData, renderReceiptHtml } from './receipt.js';
+import { overstayPricer } from './overstay-price.js';
 import { verifyAndSettle } from './settle.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -167,56 +165,37 @@ export function bookingRoutes(deps: AppDeps) {
    */
   async function viewsFor(rows: BookingRow[]) {
     const now = deps.now();
-    const [stays, graceMin] = await Promise.all([
-      deps.store.attend.sessionsForBookings(rows.map((r) => r.id)),
-      deps.store.settings.get<number>('session.overstay_grace_min').then((v) => v ?? 10),
-    ]);
-    const plansByLot = new Map<
-      string,
-      Awaited<ReturnType<typeof deps.store.ratePlans.activeFor>>
-    >();
+    const stays = await deps.store.attend.sessionsForBookings(rows.map((r) => r.id));
+    // The booking's own plan and overstay terms, as at check-out (gap review L-3).
+    const overstay = overstayPricer(deps.store);
     const phoneMap = new Map<string, string | null>();
     for (const lotId of new Set(rows.map((r) => r.lotId))) {
-      plansByLot.set(lotId, await deps.store.ratePlans.activeFor([lotId]));
       const l = await lotOf(lotId);
       const op = await deps.store.operators.find(l.operatorId);
       phoneMap.set(lotId, op?.contactPhoneEnc ? deps.crypto.decrypt(op.contactPhoneEnc) : null);
     }
-    const price = (b: BookingRow, checkOutAt: Date) => {
-      try {
-        const q = overstayCharge({
-          ratePlans: plansByLot.get(b.lotId) ?? [],
-          endAt: b.endAt,
-          checkOutAt,
-          graceMin,
-          commissionBps: b.commissionBps,
-        });
-        const line = q.lines[0];
-        return { minutes: line?.kind === 'OVERSTAY' ? line.minutes : 0, kobo: q.priceKobo };
-      } catch {
-        return null; // no hourly or daily price to base it on
-      }
-    };
     return Promise.all(
       rows.map(async (b) => {
-        // Same grace as check-out pricing (attend routes), so drivers see what they'll be charged.
-        const one = price(b, new Date(b.endAt.getTime() + (graceMin + 1) * 60_000));
+        const terms = await overstay.terms(b);
+        const graceMin = terms?.graceMin ?? 0;
         const s = stays.get(b.id);
         let stay: Booking['stay'] = null;
         if (s) {
           const late =
             !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + graceMin * 60_000;
-          const live = late ? price(b, now) : null;
+          const live = late ? await overstay.price(b, now) : null;
           stay = {
             checkedInAt: s.checkInAt?.toISOString() ?? null,
             checkedOutAt: s.checkOutAt?.toISOString() ?? null,
             overstayMinutes: live ? live.minutes : s.overstayMinutes,
             overstayKobo: live ? live.kobo : s.overstayAmountKobo,
+            // Still parked past the grace: accruing, so due.
+            overstayStatus: live && live.kobo > 0 ? 'DUE' : s.overstayStatus,
           };
         }
         return {
           qrToken: await ticketFor(b),
-          overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
+          overstay: terms,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };
@@ -321,6 +300,13 @@ export function bookingRoutes(deps: AppDeps) {
     body: z.infer<typeof CreateBookingRequestSchema>,
   ): Promise<CreateBookingResponse> {
     const now = deps.now();
+    // FR-BOOK-008: an overstay unpaid for 24 hours must be paid (or waived) first.
+    const unpaid = await deps.store.attend.unpaidOverstay(driverId);
+    if (unpaid)
+      throw new ApiError(
+        'OVERSTAY_UNPAID',
+        `Pay the overstay on booking ${unpaid.bookingCode} before booking again`,
+      );
     const lot = await deps.store.lots.findLive(body.lotId, lagosDateKey(now));
     if (!lot) throw new ApiError('LOT_NOT_BOOKABLE');
     const vehicle = await deps.store.vehicles.find(driverId, body.vehicleId);
@@ -770,8 +756,9 @@ export function bookingRoutes(deps: AppDeps) {
           );
         }
 
-        const plans = await deps.store.ratePlans.activeFor([lot.id]);
-        const plan = plans.find((p) => p.product === booking.product);
+        // The booking's own plan, as for overstay: whole stay minus what was paid, both
+        // at the price it was sold at, so a later price cut can't make it free (P-14).
+        const plan = await deps.store.ratePlans.find(booking.ratePlanId);
         if (!plan)
           throw new ApiError('LOT_NOT_BOOKABLE', 'This lot does not have an active rate plan');
 
@@ -1007,6 +994,35 @@ export function bookingRoutes(deps: AppDeps) {
     },
   );
 
+  // FR-BOOK-008: the overstay blocking new bookings, so the apps can show it with a pay button.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/me/unpaid-overstay',
+      tags: ['bookings'],
+      ...secured,
+      responses: { 200: { description: 'Unpaid overstay, if any', ...json(UnpaidOverstaySchema) } },
+    }),
+    async (c) => {
+      const actor = c.get('actor');
+      authorize(c, deps.logger, 'booking:read:own', { ownerUserId: actor.userId });
+      const unpaid = await deps.store.attend.unpaidOverstay(actor.userId);
+      if (!unpaid) return c.json({ unpaid: null }, 200);
+      const lot = await lotOf(unpaid.lotId);
+      return c.json(
+        {
+          unpaid: {
+            bookingId: unpaid.bookingId,
+            bookingCode: unpaid.bookingCode,
+            lotName: lot.name,
+            amountKobo: unpaid.amountKobo,
+          },
+        },
+        200,
+      );
+    },
+  );
+
   // FR-BOOK-008: pay overstay charges.
   app.openapi(
     createRoute({
@@ -1032,7 +1048,8 @@ export function bookingRoutes(deps: AppDeps) {
         const now = deps.now();
 
         const session = await deps.store.attend.sessionByBooking(booking.id);
-        if (!session || session.overstayStatus !== 'DUE' || session.overstayAmountKobo <= 0) {
+        const owed = session?.overstayStatus === 'DUE' || session?.overstayStatus === 'UNPAID';
+        if (!session || !owed || session.overstayAmountKobo <= 0) {
           throw new ApiError('OVERSTAY_NOT_DUE', 'No overstay payment is due for this booking');
         }
 

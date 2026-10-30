@@ -157,4 +157,31 @@ describe('validateRatePlan (FR-LOT-005)', () => {
     expect(validateRatePlan({ product: 'DAILY', dailyRateKobo: 250_000 })).toEqual([]);
     expect(validateRatePlan({ product: 'MONTHLY', monthlyRateKobo: 4_500_000 })).toEqual([]);
   });
+
+  describe('the operator overstay price (ADR 0016)', () => {
+    const hourly = { product: 'HOURLY', hourlyRateKobo: 50_000, minMinutes: 60 } as const;
+    const rules = { overstayMaxMultiplier: 2, minGraceMin: 10 };
+
+    it('allows no overstay price (hourly ÷ 4 is used), or one up to the Parkly maximum', () => {
+      expect(validateRatePlan(hourly, rules)).toEqual([]);
+      // ₦500/h → ₦125 per 15 minutes; 2× is ₦250.
+      expect(validateRatePlan({ ...hourly, overstayRateKobo: 25_000 }, rules)).toEqual([]);
+      expect(validateRatePlan({ ...hourly, overstayGraceMin: 30 }, rules)).toEqual([]);
+    });
+
+    it('refuses a price above the maximum, a non-positive price and a short grace', () => {
+      const fields = (extra: object) =>
+        validateRatePlan({ ...hourly, ...extra }, rules).map((e) => e.field);
+      expect(fields({ overstayRateKobo: 25_001 })).toEqual(['overstayRateKobo']);
+      expect(fields({ overstayRateKobo: 0 })).toEqual(['overstayRateKobo']);
+      expect(fields({ overstayGraceMin: 5 })).toEqual(['overstayGraceMin']);
+      expect(fields({ overstayGraceMin: 300 })).toEqual(['overstayGraceMin']);
+    });
+
+    it('keeps the platform defaults when no rules are passed', () => {
+      expect(validateRatePlan({ ...hourly, overstayRateKobo: 25_001 }).map((e) => e.field)).toEqual(
+        ['overstayRateKobo'],
+      );
+    });
+  });
 });

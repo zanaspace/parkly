@@ -48,6 +48,32 @@ describe('deny by default (doc 05 §5.2)', () => {
   });
 });
 
+describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
+  const ops = actor([{ role: 'ADMIN_OPS', operatorId: null }], { aal: 'aal2' });
+  const finance = actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' });
+
+  it('lets support look bookings up, but only ops, finance and super admins waive', () => {
+    for (const a of [support, ops, finance]) expect(can(a, 'booking:support:read', {})).toBe(true);
+    expect(can(compliance, 'booking:support:read', {})).toBe(false);
+    for (const a of [ops, finance]) expect(can(a, 'overstay:waive', {})).toBe(true);
+    expect(
+      can(
+        actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' }),
+        'overstay:waive',
+        {},
+      ),
+    ).toBe(true);
+    expect(can(support, 'overstay:waive', {})).toBe(false);
+    expect(can(compliance, 'overstay:waive', {})).toBe(false);
+  });
+
+  it('denies operators and anyone below aal2', () => {
+    expect(can(ownerA, 'booking:support:read', {})).toBe(false);
+    expect(can(ownerA, 'overstay:waive', {})).toBe(false);
+    expect(can({ ...ops, aal: 'aal1' }, 'overstay:waive', {})).toBe(false);
+  });
+});
+
 describe('KYB review (FR-ADM-001)', () => {
   const ops = actor([{ role: 'ADMIN_OPS', operatorId: null }], { aal: 'aal2' });
   const finance = actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' });

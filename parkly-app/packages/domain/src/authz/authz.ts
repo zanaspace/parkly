@@ -80,6 +80,12 @@ const RULES = {
   'lot:verify': { scope: 'platform', roles: ['ADMIN_OPS', 'SUPER_ADMIN'] },
   'audit:read': { scope: 'platform', roles: ['ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   'user:sessions:revoke': { scope: 'platform', roles: ['SUPER_ADMIN'] },
+  // Support finds a booking by code; waiving money is ops, finance or super admin (L-4).
+  'booking:support:read': {
+    scope: 'platform',
+    roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
+  'overstay:waive': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;
 
 export type Action = keyof typeof RULES;

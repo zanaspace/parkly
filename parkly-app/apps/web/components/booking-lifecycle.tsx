@@ -104,7 +104,11 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
 
   const overstayKobo = booking.stay?.overstayKobo ?? 0;
   const overstayMinutes = booking.stay?.overstayMinutes ?? 0;
-  const hasOverstay = overstayKobo > 0;
+  // Only while it is owed: a paid or waived overstay keeps its amount for the record.
+  const overstayStatus = booking.stay?.overstayStatus;
+  const hasOverstay =
+    overstayKobo > 0 &&
+    (overstayStatus === undefined || overstayStatus === 'DUE' || overstayStatus === 'UNPAID');
 
   // Calculate new end time for extension
   const currentEnd = new Date(booking.endAt);

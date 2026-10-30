@@ -1,4 +1,4 @@
-import type { PublicLot, Quote } from '@parkly/contracts';
+import type { PublicLot, Quote, UnpaidOverstay } from '@parkly/contracts';
 import { lineLabel, searchWindow, windowLabel } from '@parkly/domain/discovery';
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
@@ -29,6 +29,7 @@ export default function ReviewAndPay() {
   const [lot, setLot] = useState<PublicLot | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unpaid, setUnpaid] = useState<UnpaidOverstay['unpaid']>(null);
   const [paying, setPaying] = useState(false);
   // One key per car: a second tap (or a retry after a dropped connection)
   // returns the same booking instead of holding a second space.
@@ -39,10 +40,14 @@ export default function ReviewAndPay() {
     (async () => {
       try {
         const found = await api.lot(lotId);
-        const q = await api.quote(found.id, searchWindow(search));
+        const [q, owed] = await Promise.all([
+          api.quote(found.id, searchWindow(search)),
+          api.unpaidOverstay(),
+        ]);
         if (live) {
           setLot(found);
           setQuote(q);
+          setUnpaid(owed.unpaid);
         }
       } catch (err) {
         if (live) setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
@@ -98,6 +103,35 @@ export default function ReviewAndPay() {
         ) : (
           <ActivityIndicator accessibilityLabel="Getting the price" />
         )}
+      </Screen>
+    );
+
+  // FR-BOOK-008: an overstay unpaid for 24 hours must be paid before booking again.
+  if (unpaid)
+    return (
+      <Screen
+        footer={
+          <>
+            <Button
+              label={`Pay ${formatNaira(unpaid.amountKobo)}`}
+              fullWidth
+              onPress={() =>
+                router.push({ pathname: '/booking/[id]', params: { id: unpaid.bookingId } })
+              }
+            />
+            <Button
+              label="Back"
+              variant="ghost"
+              fullWidth
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+            />
+          </>
+        }
+      >
+        <Text variant="heading.xl">Pay your overstay first</Text>
+        <Notice
+          message={`You have an unpaid overstay of ${formatNaira(unpaid.amountKobo)} at ${unpaid.lotName} (booking ${unpaid.bookingCode}). Pay it to book again.`}
+        />
       </Screen>
     );
 

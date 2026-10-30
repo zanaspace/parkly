@@ -1314,8 +1314,18 @@ export function storeContract(
           checkOutAt: new Date('2027-01-05T09:40:00Z'),
           overstayMinutes: 30,
           overstayAmountKobo: 25_000,
+          overstayStatus: 'DUE',
         });
         expect(stays.size).toBe(1);
+        // Paid is final: pricing the check-out again leaves it (gap review L-4).
+        await store.attend.markOverstayPaid(booking.id, new Date('2027-01-05T10:00:00Z'));
+        await store.attend.setOverstay(out.checkedOut[0] ?? '', 45, 37_500);
+        expect(
+          (await store.attend.sessionsForBookings([booking.id])).get(booking.id),
+        ).toMatchObject({
+          overstayStatus: 'PAID',
+          overstayAmountKobo: 25_000,
+        });
 
         const manifest = await store.attend.manifest(lot.lotId, START, END);
         expect(manifest).toEqual([

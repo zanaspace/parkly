@@ -298,6 +298,11 @@ export function drizzleBookings(
         return row ? asBooking(row) : null;
       },
 
+      async findByCode(code) {
+        const [row] = await db.select(bookingColumns).from(bookings).where(eq(bookings.code, code));
+        return row ? asBooking(row) : null;
+      },
+
       async listForDriver(driverId, which, now, limit) {
         const upcoming = and(inArray(bookings.status, [...LIVE]), gt(bookings.endAt, now));
         const past = or(notInArray(bookings.status, [...LIVE]), lte(bookings.endAt, now));

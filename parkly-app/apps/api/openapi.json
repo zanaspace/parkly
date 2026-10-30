@@ -3101,6 +3101,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -3121,6 +3133,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -3530,6 +3544,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -3550,6 +3576,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -4066,6 +4094,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -4086,6 +4126,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -4564,6 +4606,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -4584,6 +4638,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -5134,6 +5190,14 @@
                         "type": "integer",
                         "exclusiveMinimum": 0,
                         "maximum": 10000000000
+                      },
+                      "overstayRateKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      },
+                      "overstayGraceMin": {
+                        "type": "integer"
                       }
                     },
                     "required": [
@@ -5244,6 +5308,18 @@
                         "null"
                       ]
                     },
+                    "overstayRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "overstayGraceMin": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
                     "rejectionReason": {
                       "type": [
                         "string",
@@ -5264,6 +5340,8 @@
                     "dailyCapKobo",
                     "dailyRateKobo",
                     "monthlyRateKobo",
+                    "overstayRateKobo",
+                    "overstayGraceMin",
                     "rejectionReason",
                     "submittedAt"
                   ]
@@ -5641,6 +5719,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -5661,6 +5751,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -6088,6 +6180,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -6108,6 +6212,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -6316,6 +6422,236 @@
         "responses": {
           "204": {
             "description": "Sessions revoked"
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/by-code/{code}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^PK-[A-Z0-9]{6}$"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "CHECKED_IN",
+                        "COMPLETED",
+                        "CANCELLED",
+                        "EXPIRED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "lotName": {
+                      "type": "string"
+                    },
+                    "startAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "overstay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DUE",
+                            "PAID",
+                            "UNPAID",
+                            "WAIVED"
+                          ]
+                        },
+                        "minutes": {
+                          "type": "integer"
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "minutes",
+                        "amountKobo"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "status",
+                    "lotName",
+                    "startAt",
+                    "endAt",
+                    "overstay"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/overstay/waive": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Waived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "CHECKED_IN",
+                        "COMPLETED",
+                        "CANCELLED",
+                        "EXPIRED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "lotName": {
+                      "type": "string"
+                    },
+                    "startAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "overstay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DUE",
+                            "PAID",
+                            "UNPAID",
+                            "WAIVED"
+                          ]
+                        },
+                        "minutes": {
+                          "type": "integer"
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "minutes",
+                        "amountKobo"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "status",
+                    "lotName",
+                    "startAt",
+                    "endAt",
+                    "overstay"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -7413,6 +7749,18 @@
                                   "null"
                                 ]
                               },
+                              "overstayRateKobo": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "overstayGraceMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
                               "rejectionReason": {
                                 "type": [
                                   "string",
@@ -7433,6 +7781,8 @@
                               "dailyCapKobo",
                               "dailyRateKobo",
                               "monthlyRateKobo",
+                              "overstayRateKobo",
+                              "overstayGraceMin",
                               "rejectionReason",
                               "submittedAt"
                             ]
@@ -8040,6 +8390,18 @@
                         "null"
                       ]
                     },
+                    "overstayRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "overstayGraceMin": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
                     "rejectionReason": {
                       "type": [
                         "string",
@@ -8060,6 +8422,8 @@
                     "dailyCapKobo",
                     "dailyRateKobo",
                     "monthlyRateKobo",
+                    "overstayRateKobo",
+                    "overstayGraceMin",
                     "rejectionReason",
                     "submittedAt"
                   ]
@@ -9016,6 +9380,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -9036,6 +9412,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -11037,6 +11415,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -11450,6 +11838,16 @@
                               },
                               "overstayKobo": {
                                 "type": "integer"
+                              },
+                              "overstayStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NONE",
+                                  "DUE",
+                                  "PAID",
+                                  "UNPAID",
+                                  "WAIVED"
+                                ]
                               }
                             },
                             "default": null,
@@ -11815,6 +12213,16 @@
                         },
                         "overstayKobo": {
                           "type": "integer"
+                        },
+                        "overstayStatus": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DUE",
+                            "PAID",
+                            "UNPAID",
+                            "WAIVED"
+                          ]
                         }
                       },
                       "default": null,
@@ -12705,6 +13113,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -13230,6 +13648,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -13667,6 +14095,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -13711,6 +14149,62 @@
                     "booking",
                     "refundKobo",
                     "isFreeCancellation"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/unpaid-overstay": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unpaid overstay, if any",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unpaid": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "bookingId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "bookingCode": {
+                          "type": "string"
+                        },
+                        "lotName": {
+                          "type": "string"
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "bookingCode",
+                        "lotName",
+                        "amountKobo"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "unpaid"
                   ]
                 }
               }

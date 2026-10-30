@@ -81,6 +81,11 @@ export const BookingSchema = z.object({
       checkedOutAt: z.iso.datetime().nullable(),
       overstayMinutes: z.number().int(),
       overstayKobo: z.number().int(),
+      /**
+       * DUE while accruing or owed, UNPAID after 24 h (blocks new bookings),
+       * PAID or WAIVED once settled. Optional: older APIs leave it out.
+       */
+      overstayStatus: z.enum(['NONE', 'DUE', 'PAID', 'UNPAID', 'WAIVED']).optional(),
     })
     .nullable()
     .default(null),
@@ -255,3 +260,41 @@ export type CancelBookingResponse = z.infer<typeof CancelBookingResponseSchema>;
 export type OverstayPayRequest = z.input<typeof OverstayPayRequestSchema>;
 export type OverstayPayResponse = z.infer<typeof OverstayPayResponseSchema>;
 export type BookingReceipt = z.infer<typeof BookingReceiptSchema>;
+
+/** FR-BOOK-008: an overstay left unpaid past 24 hours blocks new bookings until paid or waived. */
+export const UnpaidOverstaySchema = z.object({
+  unpaid: z
+    .object({
+      bookingId: z.uuid(),
+      bookingCode: z.string(),
+      lotName: z.string(),
+      amountKobo: z.number().int(),
+    })
+    .nullable(),
+});
+
+/** Support's view of a booking found by code (admin console, gap review L-4). */
+export const AdminBookingSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  status: BookingStatusSchema,
+  lotName: z.string(),
+  startAt: z.iso.datetime(),
+  endAt: z.iso.datetime(),
+  overstay: z
+    .object({
+      status: z.enum(['NONE', 'DUE', 'PAID', 'UNPAID', 'WAIVED']),
+      minutes: z.number().int(),
+      amountKobo: z.number().int(),
+    })
+    .nullable(),
+});
+
+/** Ops waive an overstay as goodwill (e.g. a broken barrier); the reason is audited. */
+export const WaiveOverstayRequestSchema = z.object({
+  reason: z.string().trim().min(5, 'Say why, in a few words').max(500),
+});
+
+export type UnpaidOverstay = z.infer<typeof UnpaidOverstaySchema>;
+export type AdminBooking = z.infer<typeof AdminBookingSchema>;
+export type WaiveOverstayRequest = z.infer<typeof WaiveOverstayRequestSchema>;

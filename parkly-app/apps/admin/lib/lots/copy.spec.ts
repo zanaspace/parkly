@@ -10,6 +10,8 @@ const plan = {
   dailyCapKobo: null,
   dailyRateKobo: null,
   monthlyRateKobo: null,
+  overstayRateKobo: null,
+  overstayGraceMin: null,
   rejectionReason: null,
   submittedAt: '2026-10-21T10:00:00.000Z',
 };
@@ -24,6 +26,16 @@ describe('lot review copy', () => {
     expect(
       describePrice({ ...plan, product: 'HOURLY', hourlyRateKobo: 50_000, dailyCapKobo: 300_000 }),
     ).toBe('₦500.00 an hour, minimum 60 min, capped at ₦3,000.00 a day');
+    // ADR 0016: the reviewer sees the operator's overstay terms.
+    expect(
+      describePrice({
+        ...plan,
+        product: 'HOURLY',
+        hourlyRateKobo: 50_000,
+        overstayRateKobo: 20_000,
+        overstayGraceMin: 20,
+      }),
+    ).toBe('₦500.00 an hour, minimum 60 min; overstay ₦200.00 per 15 min after 20 min grace');
     expect(describePrice({ ...plan, product: 'DAILY', dailyRateKobo: 250_050 })).toBe(
       '₦2,500.50 a day',
     );

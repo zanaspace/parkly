@@ -305,6 +305,10 @@ export const ratePlans = pgTable(
     dailyCapKobo: bigint('daily_cap_kobo', { mode: 'number' }),
     dailyRateKobo: bigint('daily_rate_kobo', { mode: 'number' }),
     monthlyRateKobo: bigint('monthly_rate_kobo', { mode: 'number' }),
+    /** Operator's overstay price per 15 minutes (ADR 0016); null = hourly ÷ 4. API caps it at the platform maximum. */
+    overstayRateKobo: bigint('overstay_rate_kobo', { mode: 'number' }),
+    /** Grace after the end, at least the platform's 10 minutes; null = the platform's. */
+    overstayGraceMin: integer('overstay_grace_min'),
     /** Reserved for Grow; null in MVP. */
     earlyBird: jsonb('early_bird'),
     effectiveFrom: timestamp('effective_from', { withTimezone: true }),
@@ -323,6 +327,11 @@ export const ratePlans = pgTable(
         or (${t.product} = 'MONTHLY' and ${t.monthlyRateKobo} > 0)`,
     ),
     check('rate_plans_block_check', sql`${t.blockMinutes} = 15`),
+    check(
+      'rate_plans_overstay_check',
+      sql`(${t.overstayRateKobo} is null or ${t.overstayRateKobo} > 0)
+        and (${t.overstayGraceMin} is null or ${t.overstayGraceMin} between 10 and 240)`,
+    ),
     check(
       'rate_plans_min_minutes_check',
       sql`${t.minMinutes} between 15 and 1440 and ${t.minMinutes} % 15 = 0`,

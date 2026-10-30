@@ -250,6 +250,10 @@ export type RatePlanPrices = {
   dailyCapKobo: number | null;
   dailyRateKobo: number | null;
   monthlyRateKobo: number | null;
+  /** Hourly plans: overstay price per 15 minutes (ADR 0016); null = hourly ÷ 4. */
+  overstayRateKobo?: number | null;
+  /** Hourly plans: grace after the end; null = the platform's. */
+  overstayGraceMin?: number | null;
 };
 
 export type RatePlanRow = RatePlanPrices & {
@@ -463,6 +467,7 @@ export type StaySummary = {
   checkOutAt: Date | null;
   overstayMinutes: number;
   overstayAmountKobo: number;
+  overstayStatus: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
 };
 
 export type AttendBatch = {
@@ -793,6 +798,8 @@ export type Store = {
       at: Date,
     ): Promise<{ booking: BookingRow; payment: PaymentRow }>;
     find(id: string): Promise<BookingRow | null>;
+    /** Support looks a booking up by its PK-XXXXXX code. */
+    findByCode(code: string): Promise<BookingRow | null>;
     /** Upcoming: live and not yet ended, soonest first. Past: the rest, latest first. */
     listForDriver(
       driverId: string,
@@ -1021,6 +1028,18 @@ export type Store = {
       checkOutAt: Date | null;
     } | null>;
     markOverstayPaid(bookingId: string, at: Date): Promise<void>;
+    /**
+     * The driver's overstay still unpaid 24 hours after check-out (UNPAID), if
+     * any: it blocks new bookings (FR-BOOK-008, gap review L-4).
+     */
+    unpaidOverstay(driverId: string): Promise<{
+      bookingId: string;
+      bookingCode: string;
+      lotId: string;
+      amountKobo: number;
+    } | null>;
+    /** DUE or UNPAID → WAIVED (ops goodwill); false when there was nothing to waive. */
+    waiveOverstay(bookingId: string, at: Date): Promise<boolean>;
     /** Parked (checked in, not out) and expected (paid, due within 24 h, not in) per lot. */
     occupancy(
       lotIds: string[],

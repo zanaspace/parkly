@@ -175,6 +175,26 @@ function PriceForm(props: { operatorId: string; lot: Lot; product: Product; edit
           />
         </div>
       )}
+      {props.product === 'HOURLY' && (
+        <div className="pk-row">
+          <Input
+            label="Overstay per 15 min (₦), optional"
+            name="overstayRate"
+            inputMode="decimal"
+            placeholder="Hourly price ÷ 4"
+            helper="Charged after the grace. Parkly allows up to 2× the hourly price per 15 minutes."
+          />
+          <Select
+            label="Grace after the end"
+            name="overstayGrace"
+            defaultValue=""
+            options={[
+              { value: '', label: 'Standard (10 minutes)' },
+              ...[15, 20, 30, 60].map((m) => ({ value: String(m), label: `${m} minutes` })),
+            ]}
+          />
+        </div>
+      )}
       {state?.error && <Notice tone="error">{state.error}</Notice>}
       {state?.saved && (
         <Notice tone="info">Sent for approval. It applies to new bookings once approved.</Notice>

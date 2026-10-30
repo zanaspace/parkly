@@ -171,6 +171,32 @@ describe('rate plans (FR-LOT-005)', () => {
       },
     ]);
   });
+  it('takes the operator overstay price and grace within Parkly’s limits (ADR 0016)', async () => {
+    const ctx = await setup();
+    const url = `${ctx.base}/rate-plans`;
+    // ₦500/h → ₦125 per 15 minutes; Parkly allows up to 2×, ₦250.
+    const ok = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: {
+        product: 'HOURLY',
+        hourlyRateKobo: 50_000,
+        minMinutes: 60,
+        overstayRateKobo: 25_000,
+        overstayGraceMin: 20,
+      },
+    });
+    expect(ok.body).toMatchObject({ overstayRateKobo: 25_000, overstayGraceMin: 20 });
+
+    ctx.w.store.settingRows.set('fees.overstay_max_multiplier', 1.5);
+    const tooHigh = await ctx.w.call('PUT', url, {
+      ...ctx.as(ctx.owner),
+      body: { product: 'HOURLY', hourlyRateKobo: 50_000, minMinutes: 60, overstayRateKobo: 25_000 },
+    });
+    expect([tooHigh.status, (tooHigh.body?.errors as { path: string }[])[0]?.path]).toEqual([
+      400,
+      'overstayRateKobo',
+    ]);
+  });
 });
 
 describe('submit for verification (doc 02 §3.3 DRAFT → PENDING_VERIFICATION)', () => {
