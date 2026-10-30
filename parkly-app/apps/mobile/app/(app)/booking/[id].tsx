@@ -509,41 +509,46 @@ export default function BookingScreen() {
       {offline ? null : <SelfCheck booking={booking} onDone={() => setReload((n) => n + 1)} />}
 
       {/* Unpaid Overstay Alert Banner */}
-      {booking.stay && booking.stay.overstayKobo > 0 && (
-        <View
-          style={{
-            backgroundColor: theme.color.status.danger.bg,
-            borderWidth: 1,
-            borderColor: 'rgba(239, 68, 68, 0.45)',
-            borderRadius: theme.radius.lg,
-            padding: theme.space[4],
-            gap: 10,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 20 }}>⚠️</Text>
-            <View style={{ flex: 1 }}>
-              <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
-                {`Unpaid Overstay Due · ${formatNaira(booking.stay.overstayKobo)}`}
-              </Text>
-              <Text variant="body.sm" tone="secondary">
-                {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
-              </Text>
+      {/* Only while owed: a paid or waived overstay keeps its amount for the record. */}
+      {booking.stay &&
+        booking.stay.overstayKobo > 0 &&
+        (booking.stay.overstayStatus === undefined ||
+          booking.stay.overstayStatus === 'DUE' ||
+          booking.stay.overstayStatus === 'UNPAID') && (
+          <View
+            style={{
+              backgroundColor: theme.color.status.danger.bg,
+              borderWidth: 1,
+              borderColor: 'rgba(239, 68, 68, 0.45)',
+              borderRadius: theme.radius.lg,
+              padding: theme.space[4],
+              gap: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 20 }}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
+                  {`Unpaid Overstay Due · ${formatNaira(booking.stay.overstayKobo)}`}
+                </Text>
+                <Text variant="body.sm" tone="secondary">
+                  {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
+                </Text>
+              </View>
             </View>
+            <Button
+              label={
+                actionLoading
+                  ? 'Connecting...'
+                  : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`
+              }
+              variant="danger"
+              fullWidth
+              disabled={actionLoading}
+              onPress={handlePayOverstay}
+            />
           </View>
-          <Button
-            label={
-              actionLoading
-                ? 'Connecting...'
-                : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`
-            }
-            variant="danger"
-            fullWidth
-            disabled={actionLoading}
-            onPress={handlePayOverstay}
-          />
-        </View>
-      )}
+        )}
 
       {/* Action Success / Error Notices */}
       {actionSuccess ? <Notice kind="success" message={actionSuccess} /> : null}

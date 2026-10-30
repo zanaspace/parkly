@@ -1,4 +1,4 @@
-import type { PublicLot, Quote, Vehicle } from '@parkly/contracts';
+import type { PublicLot, Quote, UnpaidOverstay, Vehicle } from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
@@ -52,8 +52,10 @@ export default async function ReviewAndPay({
     );
   }
   let vehicles: Vehicle[];
+  let unpaid: UnpaidOverstay['unpaid'];
   try {
     vehicles = (await apiAs<{ items: Vehicle[] }>(driver.accessToken, '/v1/me/vehicles')).items;
+    unpaid = (await apiAs<UnpaidOverstay>(driver.accessToken, '/v1/me/unpaid-overstay')).unpaid;
   } catch (err) {
     if (err instanceof ApiProblem && (err.status === 401 || err.status === 403)) {
       const supabase = await createClient();
@@ -62,6 +64,29 @@ export default async function ReviewAndPay({
     }
     throw err;
   }
+
+  // FR-BOOK-008: an overstay unpaid for 24 hours must be paid before booking again.
+  if (unpaid)
+    return (
+      <main className="pk-page pk-stack">
+        <Text variant="heading-xl" as="h1">
+          Pay your overstay first
+        </Text>
+        <p className="pk-notice pk-notice--error" role="alert">
+          You have an unpaid overstay of {formatNaira(unpaid.amountKobo)} at {unpaid.lotName}{' '}
+          (booking {unpaid.bookingCode}). Pay it to book again.
+        </p>
+        <Link
+          className="pk-button pk-button--primary pk-button--lg pk-button--full"
+          href={`/bookings/${unpaid.bookingId}`}
+        >
+          Pay {formatNaira(unpaid.amountKobo)}
+        </Link>
+        <Link className="pk-link" href={back}>
+          I’ve paid: try again
+        </Link>
+      </main>
+    );
 
   return (
     <main className="pk-page pk-stack">

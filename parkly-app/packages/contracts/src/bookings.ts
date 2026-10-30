@@ -81,6 +81,11 @@ export const BookingSchema = z.object({
       checkedOutAt: z.iso.datetime().nullable(),
       overstayMinutes: z.number().int(),
       overstayKobo: z.number().int(),
+      /**
+       * DUE while accruing or owed, UNPAID after 24 h (blocks new bookings),
+       * PAID or WAIVED once settled. Optional: older APIs leave it out.
+       */
+      overstayStatus: z.enum(['NONE', 'DUE', 'PAID', 'UNPAID', 'WAIVED']).optional(),
     })
     .nullable()
     .default(null),

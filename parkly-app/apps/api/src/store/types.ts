@@ -467,6 +467,7 @@ export type StaySummary = {
   checkOutAt: Date | null;
   overstayMinutes: number;
   overstayAmountKobo: number;
+  overstayStatus: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
 };
 
 export type AttendBatch = {
@@ -1033,7 +1034,12 @@ export type Store = {
      */
     unpaidOverstay(
       driverId: string,
-    ): Promise<{ bookingId: string; bookingCode: string; lotId: string; amountKobo: number } | null>;
+    ): Promise<{
+      bookingId: string;
+      bookingCode: string;
+      lotId: string;
+      amountKobo: number;
+    } | null>;
     /** DUE or UNPAID → WAIVED (ops goodwill); false when there was nothing to waive. */
     waiveOverstay(bookingId: string, at: Date): Promise<boolean>;
     /** Parked (checked in, not out) and expected (paid, due within 24 h, not in) per lot. */

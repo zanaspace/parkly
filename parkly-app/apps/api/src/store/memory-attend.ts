@@ -277,6 +277,7 @@ export class MemoryAttend {
               checkOutAt: s.checkOutAt,
               overstayMinutes: s.overstayMinutes,
               overstayAmountKobo: s.overstayAmountKobo,
+              overstayStatus: s.overstayStatus ?? 'NONE',
             },
           ]),
       ),

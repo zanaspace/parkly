@@ -551,11 +551,16 @@ describe('driver timer data (ADR 0016)', () => {
       checkedOutAt: null,
       overstayMinutes: 0,
       overstayKobo: 0,
+      overstayStatus: 'NONE',
     });
 
     // 12:40 Lagos, still parked: 40 min past the end, 10 min grace → 30 min so far.
     t.deps.now = () => new Date(min(220));
-    expect((await view()).body?.stay).toMatchObject({ overstayMinutes: 30, overstayKobo: 25_000 });
+    expect((await view()).body?.stay).toMatchObject({
+      overstayMinutes: 30,
+      overstayKobo: 25_000,
+      overstayStatus: 'DUE',
+    });
 
     const out = {
       type: 'CHECK_OUT',
@@ -571,6 +576,7 @@ describe('driver timer data (ADR 0016)', () => {
       checkedOutAt: min(226),
       overstayMinutes: 45,
       overstayKobo: 37_500,
+      overstayStatus: 'DUE',
     });
   });
 });

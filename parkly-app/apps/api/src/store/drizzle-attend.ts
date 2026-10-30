@@ -405,6 +405,7 @@ export function drizzleAttend(db: Db): {
             checkOutAt: sessions.checkOutAt,
             overstayMinutes: sessions.overstayMinutes,
             overstayAmountKobo: sessions.overstayAmountKobo,
+            overstayStatus: sessions.overstayStatus,
           })
           .from(sessions)
           .where(inArray(sessions.bookingId, ids));
@@ -421,7 +422,10 @@ export function drizzleAttend(db: Db): {
           })
           // Paid or waived is final: a re-synced check-out must not reopen it (L-4).
           .where(
-            and(eq(sessions.id, sessionId), notInArray(sessions.overstayStatus, ['PAID', 'WAIVED'])),
+            and(
+              eq(sessions.id, sessionId),
+              notInArray(sessions.overstayStatus, ['PAID', 'WAIVED']),
+            ),
           );
       },
 

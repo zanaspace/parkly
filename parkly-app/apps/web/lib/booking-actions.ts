@@ -33,6 +33,7 @@ const MESSAGES: Record<string, string> = {
   BOOKING_NOT_CANCELLABLE: 'Only active un-checked-in bookings can be cancelled.',
   BOOKING_NOT_EXTENDABLE: 'This booking cannot be extended right now.',
   NO_OVERSTAY_DUE: 'No overstay payment is due for this booking.',
+  OVERSTAY_UNPAID: 'Pay your unpaid overstay (see My bookings) before booking again.',
 };
 const message = (err: unknown) =>
   err instanceof ApiProblem

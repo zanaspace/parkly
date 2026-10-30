@@ -11415,6 +11415,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -11828,6 +11838,16 @@
                               },
                               "overstayKobo": {
                                 "type": "integer"
+                              },
+                              "overstayStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NONE",
+                                  "DUE",
+                                  "PAID",
+                                  "UNPAID",
+                                  "WAIVED"
+                                ]
                               }
                             },
                             "default": null,
@@ -12193,6 +12213,16 @@
                         },
                         "overstayKobo": {
                           "type": "integer"
+                        },
+                        "overstayStatus": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DUE",
+                            "PAID",
+                            "UNPAID",
+                            "WAIVED"
+                          ]
                         }
                       },
                       "default": null,
@@ -13083,6 +13113,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -13608,6 +13648,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,
@@ -14045,6 +14095,16 @@
                             },
                             "overstayKobo": {
                               "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
                             }
                           },
                           "default": null,

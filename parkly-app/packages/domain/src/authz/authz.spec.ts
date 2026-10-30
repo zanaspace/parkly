@@ -57,7 +57,11 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
     expect(can(compliance, 'booking:support:read', {})).toBe(false);
     for (const a of [ops, finance]) expect(can(a, 'overstay:waive', {})).toBe(true);
     expect(
-      can(actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' }), 'overstay:waive', {}),
+      can(
+        actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' }),
+        'overstay:waive',
+        {},
+      ),
     ).toBe(true);
     expect(can(support, 'overstay:waive', {})).toBe(false);
     expect(can(compliance, 'overstay:waive', {})).toBe(false);

@@ -25,6 +25,7 @@ const COPY: Partial<Record<ErrorCode, string>> = {
     'The car park is closed for part of that time. Check its opening hours.',
   PRICING_INVALID_DURATION: 'That stay is shorter than this car park’s minimum.',
   LOT_NOT_BOOKABLE: 'This car park can’t take bookings for that right now.',
+  OVERSTAY_UNPAID: 'Pay your unpaid overstay (in My bookings) before booking again.',
   BOOKING_SLOT_UNAVAILABLE: 'Sorry, that time just filled up. Try another time or car park.',
   BOOKING_OVERLAP_SAME_VEHICLE: 'This car already has a booking at that time. See My bookings.',
   BOOKING_NOT_FOUND: 'We couldn’t find that booking.',

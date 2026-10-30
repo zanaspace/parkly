@@ -189,6 +189,8 @@ export function bookingRoutes(deps: AppDeps) {
             checkedOutAt: s.checkOutAt?.toISOString() ?? null,
             overstayMinutes: live ? live.minutes : s.overstayMinutes,
             overstayKobo: live ? live.kobo : s.overstayAmountKobo,
+            // Still parked past the grace: accruing, so due.
+            overstayStatus: live && live.kobo > 0 ? 'DUE' : s.overstayStatus,
           };
         }
         return {
