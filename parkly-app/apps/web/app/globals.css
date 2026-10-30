@@ -2277,6 +2277,15 @@ a.pk-button {
   }
 }
 
+/* A sheet holding a dropdown: let the menu hang past the sheet's edge, keep the
+   rounded corners on the footer that overflow: hidden used to clip. */
+.pk-modal-sheet--menus {
+  overflow: visible;
+}
+.pk-modal-sheet--menus .pk-modal-footer {
+  border-radius: 0 0 17px 17px;
+}
+
 .pk-modal-header {
   display: flex;
   align-items: flex-start;

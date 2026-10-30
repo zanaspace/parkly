@@ -2,6 +2,7 @@
 
 import type { Booking, ExtensionOptions } from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
+import { Select } from '@parkly/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -418,7 +419,7 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
           aria-modal="true"
           aria-labelledby="cancel-title"
         >
-          <div className="pk-modal-sheet">
+          <div className="pk-modal-sheet pk-modal-sheet--menus">
             <div className="pk-modal-header">
               <div>
                 <h3 id="cancel-title" className="pk-modal-title">
@@ -473,27 +474,13 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
                 </div>
               )}
 
-              <div>
-                <label
-                  htmlFor="cancel-reason-select"
-                  className="pk-input-label"
-                  style={{ marginBottom: '0.5rem', display: 'block' }}
-                >
-                  Reason for Cancellation
-                </label>
-                <select
-                  id="cancel-reason-select"
-                  className="pk-select"
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                >
-                  {CANCELLATION_REASONS.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                id="cancel-reason-select"
+                label="Reason for Cancellation"
+                value={cancelReason}
+                onValueChange={setCancelReason}
+                options={CANCELLATION_REASONS.map((r) => ({ value: r.id, label: r.label }))}
+              />
 
               {cancelError && (
                 <div className="pk-error-banner" role="alert">
