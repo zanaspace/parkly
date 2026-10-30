@@ -288,16 +288,17 @@ export function createApiClient(options: ApiClientOptions) {
     /**
      * A receipt URL to open in the browser or share: signed by the API for this
      * booking and valid for five minutes. Never carries the access token.
+     * `pdf` downloads the PDF instead of the printable page.
      */
-    receiptUrl: async (id: string) =>
-      (
-        await request<ReceiptLink>(
-          'POST',
-          `/v1/bookings/${encodeURIComponent(id)}/receipt-link`,
-          undefined,
-          ReceiptLinkSchema,
-        )
-      ).url,
+    receiptUrl: async (id: string, format: 'html' | 'pdf' = 'html') => {
+      const { url } = await request<ReceiptLink>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/receipt-link`,
+        undefined,
+        ReceiptLinkSchema,
+      );
+      return format === 'pdf' ? `${url}${url.includes('?') ? '&' : '?'}format=pdf` : url;
+    },
     /** Registers device and push token for transaction alerts and stay reminders. */
     registerDevice: (body: {
       deviceId: string;

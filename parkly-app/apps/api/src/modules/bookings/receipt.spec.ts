@@ -2,16 +2,38 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { MemoryStore } from '../../store/memory.js';
 import { world } from '../../test-helpers.js';
-import { buildReceiptData, renderReceiptHtml } from './receipt.js';
+import { buildReceiptContent, renderReceiptHtml } from './receipt.js';
+
+/** A first-issue receipt from records, as the store would number it. */
+function buildReceiptData({
+  now,
+  ...params
+}: Omit<Parameters<typeof buildReceiptContent>[0], 'issuerName' | 'permitNumber' | 'vat'> & {
+  now: Date;
+}) {
+  return {
+    ...buildReceiptContent({ ...params, issuerName: 'Eko Parking', permitNumber: null, vat: null }),
+    receiptNumber: 'R-000001',
+    revision: 1,
+    issuedAt: now.toISOString(),
+    revisedAt: now.toISOString(),
+  };
+}
 
 const START = '2026-10-20T07:00:00.000Z';
 
 type Held = { booking: { id: string }; payment: { reference: string } };
 type ReceiptJson = {
+  receiptNumber: string;
+  revision: number;
+  issuer: { name: string };
+  charges: { kind: string; amountKobo: number }[];
+  totals: { chargedKobo: number; refundedKobo: number };
+  vat: { rateBps: number; amountKobo: number; number: string | null } | null;
   bookingId: string;
   bookingCode: string;
   status: string;
-  lot: { name: string };
+  lot: { name: string; permitNumber: string | null };
   vehicle: { plate: string };
   totalKobo: number;
   payments: { status: string }[];
@@ -331,6 +353,12 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     expect(receipt.totalKobo).toBe(110_000);
     expect(receipt.payments).toHaveLength(1);
     expect(receipt.payments[0]?.status).toBe('SUCCEEDED');
+    expect(receipt.receiptNumber).toBe('R-000001');
+    expect(receipt.revision).toBe(1);
+    expect(receipt.issuer.name).toBe('Eko Parking');
+    expect(receipt.lot.permitNumber).toBe('LASPA/VI/2026/0012');
+    expect(receipt.totals).toMatchObject({ chargedKobo: 110_000, refundedKobo: 0 });
+    expect(receipt.vat).toBeNull();
 
     // 2. HTML format query
     const htmlRes = await w.call('GET', `/v1/bookings/${bookingId}/receipt?format=html`, {
@@ -393,7 +421,10 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     });
     const row = w.store.lotRows.get(lot.id);
     if (row) row.name = '<img src=x onerror=alert(1)>';
-    const heldId = (hold.body as unknown as Held).booking.id;
+    const held = hold.body as unknown as Held;
+    const heldId = held.booking.id;
+    w.payments.pay(held.payment.reference);
+    await w.call('POST', `/v1/payments/${held.payment.reference}/verify`, { as: driver });
     const res = await w.call('GET', `/v1/bookings/${heldId}/receipt?format=html`, {
       as: driver,
     });
@@ -471,7 +502,7 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
 
     const cancelledHtml = renderReceiptHtml(cancelledReceipt);
     expect(cancelledHtml).toContain('CANCELLED');
-    expect(cancelledHtml).toContain('Refund (DRIVER_CANCEL)');
+    expect(cancelledHtml).toContain('Refunded (DRIVER_CANCEL)');
     expect(cancelledHtml).toContain('bank_transfer');
     expect(cancelledHtml).toContain('Parkly Driver');
 
@@ -511,5 +542,153 @@ describe('Receipt Generator & Endpoint (Story 4)', () => {
     const html = renderReceiptHtml(dailyMonthlyReceipt);
     expect(html).toContain('Daily Parking (2026-10-20)');
     expect(html).toContain('Monthly Pass (2026-10-01 to 2026-10-31)');
+  });
+
+  /** A paid booking for a fresh driver at the lot; returns its id. */
+  async function paidBooking(w: ReturnType<typeof world>, lotId: string, start = START, end = END) {
+    const driver = w.user([{ role: 'DRIVER', operatorId: null }], 'D');
+    const vehicle = await addVehicle(w.store, driver);
+    const hold = await w.call('POST', '/v1/bookings', {
+      as: driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { lotId, vehicleId: vehicle.id, product: 'HOURLY', startAt: start, endAt: end },
+    });
+    const held = hold.body as unknown as Held;
+    w.payments.pay(held.payment.reference);
+    await w.call('POST', `/v1/payments/${held.payment.reference}/verify`, { as: driver });
+    return { driver, bookingId: held.booking.id };
+  }
+
+  it('numbers receipts per operator, in payment order, and has none before payment (L-5)', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const driver = w.user([{ role: 'DRIVER', operatorId: null }], 'D');
+    const vehicle = await addVehicle(w.store, driver);
+    const hold = await w.call('POST', '/v1/bookings', {
+      as: driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { lotId: lot.id, vehicleId: vehicle.id, product: 'HOURLY', startAt: START, endAt: END },
+    });
+    const unpaid = (hold.body as unknown as Held).booking.id;
+    expect((await w.call('GET', `/v1/bookings/${unpaid}/receipt`, { as: driver })).status).toBe(
+      404,
+    );
+
+    const first = await paidBooking(w, lot.id);
+    const second = await paidBooking(
+      w,
+      lot.id,
+      '2026-10-20T10:00:00.000Z',
+      '2026-10-20T12:00:00.000Z',
+    );
+    const number = async (b: { driver: string; bookingId: string }) =>
+      (
+        (await w.call('GET', `/v1/bookings/${b.bookingId}/receipt`, { as: b.driver }))
+          .body as unknown as ReceiptJson
+      ).receiptNumber;
+    expect(await number(second)).toBe('R-000002');
+    expect(await number(first)).toBe('R-000001');
+    // Asking again neither renumbers nor revises.
+    const again = await w.call('GET', `/v1/bookings/${first.bookingId}/receipt`, {
+      as: first.driver,
+    });
+    expect(again.body).toMatchObject({ receiptNumber: 'R-000001', revision: 1 });
+  });
+
+  it('keeps who issued it and where, and revises only when the money changes', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const { driver, bookingId } = await paidBooking(w, lot.id);
+    const row = w.store.lotRows.get(lot.id);
+    if (row) row.name = 'Renamed Car Park';
+    const same = await w.call('GET', `/v1/bookings/${bookingId}/receipt`, { as: driver });
+    expect(same.body).toMatchObject({ revision: 1, lot: { name: 'Eko Hotel Car Park' } });
+
+    // A refund changes the money: a new revision, same number, same lot name.
+    const payment = (await w.store.payments.listForBooking(bookingId))[0];
+    if (!payment) throw new Error('no payment');
+    w.store.booking.refundRows.push({
+      id: randomUUID(),
+      paymentId: payment.id,
+      amountKobo: 50_000,
+      status: 'SUCCEEDED',
+      reason: 'DRIVER_CANCEL',
+      providerRefundId: 'rf_1',
+      createdAt: new Date('2026-10-20T06:30:00Z'),
+    });
+    const revised = await w.call('GET', `/v1/bookings/${bookingId}/receipt`, { as: driver });
+    expect(revised.body).toMatchObject({
+      receiptNumber: 'R-000001',
+      revision: 2,
+      lot: { name: 'Eko Hotel Car Park' },
+      totals: { chargedKobo: 110_000, refundedKobo: 50_000 },
+    });
+  });
+
+  it('shows VAT only when switched on, on what was kept, with the VAT number', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const off = await paidBooking(w, lot.id);
+    const offBody = (
+      await w.call('GET', `/v1/bookings/${off.bookingId}/receipt`, { as: off.driver })
+    ).body as unknown as ReceiptJson;
+    expect(offBody.vat).toBeNull();
+
+    w.store.settingRows.set('fees.vat_enabled', true);
+    w.store.settingRows.set('fees.vat_rate_bps', 750);
+    w.store.settingRows.set('company.vat_number', '12345678-0001');
+    const on = await paidBooking(w, lot.id, '2026-10-20T10:00:00.000Z', '2026-10-20T12:00:00.000Z');
+    const res = await w.call('GET', `/v1/bookings/${on.bookingId}/receipt?format=html`, {
+      as: on.driver,
+    });
+    expect(res.raw).toContain('Includes VAT at 7.5%');
+    expect(res.raw).toContain('12345678-0001');
+    const json = (await w.call('GET', `/v1/bookings/${on.bookingId}/receipt`, { as: on.driver }))
+      .body as unknown as ReceiptJson;
+    // ₦1,100 including 7.5% VAT: 110,000 × 750 / 10,750 = 7,674 kobo.
+    expect(json.vat).toEqual({ rateBps: 750, amountKobo: 7_674, number: '12345678-0001' });
+    // A receipt issued before VAT was switched on keeps its terms.
+    const still = (await w.call('GET', `/v1/bookings/${off.bookingId}/receipt`, { as: off.driver }))
+      .body as unknown as ReceiptJson;
+    expect(still.vat).toBeNull();
+  });
+
+  it('downloads a real PDF, from the app and from the signed link', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const { driver, bookingId } = await paidBooking(w, lot.id);
+    const pdf = await w.call('GET', `/v1/bookings/${bookingId}/receipt?format=pdf`, { as: driver });
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get('content-type')).toBe('application/pdf');
+    expect(pdf.headers.get('content-disposition')).toContain('parkly-R-000001.pdf');
+    expect(pdf.raw.startsWith('%PDF-')).toBe(true);
+
+    const link = await w.call('POST', `/v1/bookings/${bookingId}/receipt-link`, { as: driver });
+    const url = new URL((link.body as unknown as { url: string }).url);
+    const signed = await w.call('GET', `${url.pathname}${url.search}&format=pdf`);
+    expect(signed.status).toBe(200);
+    expect(signed.raw.startsWith('%PDF-')).toBe(true);
+  });
+
+  it('emails the receipt PDF with the booking confirmation', async () => {
+    const w = world();
+    const lot = await addLot(w.store);
+    const { bookingId } = await paidBooking(w, lot.id);
+    const row = await w.store.receipts.find(bookingId);
+    expect(row?.number).toBe('R-000001');
+    const queued = w.store.outbox.rows.find(
+      (n) => n.bookingId === bookingId && n.eventKey === 'booking.confirmed',
+    );
+    if (!queued) throw new Error('no confirmation queued');
+
+    const driver = w.store.userRows.get(queued.userId);
+    if (driver) driver.emailEnc = w.deps.crypto.encrypt('ada@example.com');
+    await w.deps.notifications.dispatch(queued.payload as never);
+    const mail = w.email.sent.at(-1);
+    expect(mail?.attachments?.[0]?.filename).toBe('parkly-R-000001.pdf');
+    expect(mail?.attachments?.[0]?.contentType).toBe('application/pdf');
+    expect(Buffer.from(mail?.attachments?.[0]?.content ?? []).toString('latin1', 0, 5)).toBe(
+      '%PDF-',
+    );
   });
 });

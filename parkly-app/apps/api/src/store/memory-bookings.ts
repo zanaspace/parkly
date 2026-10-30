@@ -36,6 +36,7 @@ type Refund = {
   reason: string;
   providerRefundId: string | null;
   status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+  createdAt?: Date;
 };
 type Webhook = {
   id: string;
@@ -153,7 +154,13 @@ export class MemoryBookings {
     }
     let refund: Refund | null = null;
     if (plan.refund) {
-      refund = { id: randomUUID(), paymentId: p.id, providerRefundId: null, ...plan.refund };
+      refund = {
+        id: randomUUID(),
+        paymentId: p.id,
+        providerRefundId: null,
+        createdAt: new Date(),
+        ...plan.refund,
+      };
       this.refundRows.push(refund);
     }
     return refund;
@@ -436,6 +443,7 @@ export class MemoryBookings {
             reason: refund.reason,
             providerRefundId: null,
             status: 'PENDING',
+            createdAt: new Date(),
           });
           created.push({ id, ...part });
         }
@@ -493,12 +501,12 @@ export class MemoryBookings {
           paymentId: r.paymentId,
           amountKobo: r.amountKobo,
           reason: r.reason as RefundRow['reason'],
-          status: 'SUCCEEDED' as const,
+          status: r.status ?? ('SUCCEEDED' as const),
           providerRefundId: r.providerRefundId,
           requestedBy: null,
           approvedBy: null,
           note: null,
-          createdAt: new Date(),
+          createdAt: r.createdAt ?? new Date(0),
         }));
     },
 

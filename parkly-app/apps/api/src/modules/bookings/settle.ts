@@ -1,6 +1,7 @@
 import type { AppDeps } from '../../app.js';
 import { bookingNotice } from '../../notifications/events.js';
 import type { SettleResult } from '../../store/types.js';
+import { issueReceipt } from './receipt-issue.js';
 
 /**
  * The one way a payment is settled (doc 02 §7.5): ask the provider (never
@@ -32,8 +33,27 @@ export async function verifyAndSettle(
       deps.logger.error({ err, paymentId, refundId: result.refund.id }, 'refund request failed');
     }
   }
+  await receiptAfterSettle(deps, result);
   await notifySettled(deps, result);
   return result;
+}
+
+/**
+ * FR-BOOK-009, gap review L-5: money came in, so the receipt is issued (first
+ * payment) or revised (extension, overstay). Before the notice, so the
+ * confirmation email can carry the PDF. A failure here never blocks settling:
+ * the receipt is issued again the next time it is asked for.
+ */
+async function receiptAfterSettle(
+  deps: Pick<AppDeps, 'store' | 'logger' | 'now'>,
+  result: SettleResult,
+) {
+  if (result.decision !== 'CONFIRM' && result.decision !== 'REACQUIRE_AND_CONFIRM') return;
+  try {
+    await issueReceipt(deps, result.booking);
+  } catch (err) {
+    deps.logger.error({ err, bookingId: result.booking.id }, 'receipt issue failed');
+  }
 }
 
 /** FR-NOT-002: a confirmed booking or a paid extension. Settling twice queues once. */

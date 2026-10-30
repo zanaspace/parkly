@@ -12305,6 +12305,12 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "receiptNumber": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "type": "integer"
+                    },
                     "bookingId": {
                       "type": "string",
                       "format": "uuid"
@@ -12328,6 +12334,21 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "revisedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "issuer": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    },
                     "lot": {
                       "type": "object",
                       "properties": {
@@ -12346,13 +12367,20 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "permitNumber": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
                         "id",
                         "name",
                         "addressLine",
-                        "area"
+                        "area",
+                        "permitNumber"
                       ]
                     },
                     "vehicle": {
@@ -12528,6 +12556,86 @@
                         ]
                       }
                     },
+                    "charges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "BOOKING",
+                              "EXTENSION",
+                              "OVERSTAY",
+                              "PASS"
+                            ]
+                          },
+                          "reference": {
+                            "type": "string"
+                          },
+                          "amountKobo": {
+                            "type": "integer"
+                          },
+                          "paidAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "reference",
+                          "amountKobo",
+                          "paidAt"
+                        ]
+                      }
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "chargedKobo": {
+                          "type": "integer"
+                        },
+                        "refundedKobo": {
+                          "type": "integer"
+                        },
+                        "refundPendingKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "chargedKobo",
+                        "refundedKobo",
+                        "refundPendingKobo"
+                      ]
+                    },
+                    "vat": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "rateBps": {
+                          "type": "integer"
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        },
+                        "number": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "rateBps",
+                        "amountKobo",
+                        "number"
+                      ]
+                    },
                     "payments": {
                       "type": "array",
                       "items": {
@@ -12620,10 +12728,14 @@
                     }
                   },
                   "required": [
+                    "receiptNumber",
+                    "revision",
                     "bookingId",
                     "bookingCode",
                     "status",
                     "issuedAt",
+                    "revisedAt",
+                    "issuer",
                     "lot",
                     "vehicle",
                     "driver",
@@ -12635,12 +12747,20 @@
                     "serviceFeeKobo",
                     "totalKobo",
                     "lines",
+                    "charges",
+                    "totals",
+                    "vat",
                     "payments",
                     "refunds"
                   ]
                 }
               },
               "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/pdf": {
                 "schema": {
                   "type": "string"
                 }
@@ -12732,6 +12852,19 @@
             },
             "required": true,
             "name": "sig",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "html",
+                "pdf"
+              ],
+              "default": "html"
+            },
+            "required": false,
+            "name": "format",
             "in": "query"
           }
         ],

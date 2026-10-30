@@ -16,14 +16,29 @@ export function resendEmailProvider(options: {
   const doFetch = options.fetch ?? fetch;
   const url = `${(options.baseUrl ?? 'https://api.resend.com').replace(/\/$/, '')}/emails`;
   return {
-    async send({ to, subject, html, text }) {
+    async send({ to, subject, html, text, attachments }) {
       const res = await doFetch(url, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${options.apiKey}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ from: options.from, to: [to], subject, html, text }),
+        body: JSON.stringify({
+          from: options.from,
+          to: [to],
+          subject,
+          html,
+          text,
+          ...(attachments?.length
+            ? {
+                attachments: attachments.map((a) => ({
+                  filename: a.filename,
+                  content: Buffer.from(a.content).toString('base64'),
+                  content_type: a.contentType,
+                })),
+              }
+            : {}),
+        }),
         signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
       });
       const data = (await res.json().catch(() => ({}))) as { id?: string };
