@@ -29,6 +29,12 @@ export function readRatePlanForm(
     const cap = koboFrom(capText);
     if (capText && cap === null)
       return { ok: false, error: 'Enter the daily cap in naira, or leave it empty.' };
+    // ADR 0016: optional; empty means hourly ÷ 4 and the platform's grace.
+    const overstayText = String(form.get('overstayRate') ?? '').trim();
+    const overstay = koboFrom(overstayText);
+    if (overstayText && overstay === null)
+      return { ok: false, error: 'Enter the overstay price in naira, or leave it empty.' };
+    const grace = Number(form.get('overstayGrace') ?? '');
     return {
       ok: true,
       body: {
@@ -36,6 +42,8 @@ export function readRatePlanForm(
         hourlyRateKobo: rate,
         minMinutes: Number(form.get('minMinutes') ?? 60),
         ...(cap !== null ? { dailyCapKobo: cap } : {}),
+        ...(overstay !== null ? { overstayRateKobo: overstay } : {}),
+        ...(grace > 0 ? { overstayGraceMin: grace } : {}),
       },
     };
   }

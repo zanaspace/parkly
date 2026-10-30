@@ -16,6 +16,10 @@ export type RatePlanPrices = {
   dailyCapKobo: number | null;
   dailyRateKobo: number | null;
   monthlyRateKobo: number | null;
+  /** Hourly plans: the operator's overstay price per 15 minutes (ADR 0016); null = hourly ÷ 4. */
+  overstayRateKobo?: number | null;
+  /** Hourly plans: grace after the end, at least the platform's; null = the platform's. */
+  overstayGraceMin?: number | null;
 };
 
 export type PricingSettings = {

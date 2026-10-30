@@ -3101,6 +3101,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -3121,6 +3133,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -3530,6 +3544,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -3550,6 +3576,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -4066,6 +4094,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -4086,6 +4126,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -4564,6 +4606,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -4584,6 +4638,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -5134,6 +5190,14 @@
                         "type": "integer",
                         "exclusiveMinimum": 0,
                         "maximum": 10000000000
+                      },
+                      "overstayRateKobo": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 10000000000
+                      },
+                      "overstayGraceMin": {
+                        "type": "integer"
                       }
                     },
                     "required": [
@@ -5244,6 +5308,18 @@
                         "null"
                       ]
                     },
+                    "overstayRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "overstayGraceMin": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
                     "rejectionReason": {
                       "type": [
                         "string",
@@ -5264,6 +5340,8 @@
                     "dailyCapKobo",
                     "dailyRateKobo",
                     "monthlyRateKobo",
+                    "overstayRateKobo",
+                    "overstayGraceMin",
                     "rejectionReason",
                     "submittedAt"
                   ]
@@ -5641,6 +5719,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -5661,6 +5751,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -6088,6 +6180,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -6108,6 +6212,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]
@@ -7413,6 +7519,18 @@
                                   "null"
                                 ]
                               },
+                              "overstayRateKobo": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "overstayGraceMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
                               "rejectionReason": {
                                 "type": [
                                   "string",
@@ -7433,6 +7551,8 @@
                               "dailyCapKobo",
                               "dailyRateKobo",
                               "monthlyRateKobo",
+                              "overstayRateKobo",
+                              "overstayGraceMin",
                               "rejectionReason",
                               "submittedAt"
                             ]
@@ -8040,6 +8160,18 @@
                         "null"
                       ]
                     },
+                    "overstayRateKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "overstayGraceMin": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
                     "rejectionReason": {
                       "type": [
                         "string",
@@ -8060,6 +8192,8 @@
                     "dailyCapKobo",
                     "dailyRateKobo",
                     "monthlyRateKobo",
+                    "overstayRateKobo",
+                    "overstayGraceMin",
                     "rejectionReason",
                     "submittedAt"
                   ]
@@ -9016,6 +9150,18 @@
                               "null"
                             ]
                           },
+                          "overstayRateKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "overstayGraceMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "rejectionReason": {
                             "type": [
                               "string",
@@ -9036,6 +9182,8 @@
                           "dailyCapKobo",
                           "dailyRateKobo",
                           "monthlyRateKobo",
+                          "overstayRateKobo",
+                          "overstayGraceMin",
                           "rejectionReason",
                           "submittedAt"
                         ]

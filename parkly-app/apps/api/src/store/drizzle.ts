@@ -231,6 +231,8 @@ const ratePlanColumns = {
   dailyCapKobo: ratePlans.dailyCapKobo,
   dailyRateKobo: ratePlans.dailyRateKobo,
   monthlyRateKobo: ratePlans.monthlyRateKobo,
+  overstayRateKobo: ratePlans.overstayRateKobo,
+  overstayGraceMin: ratePlans.overstayGraceMin,
   rejectionReason: ratePlans.rejectionReason,
   createdAt: ratePlans.createdAt,
 };
@@ -948,6 +950,8 @@ export function drizzleStore(db: Db): Store {
           dailyCapKobo: row.dailyCapKobo,
           dailyRateKobo: row.dailyRateKobo,
           monthlyRateKobo: row.monthlyRateKobo,
+          overstayRateKobo: row.overstayRateKobo ?? null,
+          overstayGraceMin: row.overstayGraceMin ?? null,
         };
         const [updated] = await db
           .update(ratePlans)

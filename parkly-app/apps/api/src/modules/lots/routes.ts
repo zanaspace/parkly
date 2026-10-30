@@ -136,6 +136,8 @@ export const toRatePlan = (r: RatePlanRow): RatePlan => ({
   dailyCapKobo: r.dailyCapKobo,
   dailyRateKobo: r.dailyRateKobo,
   monthlyRateKobo: r.monthlyRateKobo,
+  overstayRateKobo: r.overstayRateKobo ?? null,
+  overstayGraceMin: r.overstayGraceMin ?? null,
   rejectionReason: r.rejectionReason,
   submittedAt: r.createdAt.toISOString(),
 });
@@ -669,8 +671,18 @@ export function lotRoutes(deps: AppDeps) {
         dailyCapKobo: body.product === 'HOURLY' ? (body.dailyCapKobo ?? null) : null,
         dailyRateKobo: body.product === 'DAILY' ? body.dailyRateKobo : null,
         monthlyRateKobo: body.product === 'MONTHLY' ? body.monthlyRateKobo : null,
+        overstayRateKobo: body.product === 'HOURLY' ? (body.overstayRateKobo ?? null) : null,
+        overstayGraceMin: body.product === 'HOURLY' ? (body.overstayGraceMin ?? null) : null,
       };
-      const problems = validateRatePlan({ product: body.product, ...prices });
+      // ADR 0016: Parkly caps the operator's overstay price and sets the minimum grace.
+      const [overstayMaxMultiplier, minGraceMin] = await Promise.all([
+        deps.store.settings.get<number>('fees.overstay_max_multiplier').then((v) => v ?? 2),
+        deps.store.settings.get<number>('session.overstay_grace_min').then((v) => v ?? 10),
+      ]);
+      const problems = validateRatePlan(
+        { product: body.product, ...prices },
+        { overstayMaxMultiplier, minGraceMin },
+      );
       if (problems.length > 0)
         throw new ApiError('RATE_PLAN_INVALID', 'Check the prices', {
           errors: problems.map((p) => ({ path: p.field, message: p.message })),

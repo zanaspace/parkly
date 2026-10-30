@@ -26,6 +26,33 @@ describe('readRatePlanForm (naira in, kobo out)', () => {
     });
   });
 
+  it('reads the optional overstay price and grace on an hourly plan (ADR 0016)', () => {
+    expect(
+      readRatePlanForm(
+        fd({
+          product: 'HOURLY',
+          rate: '500',
+          minMinutes: '60',
+          dailyCap: '',
+          overstayRate: '200',
+          overstayGrace: '20',
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      body: {
+        product: 'HOURLY',
+        hourlyRateKobo: 50_000,
+        minMinutes: 60,
+        overstayRateKobo: 20_000,
+        overstayGraceMin: 20,
+      },
+    });
+    expect(
+      readRatePlanForm(fd({ product: 'HOURLY', rate: '500', minMinutes: '60', overstayRate: 'x' })),
+    ).toEqual({ ok: false, error: 'Enter the overstay price in naira, or leave it empty.' });
+  });
+
   it('reads daily and monthly plans', () => {
     expect(readRatePlanForm(fd({ product: 'DAILY', rate: '2,500' }))).toEqual({
       ok: true,

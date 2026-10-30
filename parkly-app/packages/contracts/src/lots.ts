@@ -114,6 +114,10 @@ export const SetRatePlanRequestSchema = z.discriminatedUnion('product', [
     hourlyRateKobo: KoboSchema,
     minMinutes: z.number().int(),
     dailyCapKobo: KoboSchema.optional(),
+    /** Overstay price per 15 minutes (ADR 0016); omit for hourly ÷ 4. Capped by Parkly. */
+    overstayRateKobo: KoboSchema.optional(),
+    /** Extra grace after the end, 10–240 minutes; omit for the platform's 10. */
+    overstayGraceMin: z.number().int().optional(),
   }),
   z.object({ product: z.literal('DAILY'), dailyRateKobo: KoboSchema }),
   z.object({ product: z.literal('MONTHLY'), monthlyRateKobo: KoboSchema }),
@@ -128,6 +132,8 @@ export const RatePlanSchema = z.object({
   dailyCapKobo: z.number().int().nullable(),
   dailyRateKobo: z.number().int().nullable(),
   monthlyRateKobo: z.number().int().nullable(),
+  overstayRateKobo: z.number().int().nullable(),
+  overstayGraceMin: z.number().int().nullable(),
   rejectionReason: z.string().nullable(),
   submittedAt: z.iso.datetime(),
 });
