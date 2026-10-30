@@ -48,9 +48,11 @@ describe('RLS deny-all baseline (doc 02 §1, AGENTS.md rule 14)', () => {
     expect(rows).toEqual([]);
   });
 
-  it('every Storage bucket is private and clients have no storage.objects policies (doc 05 V12)', async () => {
-    const publicBuckets = await sql`select id from storage.buckets where public`;
-    expect(publicBuckets).toEqual([]);
+  it('only approved lot photos are public, and clients have no storage.objects policies (doc 05 V12)', async () => {
+    // Approved lot photos are public by design (doc 06 §1.2, ADR 0002); only the API writes
+    // them, after admin approval. Every other bucket stays private.
+    const publicBuckets = await sql`select id from storage.buckets where public order by id`;
+    expect(publicBuckets.map((b) => b.id)).toEqual(['lot-photos-public']);
     const policies = await sql`
       select policyname from pg_policies
       where schemaname = 'storage' and tablename = 'objects'

@@ -81,9 +81,8 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: parkly-app/package.json
+      # No cache: this job reads the lockfile only and installs nothing to save.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: parkly-app/pnpm-lock.yaml
       - run: pnpm audit --audit-level high
