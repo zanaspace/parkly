@@ -356,6 +356,8 @@ Sprint 6 looks done in the UI, but several parts only work against the in-memory
 
 ### L-1 (High): notifications and reminders do nothing in production
 
+**Status (Oct 30):** fixed (ADR 0020). An outbox table with retries and backoff, reminders at 60 and 15 minutes on a schedule, a notice from every lifecycle event, encrypted contact copies on `users`, Resend and Expo behind switches, push registration in the app, and invite emails. Needs the Resend domain and an EAS build to deliver real email and push (doc 22 §2.3c).
+
 **Where:** `apps/api/src/jobs/reminder-sweep.ts:21-26`; `apps/api/src/notifications/service.ts:54-57`.
 
 **What's wrong:**

@@ -105,6 +105,14 @@ Cloudflare Turnstile stops scripts from requesting codes or trying passwords. Th
 
 To turn it off, reverse the order: disable it in Supabase first, then remove the keys.
 
+### 2.3c Notification email and push (ADR 0020)
+
+The API sends booking notices and team invites itself (Supabase only sends sign-in emails). Until these are switched on, dev logs emails and fakes push, and invites are shared by copying the link.
+
+1. **Email:** verify a sending domain in Resend (a subdomain such as `parkly.cicod.com` works; add the DNS records Resend shows). Create an API key. On the `parkly-api` Vercel project set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` (Sensitive) and `EMAIL_FROM=Parkly <no-reply@<that domain>>`, then redeploy. Use the same domain for Supabase SMTP (§2.3a) and delete the Google app password.
+2. **Push:** set `PUSH_PROVIDER=expo` on `parkly-api` and redeploy. Push reaches only phones running an EAS build that registered a token after sign-in; Expo Go can't get tokens on Android.
+3. **Check:** book and pay on dev. Within a minute `notifications` has a `booking.confirmed` row with `status = 'SENT'`. A row stuck on `PENDING` with `attempts >= 3` shows the failing channel in `last_error`.
+
 ### 2.4 Auth hooks
 
 | Hook | Type | Target | Envs |
@@ -206,6 +214,12 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `MALWARE_SCANNER` | `fake` | `fake` | real vendor (ADR 0013) | |
 | `SMS_PROVIDER` | `fake` | `termii` once approved | `termii` (required) | |
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | — | when approved | required | ✅ (key) |
+| `EMAIL_PROVIDER` | `log` until the Resend domain is verified | `resend` | `resend` (required) | ADR 0020 |
+| `RESEND_API_KEY`, `EMAIL_FROM` | when `resend` | own key; sender on the verified domain, e.g. `Parkly <no-reply@parkly.cicod.com>` | required | ✅ (key) |
+| `PUSH_PROVIDER` | `expo` once an EAS build is in testers' hands | `expo` | `expo` (required) | |
+| `EXPO_ACCESS_TOKEN` | only if Expo "enhanced security" is on | same | same | ✅ |
+| `WEB_BASE_URL` | `https://parkly-web-two.vercel.app` (set Oct 30) | staging web URL | live web URL | links in SMS and email |
+| `PORTAL_BASE_URL` | `https://parkly-portal.vercel.app` (set Oct 30) | staging portal URL | live portal URL | invite links |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | one DB per env | own | own | ✅ (token) |
 | `SENTRY_DSN` | EU DSN | EU DSN | EU DSN | |
 | `TEST_SHORT_STAYS` | `on` only while testing overstay | `off` | **never `on`** (config refuses it) | 5-minute test stays |

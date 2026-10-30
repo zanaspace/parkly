@@ -71,9 +71,9 @@ Retention clock starts at the "trigger" stated. "Account closure" = driver/opera
 
 | Data element | Class | Purpose | Lawful basis | Stored | Encryption | Access | Retention | Deletion |
 |---|---|---|---|---|---|---|---|---|
-| Phone number (E.164) | C3 | Login (OTP), booking notifications, support | Contract | `auth.users.phone` (Supabase Auth, login identity) + app `users.phone` copy + `phone_hash` (blind index) | At rest (Supabase) | Driver; support (masked, reveal audited); operators see masked | Account life + 30 days | Anonymise (replace with `deleted:{uuid}`), hash removed |
+| Phone number (E.164) | C3 | Login (OTP), booking notifications, support | Contract | `auth.users.phone` (Supabase Auth, login identity) + app `users.phone_enc` copy [enc], set at sign-in (ADR 0020) + `phone_hash` (blind index) | At rest (Supabase) | Driver; support (masked, reveal audited); operators see masked | Account life + 30 days | Anonymise (replace with `deleted:{uuid}`), hash removed |
 | Name (first, last) | C3 | Receipts, attendant greeting (first name only) | Contract | `users` | At rest | Driver; support; operator sees first name | Account life + 30 days | Anonymise |
-| Email (optional) | C3 | Receipts, account recovery | Contract / consent for marketing | `users.email` | At rest | Driver; support (masked) | Account life + 30 days | Anonymise |
+| Email (optional) | C3 | Receipts, account recovery | Contract / consent for marketing | `users.email_enc` [enc], set at sign-in (ADR 0020) | At rest | Driver; support (masked) | Account life + 30 days | Anonymise |
 | Date of birth / age confirmation (boolean 18+) | C3 | Adults-only service | Contract | `users.is_adult_confirmed` (no DOB stored) | At rest | System | Account life | Delete with account |
 | OTP (hashed) | C4 | Authentication | Contract | Supabase Auth (`auth` schema, one-time tokens) | Hashed by Supabase | Supabase Auth only | 5 min expiry | Supabase invalidates on use/expiry |
 | OTP in transit through Send SMS Hook | C4 | Delivery to Termii | Contract | **Not stored** — request memory only; excluded from logs/Sentry | TLS | Hook code | Request lifetime | n/a |
