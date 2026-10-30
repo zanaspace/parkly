@@ -110,10 +110,10 @@ Ops can cancel any booking with a full or partial goodwill refund. The 30-minute
 |---|---|
 | Supabase custom SMTP | **Gmail SMTP, for testing only.** Resend only delivers to the account owner until a domain is verified. Swap back when the domain is verified, then delete the Google app password. |
 | Email OTP length and expiry | 6 digits, 300 seconds |
-| Confirm signup template | Paste `supabase/templates/confirmation.html` and check a new manager gets the button-only email (doc 22 §2.3a) |
+| Confirm signup template | ✅ Pasted from `supabase/templates/confirmation.html`; managers get the button-only email, drivers and attendants the code-only email |
 | Turnstile | Widget `Parkly sign-in`, Managed mode, hostnames: portal, admin, website and `localhost` |
 | Vercel `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Set on `parkly-portal`, `parkly-admin` and `parkly-web` (Production and Preview); all three redeployed |
-| Supabase captcha | **On** (Cloudflare Turnstile). Confirmed working on portal sign-in; check admin and website sign-in too. |
+| Supabase captcha | ✅ **On** (Cloudflare Turnstile). Sign-in confirmed working on the portal, admin and driver website. |
 | Mobile | Local `.env` and the EAS `preview` profile have the site key and origin. The `production` EAS environment still needs both (doc 22 §2.3b). |
 
 ## Doc 20 Sprint 6 tasks against the code
@@ -169,7 +169,6 @@ Ops can cancel any booking with a full or partial goodwill refund. The 30-minute
 - [ ] Create staging (Supabase and Vercel). No sprint has run its demo on staging yet.
 - [ ] Verify a sending subdomain in Resend (for example `parkly.cicod.com`). Then swap Supabase SMTP back to Resend and delete the Google app password.
 - [ ] Add `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_TURNSTILE_ORIGIN` to the `production` EAS environment before the next store build.
-- [ ] Confirm the new Confirm signup template is pasted on dev.
 - [ ] Choose an SMS provider. Phone becomes the default sign-in for drivers and attendants with no code change.
 
 ### Product follow-ups
