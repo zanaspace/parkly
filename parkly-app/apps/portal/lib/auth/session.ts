@@ -14,6 +14,8 @@ export type SignedInState = {
   nextLevel: string | null;
   /** The signed-in email (shown on the invite page so people can spot the wrong account). */
   email: string | null;
+  /** The signed-in phone (E.164), for attendants who signed in with an SMS code. */
+  phone: string | null;
 };
 
 /** Fast check for signed-in status without loading full assurance levels or tokens. */
@@ -50,6 +52,11 @@ export async function loadSession(): Promise<SignedInState | { signedIn: false }
     nextLevel: aal?.nextLevel ?? null,
     email:
       typeof claims.claims.email === 'string' && claims.claims.email ? claims.claims.email : null,
+    // Supabase stores phones without the "+".
+    phone:
+      typeof claims.claims.phone === 'string' && claims.claims.phone
+        ? `+${claims.claims.phone.replace(/^\+/, '')}`
+        : null,
   };
 }
 

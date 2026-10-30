@@ -58,7 +58,7 @@ function InviteLink({
   );
 }
 
-/** O-20: invite a manager (email) or an attendant (phone, optionally limited to some lots). */
+/** O-20: invite a manager (email) or an attendant (email or phone, optionally limited to some lots). */
 export function InviteForm(props: {
   operatorId: string;
   businessName: string;
@@ -117,7 +117,7 @@ export function InviteForm(props: {
             label="Their email address or phone number"
             name="contact"
             autoComplete="off"
-            helper="Email for now (they sign up with it and a password); phone works once SMS is live."
+            helper="Email works now: they sign in with a 6-digit code sent there. A phone number needs SMS codes, which aren’t live yet."
             required
             error={state?.fieldErrors?.contact}
           />

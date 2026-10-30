@@ -32,7 +32,8 @@ describe('team copy', () => {
       title: 'Eko Hotel has invited you as an attendant',
       mode: 'attendant',
     });
-    expect(attendant.body).toMatch(/don’t need to create an account/);
+    expect(attendant.body).toMatch(/email address or phone number/);
+    expect(attendant.body).toMatch(/no password needed/);
     expect(invitePageCopy({ state: 'EXPIRED', businessName: 'Eko Hotel' })).toMatchObject({
       title: 'Your invite to Eko Hotel has expired',
       mode: 'closed',

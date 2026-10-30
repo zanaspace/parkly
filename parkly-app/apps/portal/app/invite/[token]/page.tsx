@@ -2,6 +2,7 @@ import type { InvitePreview } from '@parkly/contracts';
 import { Button, Text } from '@parkly/ui';
 import Link from 'next/link';
 import { AuthPage } from '../../../components/auth-page';
+import { CodeSignInForm } from '../../../components/code-sign-in';
 import { AcceptInviteForm } from '../../../components/team';
 import { signOut } from '../../../lib/auth/actions';
 import { loadSession } from '../../../lib/auth/session';
@@ -28,7 +29,8 @@ async function preview(inviteToken: string): Promise<InvitePreview> {
 /**
  * Doc 03 §2.3 step 2. Shows who invited them and as what, then the right next
  * step: managers sign in (or sign up) with the invited email and accept;
- * attendants accept later in the attendant app with their phone.
+ * attendants sign in with a code sent to the invited email or phone, which
+ * also accepts the invite.
  */
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -48,11 +50,13 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </Link>
         </>
       )}
-      {copy.mode === 'manager' && session.signedIn && (
+      {copy.mode === 'attendant' && !session.signedIn && <CodeSignInForm inviteToken={token} />}
+      {copy.mode !== 'closed' && session.signedIn && (
         <>
           <Text tone="secondary">
-            Signed in as <strong>{session.email ?? 'this account'}</strong>. If this isn’t the email
-            the invite was sent to, sign out and use that one.
+            Signed in as <strong>{session.email ?? session.phone ?? 'this account'}</strong>. If
+            this isn’t the {copy.mode === 'manager' ? 'email' : 'email or phone number'} the invite
+            was sent to, sign out and use that one.
           </Text>
           <AcceptInviteForm inviteToken={token} />
           <form action={signOut}>

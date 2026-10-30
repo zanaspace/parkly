@@ -33,7 +33,7 @@ export function whatsappShare(link: string, businessName: string): string {
 export type InvitePageCopy = {
   title: string;
   body: string;
-  /** manager: sign in / sign up / accept; attendant: app instructions only; closed: nothing to do. */
+  /** manager: sign in / sign up / accept; attendant: sign in with a code and accept; closed: nothing to do. */
   mode: 'manager' | 'attendant' | 'closed';
 };
 
@@ -56,7 +56,7 @@ export function invitePageCopy(preview: InvitePreview): InvitePageCopy {
       return preview.role === 'ATTENDANT'
         ? {
             title: `${preview.businessName} has invited you as an attendant`,
-            body: 'Attendants accept the invite in the Parkly attendant app, signing in with the phone number the invite was sent to. Keep this link until the app is ready; you don’t need to create an account here.',
+            body: 'Sign in with the email address or phone number this invite was sent to. We’ll send you a 6-digit code; no password needed. Then you’ll open the gate app.',
             mode: 'attendant',
           }
         : {
