@@ -756,8 +756,9 @@ export function bookingRoutes(deps: AppDeps) {
           );
         }
 
-        const plans = await deps.store.ratePlans.activeFor([lot.id]);
-        const plan = plans.find((p) => p.product === booking.product);
+        // The booking's own plan, as for overstay: whole stay minus what was paid, both
+        // at the price it was sold at, so a later price cut can't make it free (P-14).
+        const plan = await deps.store.ratePlans.find(booking.ratePlanId);
         if (!plan)
           throw new ApiError('LOT_NOT_BOOKABLE', 'This lot does not have an active rate plan');
 

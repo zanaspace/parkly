@@ -1296,3 +1296,37 @@ describe('notifications from the booking lifecycle (FR-NOT-002)', () => {
     expect(cancelled?.payload).toMatchObject({ refundKobo: 160_000 });
   });
 });
+
+describe('extension pricing (gap review P-14)', () => {
+  it('prices an extension from the booking’s own plan, so a later price cut can’t make it free', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    // The operator cuts the hourly price to ₦100 after this booking was sold.
+    const booking = t.store.booking.bookingRows.find((b) => b.id === created.booking.id);
+    const sold = t.store.ratePlanRows.find((p) => p.id === booking?.ratePlanId);
+    if (!sold) throw new Error('no plan');
+    sold.status = 'RETIRED';
+    t.store.ratePlanRows.push({
+      ...sold,
+      id: randomUUID(),
+      status: 'ACTIVE',
+      hourlyRateKobo: 10_000,
+    });
+
+    const ext = await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+    });
+    expect(ext.status).toBe(200);
+    // One more hour at the price it was sold at, not ₦0 from the cut price, and paid for.
+    expect((ext.body as unknown as { payment: unknown }).payment).not.toBeNull();
+    expect((ext.body as unknown as { extension: { priceKobo: number } }).extension.priceKobo).toBe(
+      50_000,
+    );
+  });
+});
