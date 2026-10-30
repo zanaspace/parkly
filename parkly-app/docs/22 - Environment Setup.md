@@ -29,6 +29,9 @@
 | GitHub environments / secrets | ❌ not set (repo `zanaspace/parkly`); `gh` CLI not installed, so use the website |
 | Custom Access Token Hook, Send SMS Hook (hosted) | ❌ not enabled (S1 carry-over) |
 | Vault secrets, `parkly_api` login (hosted) | ❌ not set (S0 carry-over) |
+| Auth email sender (dev, Oct 30) | ⚠️ Gmail SMTP with an app password, for testing only. Resend needs a verified domain to reach anyone but the account owner (§2.3a). |
+| Email codes (dev, Oct 30) | ✅ 6 digits, 300 s; Confirm signup and Magic Link templates from `supabase/templates/` |
+| Turnstile captcha (dev, Oct 30) | ✅ On in Supabase; site key on the portal, admin and web Vercel projects and the mobile preview build; mobile `production` EAS env still to set (§2.3b) |
 
 ---
 

@@ -2,6 +2,8 @@
 
 Oct 28, 2026 · @PRODUCTS
 
+> **Progress (Oct 30):** Waves 1 and 2 are done and merged (items 1–10). Wave 3 is open. Status per item: [S6 report](S6-report.md).
+
 Sprints 0 to 5 are broadly sound, but Sprint 6 is not ready to merge. It has 3 Critical and 13 High findings of its own, mostly in money paths and device trust. The worst is the 5-minute test migration (`dd07e2a`). It makes ordinary paid bookings fail to confirm and can stop hold expiry across the platform. Fix the six Wave 1 items before any new sprint work.
 
 | Severity | Count | Examples |

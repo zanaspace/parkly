@@ -474,3 +474,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S4 | QR key rotation job and revocation list | Delivered with the attendant manifest | S5 |
 | S4 | Booking confirmation SMS, push and email receipt | Notifications are S6 | S6 |
 | S4 | Webhook queue (pgmq) per doc 02 §7 | Inline processing + `settle-payments` job cover it for the pilot volume | S9 (hardening) |
+| S5 | Attendant sign-in by phone OTP (from S1) | SMS isn't live | **Done in S6** with an email code, phone as the alternative (ADR 0018) |
+| S6 | Notifications in production, reminders, push registration, invite emails | Gap review L-1; real email needs a verified Resend domain | S6 Wave 3, before S7 |
+| S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | S6 Wave 3, before S7 |
+| S6 | Per-phone failed-code counter (doc 05 §4.1) | Not enforceable on Supabase; risk recorded in ADR 0019 | Revisit if Supabase adds a verify hook |
