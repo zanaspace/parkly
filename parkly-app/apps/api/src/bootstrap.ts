@@ -11,16 +11,21 @@ import { createJobs } from './jobs/registry.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
+import { NotificationService } from './notifications/service.js';
 import {
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
+  FakePushProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
+import { expoPushProvider } from './providers/expo-push.js';
 import type {
+  EmailProvider,
   PaymentProvider,
+  PushProvider,
   SettlementProvider,
   SmsProvider,
   StorageProvider,
@@ -29,6 +34,7 @@ import { logOnlyEmail } from './providers/log-email.js';
 import { locationIqMaps } from './providers/locationiq.js';
 import { paystackPaymentProvider } from './providers/paystack-payments.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
+import { resendEmailProvider } from './providers/resend.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
   FakeSessionRevoker,
@@ -144,13 +150,39 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
   }
 
   const now = () => new Date();
+  const crypto = createCrypto({
+    encKeys: config.encKeys,
+    currentEncVersion: config.encKeyCurrent,
+    pepper: config.hashPepper,
+  });
+  // Real email needs a domain verified in Resend; until then dev only logs (ADR 0020).
+  const email: EmailProvider =
+    config.email.provider === 'resend'
+      ? resendEmailProvider({ apiKey: config.email.apiKey, from: config.email.from })
+      : logOnlyEmail(logger);
+  const push: PushProvider =
+    config.push.provider === 'expo'
+      ? expoPushProvider(config.push.accessToken ? { accessToken: config.push.accessToken } : {})
+      : new FakePushProvider();
+  const notifications = new NotificationService({
+    sms: primary,
+    email,
+    push,
+    links: { web: config.webBaseUrl, portal: config.portalBaseUrl },
+    emailLive: () => config.email.provider === 'resend',
+    store,
+    logger,
+    crypto,
+    now,
+  });
   const jobs = createJobs({
     store,
-    email: logOnlyEmail(logger),
+    email,
     payments,
     logger,
     now,
     appEnv: config.appEnv,
+    notifications,
   });
 
   const app = createApp({
@@ -165,12 +197,9 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     verifyToken: supabaseTokenVerifier(config.supabase.url, {
       allowDevTokens: config.appEnv === 'local',
     }),
-    crypto: createCrypto({
-      encKeys: config.encKeys,
-      currentEncVersion: config.encKeyCurrent,
-      pepper: config.hashPepper,
-    }),
+    crypto,
     sms: { primary },
+    notifications,
     sessions,
     settlement,
     payments,

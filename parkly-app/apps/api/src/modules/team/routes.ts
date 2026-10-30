@@ -137,7 +137,17 @@ export function teamRoutes(deps: AppDeps) {
         entityId: operatorId,
         after: { memberId: member.id, role: member.role, lotIds },
       });
-      return c.json({ member: toMember(member), inviteToken: token }, 201);
+      const operator = await deps.store.operators.find(operatorId);
+      const emailed =
+        body.email && operator
+          ? await deps.notifications.sendInvite({
+              to: body.email.trim().toLowerCase(),
+              businessName: operator.tradingName,
+              role: body.role,
+              token,
+            })
+          : false;
+      return c.json({ member: toMember(member), inviteToken: token, emailed }, 201);
     },
   );
 

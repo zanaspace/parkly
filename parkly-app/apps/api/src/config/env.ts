@@ -36,6 +36,18 @@ const EnvSchema = z
     SMS_PROVIDER: z.enum(['fake', 'termii']).default('fake'),
     TERMII_API_KEY: z.string().min(10).optional(),
     TERMII_SENDER_ID: z.string().min(3).max(11).optional(),
+    /** Notification email (ADR 0020). `log` only logs; Resend needs a verified domain. */
+    EMAIL_PROVIDER: z.enum(['log', 'resend']).default('log'),
+    RESEND_API_KEY: z.string().startsWith('re_').min(10).optional(),
+    /** e.g. `Parkly <no-reply@parkly.example>`, on the domain verified in Resend. */
+    EMAIL_FROM: z.string().min(3).optional(),
+    /** Push to the driver app through Expo; the access token is optional. */
+    PUSH_PROVIDER: z.enum(['fake', 'expo']).default('fake'),
+    /** The driver website, for links in SMS and email (e.g. https://parkly-web-two.vercel.app). */
+    WEB_BASE_URL: z.url().optional(),
+    /** The operator portal, for invite links in email (e.g. https://parkly-portal.vercel.app). */
+    PORTAL_BASE_URL: z.url().optional(),
+    EXPO_ACCESS_TOKEN: z.string().min(10).optional(),
     /** Server-only secret key (sb_secret_…) for Supabase Storage. Never in a client. */
     SUPABASE_SECRET_KEY: z.string().min(20).optional(),
     STORAGE_PROVIDER: z.enum(['fake', 'supabase']).default('fake'),
@@ -76,6 +88,8 @@ const EnvSchema = z
       required('SUPABASE_SMS_HOOK_SECRET');
       required('HASH_PEPPER_V1');
       required('ENC_KEY_V1');
+      required('WEB_BASE_URL');
+      required('PORTAL_BASE_URL');
     }
     if (env.APP_ENV === 'prod' && env.SMS_PROVIDER !== 'termii') {
       ctx.addIssue({ code: 'custom', path: ['SMS_PROVIDER'], message: 'must be termii in prod' });
@@ -103,6 +117,14 @@ const EnvSchema = z
       required('TERMII_API_KEY');
       required('TERMII_SENDER_ID');
     }
+    if (env.EMAIL_PROVIDER === 'resend') {
+      required('RESEND_API_KEY');
+      required('EMAIL_FROM');
+    }
+    if (env.APP_ENV === 'prod') {
+      if (env.EMAIL_PROVIDER !== 'resend') issue('EMAIL_PROVIDER', 'must be resend in prod');
+      if (env.PUSH_PROVIDER !== 'expo') issue('PUSH_PROVIDER', 'must be expo in prod');
+    }
   });
 
 export type AppConfig = {
@@ -118,6 +140,12 @@ export type AppConfig = {
   encKeys: Record<string, Buffer>;
   encKeyCurrent: string;
   sms: { provider: 'fake' } | { provider: 'termii'; apiKey: string; senderId: string };
+  email: { provider: 'log' } | { provider: 'resend'; apiKey: string; from: string };
+  push: { provider: 'fake' } | { provider: 'expo'; accessToken: string | undefined };
+  /** The driver website, for links in messages. */
+  webBaseUrl: string;
+  /** The operator portal, for invite links. */
+  portalBaseUrl: string;
   settlement: { provider: 'fake' } | { provider: 'paystack'; secretKey: string };
   storage: { provider: 'fake' } | { provider: 'supabase'; secretKey: string };
   malwareScanner: 'fake';
@@ -172,6 +200,16 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     sms:
       e.SMS_PROVIDER === 'termii' && e.TERMII_API_KEY && e.TERMII_SENDER_ID
         ? { provider: 'termii', apiKey: e.TERMII_API_KEY, senderId: e.TERMII_SENDER_ID }
+        : { provider: 'fake' },
+    email:
+      e.EMAIL_PROVIDER === 'resend' && e.RESEND_API_KEY && e.EMAIL_FROM
+        ? { provider: 'resend', apiKey: e.RESEND_API_KEY, from: e.EMAIL_FROM }
+        : { provider: 'log' },
+    webBaseUrl: (e.WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
+    portalBaseUrl: (e.PORTAL_BASE_URL ?? 'http://localhost:3001').replace(/\/$/, ''),
+    push:
+      e.PUSH_PROVIDER === 'expo'
+        ? { provider: 'expo', accessToken: e.EXPO_ACCESS_TOKEN }
         : { provider: 'fake' },
     settlement:
       e.SETTLEMENT_PROVIDER === 'paystack' && e.PAYSTACK_SECRET_KEY

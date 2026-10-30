@@ -1,4 +1,5 @@
 import type { Logger } from '../lib/logger.js';
+import type { NotificationService } from '../notifications/service.js';
 import { verifyAndSettle } from '../modules/bookings/settle.js';
 import type { PaymentProvider } from '../providers/index.js';
 import type { Store } from '../store/types.js';
@@ -33,6 +34,7 @@ export function settlePaymentsJob(deps: {
   payments: PaymentProvider;
   logger: Logger;
   now: () => Date;
+  notifications: NotificationService;
 }): JobHandler {
   const { store } = deps;
 

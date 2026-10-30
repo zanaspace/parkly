@@ -986,6 +986,14 @@ export function bookingRoutes(deps: AppDeps) {
         }
 
         const lot = await lotOf(booking.lotId);
+        await deps.notifications.notify({
+          key: 'booking.cancelled',
+          driverId: booking.driverId,
+          bookingId: booking.id,
+          bookingCode: booking.code,
+          lotName: lot.name,
+          refundKobo: policy.refundKobo,
+        });
         const [view] = await viewsFor([cancelled.booking]);
         return c.json(
           {

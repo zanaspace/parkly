@@ -1246,3 +1246,53 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
     });
   });
 });
+
+describe('notifications from the booking lifecycle (FR-NOT-002)', () => {
+  const queued = (t: { store: { outbox: { rows: { eventKey: string; payload: unknown }[] } } }) =>
+    t.store.outbox.rows.map((r) => r.eventKey);
+
+  it('queues booking.confirmed once, however often the payment is settled', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    expect(queued(t)).toEqual([]);
+
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    expect(queued(t)).toEqual(['booking.confirmed']);
+    expect(t.store.outbox.rows[0]?.payload).toMatchObject({
+      bookingId: created.booking.id,
+      lotName: t.lot.name,
+      totalKobo: 110_000,
+    });
+  });
+
+  it('queues booking.extended per paid extension and booking.cancelled with the refund', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+
+    const ext = (
+      await t.call('POST', `/v1/bookings/${created.booking.id}/extensions`, {
+        as: driver.id,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { newEndAt: '2026-10-20T10:00:00.000Z' },
+      })
+    ).body as unknown as Created;
+    t.payments.pay(ext.payment.reference);
+    await t.call('POST', `/v1/payments/${ext.payment.reference}/verify`, { as: driver.id });
+    const extended = t.store.outbox.rows.find((r) => r.eventKey === 'booking.extended');
+    expect(extended?.dedupeKey).toBe(`booking.extended:${ext.payment.reference}`);
+    expect(extended?.payload).toMatchObject({ newEndAt: '2026-10-20T10:00:00.000Z' });
+
+    await t.call('POST', `/v1/bookings/${created.booking.id}/cancel`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    const cancelled = t.store.outbox.rows.find((r) => r.eventKey === 'booking.cancelled');
+    expect(cancelled?.payload).toMatchObject({ refundKobo: 160_000 });
+  });
+});

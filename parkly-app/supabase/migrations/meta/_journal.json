@@ -78,6 +78,20 @@
       "when": 1793187182379,
       "tag": "20261028113302_one_open_overstay_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793379119719,
+      "tag": "20261030165159_users_contact_copy",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793379249772,
+      "tag": "20261030165409_notifications",
+      "breakpoints": true
     }
   ]
 }

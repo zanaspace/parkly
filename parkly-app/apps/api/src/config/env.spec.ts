@@ -40,6 +40,36 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ APP_ENV: 'prod' })).toThrow(/SMS_PROVIDER: must be termii in prod/);
   });
 
+  it('needs real email and push in prod, and a key and sender for Resend (ADR 0020)', () => {
+    const fail = (env: Record<string, string>) => {
+      try {
+        loadConfig(env);
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+    expect(fail({ APP_ENV: 'prod' })).toMatch(/EMAIL_PROVIDER: must be resend in prod/);
+    expect(fail({ APP_ENV: 'prod' })).toMatch(/PUSH_PROVIDER: must be expo in prod/);
+    expect(fail({ EMAIL_PROVIDER: 'resend' })).toMatch(/RESEND_API_KEY/);
+    expect(fail({ EMAIL_PROVIDER: 'resend' })).toMatch(/EMAIL_FROM/);
+
+    const local = loadConfig({
+      EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_0123456789abcdef',
+      EMAIL_FROM: 'Parkly <no-reply@parkly.example>',
+      PUSH_PROVIDER: 'expo',
+    });
+    expect(local.email).toEqual({
+      provider: 'resend',
+      apiKey: 're_0123456789abcdef',
+      from: 'Parkly <no-reply@parkly.example>',
+    });
+    expect(local.push).toEqual({ provider: 'expo', accessToken: undefined });
+    expect(loadConfig({}).email).toEqual({ provider: 'log' });
+    expect(loadConfig({}).push).toEqual({ provider: 'fake' });
+  });
+
   it('never falls back to the local secret outside local', () => {
     expect(() => loadConfig({ APP_ENV: 'staging' })).toThrow(/JOB_HMAC_SECRET/);
   });
@@ -59,6 +89,8 @@ describe('loadConfig', () => {
       ENC_KEY_V1: Buffer.alloc(32, 1).toString('base64'),
       UPSTASH_REDIS_REST_URL: 'https://x.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 't',
+      WEB_BASE_URL: 'https://parkly-web-two.vercel.app',
+      PORTAL_BASE_URL: 'https://parkly-portal.vercel.app',
       STORAGE_PROVIDER: 'supabase',
       SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
     });

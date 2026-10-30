@@ -15,6 +15,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       "expo-font",
       "expo-splash-screen",
       "expo-secure-store",

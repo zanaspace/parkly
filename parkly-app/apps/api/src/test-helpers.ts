@@ -7,10 +7,13 @@ import { InMemoryReplayGuard } from './jobs/replay-guard.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { allowAllRateLimiter, MemoryRateLimiter } from './middleware/rate-limit.js';
+import { NotificationService } from './notifications/service.js';
 import {
+  FakeEmailProvider,
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
+  FakePushProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
@@ -75,7 +78,7 @@ export function testApp(overrides: Partial<AppDeps> = {}) {
 }
 
 export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
-  return {
+  const deps: Omit<AppDeps, 'notifications'> = {
     config: {
       appEnv: 'local',
       paystackWebhookIps: ['52.31.139.75'],
@@ -105,6 +108,21 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     maps: new FakeMapsProvider(),
     ...overrides,
   };
+  // Shares the test's store, key and clock (read live: tests move it), so a
+  // test can read what was queued.
+  const full = { ...deps } as AppDeps;
+  full.notifications =
+    overrides.notifications ??
+    new NotificationService({
+      sms: deps.sms.primary,
+      email: new FakeEmailProvider(),
+      push: new FakePushProvider(),
+      store: deps.store,
+      logger: deps.logger,
+      crypto: deps.crypto,
+      now: () => full.now(),
+    });
+  return full;
 }
 
 /** A full context for route tests: store, fakes and signed-in users. */
@@ -128,6 +146,22 @@ export function world(overrides: Partial<AppDeps> = {}) {
     scanner,
     ...overrides,
   });
+  // Visible email and push fakes; email counts as real (Resend) unless a test turns it off.
+  const email = new FakeEmailProvider();
+  const push = new FakePushProvider();
+  let emailIsLive = true;
+  if (!overrides.notifications)
+    deps.notifications = new NotificationService({
+      sms,
+      email,
+      push,
+      store,
+      logger: deps.logger,
+      crypto: deps.crypto,
+      now: () => deps.now(),
+      links: { web: 'http://localhost:3000', portal: 'http://localhost:3001' },
+      emailLive: () => emailIsLive,
+    });
   const app = createApp(deps);
 
   const user = (
@@ -197,6 +231,11 @@ export function world(overrides: Partial<AppDeps> = {}) {
     payments,
     storage,
     scanner,
+    email,
+    push,
+    emailLive: (on: boolean) => {
+      emailIsLive = on;
+    },
     user,
     call,
     tokenFor,

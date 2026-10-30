@@ -1,7 +1,21 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import type { RoleGrant } from '@parkly/domain/authz';
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import {
   DsrAlreadyOpenError,
@@ -29,6 +43,7 @@ import {
   type VerificationRow,
 } from './types.js';
 import { drizzleAttend } from './drizzle-attend.js';
+import { drizzleNotifications } from './drizzle-notifications.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
@@ -312,8 +327,15 @@ export function drizzleStore(db: Db): Store {
         if (!row) throw new Error('user row missing after upsert');
         return { user: row as UserRow, created: false };
       },
-      async setLookupHashes(id, hashes) {
-        await db.update(users).set(hashes).where(eq(users.id, id));
+      async setContact(id, contact) {
+        await db.update(users).set(contact).where(eq(users.id, id));
+      },
+      async contact(id) {
+        const [row] = await db
+          .select({ phoneEnc: users.phoneEnc, emailEnc: users.emailEnc })
+          .from(users)
+          .where(eq(users.id, id));
+        return row ?? null;
       },
       async updateProfile(id, patch) {
         const [row] = await db
@@ -478,6 +500,19 @@ export function drizzleStore(db: Db): Store {
           .update(devices)
           .set({ revokedAt: new Date() })
           .where(and(eq(devices.userId, userId), isNull(devices.revokedAt)));
+      },
+      async pushTokens(userId) {
+        const rows = await db
+          .select({ token: devices.pushTokenEnc })
+          .from(devices)
+          .where(
+            and(
+              eq(devices.userId, userId),
+              isNull(devices.revokedAt),
+              isNotNull(devices.pushTokenEnc),
+            ),
+          );
+        return rows.flatMap((r) => (r.token ? [r.token] : []));
       },
     },
 
@@ -1518,6 +1553,8 @@ export function drizzleStore(db: Db): Store {
     ...drizzleBookings(db),
 
     attend: attending.attend,
+
+    notifications: drizzleNotifications(db),
 
     lotKeys: {
       forManifest: attending.forManifest,

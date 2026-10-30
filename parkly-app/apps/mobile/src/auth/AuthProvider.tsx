@@ -18,6 +18,7 @@ import { api, tickets } from '../lib/client';
 import { config } from '../lib/config';
 import { getDeviceId } from '../lib/device';
 import { supabase } from '../lib/supabase';
+import { registerForPush } from '../notifications/push';
 
 import { clearDevSession, createDevSession, getStoredDevSession, saveDevSession } from './dev-auth';
 
@@ -77,6 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // The driver app: an email sign-up becomes a driver (ADR 0015).
         asDriver: true,
       });
+      // Push for booking notices; never blocks sign-in.
+      void registerForPush();
       const [vehicles, skipped] = await Promise.all([api.vehicles(), readSkipped(user.id)]);
       setState((s) => ({
         ...s,

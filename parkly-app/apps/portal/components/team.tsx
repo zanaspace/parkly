@@ -18,10 +18,12 @@ function InviteLink({
   link,
   name,
   businessName,
+  emailedTo,
 }: {
   link: string;
   name: string;
   businessName: string;
+  emailedTo?: string | undefined;
 }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -29,9 +31,15 @@ function InviteLink({
       <Text variant="label-lg" as="h3">
         Invite ready for {name}
       </Text>
+      {emailedTo && (
+        <Text variant="body-sm">
+          We’ve emailed this link to <strong>{emailedTo}</strong>. If it doesn’t arrive, copy it or
+          share it on WhatsApp below.
+        </Text>
+      )}
       <Text variant="body-sm" tone="secondary">
-        Send them this link. It works once, for the email or phone number you entered, and expires
-        in 72 hours. It won’t be shown again.
+        {emailedTo ? 'The link' : 'Send them this link. It'} works once, for the email or phone
+        number you entered, and expires in 72 hours. It won’t be shown again.
       </Text>
       <code className="pk-code">{link}</code>
       <div className="pk-row">
@@ -82,7 +90,12 @@ export function InviteForm(props: {
   return (
     <>
       {state?.link && (
-        <InviteLink link={state.link} name={state.name ?? ''} businessName={props.businessName} />
+        <InviteLink
+          link={state.link}
+          name={state.name ?? ''}
+          businessName={props.businessName}
+          emailedTo={state.emailedTo}
+        />
       )}
       <ActionForm key={formKey} action={action} className="pk-form">
         <input type="hidden" name="operatorId" value={props.operatorId} />

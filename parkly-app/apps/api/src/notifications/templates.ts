@@ -18,46 +18,85 @@ function formatLagosTime(isoString: string): string {
   });
 }
 
-function truncateSms(text: string): string {
-  if (text.length <= 160) return text;
-  return `${text.slice(0, 157)}...`;
+/** Where links in messages point: the driver website (WEB_BASE_URL), and the portal for invites. */
+export type TemplateLinks = { web: string; portal?: string };
+const LOCAL_LINKS: TemplateLinks = { web: 'http://localhost:3000' };
+
+const bookingUrl = (links: TemplateLinks, bookingId: string) =>
+  `${links.web.replace(/\/$/, '')}/bookings/${encodeURIComponent(bookingId)}`;
+
+/** Lot names and codes are typed by operators: never raw in HTML. */
+const ENTITIES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+const esc = (s: string | undefined) => (s ?? '').replace(/[&<>"']/g, (ch) => ENTITIES[ch] ?? ch);
+
+/** One 160-character SMS. A long lot name shortens the text, never the link. */
+function sms(text: string, link?: string): string {
+  if (!link) return text.length <= 160 ? text : `${text.slice(0, 157)}...`;
+  const room = 160 - link.length - 1;
+  return `${text.length <= room ? text : `${text.slice(0, room - 3)}...`} ${link}`;
 }
 
-export function renderSms(event: NotificationEvent, phone: string): SmsMessage | null {
+export function renderSms(
+  event: NotificationEvent,
+  phone: string,
+  links: TemplateLinks = LOCAL_LINKS,
+): SmsMessage | null {
   let body: string;
+  const link = bookingUrl(links, event.bookingId);
   switch (event.key) {
     case 'booking.confirmed': {
       const time = formatLagosTime(event.startAt);
-      body = `Parkly: Booking ${event.bookingCode} at ${event.lotName} confirmed for ${time}. View pass: https://parkly.ng/b/${event.bookingId}`;
+      body = sms(
+        `Parkly: Booking ${event.bookingCode} at ${event.lotName} confirmed for ${time}. View pass:`,
+        link,
+      );
       break;
     }
     case 'booking.reminder_start': {
-      body = `Parkly: Your parking at ${event.lotName} starts in ${event.minutesUntil} mins (${event.bookingCode}). Have a safe trip!`;
+      body = sms(
+        `Parkly: Your parking at ${event.lotName} starts in ${event.minutesUntil} mins (${event.bookingCode}). Have a safe trip!`,
+      );
       break;
     }
     case 'booking.reminder_end': {
-      body = `Parkly: Parking at ${event.lotName} ends in ${event.minutesLeft} mins. Extend now: https://parkly.ng/b/${event.bookingId}/extend`;
+      body = sms(
+        `Parkly: Parking at ${event.lotName} ends in ${event.minutesLeft} mins. Extend now:`,
+        link,
+      );
       break;
     }
     case 'booking.extended': {
       const newTime = formatLagosTime(event.newEndAt);
-      body = `Parkly: Booking ${event.bookingCode} at ${event.lotName} extended to ${newTime}. Thank you!`;
+      body = sms(
+        `Parkly: Booking ${event.bookingCode} at ${event.lotName} extended to ${newTime}. Thank you!`,
+      );
       break;
     }
     case 'booking.cancelled': {
       const refundStr =
         event.refundKobo > 0 ? ` Refund of ${formatNaira(event.refundKobo)} initiated.` : '';
-      body = `Parkly: Booking ${event.bookingCode} at ${event.lotName} has been cancelled.${refundStr}`;
+      body = sms(
+        `Parkly: Booking ${event.bookingCode} at ${event.lotName} has been cancelled.${refundStr}`,
+      );
       break;
     }
     case 'session.overstay_due': {
-      body = `Parkly: Unpaid overstay of ${event.overstayMinutes}m (${formatNaira(event.amountKobo)}) at ${event.lotName}. Pay: https://parkly.ng/b/${event.bookingId}/pay`;
+      body = sms(
+        `Parkly: Unpaid overstay of ${event.overstayMinutes}m (${formatNaira(event.amountKobo)}) at ${event.lotName}. Pay:`,
+        link,
+      );
       break;
     }
     default:
       return null;
   }
-  return { to: phone, body: truncateSms(body) };
+  return { to: phone, body };
 }
 
 export function renderPush(event: NotificationEvent, tokens: string[]): PushMessage | null {
@@ -124,7 +163,14 @@ export function renderPush(event: NotificationEvent, tokens: string[]): PushMess
   return { tokens, title, body, data };
 }
 
-export function renderEmail(event: NotificationEvent, email: string): EmailMessage | null {
+export function renderEmail(
+  event: NotificationEvent,
+  email: string,
+  links: TemplateLinks = LOCAL_LINKS,
+): EmailMessage | null {
+  const code = esc(event.bookingCode);
+  const lot = esc(event.lotName);
+  const link = esc(bookingUrl(links, event.bookingId));
   let subject: string;
   let heading: string;
   let content: string;
@@ -134,17 +180,17 @@ export function renderEmail(event: NotificationEvent, email: string): EmailMessa
       subject = `Booking Confirmed: ${event.bookingCode} at ${event.lotName}`;
       heading = 'Your Parking Space is Confirmed';
       content = `
-        <p>Your parking booking at <strong>${event.lotName}</strong> is confirmed.</p>
+        <p>Your parking booking at <strong>${lot}</strong> is confirmed.</p>
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0 0 8px;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 16px;">${event.bookingCode}</span></p>
-          <p style="margin: 0 0 8px;"><strong>Location:</strong> ${event.lotName}</p>
+          <p style="margin: 0 0 8px;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 16px;">${code}</span></p>
+          <p style="margin: 0 0 8px;"><strong>Location:</strong> ${lot}</p>
           <p style="margin: 0 0 8px;"><strong>Starts:</strong> ${formatLagosTime(event.startAt)}</p>
           <p style="margin: 0 0 8px;"><strong>Ends:</strong> ${formatLagosTime(event.endAt)}</p>
           <p style="margin: 0;"><strong>Total Paid:</strong> ${formatNaira(event.totalKobo)}</p>
         </div>
         <p>Show your digital QR code or booking code to the attendant when arriving at the car park.</p>
         <div style="text-align: center; margin: 24px 0;">
-          <a href="https://parkly.ng/bookings/${event.bookingId}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Booking & Ticket</a>
+          <a href="${link}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Booking & Ticket</a>
         </div>
       `;
       break;
@@ -153,14 +199,14 @@ export function renderEmail(event: NotificationEvent, email: string): EmailMessa
       subject = `Booking Cancelled: ${event.bookingCode}`;
       heading = 'Booking Cancellation';
       content = `
-        <p>Your booking <strong>${event.bookingCode}</strong> at <strong>${event.lotName}</strong> has been cancelled.</p>
+        <p>Your booking <strong>${code}</strong> at <strong>${lot}</strong> has been cancelled.</p>
         ${
           event.refundKobo > 0
             ? `<p style="color: #065f46; font-weight: bold;">A refund of ${formatNaira(event.refundKobo)} has been initiated to your original payment method.</p>`
             : '<p>In accordance with our cancellation policy, no refund is due for late cancellation.</p>'
         }
         <div style="text-align: center; margin: 24px 0;">
-          <a href="https://parkly.ng/bookings/${event.bookingId}/receipt" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Receipt</a>
+          <a href="${link}/receipt" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Receipt</a>
         </div>
       `;
       break;
@@ -202,4 +248,42 @@ export function renderEmail(event: NotificationEvent, email: string): EmailMessa
   const text = `${heading}\n\nBooking: ${event.bookingCode}\nLocation: ${event.lotName}\n\nParkly Technologies Ltd • support@parkly.ng`;
 
   return { to: email, subject, text, html };
+}
+
+/** FR-OPS-004: the team invite, sent once when it is created. The link is the credential. */
+export function renderInviteEmail(input: {
+  to: string;
+  businessName: string;
+  role: 'MANAGER' | 'ATTENDANT';
+  link: string;
+}): EmailMessage {
+  const business = esc(input.businessName);
+  const link = esc(input.link);
+  const as = input.role === 'MANAGER' ? 'a manager' : 'an attendant';
+  const next =
+    input.role === 'MANAGER'
+      ? 'Open the link, sign in or create an account with this email, then accept.'
+      : 'Open the link on the phone you will use at the gate and sign in with the code we send to this email.';
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #111827; margin: 0; padding: 24px;">
+  <div style="background: #ffffff; max-width: 580px; margin: 0 auto; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+    <div style="background: #008080; color: #ffffff; padding: 24px; text-align: center;">
+      <h1 style="margin: 0; font-size: 24px;">Parkly</h1>
+    </div>
+    <div style="padding: 28px; line-height: 1.6;">
+      <h2 style="color: #008080; font-size: 20px; margin-top: 0;">${business} invited you to Parkly</h2>
+      <p>${business} has invited you to join their team as ${as}.</p>
+      <p>${esc(next)}</p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${link}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">Accept the invite</a>
+      </div>
+      <p style="font-size: 13px; color: #6b7280;">This link works once and expires in 72 hours. If you weren't expecting it, ignore this email.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  const text = `${input.businessName} invited you to Parkly as ${as}.\n\n${next}\n\n${input.link}\n\nThis link works once and expires in 72 hours.`;
+  return { to: input.to, subject: `${input.businessName} invited you to Parkly`, html, text };
 }

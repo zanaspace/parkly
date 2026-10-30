@@ -384,6 +384,16 @@ describe('sync (doc 01 §5.3)', () => {
       overstayMinutes: 30,
       overstayAmountKobo: 25_000,
     });
+    // FR-NOT-002: one notice each, however often the events were synced.
+    expect(
+      t.store.outbox.rows.map((r) => r.eventKey).filter((k) => k.startsWith('session.')),
+    ).toEqual(['session.checked_in', 'session.checked_out', 'session.overstay_due']);
+    expect(
+      t.store.outbox.rows.find((r) => r.eventKey === 'session.overstay_due')?.payload,
+    ).toMatchObject({
+      overstayMinutes: 30,
+      amountKobo: 25_000,
+    });
   });
 
   it('keeps the earliest check-in when two phones both checked the car in', async () => {
@@ -624,6 +634,9 @@ describe('self check-in (ADR 0016)', () => {
     expect((await t.self('out')).body?.result).toBe('APPLIED');
     const after = await t.call('GET', `/v1/bookings/${t.paid.id}`, { as: t.paid.driver });
     expect(after.body?.stay).toMatchObject({ overstayMinutes: 45, overstayKobo: 37_500 });
+    expect(
+      t.store.outbox.rows.map((r) => r.eventKey).filter((k) => k.startsWith('session.')),
+    ).toEqual(['session.checked_in', 'session.checked_out', 'session.overstay_due']);
   });
 
   it('refuses the wrong poster, a phone far away, outside the window, and other drivers', async () => {

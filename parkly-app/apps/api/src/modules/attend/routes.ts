@@ -32,7 +32,8 @@ import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/con
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import { gateCodes } from '../../lib/gate-codes.js';
-import type { AttendDeviceRow, AttendEventInput } from '../../store/types.js';
+import { bookingNotice } from '../../notifications/events.js';
+import type { AttendDeviceRow, AttendEventInput, AttendEventResult } from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -102,9 +103,34 @@ export function attendRoutes(deps: AppDeps) {
         });
         const minutes = q.lines[0]?.kind === 'OVERSTAY' ? q.lines[0].minutes : 0;
         await deps.store.attend.setOverstay(id, minutes, q.priceKobo);
+        const notice = await bookingNotice(deps.store, s.bookingId);
+        if (notice && q.priceKobo > 0)
+          await deps.notifications.notify({
+            key: 'session.overstay_due',
+            ...notice.base,
+            overstayMinutes: minutes,
+            amountKobo: q.priceKobo,
+          });
       } catch (err) {
         deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');
       }
+    }
+  }
+
+  /** FR-NOT-002: tell the driver about each check-in and check-out that was applied. */
+  async function notifyGate(events: AttendEventInput[], results: AttendEventResult[]) {
+    for (const r of results) {
+      if (r.result !== 'APPLIED') continue;
+      const e = events.find((x) => x.clientEventId === r.clientEventId);
+      if (!e || (e.type !== 'CHECK_IN' && e.type !== 'CHECK_OUT')) continue;
+      const notice = await bookingNotice(deps.store, e.bookingId);
+      if (!notice) continue;
+      const at = e.deviceTime.toISOString();
+      await deps.notifications.notify(
+        e.type === 'CHECK_IN'
+          ? { key: 'session.checked_in', ...notice.base, checkInAt: at }
+          : { key: 'session.checked_out', ...notice.base, checkOutAt: at },
+      );
     }
   }
 
@@ -311,6 +337,7 @@ export function attendRoutes(deps: AppDeps) {
         throw new ApiError('DEVICE_REVOKED');
       }
 
+      await notifyGate(events, results);
       await priceOverstay(lot.id, checkedOut);
       deps.logger.info(
         { event: 'attend.synced', lotId: lot.id, events: results.length },
@@ -462,6 +489,24 @@ export function attendRoutes(deps: AppDeps) {
     if (!check.ok) throw new ApiError(SELF_ERRORS[check.code]);
 
     const actor = c.get('actor');
+    const selfEvent: AttendEventInput =
+      type === 'CHECK_IN'
+        ? {
+            type,
+            clientEventId: body.clientEventId,
+            deviceTime: now,
+            bookingId: booking.id,
+            method: 'SELF',
+            plateSeen: null,
+            overrideReason: null,
+          }
+        : {
+            type,
+            clientEventId: body.clientEventId,
+            deviceTime: now,
+            bookingId: booking.id,
+            method: 'SELF',
+          };
     const { results, checkedOut } = await deps.store.attend.applyBatch(
       {
         id: crypto.randomUUID(),
@@ -472,26 +517,9 @@ export function attendRoutes(deps: AppDeps) {
         deviceSentAt: now,
         receivedAt: now,
       },
-      [
-        type === 'CHECK_IN'
-          ? {
-              type,
-              clientEventId: body.clientEventId,
-              deviceTime: now,
-              bookingId: booking.id,
-              method: 'SELF',
-              plateSeen: null,
-              overrideReason: null,
-            }
-          : {
-              type,
-              clientEventId: body.clientEventId,
-              deviceTime: now,
-              bookingId: booking.id,
-              method: 'SELF',
-            },
-      ],
+      [selfEvent],
     );
+    await notifyGate([selfEvent], results);
     await priceOverstay(lot.id, checkedOut);
     const r = results[0];
     deps.logger.info(

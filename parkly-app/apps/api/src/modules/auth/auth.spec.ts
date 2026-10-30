@@ -176,6 +176,28 @@ describe('POST /v1/auth/bootstrap', () => {
     expect(hash?.equals(w.deps.crypto.lookupHash(PHONE))).toBe(true);
   });
 
+  it('keeps an encrypted copy of the phone and email for notifications (doc 06 §2)', async () => {
+    const w = world();
+    const userId = randomUUID();
+    const token = await tokenFor(userId, { phone: PHONE, email: 'ada@example.com' });
+    const res = await w.app.request('/v1/auth/bootstrap', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body()),
+    });
+    expect(res.status).toBe(200);
+
+    const row = w.store.userRows.get(userId);
+    // Stored encrypted, never as plain text.
+    expect(row?.phoneEnc).toBeTruthy();
+    expect(row?.phoneEnc).not.toContain(PHONE);
+    expect(row?.emailEnc).not.toContain('ada@example.com');
+
+    const contact = await w.store.users.contact(userId);
+    expect(contact && w.deps.crypto.decrypt(contact.phoneEnc ?? '')).toBe(PHONE);
+    expect(contact && w.deps.crypto.decrypt(contact.emailEnc ?? '')).toBe('ada@example.com');
+  });
+
   it('makes an email sign-up a driver only when a driver app asks (ADR 0015)', async () => {
     const w = world();
     const userId = randomUUID();

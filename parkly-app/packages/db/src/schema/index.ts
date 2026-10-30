@@ -9,3 +9,4 @@ export * from './availability.js';
 export * from './bookings.js';
 export * from './keys.js';
 export * from './sessions.js';
+export * from './notifications.js';

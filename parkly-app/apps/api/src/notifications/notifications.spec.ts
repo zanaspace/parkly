@@ -1,10 +1,16 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { createCrypto } from '../lib/crypto.js';
 import { createLogger } from '../lib/logger.js';
-import { FakeEmailProvider, FakePushProvider, FakeSmsProvider } from '../providers/fakes.js';
+import {
+  FakeClock,
+  FakeEmailProvider,
+  FakePushProvider,
+  FakeSmsProvider,
+} from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
-import { NotificationService } from './service.js';
-import { renderEmail, renderPush, renderSms } from './templates.js';
+import { NotificationService, quietHoursEnd } from './service.js';
+import { renderEmail, renderInviteEmail, renderPush, renderSms } from './templates.js';
 import type { NotificationEvent } from './types.js';
 
 describe('Notification Templates', () => {
@@ -67,7 +73,6 @@ describe('Notification Templates', () => {
         bookingCode: 'PK-ABCDEF',
         lotName: 'Adetokunbo Ademola Lot',
         newEndAt: '2026-10-20T10:00:00.000Z',
-        addedMinutes: 60,
       },
       '+2348012345678',
     );
@@ -92,7 +97,7 @@ describe('Notification Templates', () => {
     expect(email?.html).toContain('Parkly');
     expect(email?.html).toContain('Eko Hotel Car Park');
     expect(email?.html).toContain('₦1,100');
-    expect(email?.html).toContain(`https://parkly.ng/bookings/${baseEvent.bookingId}`);
+    expect(email?.html).toContain(`http://localhost:3000/bookings/${baseEvent.bookingId}`);
   });
 
   it('covers all SMS templates and edge cases', () => {
@@ -153,7 +158,8 @@ describe('Notification Templates', () => {
       '+2348012345678',
     );
     expect(longMsg?.body.length).toBeLessThanOrEqual(160);
-    expect(longMsg?.body.endsWith('...')).toBe(true);
+    // The lot name is shortened; the link at the end stays whole.
+    expect(longMsg?.body).toContain('... http://localhost:3000/bookings/');
   });
 
   it('covers all Push notification templates and edge cases', () => {
@@ -184,7 +190,6 @@ describe('Notification Templates', () => {
         bookingCode: 'PK-EXT',
         lotName: 'Eko Lot',
         newEndAt: '2026-10-20T10:00:00.000Z',
-        addedMinutes: 60,
       },
       tokens,
     );
@@ -314,275 +319,249 @@ describe('Notification Templates', () => {
   });
 });
 
-describe('NotificationService Dispatcher', () => {
-  it('dispatches confirmed booking to Push, SMS, and Email', async () => {
+describe('template safety and links', () => {
+  const web = 'https://parkly-web-two.vercel.app';
+  const event: NotificationEvent = {
+    key: 'booking.confirmed',
+    driverId: randomUUID(),
+    bookingId: '0199a0b4-5c8f-7e1b-9a3d-2f6e8c4b1a70',
+    bookingCode: 'PK-X1Y2Z3',
+    lotName:
+      '<img src=x onerror=alert(1)> Very Long Lot Name At Adeola Odeku Street Victoria Island',
+    startAt: '2026-10-20T07:00:00.000Z',
+    endAt: '2026-10-20T09:00:00.000Z',
+    totalKobo: 110_000,
+  };
+
+  it('escapes what operators typed in email HTML', () => {
+    const email = renderEmail(event, 'ada@example.com', { web });
+    expect(email?.html).not.toContain('<img src=x');
+    expect(email?.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('escapes the business name in invite emails', () => {
+    const invite = renderInviteEmail({
+      to: 'bisi@example.com',
+      businessName: '<script>x</script> Hotel',
+      role: 'MANAGER',
+      link: 'http://localhost:3001/invite/abc',
+    });
+    expect(invite.html).not.toContain('<script>x</script>');
+    expect(invite.html).toContain('&lt;script&gt;x&lt;/script&gt; Hotel');
+    expect(invite.html).toContain('http://localhost:3001/invite/abc');
+  });
+
+  it('links to the booking on the configured website', () => {
+    const link = `${web}/bookings/${event.bookingId}`;
+    expect(renderEmail(event, 'ada@example.com', { web })?.html).toContain(link);
+    expect(renderSms(event, '+2348012345678', { web })?.body).toContain(link);
+  });
+
+  it('keeps an SMS within 160 characters without cutting the link', () => {
+    const body = renderSms(event, '+2348012345678', { web })?.body ?? '';
+    expect(body.length).toBeLessThanOrEqual(160);
+    expect(body.endsWith(`${web}/bookings/${event.bookingId}`)).toBe(true);
+  });
+});
+
+describe('NotificationService', () => {
+  const crypto = createCrypto({
+    encKeys: { v1: randomBytes(32) },
+    currentEncVersion: 'v1',
+    pepper: 'test-pepper-test-pepper-test-pepper',
+  });
+
+  function setup(nowIso = '2026-10-20T08:00:00Z') {
     const store = new MemoryStore();
     const sms = new FakeSmsProvider();
     const push = new FakePushProvider();
     const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    // Seed user with plain phone/email for test
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { phone: string; email: string }).phone = '+2348012345678';
-      (userRow as unknown as { phone: string; email: string }).email = 'tunde@example.com';
-    }
-    // Seed device with push token
-    store.deviceRows.push({
-      userId: driverId,
-      clientDeviceId: 'phone-1',
-      platform: 'ANDROID',
-      appVersion: '1.0.0',
-      authSessionId: randomUUID(),
-      pushTokenEnc: 'fcm-push-token-123',
-      revokedAt: null,
-    });
-
+    const clock = new FakeClock(new Date(nowIso));
     const service = new NotificationService({
       sms,
       push,
       email,
       store,
-      logger,
+      logger: createLogger({ level: 'silent' }),
+      crypto,
+      now: () => clock.now(),
     });
-
-    const event: NotificationEvent = {
+    const driverId = randomUUID();
+    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
+    const withContact = async (contact: { phone?: string; email?: string; push?: string }) => {
+      await store.users.setContact(driverId, {
+        phoneHash: null,
+        emailHash: null,
+        phoneEnc: contact.phone ? crypto.encrypt(contact.phone) : null,
+        emailEnc: contact.email ? crypto.encrypt(contact.email) : null,
+      });
+      if (contact.push)
+        await store.devices.upsert({
+          userId: driverId,
+          clientDeviceId: randomUUID(),
+          platform: 'ANDROID',
+          appVersion: '1.0.0',
+          authSessionId: randomUUID(),
+          pushTokenEnc: crypto.encrypt(contact.push),
+        });
+    };
+    const confirmed = (bookingId = randomUUID()): NotificationEvent => ({
       key: 'booking.confirmed',
       driverId,
-      bookingId: randomUUID(),
+      bookingId,
       bookingCode: 'PK-CONF12',
       lotName: 'Silverbird Lot',
-      startAt: '2026-10-20T07:00:00.000Z',
-      endAt: '2026-10-20T09:00:00.000Z',
+      startAt: '2026-10-20T09:00:00.000Z',
+      endAt: '2026-10-20T11:00:00.000Z',
       totalKobo: 110_000,
-    };
+    });
+    const deadline = new Date('2100-01-01T00:00:00Z');
+    return { store, sms, push, email, clock, service, driverId, withContact, confirmed, deadline };
+  }
 
-    const result = await service.dispatch(event);
-    expect(result.deliveredChannels).toContain('PUSH');
-    expect(result.deliveredChannels).toContain('SMS');
-    expect(result.deliveredChannels).toContain('EMAIL');
-    expect(sms.sent).toHaveLength(1);
-    expect(push.sent).toHaveLength(1);
-    expect(email.sent).toHaveLength(1);
+  it('sends a confirmation by push, SMS and email to the decrypted contact', async () => {
+    const t = setup();
+    await t.withContact({ phone: '+2348099887766', email: 'ada@example.com', push: 'expo-tok-1' });
+    const res = await t.service.dispatch(t.confirmed());
+    expect(res.deliveredChannels.sort()).toEqual(['EMAIL', 'PUSH', 'SMS']);
+    expect(t.sms.sent[0]?.to).toBe('+2348099887766');
+    expect(t.email.sent[0]?.to).toBe('ada@example.com');
+    expect(t.push.sent[0]?.tokens).toEqual(['expo-tok-1']);
   });
 
-  it('falls back to SMS when push delivery fails for reminder_start', async () => {
-    const store = new MemoryStore();
-    const sms = new FakeSmsProvider();
-    const push = new FakePushProvider();
-    const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { phone: string }).phone = '+2348012345678';
-    }
-
-    // No push devices registered: push will not be sent
-    const service = new NotificationService({
-      sms,
-      push,
-      email,
-      store,
-      logger,
-    });
-
-    const event: NotificationEvent = {
+  it('sends a reminder by SMS only when push reaches no device (FR-NOT-003)', async () => {
+    const t = setup();
+    await t.withContact({ phone: '+2348099887766', push: 'expo-tok-1' });
+    const reminder: NotificationEvent = {
       key: 'booking.reminder_start',
-      driverId,
+      driverId: t.driverId,
       bookingId: randomUUID(),
-      bookingCode: 'PK-REMIND',
-      lotName: 'Eko Hotel Lot',
-      startAt: '2026-10-20T07:00:00.000Z',
-      minutesUntil: 30,
-    };
-
-    const result = await service.dispatch(event);
-    expect(result.deliveredChannels).toContain('SMS');
-    expect(sms.sent).toHaveLength(1);
-    expect(sms.sent[0]?.body).toContain('starts in 30 mins');
-  });
-
-  it('handles provider errors gracefully without throwing', async () => {
-    const store = new MemoryStore();
-    const sms = new FakeSmsProvider();
-    sms.failNext = true; // force error on next send
-    const push = new FakePushProvider();
-    const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { phone: string }).phone = '+2348012345678';
-    }
-
-    const service = new NotificationService({
-      sms,
-      push,
-      email,
-      store,
-      logger,
-    });
-
-    const event: NotificationEvent = {
-      key: 'booking.extended',
-      driverId,
-      bookingId: randomUUID(),
-      bookingCode: 'PK-EXTEND',
-      lotName: 'Eko Hotel Lot',
-      newEndAt: '2026-10-20T10:00:00.000Z',
-      addedMinutes: 60,
-    };
-
-    const result = await service.dispatch(event);
-    expect(result.failedChannels).toContain('SMS');
-  });
-
-  it('handles push provider failure and 0 delivered gracefully', async () => {
-    const store = new MemoryStore();
-    const sms = new FakeSmsProvider();
-    const push = new FakePushProvider();
-    const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    store.deviceRows.push({
-      userId: driverId,
-      clientDeviceId: 'phone-fail',
-      platform: 'IOS',
-      appVersion: '1.0.0',
-      authSessionId: randomUUID(),
-      pushTokenEnc: 'bad-token',
-      revokedAt: null,
-    });
-
-    // 1. push fails with exception
-    push.failNext = true;
-    const service = new NotificationService({ sms, push, email, store, logger });
-    const event: NotificationEvent = {
-      key: 'booking.confirmed',
-      driverId,
-      bookingId: randomUUID(),
-      bookingCode: 'PK-CONF',
+      bookingCode: 'PK-REM001',
       lotName: 'Eko Lot',
-      startAt: '2026-10-20T07:00:00.000Z',
-      endAt: '2026-10-20T09:00:00.000Z',
-      totalKobo: 100_000,
+      startAt: '2026-10-20T09:00:00.000Z',
+      minutesUntil: 60,
     };
-    const res1 = await service.dispatch(event);
-    expect(res1.failedChannels).toContain('PUSH');
+    expect((await t.service.dispatch(reminder)).deliveredChannels).toEqual(['PUSH']);
+    expect(t.sms.sent).toHaveLength(0);
 
-    // 2. push delivered is 0 because token was marked invalid
-    push.invalid.add('bad-token');
-    const res2 = await service.dispatch(event);
-    expect(res2.failedChannels).toContain('PUSH');
-
-    // 3. email failure
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { email: string }).email = 'test@example.com';
-    }
-    email.failNext = true;
-    const res3 = await service.dispatch(event);
-    expect(res3.failedChannels).toContain('EMAIL');
+    // The device's token is no longer valid, so push reaches nobody.
+    t.push.invalid.add('expo-tok-1');
+    const res = await t.service.dispatch(reminder);
+    expect(res.deliveredChannels).toEqual(['SMS']);
+    // SMS covered it, so the push isn't retried.
+    expect(res.failedChannels).toEqual([]);
   });
 
-  it('returns empty channels when user has no contact info or devices', async () => {
-    const store = new MemoryStore();
-    const sms = new FakeSmsProvider();
-    const push = new FakePushProvider();
-    const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const driverId = randomUUID();
-    // User does not exist in store
-    const service = new NotificationService({ sms, push, email, store, logger });
-    const event: NotificationEvent = {
-      key: 'booking.confirmed',
-      driverId,
-      bookingId: randomUUID(),
-      bookingCode: 'PK-NOUSER',
-      lotName: 'Eko Lot',
-      startAt: '2026-10-20T07:00:00.000Z',
-      endAt: '2026-10-20T09:00:00.000Z',
-      totalKobo: 100_000,
-    };
-    const res = await service.dispatch(event);
-    expect(res.deliveredChannels).toHaveLength(0);
-    expect(res.failedChannels).toHaveLength(0);
-  });
-
-  it('decrypts phone, email, and device push token when crypto is provided', async () => {
-    const store = new MemoryStore();
-    const sms = new FakeSmsProvider();
-    const push = new FakePushProvider();
-    const email = new FakeEmailProvider();
-    const logger = createLogger({ level: 'silent' });
-
-    const crypto = {
-      encrypt: (s: string) => `enc:${s}`,
-      decrypt: (s: string) => {
-        if (s.startsWith('bad:')) throw new Error('decryption error');
-        return s.replace(/^enc:/, '');
-      },
-    };
-
-    const driverId = randomUUID();
-    store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).phoneEnc =
-        'enc:+2348099887766';
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).emailEnc =
-        'enc:driver@example.com';
-    }
-    store.deviceRows.push({
-      userId: driverId,
-      clientDeviceId: 'phone-enc',
-      platform: 'ANDROID',
-      appVersion: '1.0.0',
-      authSessionId: randomUUID(),
-      pushTokenEnc: 'enc:fcm-enc-token',
-      revokedAt: null,
+  it('does not retry push to devices that are no longer registered', async () => {
+    const t = setup();
+    await t.withContact({ push: 'expo-gone' });
+    t.push.invalid.add('expo-gone');
+    expect(await t.service.dispatch(t.confirmed())).toEqual({
+      deliveredChannels: [],
+      failedChannels: [],
     });
+    // A provider error is still worth retrying.
+    t.push.failNext = true;
+    expect((await t.service.dispatch(t.confirmed())).failedChannels).toEqual(['PUSH']);
+  });
 
-    const service = new NotificationService({ sms, push, email, store, logger, crypto });
-    const event: NotificationEvent = {
-      key: 'booking.confirmed',
-      driverId,
-      bookingId: randomUUID(),
-      bookingCode: 'PK-CRYPTO',
-      lotName: 'Eko Lot',
-      startAt: '2026-10-20T07:00:00.000Z',
-      endAt: '2026-10-20T09:00:00.000Z',
-      totalKobo: 100_000,
-    };
-    const res = await service.dispatch(event);
-    expect(res.deliveredChannels).toContain('PUSH');
-    expect(res.deliveredChannels).toContain('SMS');
-    expect(res.deliveredChannels).toContain('EMAIL');
-    expect(sms.sent[0]?.to).toBe('+2348099887766');
-    expect(email.sent[0]?.to).toBe('driver@example.com');
-    expect(push.sent[0]?.tokens).toContain('fcm-enc-token');
+  it('skips channels it has no address for, and unreadable ciphertext, without throwing', async () => {
+    const t = setup();
+    expect(await t.service.dispatch(t.confirmed())).toEqual({
+      deliveredChannels: [],
+      failedChannels: [],
+    });
+    await t.store.users.setContact(t.driverId, {
+      phoneHash: null,
+      emailHash: null,
+      phoneEnc: 'not-ciphertext',
+      emailEnc: 'not-ciphertext',
+    });
+    expect((await t.service.dispatch(t.confirmed())).deliveredChannels).toEqual([]);
+  });
 
-    // Test decryption failures gracefully caught
-    if (userRow) {
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).phoneEnc = 'bad:phone';
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).emailEnc = 'bad:email';
+  it('queues an event once per dedupe key and sends it from the delivery job', async () => {
+    const t = setup();
+    await t.withContact({ phone: '+2348099887766' });
+    const event = t.confirmed();
+    await t.service.notify(event);
+    await t.service.notify(event);
+    expect(t.store.outbox.rows).toHaveLength(1);
+    expect(t.sms.sent).toHaveLength(0);
+
+    expect(await t.service.deliverDue({ deadline: t.deadline })).toEqual({
+      processed: 1,
+      remaining: 0,
+    });
+    expect(t.sms.sent).toHaveLength(1);
+    expect(t.store.outbox.rows[0]).toMatchObject({
+      status: 'SENT',
+      channelsDone: ['SMS'],
+      attempts: 1,
+    });
+    // Nothing left to send.
+    expect((await t.service.deliverDue({ deadline: t.deadline })).processed).toBe(0);
+  });
+
+  it('retries only the failed channel with backoff, then gives up after 5 attempts', async () => {
+    const t = setup();
+    await t.withContact({ phone: '+2348099887766', email: 'ada@example.com' });
+    t.email.send = () => Promise.reject(new Error('email provider down'));
+    await t.service.notify(t.confirmed());
+
+    await t.service.deliverDue({ deadline: t.deadline });
+    const row = t.store.outbox.rows[0];
+    expect(row).toMatchObject({ status: 'PENDING', channelsDone: ['SMS'], attempts: 1 });
+    expect(row?.lastError).toContain('EMAIL');
+    // Not due again until the 1-minute backoff passes.
+    expect((await t.service.deliverDue({ deadline: t.deadline })).processed).toBe(0);
+
+    for (const minutes of [1, 5, 25, 120]) {
+      t.clock.advance(minutes * 60_000);
+      expect((await t.service.deliverDue({ deadline: t.deadline })).processed).toBe(1);
     }
-    const device = store.deviceRows[0];
-    if (!device) throw new Error('no device');
-    device.pushTokenEnc = 'bad:token';
-    const resBad = await service.dispatch(event);
-    expect(resBad.deliveredChannels).not.toContain('SMS');
-    expect(resBad.deliveredChannels).not.toContain('EMAIL');
+    expect(row).toMatchObject({ status: 'FAILED', attempts: 5 });
+    // The SMS went once; only the email was retried.
+    expect(t.sms.sent).toHaveLength(1);
+  });
+
+  it('holds non-critical events until 07:00 Lagos during quiet hours', async () => {
+    // 23:30 Lagos = 22:30 UTC.
+    const t = setup('2026-10-20T22:30:00Z');
+    const checkedOut: NotificationEvent = {
+      key: 'session.checked_out',
+      driverId: t.driverId,
+      bookingId: randomUUID(),
+      bookingCode: 'PK-OUT001',
+      lotName: 'Eko Lot',
+      checkOutAt: '2026-10-20T22:30:00.000Z',
+    };
+    await t.service.notify(checkedOut);
+    expect(t.store.outbox.rows[0]?.nextAttemptAt.toISOString()).toBe('2026-10-21T06:00:00.000Z');
+    // Time-bound events go now.
+    await t.service.notify(t.confirmed());
+    expect(t.store.outbox.rows[1]?.nextAttemptAt.toISOString()).toBe('2026-10-20T22:30:00.000Z');
+  });
+
+  it('never throws from notify, so the action that caused it still succeeds', async () => {
+    const t = setup();
+    t.store.notifications.enqueue = () => Promise.reject(new Error('db down'));
+    await expect(t.service.notify(t.confirmed())).resolves.toBeUndefined();
+  });
+});
+
+describe('quietHoursEnd', () => {
+  it('is null by day and the next 07:00 Lagos by night', () => {
+    expect(quietHoursEnd(new Date('2026-10-20T12:00:00Z'))).toBeNull();
+    // 22:00 Lagos (21:00 UTC) starts quiet hours.
+    expect(quietHoursEnd(new Date('2026-10-20T21:00:00Z'))?.toISOString()).toBe(
+      '2026-10-21T06:00:00.000Z',
+    );
+    // 03:00 Lagos the same night.
+    expect(quietHoursEnd(new Date('2026-10-21T02:00:00Z'))?.toISOString()).toBe(
+      '2026-10-21T06:00:00.000Z',
+    );
+    // 07:00 Lagos is daytime again.
+    expect(quietHoursEnd(new Date('2026-10-21T06:00:00Z'))).toBeNull();
   });
 });

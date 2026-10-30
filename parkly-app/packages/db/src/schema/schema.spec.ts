@@ -32,6 +32,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'lot_slot_inventory',
       'lot_walk_ins',
       'lots',
+      'notifications',
       'operator_kyb_documents',
       'operator_members',
       'operators',

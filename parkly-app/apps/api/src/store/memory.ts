@@ -29,6 +29,7 @@ import {
 } from './types.js';
 import { MemoryAttend } from './memory-attend.js';
 import { MemoryBookings } from './memory-bookings.js';
+import { MemoryNotifications } from './memory-notifications.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -37,7 +38,12 @@ type Consent = { userId: string; type: ConsentType; version: string; granted: bo
 export class MemoryStore implements Store {
   readonly userRows = new Map<
     string,
-    UserRow & { phoneHash?: Buffer | null; emailHash?: Buffer | null }
+    UserRow & {
+      phoneHash?: Buffer | null;
+      emailHash?: Buffer | null;
+      phoneEnc?: string | null;
+      emailEnc?: string | null;
+    }
   >();
   readonly roleRows: (RoleGrant & { userId: string })[] = [];
   readonly consentRows: Consent[] = [];
@@ -101,6 +107,12 @@ export class MemoryStore implements Store {
     lotKeyRows: this.lotKeyRows,
   });
   readonly attend: Store['attend'] = this.attending.attend;
+  /** Notification outbox (Sprint 6, ADR 0020). */
+  readonly outbox = new MemoryNotifications({
+    bookingRows: () => this.booking.bookingRows,
+    lotRows: this.lotRows,
+  });
+  readonly notifications: Store['notifications'] = this.outbox.notifications;
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {
@@ -138,9 +150,13 @@ export class MemoryStore implements Store {
       });
       return { user: { ...this.mustUser(id) }, created: true };
     },
-    setLookupHashes: async (id, hashes) => {
+    setContact: async (id, contact) => {
       const u = this.userRows.get(id);
-      if (u) Object.assign(u, hashes);
+      if (u) Object.assign(u, contact);
+    },
+    contact: async (id) => {
+      const u = this.userRows.get(id);
+      return u ? { phoneEnc: u.phoneEnc ?? null, emailEnc: u.emailEnc ?? null } : null;
     },
     updateProfile: async (id, patch) => {
       const u = this.userRows.get(id);
@@ -247,6 +263,10 @@ export class MemoryStore implements Store {
       for (const d of this.deviceRows)
         if (d.userId === userId && d.authSessionId === sessionId) d.revokedAt = new Date();
     },
+    pushTokens: async (userId) =>
+      this.deviceRows
+        .filter((d) => d.userId === userId && !d.revokedAt && d.pushTokenEnc)
+        .map((d) => d.pushTokenEnc as string),
     revokeAll: async (userId) => {
       for (const d of this.deviceRows) if (d.userId === userId) d.revokedAt = new Date();
       for (const d of this.attending.deviceRows) if (d.userId === userId) d.revokedAt = new Date();

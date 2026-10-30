@@ -48,7 +48,7 @@ Explicitly **not** in scope (yet): on-street parking, peer-to-peer driveways, **
 | Operator portal + Attendant PWA | `apps/portal` | Next.js (App Router). Attendant app is an **offline-first PWA** at route `/attend` | Operator owners, managers, attendants |
 | Admin / Ops console (internal only) | `apps/admin` | Next.js (App Router), separate domain, SSO/MFA, IP allowlist | Parkly ops, support, compliance, finance |
 | API | `apps/api` | Hono on **Vercel Functions** (Node.js 22 runtime), TypeScript, REST + OpenAPI 3.1 | All clients |
-| Background jobs | `apps/api` routes under `/internal/jobs/:job` + SQL functions in `supabase/migrations` | Supabase `pg_cron` → `pg_net` (HMAC-signed) + `pgmq` queues | — |
+| Background jobs | `apps/api` routes under `/internal/jobs/:job` + SQL functions in `supabase/migrations` | Supabase `pg_cron` → `pg_net` (HMAC-signed) + `pgmq` queues; notifications use an outbox table (ADR 0020) | — |
 
 ### 3.2 Stack
 

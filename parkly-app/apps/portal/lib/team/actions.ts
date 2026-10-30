@@ -27,7 +27,14 @@ const membersPath = (operatorId: string) =>
   `/v1/operators/${encodeURIComponent(operatorId)}/members`;
 
 export type InviteState =
-  | { error?: string; fieldErrors?: Record<string, string>; link?: string; name?: string }
+  | {
+      error?: string;
+      fieldErrors?: Record<string, string>;
+      link?: string;
+      name?: string;
+      /** Set when the API emailed the link to this address. */
+      emailedTo?: string;
+    }
   | undefined;
 
 /** O-20: creates the invite and returns the link to share (shown once). */
@@ -64,7 +71,11 @@ export async function inviteMember(_prev: InviteState, form: FormData): Promise<
       { method: 'POST', body },
     );
     revalidatePath('/team');
-    return { link: inviteLink(await origin(), res.inviteToken), name };
+    return {
+      link: inviteLink(await origin(), res.inviteToken),
+      name,
+      ...(res.emailed && 'email' in body ? { emailedTo: body.email } : {}),
+    };
   } catch (err) {
     if (err instanceof ApiProblem && err.code === 'VALIDATION_FAILED') {
       const field = err.errors?.[0];
