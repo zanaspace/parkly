@@ -46,14 +46,26 @@ export function storeContract(
     });
 
     it('stores roles and returns them', async () => {
-      const op = randomUUID();
+      // An operator role needs a real operator (user_roles.operator_id has a foreign key).
+      const { id: op } = await store.operators.create({
+        legalName: 'Roles Test Ltd',
+        tradingName: 'Roles Test',
+        type: 'COMMERCIAL_LOT',
+        cacNumberEnc: 'enc:cac',
+        tinEnc: null,
+        addressLine: '1 Test Street',
+        contactEmail: 'ops@roles.example',
+        contactPhoneEnc: 'enc:phone',
+        commissionBps: 1200,
+        ownerUserId: await newUser(),
+      });
       const id = await newUser([{ role: 'OPERATOR_MANAGER', operatorId: op }]);
       expect(await store.users.roles(id)).toEqual(
         expect.arrayContaining([{ role: 'OPERATOR_MANAGER', operatorId: op }]),
       );
-      expect(await store.operators.members(op)).toEqual([
-        expect.objectContaining({ userId: id, role: 'OPERATOR_MANAGER' }),
-      ]);
+      expect(await store.operators.members(op)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ userId: id, role: 'OPERATOR_MANAGER' })]),
+      );
     });
 
     it('returns the latest consent per type', async () => {
