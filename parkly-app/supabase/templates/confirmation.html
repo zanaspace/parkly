@@ -19,20 +19,13 @@
           <!-- Body Content -->
           <tr>
             <td style="padding: 36px 32px 28px 32px;">
-              <h1 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #171B1A;">Confirm your account</h1>
+              <!-- operator_signup is set only by the portal's password sign-up: operators confirm with the
+                   link. Everyone else (drivers, attendants) signed in by email and types the code. -->
+              {{ if .Data.operator_signup }}
+              <h1 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #171B1A;">Confirm your email</h1>
               <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 24px; color: #4E5654;">
-                Thank you for joining Parkly. Use the verification code below or click the button to confirm your account.
+                Thank you for joining Parkly for Operators. Click the button below to confirm your email address and continue setting up your account.
               </p>
-              
-              <!-- Code Card / Styled Display -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
-                <tr>
-                  <td align="center" style="background-color: #EEF8F6; border: 1.5px solid #137066; border-radius: 8px; padding: 18px 24px;">
-                    <span style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #0F5A53; margin-bottom: 6px;">Your verification code</span>
-                    <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #137066; font-family: 'SF Mono', Consolas, Monaco, monospace;">{{ .Token }}</span>
-                  </td>
-                </tr>
-              </table>
 
               <!-- Primary Action Button -->
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
@@ -46,8 +39,28 @@
               </table>
 
               <p style="margin: 0 0 8px 0; font-size: 14px; line-height: 20px; color: #67706E;">
-                Setting up an operator account? Click the button above to activate your portal.
+                This link expires in 1 hour.
               </p>
+              {{ else }}
+              <h1 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #171B1A;">Your sign-in code</h1>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 24px; color: #4E5654;">
+                Welcome to Parkly. Enter this code where you asked for it to finish signing in.
+              </p>
+
+              <!-- Code Card / Styled Display -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+                <tr>
+                  <td align="center" style="background-color: #EEF8F6; border: 1.5px solid #137066; border-radius: 8px; padding: 18px 24px;">
+                    <span style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #0F5A53; margin-bottom: 6px;">Sign-in code</span>
+                    <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #137066; font-family: 'SF Mono', Consolas, Monaco, monospace;">{{ .Token }}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 8px 0; font-size: 14px; line-height: 20px; color: #67706E;">
+                ⏱ This code expires in <strong>5 minutes</strong>. Never share it with anyone.
+              </p>
+              {{ end }}
               <p style="margin: 0; font-size: 13px; line-height: 20px; color: #8A9290;">
                 If you did not sign up for Parkly, please ignore this email.
               </p>

@@ -86,10 +86,10 @@ Run `pnpm exec supabase config diff` to preview, then `pnpm exec supabase config
 
 Drivers sign in with a 6-digit code by email until SMS is live. In each project:
 
-1. **Auth → Sign In / Providers → Email:** enabled. Keep "Confirm email" on.
-2. **Auth → Email Templates → Magic Link:** make the email show the code, not a link. Subject `Your Parkly code`, body for example:
-   `<p>Your Parkly sign-in code is <strong>{{ .Token }}</strong>.</p><p>It expires in 5 minutes. If you didn't ask for it, ignore this email.</p>`
-   **Confirm signup** (a brand-new address gets this one): **keep the link and add the code**, because operators confirm with the link and drivers type the code, e.g. `<p>Your Parkly code is <strong>{{ .Token }}</strong>.</p><p>Setting up an operator account? <a href="{{ .ConfirmationURL }}">Confirm your email</a>.</p>`
+1. **Auth → Sign In / Providers → Email:** enabled. Keep "Confirm email" on. Set **Email OTP Length** to `6` (every sign-in form expects 6 digits; new hosted projects default to 8) and **Email OTP Expiration** to `300`.
+2. **Auth → Email Templates:** paste the HTML from `supabase/templates/` (local Supabase uses the same files through `config.toml`).
+   - **Magic Link** (a returning driver or attendant): `magic_link.html`, subject `Your Parkly code`. It shows the code only.
+   - **Confirm signup** (a brand-new address): `confirmation.html`, subject `Confirm your Parkly account`. It shows the **link only** to operators who signed up with a password in the portal (the sign-up sets `operator_signup` in user metadata), and the **code only** to everyone else (drivers and attendants signing in by email code).
 3. **Project Settings → Authentication → SMTP Settings: enable custom SMTP.** Supabase's built-in sender only reaches the project's own team members and a few emails an hour. Example with Resend (free tier): create an account, add and verify the sending domain (or start with Resend's test sender), create an API key, then set host `smtp.resend.com`, port `465`, user `resend`, password = the API key, sender `Parkly <no-reply@your-domain>`. The key lives only in Supabase, never in git or Vercel.
 4. **Auth → Rate Limits:** raise "emails sent per hour" once custom SMTP is on (e.g. 100 for dev).
 

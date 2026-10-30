@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
 import { loadSession } from '../auth/session';
 import { publicEnv } from '../env';
+import { createClient } from '../supabase/server';
 import { inviteLink, teamMessage } from './copy';
 
 async function token(): Promise<string> {
@@ -130,6 +131,12 @@ export async function acceptInvite(_prev: SimpleState, form: FormData): Promise<
       body: { inviteToken },
     });
   } catch (err) {
+    // The browser still holds a session the API no longer honours (signed out
+    // elsewhere, expired, or the account was deleted): start over on the invite.
+    if (err instanceof ApiProblem && err.status === 401) {
+      await (await createClient()).auth.signOut({ scope: 'local' });
+      redirect(`/invite/${encodeURIComponent(inviteToken)}?session=ended`);
+    }
     return { error: teamMessage(err instanceof ApiProblem ? err.code : undefined) };
   }
   // Attendants work from the attendant app; managers continue to the portal (MFA set-up first).
