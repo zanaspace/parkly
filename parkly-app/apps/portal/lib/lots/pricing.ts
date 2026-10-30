@@ -65,11 +65,17 @@ export function priceLabel(
     | 'dailyCapKobo'
     | 'dailyRateKobo'
     | 'monthlyRateKobo'
-  >,
+  > &
+    Partial<Pick<RatePlan, 'overstayRateKobo' | 'overstayGraceMin'>>,
 ): string {
   if (p.product === 'HOURLY' && p.hourlyRateKobo !== null) {
     const cap = p.dailyCapKobo !== null ? `, capped at ${formatNaira(p.dailyCapKobo)} a day` : '';
-    return `${formatNaira(p.hourlyRateKobo)} per hour (minimum ${hours(p.minMinutes)}${cap})`;
+    // ADR 0016: the operator's overstay terms, once either is set.
+    const overstay =
+      p.overstayRateKobo || p.overstayGraceMin
+        ? `; overstay ${formatNaira(p.overstayRateKobo ?? Math.round(p.hourlyRateKobo / 4))} per 15 min after ${p.overstayGraceMin ?? 10} min grace`
+        : '';
+    return `${formatNaira(p.hourlyRateKobo)} per hour (minimum ${hours(p.minMinutes)}${cap})${overstay}`;
   }
   if (p.product === 'DAILY' && p.dailyRateKobo !== null)
     return `${formatNaira(p.dailyRateKobo)} per day`;
