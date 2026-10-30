@@ -226,6 +226,12 @@ const MATRIX: Row[] = [
     route: 'GET /v1/admin/bookings/by-code/{code}',
     expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
   },
+  {
+    method: 'GET',
+    path: '/v1/admin/bookings',
+    route: 'GET /v1/admin/bookings',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
 ];
 
 /** Gap review S-11: Sprint 5 and 6 reads, each with an other-tenant case. */

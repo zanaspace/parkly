@@ -813,6 +813,12 @@ describe('unpaid overstay and waivers (FR-BOOK-008, gap review L-4)', () => {
       lotName: t.lot.name,
       overstay: { status: 'UNPAID', minutes: 30, amountKobo: 25_000 },
     });
+
+    const list = await t.call('GET', '/v1/admin/bookings', { as: support, aal: 'aal2' });
+    expect(list.status).toBe(200);
+    expect((list.body as { items: { id: string }[] }).items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: paid.id, code })]),
+    );
     const waive = (who: string, body: Record<string, unknown>) =>
       t.call('POST', `/v1/admin/bookings/${paid.id}/overstay/waive`, {
         as: who,

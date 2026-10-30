@@ -318,6 +318,8 @@ export const AdminBookingSchema = z.object({
   lotName: z.string(),
   startAt: z.iso.datetime(),
   endAt: z.iso.datetime(),
+  plate: z.string().nullable().optional(),
+  totalKobo: z.number().int().optional(),
   overstay: z
     .object({
       status: z.enum(['NONE', 'DUE', 'PAID', 'UNPAID', 'WAIVED']),
@@ -327,6 +329,10 @@ export const AdminBookingSchema = z.object({
     .nullable(),
 });
 
+export const AdminBookingListSchema = z.object({
+  items: z.array(AdminBookingSchema),
+});
+
 /** Ops waive an overstay as goodwill (e.g. a broken barrier); the reason is audited. */
 export const WaiveOverstayRequestSchema = z.object({
   reason: z.string().trim().min(5, 'Say why, in a few words').max(500),
@@ -334,4 +340,5 @@ export const WaiveOverstayRequestSchema = z.object({
 
 export type UnpaidOverstay = z.infer<typeof UnpaidOverstaySchema>;
 export type AdminBooking = z.infer<typeof AdminBookingSchema>;
+export type AdminBookingList = z.infer<typeof AdminBookingListSchema>;
 export type WaiveOverstayRequest = z.infer<typeof WaiveOverstayRequestSchema>;

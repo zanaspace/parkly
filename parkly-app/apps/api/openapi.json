@@ -6426,6 +6426,141 @@
         }
       }
     },
+    "/v1/admin/bookings": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "code",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_PAYMENT",
+                              "CONFIRMED",
+                              "CHECKED_IN",
+                              "COMPLETED",
+                              "CANCELLED",
+                              "EXPIRED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plate": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "totalKobo": {
+                            "type": "integer"
+                          },
+                          "overstay": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "NONE",
+                                  "DUE",
+                                  "PAID",
+                                  "UNPAID",
+                                  "WAIVED"
+                                ]
+                              },
+                              "minutes": {
+                                "type": "integer"
+                              },
+                              "amountKobo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "status",
+                              "minutes",
+                              "amountKobo"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "status",
+                          "lotName",
+                          "startAt",
+                          "endAt",
+                          "overstay"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/bookings/by-code/{code}": {
       "get": {
         "tags": [
@@ -6484,6 +6619,15 @@
                     "endAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "plate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "totalKobo": {
+                      "type": "integer"
                     },
                     "overstay": {
                       "type": [
@@ -6609,6 +6753,15 @@
                     "endAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "plate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "totalKobo": {
+                      "type": "integer"
                     },
                     "overstay": {
                       "type": [

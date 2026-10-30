@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  AdminBookingListSchema,
   AdminBookingSchema,
   AuditLogPageSchema,
   AuditLogQuerySchema,
@@ -9,6 +10,7 @@ import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
+import type { BookingRow } from '../../store/types.js';
 
 /** Cursor = base64url("<createdAt ISO>|<id>"), newest first. */
 function decodeCursor(cursor: string | undefined) {
@@ -100,8 +102,11 @@ export function adminRoutes(deps: AppDeps) {
   );
 
   const adminAuth = [authenticate(deps.verifyToken), loadActor(deps.store)];
-  const adminBooking = async (id: string) => {
-    const booking = await deps.store.bookings.find(id);
+  const adminBooking = async (bookingOrId: string | BookingRow) => {
+    const booking =
+      typeof bookingOrId === 'string'
+        ? await deps.store.bookings.find(bookingOrId)
+        : bookingOrId;
     if (!booking) throw new ApiError('NOT_FOUND');
     const [lot, session] = await Promise.all([
       deps.store.lots.findById(booking.lotId),
@@ -114,6 +119,8 @@ export function adminRoutes(deps: AppDeps) {
       lotName: lot?.name ?? '',
       startAt: booking.startAt.toISOString(),
       endAt: booking.endAt.toISOString(),
+      plate: booking.plateNorm ?? null,
+      totalKobo: booking.totalKobo,
       overstay: session
         ? {
             status: session.overstayStatus,
@@ -123,6 +130,43 @@ export function adminRoutes(deps: AppDeps) {
         : null,
     };
   };
+
+  // Support and ops browse recent bookings or search by code (FR-BOOK-008, FR-ADM-002).
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/admin/bookings',
+      tags: ['admin'],
+      security: [{ bearerAuth: [] }],
+      middleware: adminAuth,
+      request: {
+        query: z.object({
+          code: z.string().optional(),
+          limit: z.coerce.number().int().min(1).max(100).default(50).optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'Bookings list',
+          content: { 'application/json': { schema: AdminBookingListSchema } },
+        },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'booking:support:read', {});
+      const { code, limit } = c.req.valid('query');
+      if (code) {
+        const normalized = code.trim().toUpperCase();
+        const b = await deps.store.bookings.findByCode(normalized);
+        if (!b) return c.json({ items: [] }, 200);
+        const item = await adminBooking(b);
+        return c.json({ items: [item] }, 200);
+      }
+      const rows = await deps.store.bookings.listRecent(limit ?? 50);
+      const items = await Promise.all(rows.map((r) => adminBooking(r)));
+      return c.json({ items }, 200);
+    },
+  );
 
   // Support finds a booking by its code to see the overstay (gap review L-4).
   app.openapi(

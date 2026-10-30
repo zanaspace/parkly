@@ -235,6 +235,11 @@ export class MemoryBookings {
       const b = this.bookingRows.find((r) => r.code === code);
       return b ? { ...b } : null;
     },
+    listRecent: async (limit = 50) =>
+      [...this.bookingRows]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit)
+        .map((b) => ({ ...b })),
 
     listForDriver: async (driverId, which, now, limit) => {
       const upcoming = (b: BookingRow) => LIVE_STATUSES.has(b.status) && b.endAt > now;
