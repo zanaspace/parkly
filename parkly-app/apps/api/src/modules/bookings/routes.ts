@@ -32,11 +32,7 @@ import {
 } from '@parkly/domain/booking';
 import { generateBookingCode } from '@parkly/domain/codes';
 import { mulDivRoundHalfUp } from '@parkly/domain/money';
-import {
-  overstayCharge,
-  quote as priceQuote,
-  type Quote as DomainQuote,
-} from '@parkly/domain/pricing';
+import { quote as priceQuote, type Quote as DomainQuote } from '@parkly/domain/pricing';
 import { lagosDateKey } from '@parkly/domain/time';
 import { v7 as uuidv7 } from 'uuid';
 import type { AppDeps } from '../../app.js';
@@ -54,6 +50,7 @@ import {
 } from '../../store/types.js';
 import { loadSettings, toOpeningDay, toPublicQuote } from '../discovery/routes.js';
 import { buildReceiptData, renderReceiptHtml } from './receipt.js';
+import { overstayPricer } from './overstay-price.js';
 import { verifyAndSettle } from './settle.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -167,46 +164,25 @@ export function bookingRoutes(deps: AppDeps) {
    */
   async function viewsFor(rows: BookingRow[]) {
     const now = deps.now();
-    const [stays, graceMin] = await Promise.all([
-      deps.store.attend.sessionsForBookings(rows.map((r) => r.id)),
-      deps.store.settings.get<number>('session.overstay_grace_min').then((v) => v ?? 10),
-    ]);
-    const plansByLot = new Map<
-      string,
-      Awaited<ReturnType<typeof deps.store.ratePlans.activeFor>>
-    >();
+    const stays = await deps.store.attend.sessionsForBookings(rows.map((r) => r.id));
+    // The booking's own plan and overstay terms, as at check-out (gap review L-3).
+    const overstay = overstayPricer(deps.store);
     const phoneMap = new Map<string, string | null>();
     for (const lotId of new Set(rows.map((r) => r.lotId))) {
-      plansByLot.set(lotId, await deps.store.ratePlans.activeFor([lotId]));
       const l = await lotOf(lotId);
       const op = await deps.store.operators.find(l.operatorId);
       phoneMap.set(lotId, op?.contactPhoneEnc ? deps.crypto.decrypt(op.contactPhoneEnc) : null);
     }
-    const price = (b: BookingRow, checkOutAt: Date) => {
-      try {
-        const q = overstayCharge({
-          ratePlans: plansByLot.get(b.lotId) ?? [],
-          endAt: b.endAt,
-          checkOutAt,
-          graceMin,
-          commissionBps: b.commissionBps,
-        });
-        const line = q.lines[0];
-        return { minutes: line?.kind === 'OVERSTAY' ? line.minutes : 0, kobo: q.priceKobo };
-      } catch {
-        return null; // no hourly or daily price to base it on
-      }
-    };
     return Promise.all(
       rows.map(async (b) => {
-        // Same grace as check-out pricing (attend routes), so drivers see what they'll be charged.
-        const one = price(b, new Date(b.endAt.getTime() + (graceMin + 1) * 60_000));
+        const terms = await overstay.terms(b);
+        const graceMin = terms?.graceMin ?? 0;
         const s = stays.get(b.id);
         let stay: Booking['stay'] = null;
         if (s) {
           const late =
             !s.checkOutAt && s.checkInAt && now.getTime() > b.endAt.getTime() + graceMin * 60_000;
-          const live = late ? price(b, now) : null;
+          const live = late ? await overstay.price(b, now) : null;
           stay = {
             checkedInAt: s.checkInAt?.toISOString() ?? null,
             checkedOutAt: s.checkOutAt?.toISOString() ?? null,
@@ -216,7 +192,7 @@ export function bookingRoutes(deps: AppDeps) {
         }
         return {
           qrToken: await ticketFor(b),
-          overstay: one ? { graceMin, per15Kobo: one.kobo } : null,
+          overstay: terms,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };

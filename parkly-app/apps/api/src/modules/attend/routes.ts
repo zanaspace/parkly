@@ -26,13 +26,13 @@ import {
   SELF_CHECKIN_RADIUS_M,
 } from '@parkly/domain/checkin';
 import { toBase64Url } from '@parkly/domain/qr';
-import { overstayCharge } from '@parkly/domain/pricing';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import { gateCodes } from '../../lib/gate-codes.js';
 import { bookingNotice } from '../../notifications/events.js';
+import { overstayPricer } from '../bookings/overstay-price.js';
 import type { AttendDeviceRow, AttendEventInput, AttendEventResult } from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -82,35 +82,28 @@ export function attendRoutes(deps: AppDeps) {
     return lot;
   }
 
-  /** Overstay is worked out by the server (doc 03 §3.6); payment comes in S6. */
-  async function priceOverstay(lotId: string, sessionIds: string[]) {
+  /**
+   * Overstay is worked out by the server (doc 03 §3.6) from the booking's own
+   * plan and overstay terms (ADR 0016, gap review L-3), as the booking view shows.
+   */
+  async function priceOverstay(_lotId: string, sessionIds: string[]) {
     if (sessionIds.length === 0) return;
-    const [plans, graceMin] = await Promise.all([
-      deps.store.ratePlans.activeFor([lotId]),
-      settingNumber('session.overstay_grace_min', 10),
-    ]);
+    const overstay = overstayPricer(deps.store);
     for (const id of sessionIds) {
       const s = await deps.store.attend.session(id);
-      if (!s?.checkOutAt || s.checkOutAt.getTime() <= s.endAt.getTime() + graceMin * 60_000)
-        continue;
+      if (!s?.checkOutAt) continue;
       try {
-        const q = overstayCharge({
-          ratePlans: plans,
-          endAt: s.endAt,
-          checkOutAt: s.checkOutAt,
-          graceMin,
-          commissionBps: s.commissionBps,
-        });
-        const minutes = q.lines[0]?.kind === 'OVERSTAY' ? q.lines[0].minutes : 0;
-        await deps.store.attend.setOverstay(id, minutes, q.priceKobo);
         const notice = await bookingNotice(deps.store, s.bookingId);
-        if (notice && q.priceKobo > 0)
-          await deps.notifications.notify({
-            key: 'session.overstay_due',
-            ...notice.base,
-            overstayMinutes: minutes,
-            amountKobo: q.priceKobo,
-          });
+        if (!notice) continue;
+        const q = await overstay.price(notice.booking, s.checkOutAt);
+        if (!q || q.kobo === 0) continue;
+        await deps.store.attend.setOverstay(id, q.minutes, q.kobo);
+        await deps.notifications.notify({
+          key: 'session.overstay_due',
+          ...notice.base,
+          overstayMinutes: q.minutes,
+          amountKobo: q.kobo,
+        });
       } catch (err) {
         deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');
       }

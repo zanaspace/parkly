@@ -396,6 +396,47 @@ describe('sync (doc 01 §5.3)', () => {
     });
   });
 
+  it('prices overstay from the booking’s own plan and its operator overstay terms (ADR 0016)', async () => {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    const booking = t.store.booking.bookingRows.find((b) => b.id === paid.id);
+    const sold = t.store.ratePlanRows.find((p) => p.id === booking?.ratePlanId);
+    if (!sold) throw new Error('no plan');
+    // Sold with an operator overstay price of ₦200 per 15 min and 20 minutes' grace.
+    sold.overstayRateKobo = 20_000;
+    sold.overstayGraceMin = 20;
+    // The lot then quadruples its hourly price: that is for new bookings only.
+    sold.status = 'RETIRED';
+    t.store.ratePlanRows.push({
+      ...sold,
+      id: randomUUID(),
+      status: 'ACTIVE',
+      hourlyRateKobo: 200_000,
+      overstayRateKobo: null,
+      overstayGraceMin: null,
+    });
+
+    const view = await t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    expect(view.body?.overstay).toEqual({ graceMin: 20, per15Kobo: 20_000 });
+
+    await t.readyDevice();
+    await t.sync([checkIn(paid.id, min(55))]);
+    // Left 40 min after the end: 20 min grace → 20 min late → two 15-minute blocks.
+    await t.sync([
+      {
+        type: 'CHECK_OUT',
+        clientEventId: randomUUID(),
+        bookingId: paid.id,
+        method: 'QR',
+        deviceTime: min(220),
+      },
+    ]);
+    expect(t.store.attending.sessionRows[0]).toMatchObject({
+      overstayMinutes: 30,
+      overstayAmountKobo: 40_000,
+    });
+  });
+
   it('keeps the earliest check-in when two phones both checked the car in', async () => {
     const t = await setup();
     const paid = await t.paidBooking();

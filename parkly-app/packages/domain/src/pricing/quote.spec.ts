@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  extensionQuote,
-  overstayCharge,
-  quote,
-  type PricingSettings,
-  type RatePlanPrices,
-} from './quote.js';
+import { calculateOverstay } from '../booking/overstay.js';
+import { extensionQuote, quote, type PricingSettings, type RatePlanPrices } from './quote.js';
 
 // Doc 02 §4 worked examples: ₦1,000/h, 15-min blocks, 60-min minimum, ₦100 fee, 1200 bps.
 const settings: PricingSettings = {
@@ -58,6 +53,15 @@ const amounts = (q: ReturnType<typeof ok>) => [
   q.operatorAmountKobo,
 ];
 
+/** Overstay at check-out (ADR 0016), with the platform's 10 minutes of grace. */
+const late = (ratePlan: RatePlanPrices, endAt: Date, minutesLate: number) =>
+  calculateOverstay({
+    endAt,
+    checkOutAt: new Date(endAt.getTime() + minutesLate * 60_000),
+    ratePlan,
+    settings: { defaultGraceMin: 10, commissionBps: 1200 },
+  });
+
 describe('quote: doc 02 §4 worked examples (mandatory)', () => {
   it('#1 one hour', () => {
     const q = ok(quote({ ratePlan: hourly(100_000), ...at('2026-10-20 08:00', 60), settings }));
@@ -102,15 +106,8 @@ describe('quote: doc 02 §4 worked examples (mandatory)', () => {
   });
 
   it('#6 overstay 22 min with 10 min grace = one block', () => {
-    const endAt = lagos('2026-10-20 10:00');
-    const q = overstayCharge({
-      ratePlans: [hourly(100_000)],
-      endAt,
-      checkOutAt: new Date(endAt.getTime() + 22 * 60_000),
-      graceMin: 10,
-      commissionBps: 1200,
-    });
-    expect(amounts(q)).toEqual([25_000, 0, 25_000, 3_000, 22_000]);
+    const q = late(hourly(100_000), lagos('2026-10-20 10:00'), 22);
+    expect([q.amountKobo, q.commissionKobo, q.operatorAmountKobo]).toEqual([25_000, 3_000, 22_000]);
   });
 
   it('#7 monthly ₦45,000 flat, no fee', () => {
@@ -327,15 +324,8 @@ describe('extensions and overstay (doc 02 §4)', () => {
   });
 
   it('charges nothing inside the grace period, then whole blocks', () => {
-    const endAt = after(120);
     const charge = (minutesLate: number) =>
-      overstayCharge({
-        ratePlans: [hourly(100_000)],
-        endAt,
-        checkOutAt: new Date(endAt.getTime() + minutesLate * 60_000),
-        graceMin: 10,
-        commissionBps: 1200,
-      }).priceKobo;
+      late(hourly(100_000), after(120), minutesLate).amountKobo;
     expect(charge(-5)).toBe(0);
     expect(charge(10)).toBe(0);
     expect(charge(11)).toBe(25_000);
@@ -343,27 +333,12 @@ describe('extensions and overstay (doc 02 §4)', () => {
   });
 
   it('falls back to the daily rate / 24 per hour when the lot has no hourly price', () => {
-    const endAt = after(120);
-    const q = overstayCharge({
-      ratePlans: [daily(240_000)],
-      endAt,
-      checkOutAt: new Date(endAt.getTime() + 25 * 60_000),
-      graceMin: 10,
-      commissionBps: 1200,
-    });
+    const q = late(daily(240_000), after(120), 25);
     // ₦2,400/day → ₦100/h → ₦25 a block; 15 late minutes = 1 block.
-    expect(q.priceKobo).toBe(2_500);
+    expect(q.amountKobo).toBe(2_500);
   });
 
-  it('throws when the lot has neither an hourly nor a daily price', () => {
-    expect(() =>
-      overstayCharge({
-        ratePlans: [monthly(4_500_000)],
-        endAt: start,
-        checkOutAt: after(60),
-        graceMin: 10,
-        commissionBps: 1200,
-      }),
-    ).toThrow(RangeError);
+  it('has no price to charge by on a monthly plan', () => {
+    expect(late(monthly(4_500_000), start, 60).per15Kobo).toBe(0);
   });
 });
