@@ -121,7 +121,7 @@ Ops can cancel any booking with a full or partial goodwill refund. The 30-minute
 | Task | Status |
 |---|---|
 | 1. Extension: availability, incremental payment, manifest update | **Done.** Idempotent; holds expire. |
-| 2. Overstay at checkout, pay link, unpaid block, ops waive | **Partial.** The overstay charge and in-app payment work. The pay link by message, unpaid block and ops waive are Wave 3 (items 12 and 13). |
+| 2. Overstay at checkout, pay link, unpaid block, ops waive | **Done.** Priced from the booking's own plan with the operator's overstay terms; pay link by message; unpaid after 24 h blocks new bookings; ops waive with a reason (item 13). |
 | 3. Cancellation policy engine and refund via provider; refund webhooks | **Done** |
 | 4. No-show job every 5 minutes | **Done in SQL**, but wrong while a gate is offline (Wave 3, item 14) |
 | 5. Receipts: HTML/PDF, email, in-app, private bucket | **Partial.** HTML only, now escaped and served by signed link. PDF and email are Wave 3 (item 15). |
@@ -155,14 +155,14 @@ Ops can cancel any booking with a full or partial goodwill refund. The 30-minute
 
 ### Wave 3 (before Sprint 7)
 
-| # | Work item | Findings |
-|---|---|---|
-| 11 | CI green: lint, Prettier, OpenAPI regen, audit. Known lint errors: 21 in the API, 2 in mobile, 1 in the website, all predating this pass. | T-1 |
-| 12 | Notifications: queue, cron drain, retries, SMS fallback, quiet hours, reminders, push registration. Also carries **invite emails**. | L-1, O-4, U-6 |
-| 13 | Overstay: priced from the rate plan, unpaid block, ops waive with audit | L-3, L-4, U-2, U-12, P-14 |
-| 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 |
-| 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 |
-| 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 |
+| # | Work item | Findings | Status |
+|---|---|---|---|
+| 11 | CI green: lint, Prettier, OpenAPI regen, audit; workflows moved to the repository root | T-1 | **Done** |
+| 12 | Notifications: outbox, retries, SMS fallback, quiet hours, reminders, push registration, invite emails (ADR 0020) | L-1, O-4, U-6 | **Done** |
+| 13 | Overstay: priced from the booking's plan, unpaid block, ops waive with audit; extensions from the booking's plan | L-3, L-4, U-2, U-12, P-14 | **Done** |
+| 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 | Open |
+| 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 | Open |
+| 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 | Open |
 
 ### Owner actions
 

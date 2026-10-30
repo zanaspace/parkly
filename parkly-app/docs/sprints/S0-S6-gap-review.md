@@ -396,11 +396,15 @@ Sprint 6 looks done in the UI, but several parts only work against the in-memory
 
 ### L-3 (Medium): ADR 0016 overstay pricing is not wired in
 
+**Status (Oct 30):** fixed. Operator overstay price and grace on hourly plans, capped by Parkly; check-out and the booking view price from the booking's own plan.
+
 `calculateOverstay` and `validateOverstayRatePlan` in `packages/domain/src/booking/overstay.ts` are used only by their own tests. There is no operator overstay price column, and `overstay_max_multiplier` is not enforced. Check-out prices overstay with the lot's current rate plan, not the booking's `rate_plan_id`.
 
 **Fix:** add `overstay_rate_kobo` to `rate_plans` with a CHECK against the Parkly maximum, then call `calculateOverstay` at check-out using the booking's own rate plan. Do the same for extension pricing (P-14).
 
 ### L-4 (Medium): unpaid overstay never blocks anything (FR-BOOK-008)
+
+**Status (Oct 30):** fixed. `UNPAID` after 24 h blocks new bookings (`OVERSTAY_UNPAID`); the apps show it with a pay button; ops waive with a reason (audited); paid and waived are final. The pay link goes out with `session.overstay_due` (L-1).
 
 - `createBooking` never checks for an unpaid overstay.
 - Nothing sets `UNPAID` or `WAIVED`, and there is no ops waive endpoint.
