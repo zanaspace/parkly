@@ -74,6 +74,37 @@ describe('team invites (FR-OPS-004, doc 03 §2.3)', () => {
     expect(JSON.stringify(ctx.w.store.memberRows)).not.toContain('bisi@ekohotel.ng');
   });
 
+  it('emails the invite link when real email is on, and says so', async () => {
+    const ctx = await setup();
+    const res = await inviteManager(ctx);
+    expect(res.body?.emailed).toBe(true);
+    const mail = ctx.w.email.sent;
+    expect(mail).toHaveLength(1);
+    expect(mail[0]?.to).toBe('bisi@ekohotel.ng');
+    expect(mail[0]?.subject).toContain('Eko Hotel');
+    expect(mail[0]?.html).toContain(
+      `http://localhost:3001/invite/${String(res.body?.inviteToken)}`,
+    );
+    expect(mail[0]?.text).toContain('72 hours');
+
+    // A phone invite has no email to send to.
+    expect((await inviteAttendant(ctx)).body?.emailed).toBe(false);
+    expect(mail).toHaveLength(1);
+  });
+
+  it('does not claim an email went when email is log-only or the send fails', async () => {
+    const ctx = await setup();
+    ctx.w.emailLive(false);
+    expect((await inviteManager(ctx)).body?.emailed).toBe(false);
+    expect(ctx.w.email.sent).toHaveLength(0);
+
+    ctx.w.emailLive(true);
+    ctx.w.email.failNext = true;
+    const res = await inviteManager(ctx, 'tola@ekohotel.ng');
+    expect(res.status).toBe(201);
+    expect(res.body?.emailed).toBe(false);
+  });
+
   it('refuses a second invite for the same person (MEMBER_EXISTS)', async () => {
     const ctx = await setup();
     await inviteManager(ctx);

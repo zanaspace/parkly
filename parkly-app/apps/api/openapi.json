@@ -9356,11 +9356,15 @@
                     },
                     "inviteToken": {
                       "type": "string"
+                    },
+                    "emailed": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "member",
-                    "inviteToken"
+                    "inviteToken",
+                    "emailed"
                   ]
                 }
               }

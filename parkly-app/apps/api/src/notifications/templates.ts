@@ -18,8 +18,8 @@ function formatLagosTime(isoString: string): string {
   });
 }
 
-/** Where links in messages point; the driver website's base URL (WEB_BASE_URL). */
-export type TemplateLinks = { web: string };
+/** Where links in messages point: the driver website (WEB_BASE_URL), and the portal for invites. */
+export type TemplateLinks = { web: string; portal?: string };
 const LOCAL_LINKS: TemplateLinks = { web: 'http://localhost:3000' };
 
 const bookingUrl = (links: TemplateLinks, bookingId: string) =>
@@ -248,4 +248,42 @@ export function renderEmail(
   const text = `${heading}\n\nBooking: ${event.bookingCode}\nLocation: ${event.lotName}\n\nParkly Technologies Ltd • support@parkly.ng`;
 
   return { to: email, subject, text, html };
+}
+
+/** FR-OPS-004: the team invite, sent once when it is created. The link is the credential. */
+export function renderInviteEmail(input: {
+  to: string;
+  businessName: string;
+  role: 'MANAGER' | 'ATTENDANT';
+  link: string;
+}): EmailMessage {
+  const business = esc(input.businessName);
+  const link = esc(input.link);
+  const as = input.role === 'MANAGER' ? 'a manager' : 'an attendant';
+  const next =
+    input.role === 'MANAGER'
+      ? 'Open the link, sign in or create an account with this email, then accept.'
+      : 'Open the link on the phone you will use at the gate and sign in with the code we send to this email.';
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #111827; margin: 0; padding: 24px;">
+  <div style="background: #ffffff; max-width: 580px; margin: 0 auto; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+    <div style="background: #008080; color: #ffffff; padding: 24px; text-align: center;">
+      <h1 style="margin: 0; font-size: 24px;">Parkly</h1>
+    </div>
+    <div style="padding: 28px; line-height: 1.6;">
+      <h2 style="color: #008080; font-size: 20px; margin-top: 0;">${business} invited you to Parkly</h2>
+      <p>${business} has invited you to join their team as ${as}.</p>
+      <p>${esc(next)}</p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${link}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">Accept the invite</a>
+      </div>
+      <p style="font-size: 13px; color: #6b7280;">This link works once and expires in 72 hours. If you weren't expecting it, ignore this email.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  const text = `${input.businessName} invited you to Parkly as ${as}.\n\n${next}\n\n${input.link}\n\nThis link works once and expires in 72 hours.`;
+  return { to: input.to, subject: `${input.businessName} invited you to Parkly`, html, text };
 }

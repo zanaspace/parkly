@@ -146,6 +146,22 @@ export function world(overrides: Partial<AppDeps> = {}) {
     scanner,
     ...overrides,
   });
+  // Visible email and push fakes; email counts as real (Resend) unless a test turns it off.
+  const email = new FakeEmailProvider();
+  const push = new FakePushProvider();
+  let emailIsLive = true;
+  if (!overrides.notifications)
+    deps.notifications = new NotificationService({
+      sms,
+      email,
+      push,
+      store,
+      logger: deps.logger,
+      crypto: deps.crypto,
+      now: () => deps.now(),
+      links: { web: 'http://localhost:3000', portal: 'http://localhost:3001' },
+      emailLive: () => emailIsLive,
+    });
   const app = createApp(deps);
 
   const user = (
@@ -215,6 +231,11 @@ export function world(overrides: Partial<AppDeps> = {}) {
     payments,
     storage,
     scanner,
+    email,
+    push,
+    emailLive: (on: boolean) => {
+      emailIsLive = on;
+    },
     user,
     call,
     tokenFor,

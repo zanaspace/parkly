@@ -10,7 +10,7 @@ import {
 } from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
 import { NotificationService, quietHoursEnd } from './service.js';
-import { renderEmail, renderPush, renderSms } from './templates.js';
+import { renderEmail, renderInviteEmail, renderPush, renderSms } from './templates.js';
 import type { NotificationEvent } from './types.js';
 
 describe('Notification Templates', () => {
@@ -337,6 +337,18 @@ describe('template safety and links', () => {
     const email = renderEmail(event, 'ada@example.com', { web });
     expect(email?.html).not.toContain('<img src=x');
     expect(email?.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('escapes the business name in invite emails', () => {
+    const invite = renderInviteEmail({
+      to: 'bisi@example.com',
+      businessName: '<script>x</script> Hotel',
+      role: 'MANAGER',
+      link: 'http://localhost:3001/invite/abc',
+    });
+    expect(invite.html).not.toContain('<script>x</script>');
+    expect(invite.html).toContain('&lt;script&gt;x&lt;/script&gt; Hotel');
+    expect(invite.html).toContain('http://localhost:3001/invite/abc');
   });
 
   it('links to the booking on the configured website', () => {

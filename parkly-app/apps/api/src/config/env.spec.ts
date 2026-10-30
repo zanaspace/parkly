@@ -90,6 +90,7 @@ describe('loadConfig', () => {
       UPSTASH_REDIS_REST_URL: 'https://x.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 't',
       WEB_BASE_URL: 'https://parkly-web-two.vercel.app',
+      PORTAL_BASE_URL: 'https://parkly-portal.vercel.app',
       STORAGE_PROVIDER: 'supabase',
       SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
     });

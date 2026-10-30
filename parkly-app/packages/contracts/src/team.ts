@@ -42,6 +42,8 @@ export const InviteMemberRequestSchema = z.discriminatedUnion('role', [
 export const InviteMemberResponseSchema = z.object({
   member: TeamMemberSchema,
   inviteToken: z.string(),
+  /** The link was emailed to the invitee (real email only); the portal shows it either way. */
+  emailed: z.boolean(),
 });
 
 export const AcceptInviteRequestSchema = z.object({

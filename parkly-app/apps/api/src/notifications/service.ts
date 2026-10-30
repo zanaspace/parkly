@@ -1,7 +1,13 @@
 import type { Logger } from '../lib/logger.js';
 import type { EmailProvider, PushProvider, SmsProvider } from '../providers/index.js';
 import type { NotificationRow, Store } from '../store/types.js';
-import { renderEmail, renderPush, renderSms, type TemplateLinks } from './templates.js';
+import {
+  renderEmail,
+  renderInviteEmail,
+  renderPush,
+  renderSms,
+  type TemplateLinks,
+} from './templates.js';
 import type { DispatchResult, NotificationChannel, NotificationEvent } from './types.js';
 
 export interface NotificationServiceDeps {
@@ -15,6 +21,8 @@ export interface NotificationServiceDeps {
   now: () => Date;
   /** Links in SMS and email; the driver website (WEB_BASE_URL). Local default otherwise. */
   links?: TemplateLinks;
+  /** True when email really leaves (Resend), so the portal can say it was emailed. */
+  emailLive?: () => boolean;
 }
 
 /** FR-NOT-003: five attempts with exponential backoff (minutes after attempts 1–4). */
@@ -185,6 +193,35 @@ export class NotificationService {
 
     this.deps.logger.info({ ...log, deliveredChannels, failedChannels }, 'notification dispatched');
     return { deliveredChannels, failedChannels };
+  }
+
+  /**
+   * Emails a team invite link (FR-OPS-004) once, when it is created. Not
+   * queued: the link is a credential and is never stored. True only when a
+   * real email left; the portal then says so, and always shows the link too.
+   */
+  async sendInvite(input: {
+    to: string;
+    businessName: string;
+    role: 'MANAGER' | 'ATTENDANT';
+    token: string;
+  }): Promise<boolean> {
+    if (!this.deps.emailLive?.()) return false;
+    const portal = (this.deps.links?.portal ?? 'http://localhost:3001').replace(/\/$/, '');
+    try {
+      await this.deps.email.send(
+        renderInviteEmail({
+          to: input.to,
+          businessName: input.businessName,
+          role: input.role,
+          link: `${portal}/invite/${encodeURIComponent(input.token)}`,
+        }),
+      );
+      return true;
+    } catch (err) {
+      this.deps.logger.error({ err, role: input.role }, 'invite email failed');
+      return false;
+    }
   }
 
   /** Decrypts a stored value; null when absent or unreadable (e.g. after key rotation). */
