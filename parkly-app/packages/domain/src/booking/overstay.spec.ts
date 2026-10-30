@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Kobo } from '../money/money.js';
 import type { RatePlanPrices } from '../pricing/quote.js';
-import {
-  calculateOverstay,
-  validateOverstayRatePlan,
-  type OverstaySettings,
-} from './overstay.js';
+import { calculateOverstay, validateOverstayRatePlan, type OverstaySettings } from './overstay.js';
 
 describe('calculateOverstay (FR-BOOK-008, doc 02 §4 Worked Example 6, ADR 0016)', () => {
   const settings: OverstaySettings = {
@@ -97,7 +93,10 @@ describe('calculateOverstay (FR-BOOK-008, doc 02 §4 Worked Example 6, ADR 0016)
 
   it('uses custom operator overstay rate when specified on the rate plan (ADR 0016)', () => {
     // Operator set custom overstay price of ₦350 per 15 min (35,000 kobo)
-    const customRatePlan: RatePlanPrices & { overstayRateKobo?: number; overstayGraceMin?: number } = {
+    const customRatePlan: RatePlanPrices & {
+      overstayRateKobo?: number;
+      overstayGraceMin?: number;
+    } = {
       ...ratePlan,
       overstayRateKobo: 35_000,
       overstayGraceMin: 15, // Custom 15 min grace

@@ -194,9 +194,10 @@
   line-height: var(--pk-type-body-md-line-height, 1.5);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--pk-motion-duration-fast, 0.15s) ease,
-              box-shadow var(--pk-motion-duration-fast, 0.15s) ease,
-              background-color var(--pk-motion-duration-fast, 0.15s) ease;
+  transition:
+    border-color var(--pk-motion-duration-fast, 0.15s) ease,
+    box-shadow var(--pk-motion-duration-fast, 0.15s) ease,
+    background-color var(--pk-motion-duration-fast, 0.15s) ease;
   user-select: none;
 }
 
@@ -247,8 +248,9 @@
 .pk-custom-select-chevron {
   flex-shrink: 0;
   color: var(--pk-color-text-tertiary, #8692a0);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.15s ease;
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.15s ease;
 }
 
 .pk-custom-select-chevron--open {
@@ -268,7 +270,9 @@
   background: var(--pk-color-bg-surface, #181d24);
   border: 1px solid var(--pk-color-border-default, #272d34);
   border-radius: var(--pk-radius-lg, 0.625rem);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.35);
   animation: pk-dropdown-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   scrollbar-width: thin;
   scrollbar-color: var(--pk-color-border-subtle, #272d34) transparent;
@@ -295,7 +299,9 @@
   color: var(--pk-color-text-secondary, #cbd5e1);
   font-size: 0.875rem;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
   user-select: none;
 }
 

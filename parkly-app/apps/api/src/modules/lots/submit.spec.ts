@@ -222,8 +222,20 @@ describe('submit for verification (doc 02 §3.3 DRAFT → PENDING_VERIFICATION)'
   it('allows operators to pause and resume listing visibility (FR-LOT-006)', async () => {
     const ctx = await setup();
     // Simulate approved lot (S2 slice E)
-    await ctx.w.store.lots.setStatus(ctx.operatorId, ctx.lotId, 'DRAFT', 'PENDING_VERIFICATION', null);
-    await ctx.w.store.lots.setStatus(ctx.operatorId, ctx.lotId, 'PENDING_VERIFICATION', 'LIVE', null);
+    await ctx.w.store.lots.setStatus(
+      ctx.operatorId,
+      ctx.lotId,
+      'DRAFT',
+      'PENDING_VERIFICATION',
+      null,
+    );
+    await ctx.w.store.lots.setStatus(
+      ctx.operatorId,
+      ctx.lotId,
+      'PENDING_VERIFICATION',
+      'LIVE',
+      null,
+    );
 
     // Pause visibility: LIVE -> PAUSED
     const pauseRes = await ctx.w.call('POST', `${ctx.base}/visibility`, {
@@ -258,7 +270,11 @@ describe('submit for verification (doc 02 §3.3 DRAFT → PENDING_VERIFICATION)'
       documentFileId: 'doc-1',
       submittedBy: ctx.owner,
     });
-    await ctx.w.store.permits.approve(permit.id, { reviewerId: 'admin-1', at: TEST_NOW, note: 'ok' });
+    await ctx.w.store.permits.approve(permit.id, {
+      reviewerId: 'admin-1',
+      at: TEST_NOW,
+      note: 'ok',
+    });
 
     const visit = await ctx.w.store.verifications.create({
       lotId: ctx.lotId,

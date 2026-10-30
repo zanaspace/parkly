@@ -302,11 +302,7 @@ export class MemoryAttend {
         overstayMinutes: s.overstayMinutes,
         overstayAmountKobo: s.overstayAmountKobo,
         overstayStatus: (s.overstayStatus ?? (s.overstayAmountKobo > 0 ? 'DUE' : 'NONE')) as
-          | 'NONE'
-          | 'DUE'
-          | 'PAID'
-          | 'UNPAID'
-          | 'WAIVED',
+          'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED',
         checkInAt: s.checkInAt,
         checkOutAt: s.checkOutAt,
       };

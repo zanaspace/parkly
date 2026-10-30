@@ -48,7 +48,8 @@ export default async function AuditLogsPage({
         <div className="pk-card">
           <Text variant="heading-md">Restricted Access</Text>
           <Text tone="secondary">
-            The full audit trail is restricted to compliance personnel and super admins under NDPA rules.
+            The full audit trail is restricted to compliance personnel and super admins under NDPA
+            rules.
           </Text>
         </div>
       )}
@@ -72,7 +73,10 @@ export default async function AuditLogsPage({
                       <Text variant="body-sm">{lagosTime.format(new Date(e.createdAt))}</Text>
                     </td>
                     <td>
-                      <code className="pk-code" style={{ color: 'var(--pk-color-text-brand)', fontWeight: 600 }}>
+                      <code
+                        className="pk-code"
+                        style={{ color: 'var(--pk-color-text-brand)', fontWeight: 600 }}
+                      >
                         {e.action}
                       </code>
                     </td>

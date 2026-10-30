@@ -22,9 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en-NG">
       <body>
         <WebNav signedIn={!!driver} />
-        <div className="pk-app-body">
-          {children}
-        </div>
+        <div className="pk-app-body">{children}</div>
         <footer className="pk-footer">
           <div className="pk-footer-inner">
             <div className="pk-footer-badge">
@@ -35,11 +33,22 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               Parkly lists only car parks with a LASPA permit and a Parkly site visit.
             </p>
             <div className="pk-footer-links">
-              <Link href="/search" className="pk-footer-link">Find parking</Link>
+              <Link href="/search" className="pk-footer-link">
+                Find parking
+              </Link>
               <span className="pk-footer-dot">·</span>
-              <Link href="/bookings" className="pk-footer-link">My bookings</Link>
+              <Link href="/bookings" className="pk-footer-link">
+                My bookings
+              </Link>
               <span className="pk-footer-dot">·</span>
-              <a href="https://laspa.lg.gov.ng" target="_blank" rel="noreferrer" className="pk-footer-link">LASPA Lagos</a>
+              <a
+                href="https://laspa.lg.gov.ng"
+                target="_blank"
+                rel="noreferrer"
+                className="pk-footer-link"
+              >
+                LASPA Lagos
+              </a>
             </div>
           </div>
         </footer>
@@ -47,4 +56,3 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     </html>
   );
 }
-

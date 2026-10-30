@@ -34,9 +34,24 @@ export default async function TeamPage() {
 
   return (
     <main className="pk-page pk-page--wide">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             <TeamIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
             <Text variant="heading-xl">Staff & Attendants</Text>
           </div>
@@ -44,7 +59,10 @@ export default async function TeamPage() {
             Manage your operations team, attendants, and authorized scanning devices.
           </Text>
         </div>
-        <span className="pk-badge pk-badge--verified" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+        <span
+          className="pk-badge pk-badge--verified"
+          style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+        >
           {team.items.length} {team.items.length === 1 ? 'Member' : 'Members'}
         </span>
       </div>
@@ -58,7 +76,11 @@ export default async function TeamPage() {
                 <th scope="col">Name</th>
                 <th scope="col">Role</th>
                 <th scope="col">Status</th>
-                {isOwner && <th scope="col" style={{ textAlign: 'right' }}>Action</th>}
+                {isOwner && (
+                  <th scope="col" style={{ textAlign: 'right' }}>
+                    Action
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -67,7 +89,11 @@ export default async function TeamPage() {
                   <td>
                     <strong>{m.name ?? '—'}</strong>
                     {m.role === 'ATTENDANT' && (
-                      <Text variant="body-sm" tone="tertiary" style={{ display: 'block', marginTop: '0.2rem' }}>
+                      <Text
+                        variant="body-sm"
+                        tone="tertiary"
+                        style={{ display: 'block', marginTop: '0.2rem' }}
+                      >
                         {m.lotIds.length === 0
                           ? 'All lots'
                           : m.lotIds.map((id) => lotName.get(id) ?? 'Removed lot').join(', ')}
@@ -83,8 +109,13 @@ export default async function TeamPage() {
                     ) : (
                       <div>
                         <span className="pk-badge pk-badge--submitted">Invited</span>
-                        <Text variant="caption" tone="tertiary" style={{ display: 'block', marginTop: '0.2rem' }}>
-                          Expires {m.inviteExpiresAt ? lagos.format(new Date(m.inviteExpiresAt)) : ''}
+                        <Text
+                          variant="caption"
+                          tone="tertiary"
+                          style={{ display: 'block', marginTop: '0.2rem' }}
+                        >
+                          Expires{' '}
+                          {m.inviteExpiresAt ? lagos.format(new Date(m.inviteExpiresAt)) : ''}
                         </Text>
                       </div>
                     )}
@@ -111,10 +142,27 @@ export default async function TeamPage() {
       <div className="pk-cards-mobile">
         {team.items.map((m) => (
           <div key={m.id} className="pk-card pk-mobile-record-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+              }}
+            >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>{m.name ?? '—'}</strong>
-                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>
+                  {m.name ?? '—'}
+                </strong>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.4rem',
+                    marginTop: '0.35rem',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                  }}
+                >
                   <span className="pk-badge pk-badge--draft">{ROLE_LABEL[m.role]}</span>
                   {m.status === 'ACTIVE' ? (
                     <span className="pk-badge pk-badge--verified">Active</span>
@@ -126,8 +174,28 @@ export default async function TeamPage() {
             </div>
 
             {m.role === 'ATTENDANT' && (
-              <div style={{ fontSize: '0.85rem', color: 'var(--pk-color-text-secondary)', background: 'var(--pk-color-bg-subtle, rgba(255, 255, 255, 0.03))', padding: '0.5rem 0.65rem', borderRadius: 'var(--pk-radius-sm, 0.25rem)' }}>
-                <span style={{ color: 'var(--pk-color-text-tertiary)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.15rem', fontWeight: 600 }}>Assigned Lots</span>
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--pk-color-text-secondary)',
+                  background: 'var(--pk-color-bg-subtle, rgba(255, 255, 255, 0.03))',
+                  padding: '0.5rem 0.65rem',
+                  borderRadius: 'var(--pk-radius-sm, 0.25rem)',
+                }}
+              >
+                <span
+                  style={{
+                    color: 'var(--pk-color-text-tertiary)',
+                    fontSize: '0.7rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    display: 'block',
+                    marginBottom: '0.15rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Assigned Lots
+                </span>
                 {m.lotIds.length === 0
                   ? 'All lots'
                   : m.lotIds.map((id) => lotName.get(id) ?? 'Removed lot').join(', ')}
@@ -141,7 +209,13 @@ export default async function TeamPage() {
             )}
 
             {isOwner && m.role !== 'OWNER' && (
-              <div style={{ marginTop: '0.35rem', paddingTop: '0.5rem', borderTop: '1px solid var(--pk-color-border-subtle)' }}>
+              <div
+                style={{
+                  marginTop: '0.35rem',
+                  paddingTop: '0.5rem',
+                  borderTop: '1px solid var(--pk-color-border-subtle)',
+                }}
+              >
                 <RemoveMemberButton
                   operatorId={operatorId}
                   memberId={m.id}
@@ -224,29 +298,66 @@ export default async function TeamPage() {
           <div className="pk-cards-mobile">
             {devices.items.map((d) => (
               <div key={d.id} className="pk-card pk-mobile-record-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                  }}
+                >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>{d.attendantName ?? '—'}</strong>
+                    <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>
+                      {d.attendantName ?? '—'}
+                    </strong>
                     <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.15rem' }}>
                       {d.lotName}
                     </Text>
                   </div>
                   {d.revoked ? (
-                    <span className="pk-badge pk-badge--rejected" style={{ flexShrink: 0 }}>Blocked</span>
+                    <span className="pk-badge pk-badge--rejected" style={{ flexShrink: 0 }}>
+                      Blocked
+                    </span>
                   ) : d.approved ? (
-                    <span className="pk-badge pk-badge--verified" style={{ flexShrink: 0 }}>Approved</span>
+                    <span className="pk-badge pk-badge--verified" style={{ flexShrink: 0 }}>
+                      Approved
+                    </span>
                   ) : (
-                    <span className="pk-badge pk-badge--submitted" style={{ flexShrink: 0 }}>Pending Approval</span>
+                    <span className="pk-badge pk-badge--submitted" style={{ flexShrink: 0 }}>
+                      Pending Approval
+                    </span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--pk-color-text-tertiary)', background: 'var(--pk-color-bg-subtle, rgba(255, 255, 255, 0.03))', padding: '0.4rem 0.65rem', borderRadius: 'var(--pk-radius-sm, 0.25rem)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.8rem',
+                    color: 'var(--pk-color-text-tertiary)',
+                    background: 'var(--pk-color-bg-subtle, rgba(255, 255, 255, 0.03))',
+                    padding: '0.4rem 0.65rem',
+                    borderRadius: 'var(--pk-radius-sm, 0.25rem)',
+                  }}
+                >
                   <span>Last seen</span>
-                  <span style={{ fontWeight: 500, color: 'var(--pk-color-text-secondary)' }}>{lagos.format(new Date(d.lastSeenAt))}</span>
+                  <span style={{ fontWeight: 500, color: 'var(--pk-color-text-secondary)' }}>
+                    {lagos.format(new Date(d.lastSeenAt))}
+                  </span>
                 </div>
 
                 {(!d.approved || !d.revoked) && (
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem', paddingTop: '0.5rem', borderTop: '1px solid var(--pk-color-border-subtle)', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      marginTop: '0.35rem',
+                      paddingTop: '0.5rem',
+                      borderTop: '1px solid var(--pk-color-border-subtle)',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     {!d.approved && (
                       <DeviceDecisionButton
                         operatorId={operatorId}

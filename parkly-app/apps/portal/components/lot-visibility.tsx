@@ -41,7 +41,14 @@ export function LotVisibilitySection({ operatorId, lot, canManage }: LotVisibili
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             {isLive ? (
               <EyeIcon size={20} style={{ color: 'var(--pk-color-brand-primary, #137066)' }} />
             ) : (
@@ -104,10 +111,16 @@ export function LotVisibilitySection({ operatorId, lot, canManage }: LotVisibili
 
       {isLive && (
         <div style={{ marginTop: '0.5rem' }}>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--pk-color-text-secondary)' }}>
-            This parking facility is <strong>Live</strong>. Drivers can see it on the map, search by location,
-            and complete bookings. If your lot is full or temporarily unavailable, pause visibility to hide it
-            from search immediately.
+          <p
+            style={{
+              margin: '0 0 1rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--pk-color-text-secondary)',
+            }}
+          >
+            This parking facility is <strong>Live</strong>. Drivers can see it on the map, search by
+            location, and complete bookings. If your lot is full or temporarily unavailable, pause
+            visibility to hide it from search immediately.
           </p>
 
           {canManage ? (
@@ -140,9 +153,16 @@ export function LotVisibilitySection({ operatorId, lot, canManage }: LotVisibili
 
       {isPaused && (
         <div style={{ marginTop: '0.5rem' }}>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--pk-color-text-secondary)' }}>
-            This parking facility is <strong>Paused</strong>. It is hidden from driver search results and new
-            bookings are blocked. Arriving drivers with existing bookings can still check in at the gate.
+          <p
+            style={{
+              margin: '0 0 1rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--pk-color-text-secondary)',
+            }}
+          >
+            This parking facility is <strong>Paused</strong>. It is hidden from driver search
+            results and new bookings are blocked. Arriving drivers with existing bookings can still
+            check in at the gate.
           </p>
 
           {canManage ? (

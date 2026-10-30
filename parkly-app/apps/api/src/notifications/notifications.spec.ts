@@ -308,7 +308,9 @@ describe('Notification Templates', () => {
     expect(canNoRef?.html).toContain('no refund is due for late cancellation');
 
     // unknown key
-    expect(renderEmail({ key: 'unknown' } as unknown as NotificationEvent, 'test@example.com')).toBeNull();
+    expect(
+      renderEmail({ key: 'unknown' } as unknown as NotificationEvent, 'test@example.com'),
+    ).toBeNull();
   });
 });
 
@@ -537,8 +539,10 @@ describe('NotificationService Dispatcher', () => {
     store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
     const userRow = store.userRows.get(driverId);
     if (userRow) {
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).phoneEnc = 'enc:+2348099887766';
-      (userRow as unknown as { phoneEnc: string; emailEnc: string }).emailEnc = 'enc:driver@example.com';
+      (userRow as unknown as { phoneEnc: string; emailEnc: string }).phoneEnc =
+        'enc:+2348099887766';
+      (userRow as unknown as { phoneEnc: string; emailEnc: string }).emailEnc =
+        'enc:driver@example.com';
     }
     store.deviceRows.push({
       userId: driverId,

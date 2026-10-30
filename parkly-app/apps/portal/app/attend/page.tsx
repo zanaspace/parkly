@@ -33,8 +33,8 @@ export default async function AttendPage() {
         primaryRole === 'OPERATOR_OWNER'
           ? 'Owner'
           : primaryRole === 'OPERATOR_MANAGER'
-          ? 'Manager'
-          : 'Attendant';
+            ? 'Manager'
+            : 'Attendant';
       user = {
         name: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Operator',
         role: roleLabel,
@@ -54,13 +54,31 @@ export default async function AttendPage() {
       {/* Topbar for the Gate App */}
       <header className="pk-topbar">
         <div className="pk-topbar-main">
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <Link
+            href="/"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+            }}
+          >
             <LogoMarkIcon size={26} />
-            <span style={{ fontWeight: '700', letterSpacing: '-0.3px', fontSize: '1.05rem', color: 'var(--pk-color-text-brand)' }}>
+            <span
+              style={{
+                fontWeight: '700',
+                letterSpacing: '-0.3px',
+                fontSize: '1.05rem',
+                color: 'var(--pk-color-text-brand)',
+              }}
+            >
               Parkly Ops
             </span>
           </Link>
-          <span className="pk-badge pk-badge--live" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
+          <span
+            className="pk-badge pk-badge--live"
+            style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
+          >
             Gate Attendant
           </span>
           <PortalNav isOwner={isOwner} user={user} />
@@ -91,7 +109,10 @@ export default async function AttendPage() {
               <ArrowLeftIcon size={16} />
               <span>Exit to Dashboard</span>
             </Link>
-            <span className="pk-badge pk-badge--verified" style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem' }}>
+            <span
+              className="pk-badge pk-badge--verified"
+              style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem' }}
+            >
               Gate Mode
             </span>
           </div>

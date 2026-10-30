@@ -319,4 +319,3 @@ export async function setLotVisibility(
   revalidatePath('/lots');
   return undefined;
 }
-

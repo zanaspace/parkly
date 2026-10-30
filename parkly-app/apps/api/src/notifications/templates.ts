@@ -45,7 +45,8 @@ export function renderSms(event: NotificationEvent, phone: string): SmsMessage |
       break;
     }
     case 'booking.cancelled': {
-      const refundStr = event.refundKobo > 0 ? ` Refund of ${formatNaira(event.refundKobo)} initiated.` : '';
+      const refundStr =
+        event.refundKobo > 0 ? ` Refund of ${formatNaira(event.refundKobo)} initiated.` : '';
       body = `Parkly: Booking ${event.bookingCode} at ${event.lotName} has been cancelled.${refundStr}`;
       break;
     }

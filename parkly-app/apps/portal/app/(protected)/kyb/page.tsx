@@ -45,9 +45,26 @@ export default async function KybPage() {
   return (
     <main className="pk-page pk-page--wide">
       {/* Header section matching wide layout */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--pk-color-border-subtle)' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          paddingBottom: '0.5rem',
+          borderBottom: '1px solid var(--pk-color-border-subtle)',
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             <ShieldCheckIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
             <Text variant="heading-xl">Business Verification (KYB)</Text>
           </div>
@@ -55,7 +72,10 @@ export default async function KybPage() {
             {STATUS_TEXT[operator.kybStatus]}
           </Text>
         </div>
-        <span className={`pk-badge ${badge.class}`} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+        <span
+          className={`pk-badge ${badge.class}`}
+          style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+        >
           {badge.label}
         </span>
       </div>
@@ -75,7 +95,11 @@ export default async function KybPage() {
             <Text variant="heading-md" as="h2">
               Legal Documents
             </Text>
-            <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.25rem', display: 'block' }}>
+            <Text
+              variant="body-sm"
+              tone="secondary"
+              style={{ marginTop: '0.25rem', display: 'block' }}
+            >
               PDF, JPG or PNG, up to 10 MB each. Files are stored privately under NDPA encryption.
             </Text>
           </div>
@@ -100,7 +124,11 @@ export default async function KybPage() {
             <Text variant="heading-md" as="h2">
               Settlement & Bank Payouts
             </Text>
-            <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.25rem', display: 'block' }}>
+            <Text
+              variant="body-sm"
+              tone="secondary"
+              style={{ marginTop: '0.25rem', display: 'block' }}
+            >
               Your Nigerian commercial bank account where parking booking revenue is settled.
             </Text>
           </div>
@@ -125,7 +153,8 @@ export default async function KybPage() {
                 Submit for Compliance Review
               </Text>
               <Text variant="body-sm" tone="secondary">
-                Once submitted, Parkly’s operations team will review your CAC registration, director identity, and bank account details within 3 business days.
+                Once submitted, Parkly’s operations team will review your CAC registration, director
+                identity, and bank account details within 3 business days.
               </Text>
               <SubmitKyb operatorId={operatorId} />
             </div>
@@ -148,7 +177,8 @@ export default async function KybPage() {
               <strong style={{ fontSize: '0.875rem' }}>NDPA Compliant Data Storage</strong>
             </div>
             <Text variant="caption" tone="secondary" style={{ lineHeight: 1.5 }}>
-              All identity credentials and bank subaccount records are stored in encrypted, append-only vaults under Nigerian Data Protection Act (NDPA) regulations.
+              All identity credentials and bank subaccount records are stored in encrypted,
+              append-only vaults under Nigerian Data Protection Act (NDPA) regulations.
             </Text>
           </div>
         </div>

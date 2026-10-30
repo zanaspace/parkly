@@ -186,5 +186,18 @@ export function world(overrides: Partial<AppDeps> = {}) {
     };
   };
 
-  return { app, deps, store, sms, sessions, settlement, payments, storage, scanner, user, call, tokenFor };
+  return {
+    app,
+    deps,
+    store,
+    sms,
+    sessions,
+    settlement,
+    payments,
+    storage,
+    scanner,
+    user,
+    call,
+    tokenFor,
+  };
 }

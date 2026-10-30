@@ -182,7 +182,9 @@ body {
   border-radius: var(--pk-card-radius);
   background: var(--pk-card-bg);
   box-shadow: var(--pk-card-shadow);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .pk-stat-card:hover {
@@ -249,20 +251,22 @@ body {
 }
 
 .pk-badge--submitted {
-  background: #FFF8EB;
-  color: #6F420C;
-  border: 1px solid #FDD48A;
+  background: #fff8eb;
+  color: #6f420c;
+  border: 1px solid #fdd48a;
 }
 
-.pk-badge--verified, .pk-badge--approved, .pk-badge--live {
-  background: #EFFAF2;
-  color: #144E27;
-  border: 1px solid #B0E4C1;
+.pk-badge--verified,
+.pk-badge--approved,
+.pk-badge--live {
+  background: #effaf2;
+  color: #144e27;
+  border: 1px solid #b0e4c1;
 }
 
-.pk-badge--suspended, .pk-badge--rejected {
-  background: #FEF2F2;
-  color: #771A14;
-  border: 1px solid #FBC4C0;
+.pk-badge--suspended,
+.pk-badge--rejected {
+  background: #fef2f2;
+  color: #771a14;
+  border: 1px solid #fbc4c0;
 }
-

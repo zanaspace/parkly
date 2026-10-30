@@ -185,7 +185,10 @@ export default function Results() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.bg.canvas }} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.color.bg.canvas }}
+      edges={['top', 'left', 'right']}
+    >
       {/* Pinned Top Search Bar — Gold Standard: Always accessible without scrolling */}
       <View
         style={{
@@ -239,10 +242,7 @@ export default function Results() {
               borderColor: theme.color.border.brand,
             }}
           >
-            <Text
-              variant="label.sm"
-              style={{ color: theme.color.text.brand, fontWeight: '600' }}
-            >
+            <Text variant="label.sm" style={{ color: theme.color.text.brand, fontWeight: '600' }}>
               Change
             </Text>
           </View>

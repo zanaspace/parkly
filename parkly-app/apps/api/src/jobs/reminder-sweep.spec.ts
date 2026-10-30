@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '../lib/logger.js';
 import { NotificationService } from '../notifications/service.js';
-import { FakeClock, FakeEmailProvider, FakePushProvider, FakeSmsProvider } from '../providers/fakes.js';
+import {
+  FakeClock,
+  FakeEmailProvider,
+  FakePushProvider,
+  FakeSmsProvider,
+} from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
 import { markNoShowsJob } from './mark-no-shows.js';
 import { reminderSweepJob } from './reminder-sweep.js';

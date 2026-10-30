@@ -56,9 +56,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     booking.status === 'CHECKED_IN' ||
     booking.status === 'COMPLETED';
   const expiredOrCancelled =
-    booking.status === 'EXPIRED' ||
-    booking.status === 'CANCELLED' ||
-    booking.status === 'NO_SHOW';
+    booking.status === 'EXPIRED' || booking.status === 'CANCELLED' || booking.status === 'NO_SHOW';
 
   const destinationCoords = booking.lot.location
     ? `${booking.lot.location.lat},${booking.lot.location.lng}`
@@ -155,7 +153,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
           <div className="pk-status-banner-body">
             <h2 className="pk-status-banner-title">Confirming payment with Paystack</h2>
             <p className="pk-status-banner-text">
-              We are waiting for Paystack to complete your transaction. This page automatically updates every 3 seconds.
+              We are waiting for Paystack to complete your transaction. This page automatically
+              updates every 3 seconds.
             </p>
           </div>
         </div>
@@ -325,7 +324,14 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
                   {booking.lot.contactPhone && (
                     <p className="pk-detail-item-desc">{booking.lot.contactPhone}</p>
                   )}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      marginTop: '0.35rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     {phoneCallUrl && (
                       <a href={phoneCallUrl} className="pk-btn-secondary pk-btn-sm">
                         <PhoneIcon size={14} />
@@ -350,7 +356,11 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="pk-detail-card-footer">
-            <Link href={`/lots/${booking.lot.slug}`} className="pk-link" style={{ fontSize: '0.875rem' }}>
+            <Link
+              href={`/lots/${booking.lot.slug}`}
+              className="pk-link"
+              style={{ fontSize: '0.875rem' }}
+            >
               View full car park rules, hours & amenities →
             </Link>
           </div>
@@ -363,7 +373,9 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
               <CreditCardIcon size={18} />
               <h2 className="pk-detail-card-title">Receipt & Pricing</h2>
             </div>
-            <span className={isPaid ? 'pk-badge pk-badge--confirmed' : 'pk-badge pk-badge--cancelled'}>
+            <span
+              className={isPaid ? 'pk-badge pk-badge--confirmed' : 'pk-badge pk-badge--cancelled'}
+            >
               {isPaid ? 'PAID' : 'NOT CHARGED'}
             </span>
           </div>
@@ -395,7 +407,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
           <div className="pk-receipt-guarantee">
             <ShieldCheckIcon size={16} />
             <span>
-              Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority (LASPA) permit.
+              Exact total with no hidden gate charges. Regulated with a Lagos State Parking
+              Authority (LASPA) permit.
             </span>
           </div>
         </section>
@@ -415,4 +428,3 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     </main>
   );
 }
-

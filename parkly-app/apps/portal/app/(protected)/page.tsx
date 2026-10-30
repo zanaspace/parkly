@@ -1,12 +1,7 @@
 import type { LotSummary, Occupancy, Operator, TeamMember } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
-import {
-  GateIcon,
-  LotsIcon,
-  ShieldCheckIcon,
-  TeamIcon,
-} from '../../components/icons';
+import { GateIcon, LotsIcon, ShieldCheckIcon, TeamIcon } from '../../components/icons';
 import { apiFetch } from '../../lib/api';
 import { requireAccess } from '../../lib/auth/session';
 import { publicEnv } from '../../lib/env';
@@ -57,17 +52,27 @@ export default async function PortalHome() {
   return (
     <main className="pk-page pk-page--wide">
       {/* Header section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <div>
-          <Text variant="heading-xl">
-            Welcome back{me.firstName ? `, ${me.firstName}` : ''}
-          </Text>
+          <Text variant="heading-xl">Welcome back{me.firstName ? `, ${me.firstName}` : ''}</Text>
           <Text variant="body-sm" tone="secondary">
             {operator ? (
               <>
-                <strong style={{ color: 'var(--pk-color-text-primary)' }}>{operator.tradingName}</strong>
+                <strong style={{ color: 'var(--pk-color-text-primary)' }}>
+                  {operator.tradingName}
+                </strong>
                 {operator.legalName ? ` (${operator.legalName})` : ''} · Role:{' '}
-                <strong style={{ color: 'var(--pk-color-text-brand)' }}>{isOwner ? 'Owner' : 'Manager'}</strong>
+                <strong style={{ color: 'var(--pk-color-text-brand)' }}>
+                  {isOwner ? 'Owner' : 'Manager'}
+                </strong>
               </>
             ) : (
               'Parkly Operations Console'
@@ -76,7 +81,10 @@ export default async function PortalHome() {
         </div>
         {operator && (
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <span className={`pk-badge ${kybBadge.class}`} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+            <span
+              className={`pk-badge ${kybBadge.class}`}
+              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+            >
               KYB: {kybBadge.label}
             </span>
           </div>
@@ -92,23 +100,48 @@ export default async function PortalHome() {
         {/* Lots & Spaces Card */}
         <div className="pk-stat-card">
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--pk-color-text-brand)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'var(--pk-color-text-brand)',
+                }}
+              >
                 <LotsIcon size={19} />
                 <Text variant="label-lg" tone="brand">
                   Lots & Parking
                 </Text>
               </div>
-              <span className={`pk-badge ${liveLotsCount > 0 ? 'pk-badge--live' : 'pk-badge--draft'}`}>
+              <span
+                className={`pk-badge ${liveLotsCount > 0 ? 'pk-badge--live' : 'pk-badge--draft'}`}
+              >
                 {liveLotsCount} Live
               </span>
             </div>
             <div className="pk-stat-count">{totalBookableSpaces}</div>
-            <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.5rem', display: 'block' }}>
-              {lots.length} {lots.length === 1 ? 'car park' : 'car parks'} configured. Total bookable bays open on Parkly.
+            <Text
+              variant="body-sm"
+              tone="secondary"
+              style={{ marginTop: '0.5rem', display: 'block' }}
+            >
+              {lots.length} {lots.length === 1 ? 'car park' : 'car parks'} configured. Total
+              bookable bays open on Parkly.
             </Text>
           </div>
-          <Link className="pk-nav-link pk-nav-link--active" href="/lots" style={{ justifyContent: 'center' }}>
+          <Link
+            className="pk-nav-link pk-nav-link--active"
+            href="/lots"
+            style={{ justifyContent: 'center' }}
+          >
             Manage Lots ({lots.length}) →
           </Link>
         </div>
@@ -116,8 +149,22 @@ export default async function PortalHome() {
         {/* Real-time Gate & Occupancy Card */}
         <div className="pk-stat-card">
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--pk-color-text-brand)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'var(--pk-color-text-brand)',
+                }}
+              >
                 <GateIcon size={19} />
                 <Text variant="label-lg" tone="brand">
                   Gate Scanner
@@ -126,11 +173,20 @@ export default async function PortalHome() {
               <span className="pk-badge pk-badge--live">Live Gate</span>
             </div>
             <div className="pk-stat-count">{totalParked}</div>
-            <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.5rem', display: 'block' }}>
-              Currently parked vehicles. {totalExpected} expected bookings arriving in the next 24 hours.
+            <Text
+              variant="body-sm"
+              tone="secondary"
+              style={{ marginTop: '0.5rem', display: 'block' }}
+            >
+              Currently parked vehicles. {totalExpected} expected bookings arriving in the next 24
+              hours.
             </Text>
           </div>
-          <a className="pk-nav-link pk-nav-link--active" href="/attend" style={{ justifyContent: 'center' }}>
+          <a
+            className="pk-nav-link pk-nav-link--active"
+            href="/attend"
+            style={{ justifyContent: 'center' }}
+          >
             Open Gate App →
           </a>
         </div>
@@ -138,8 +194,22 @@ export default async function PortalHome() {
         {/* KYB & Settlement Verification Card */}
         <div className="pk-stat-card">
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--pk-color-text-brand)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'var(--pk-color-text-brand)',
+                }}
+              >
                 <ShieldCheckIcon size={19} />
                 <Text variant="label-lg" tone="brand">
                   Business KYB
@@ -147,7 +217,14 @@ export default async function PortalHome() {
               </div>
               <span className={`pk-badge ${kybBadge.class}`}>{kybBadge.label}</span>
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--pk-color-text-primary)', margin: '0.5rem 0' }}>
+            <div
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--pk-color-text-primary)',
+                margin: '0.5rem 0',
+              }}
+            >
               {operator?.kybStatus === 'APPROVED' ? 'Fully Verified' : 'Compliance Check'}
             </div>
             <Text variant="body-sm" tone="secondary">
@@ -166,8 +243,22 @@ export default async function PortalHome() {
         {/* Operations Team Card */}
         <div className="pk-stat-card">
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--pk-color-text-brand)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'var(--pk-color-text-brand)',
+                }}
+              >
                 <TeamIcon size={19} />
                 <Text variant="label-lg" tone="brand">
                   Staff & Attendants
@@ -176,7 +267,11 @@ export default async function PortalHome() {
               <span className="pk-badge pk-badge--verified">{activeStaff} Active</span>
             </div>
             <div className="pk-stat-count">{activeStaff + invitedStaff}</div>
-            <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.5rem', display: 'block' }}>
+            <Text
+              variant="body-sm"
+              tone="secondary"
+              style={{ marginTop: '0.5rem', display: 'block' }}
+            >
               Attendants, managers, and authorized gate scanning devices assigned to your lots.
             </Text>
           </div>
@@ -192,7 +287,16 @@ export default async function PortalHome() {
 
       {/* Real-time Occupancy Table */}
       <div style={{ marginTop: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '0.75rem',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
           <div>
             <Text variant="heading-md" as="h2">
               Live Car Park Occupancy
@@ -220,7 +324,9 @@ export default async function PortalHome() {
                       <th scope="col">Walk-ins</th>
                       <th scope="col">Expected (24h)</th>
                       <th scope="col">Available Bays</th>
-                      <th scope="col" style={{ textAlign: 'right' }}>Gate Action</th>
+                      <th scope="col" style={{ textAlign: 'right' }}>
+                        Gate Action
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -229,10 +335,14 @@ export default async function PortalHome() {
                       return (
                         <tr key={o.lotId}>
                           <td>
-                            <strong style={{ color: 'var(--pk-color-text-primary)' }}>{o.name}</strong>
+                            <strong style={{ color: 'var(--pk-color-text-primary)' }}>
+                              {o.name}
+                            </strong>
                           </td>
                           <td>
-                            <span style={{ fontWeight: 600, color: 'var(--pk-color-text-brand)' }}>{o.parked}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--pk-color-text-brand)' }}>
+                              {o.parked}
+                            </span>
                           </td>
                           <td>{o.walkIns}</td>
                           <td>{o.expected}</td>
@@ -267,8 +377,17 @@ export default async function PortalHome() {
                 const freeSpaces = Math.max(0, o.capacityTotal - o.parked - o.walkIns);
                 return (
                   <div key={o.lotId} className="pk-card pk-mobile-record-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
-                      <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>{o.name}</strong>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                      }}
+                    >
+                      <strong style={{ fontSize: '1rem', color: 'var(--pk-color-text-primary)' }}>
+                        {o.name}
+                      </strong>
                       <span
                         className={`pk-badge ${freeSpaces > 0 ? 'pk-badge--live' : 'pk-badge--rejected'}`}
                         style={{ textTransform: 'none', fontSize: '0.8rem', flexShrink: 0 }}
@@ -280,7 +399,10 @@ export default async function PortalHome() {
                     <div className="pk-mobile-record-metrics pk-mobile-record-metrics--3col">
                       <div className="pk-mobile-metric-item">
                         <span className="pk-mobile-metric-label">Parked</span>
-                        <span className="pk-mobile-metric-val" style={{ color: 'var(--pk-color-text-brand)' }}>
+                        <span
+                          className="pk-mobile-metric-val"
+                          style={{ color: 'var(--pk-color-text-brand)' }}
+                        >
                           {o.parked}
                         </span>
                       </div>
@@ -312,13 +434,25 @@ export default async function PortalHome() {
           <div className="pk-card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
             <Text variant="heading-md">No Live Gate Sessions</Text>
             <Text tone="secondary" style={{ maxWidth: '30rem', marginInline: 'auto' }}>
-              Add a lot and start scanning tickets with the Gate App to see real-time vehicle occupancy, walk-ins, and free bays here.
+              Add a lot and start scanning tickets with the Gate App to see real-time vehicle
+              occupancy, walk-ins, and free bays here.
             </Text>
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <div
+              style={{
+                marginTop: '1rem',
+                display: 'flex',
+                gap: '0.75rem',
+                justifyContent: 'center',
+              }}
+            >
               <Link className="pk-nav-link pk-nav-link--active" href="/lots/new">
                 + Add a Car Park
               </Link>
-              <a className="pk-nav-link" href="/attend" style={{ background: 'var(--pk-color-bg-subtle)' }}>
+              <a
+                className="pk-nav-link"
+                href="/attend"
+                style={{ background: 'var(--pk-color-bg-subtle)' }}
+              >
                 Open Gate Scanner
               </a>
             </div>

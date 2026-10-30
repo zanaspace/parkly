@@ -74,7 +74,11 @@ export async function loadMe(accessToken: string): Promise<Me | null> {
  * Used by every protected layout/page. Redirects unless the user is signed in,
  * holds a role for this console and has completed MFA (aal2).
  */
-export async function requireAccess(): Promise<{ me: Me; accessToken: string; email: string | null }> {
+export async function requireAccess(): Promise<{
+  me: Me;
+  accessToken: string;
+  email: string | null;
+}> {
   const session = await loadSession();
   if (!session.signedIn) redirect('/sign-in');
   const me = await loadMe(session.accessToken);

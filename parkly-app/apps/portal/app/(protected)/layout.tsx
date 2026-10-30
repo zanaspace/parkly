@@ -9,16 +9,18 @@ import { requireAccess } from '../../lib/auth/session';
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const { me, email } = await requireAccess();
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER');
-  const primaryRole = me.roles.find((r) => r.role === 'OPERATOR_OWNER')?.role
-    ?? me.roles.find((r) => r.role === 'OPERATOR_MANAGER')?.role
-    ?? me.roles[0]?.role
-    ?? 'OPERATOR';
+  const primaryRole =
+    me.roles.find((r) => r.role === 'OPERATOR_OWNER')?.role ??
+    me.roles.find((r) => r.role === 'OPERATOR_MANAGER')?.role ??
+    me.roles[0]?.role ??
+    'OPERATOR';
 
-  const roleLabel = primaryRole === 'OPERATOR_OWNER'
-    ? 'Owner'
-    : primaryRole === 'OPERATOR_MANAGER'
-    ? 'Manager'
-    : 'Operator';
+  const roleLabel =
+    primaryRole === 'OPERATOR_OWNER'
+      ? 'Owner'
+      : primaryRole === 'OPERATOR_MANAGER'
+        ? 'Manager'
+        : 'Operator';
 
   const userInfo = {
     name: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Operator',
@@ -32,7 +34,16 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         <div className="pk-topbar-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <LogoMarkIcon size={26} />
-            <Text variant="label-lg" tone="brand" style={{ fontWeight: '700', letterSpacing: '-0.3px', fontSize: '1.05rem', whiteSpace: 'nowrap' }}>
+            <Text
+              variant="label-lg"
+              tone="brand"
+              style={{
+                fontWeight: '700',
+                letterSpacing: '-0.3px',
+                fontSize: '1.05rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
               Parkly Ops
             </Text>
           </div>
@@ -43,9 +54,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           <UserAccountMenu user={userInfo} />
         </div>
       </header>
-      <div className="pk-app-body">
-        {children}
-      </div>
+      <div className="pk-app-body">{children}</div>
     </>
   );
 }

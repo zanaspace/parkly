@@ -15,7 +15,13 @@ const defaultProps = {
 };
 
 /** Enterprise dashboard grid (4-quadrant SaaS layout) */
-export function DashboardIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function DashboardIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -103,7 +109,13 @@ export function TeamIcon({ size = 18, strokeWidth = 2, className, style, ...prop
 }
 
 /** Enterprise KYB verification & compliance shield */
-export function ShieldCheckIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function ShieldCheckIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -122,7 +134,13 @@ export function ShieldCheckIcon({ size = 18, strokeWidth = 2, className, style, 
 }
 
 /** Enterprise business profile & company entity */
-export function BuildingIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function BuildingIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -150,7 +168,13 @@ export function BuildingIcon({ size = 18, strokeWidth = 2, className, style, ...
 }
 
 /** Enterprise alert & incident warning */
-export function AlertTriangleIcon({ size = 20, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function AlertTriangleIcon({
+  size = 20,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -170,7 +194,13 @@ export function AlertTriangleIcon({ size = 20, strokeWidth = 2, className, style
 }
 
 /** Enterprise check circle */
-export function CheckCircleIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function CheckCircleIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -189,7 +219,13 @@ export function CheckCircleIcon({ size = 18, strokeWidth = 2, className, style, 
 }
 
 /** Enterprise directional arrow */
-export function ArrowRightIcon({ size = 16, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function ArrowRightIcon({
+  size = 16,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -400,7 +436,13 @@ export function LogoMarkIcon({ size = 26, className, style, ...props }: IconProp
 }
 
 /** Chevron down for dropdown menus */
-export function ChevronDownIcon({ size = 14, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function ChevronDownIcon({
+  size = 14,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -438,4 +480,3 @@ export function EyeOffIcon(props: IconProps) {
     </Svg>
   );
 }
-

@@ -1,4 +1,4 @@
-# Sprint 5 — QR ticket and attendant offline PWA: report
+ye# Sprint 5 — QR ticket and attendant offline PWA: report
 
 - **Status:** **Done (code complete)** on 2026-10-25. Attendants check vehicles in and out in under 10 seconds via the `/attend` offline-first PWA, with 24-hour manifest caching, camera QR scanning, manual code/plate fallback, local PIN lock, and queued event delta-sync.
 - **Updated:** 2026-10-25

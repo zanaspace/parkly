@@ -32,9 +32,24 @@ export default async function LotsPage() {
   return (
     <main className="pk-page pk-page--wide">
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             <LotsIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
             <Text variant="heading-xl">Parking Lots & Facilities</Text>
           </div>
@@ -52,7 +67,8 @@ export default async function LotsPage() {
         <div className="pk-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
           <Text variant="heading-md">No Car Parks Configured</Text>
           <Text tone="secondary" style={{ maxWidth: '28rem', marginInline: 'auto' }}>
-            Add your first parking facility to set capacity, live hourly pricing, and upload verification photos.
+            Add your first parking facility to set capacity, live hourly pricing, and upload
+            verification photos.
           </Text>
           <div style={{ marginTop: '1.25rem' }}>
             <Link className="pk-nav-link pk-nav-link--active" href="/lots/new">
@@ -73,12 +89,17 @@ export default async function LotsPage() {
                     <th scope="col">Status</th>
                     <th scope="col">Bookable Bays</th>
                     <th scope="col">Inspection Photos</th>
-                    <th scope="col" style={{ textAlign: 'right' }}>Actions</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((l) => {
-                    const badge = STATUS_CONFIG[l.status] ?? { label: l.status, class: 'pk-badge--draft' };
+                    const badge = STATUS_CONFIG[l.status] ?? {
+                      label: l.status,
+                      class: 'pk-badge--draft',
+                    };
                     return (
                       <tr key={l.id}>
                         <td>
@@ -86,11 +107,19 @@ export default async function LotsPage() {
                             <Link
                               className="pk-link"
                               href={`/lots/${l.id}`}
-                              style={{ fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none' }}
+                              style={{
+                                fontWeight: 600,
+                                fontSize: '0.95rem',
+                                textDecoration: 'none',
+                              }}
                             >
                               {l.name}
                             </Link>
-                            <Text variant="body-sm" tone="tertiary" style={{ display: 'block', marginTop: '0.2rem' }}>
+                            <Text
+                              variant="body-sm"
+                              tone="tertiary"
+                              style={{ display: 'block', marginTop: '0.2rem' }}
+                            >
                               {l.addressLine}
                             </Text>
                           </div>
@@ -104,7 +133,15 @@ export default async function LotsPage() {
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: l.photoCount >= 3 ? 'var(--pk-color-text-brand)' : 'var(--pk-color-text-secondary)', fontWeight: 500 }}>
+                          <span
+                            style={{
+                              color:
+                                l.photoCount >= 3
+                                  ? 'var(--pk-color-text-brand)'
+                                  : 'var(--pk-color-text-secondary)',
+                              fontWeight: 500,
+                            }}
+                          >
                             {l.photoCount} / 10 photos
                           </span>
                         </td>
@@ -128,10 +165,20 @@ export default async function LotsPage() {
           {/* Mobile Cards (<= 860px, fits 100% width with no horizontal scroll) */}
           <div className="pk-cards-mobile">
             {items.map((l) => {
-              const badge = STATUS_CONFIG[l.status] ?? { label: l.status, class: 'pk-badge--draft' };
+              const badge = STATUS_CONFIG[l.status] ?? {
+                label: l.status,
+                class: 'pk-badge--draft',
+              };
               return (
                 <div key={l.id} className="pk-card pk-mobile-record-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                    }}
+                  >
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <Link
                         href={`/lots/${l.id}`}
@@ -146,7 +193,11 @@ export default async function LotsPage() {
                       >
                         {l.name}
                       </Link>
-                      <Text variant="body-sm" tone="tertiary" style={{ display: 'block', marginTop: '0.2rem' }}>
+                      <Text
+                        variant="body-sm"
+                        tone="tertiary"
+                        style={{ display: 'block', marginTop: '0.2rem' }}
+                      >
                         {l.addressLine}
                       </Text>
                     </div>
@@ -158,16 +209,17 @@ export default async function LotsPage() {
                   <div className="pk-mobile-record-metrics">
                     <div className="pk-mobile-metric-item">
                       <span className="pk-mobile-metric-label">Bookable Bays</span>
-                      <span className="pk-mobile-metric-val">
-                        {l.capacityBookable} bays
-                      </span>
+                      <span className="pk-mobile-metric-val">{l.capacityBookable} bays</span>
                     </div>
                     <div className="pk-mobile-metric-item">
                       <span className="pk-mobile-metric-label">Inspection Photos</span>
                       <span
                         className="pk-mobile-metric-val"
                         style={{
-                          color: l.photoCount >= 3 ? 'var(--pk-color-text-brand)' : 'var(--pk-color-text-secondary)',
+                          color:
+                            l.photoCount >= 3
+                              ? 'var(--pk-color-text-brand)'
+                              : 'var(--pk-color-text-secondary)',
                         }}
                       >
                         {l.photoCount} / 10 photos

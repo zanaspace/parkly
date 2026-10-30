@@ -62,7 +62,10 @@ function ResultCard({ lot, search }: { lot: LotSearchResult; search: SearchInput
               {lot.amenities.map((a) => AMENITY_LABEL[a]).join(' · ')}
             </Text>
           )}
-          <div className="pk-row pk-row--between" style={{ marginTop: 'auto', paddingTop: '0.5rem' }}>
+          <div
+            className="pk-row pk-row--between"
+            style={{ marginTop: 'auto', paddingTop: '0.5rem' }}
+          >
             <span className={bookable ? 'pk-spaces' : 'pk-spaces pk-spaces--none'}>{spaces}</span>
             <span className="pk-price">
               {formatNaira(lot.quote.totalKobo)}
@@ -117,7 +120,11 @@ export default async function SearchPage({
 
   return (
     <main className="pk-page pk-page--wide">
-      <Link href="/" className="pk-nav-pill" style={{ alignSelf: 'flex-start', paddingLeft: '0.6rem' }}>
+      <Link
+        href="/"
+        className="pk-nav-pill"
+        style={{ alignSelf: 'flex-start', paddingLeft: '0.6rem' }}
+      >
         <ArrowLeftIcon size={16} />
         <span>Back to Home</span>
       </Link>
@@ -126,7 +133,9 @@ export default async function SearchPage({
         <Text variant="heading-xl" as="h1" style={{ margin: 0, fontWeight: 800 }}>
           Parking near {search.place}
         </Text>
-        <Text tone="secondary" style={{ fontSize: '0.95rem' }}>{windowLabel(search)}</Text>
+        <Text tone="secondary" style={{ fontSize: '0.95rem' }}>
+          {windowLabel(search)}
+        </Text>
       </div>
 
       <details className="pk-search-details">
@@ -134,7 +143,13 @@ export default async function SearchPage({
           <SearchIcon size={16} />
           <span>Change search criteria</span>
         </summary>
-        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--pk-color-border-subtle, #272d34)' }}>
+        <div
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--pk-color-border-subtle, #272d34)',
+          }}
+        >
           <SearchForm initial={search} today={today} lastDay={lastDay} />
         </div>
       </details>
@@ -156,8 +171,8 @@ export default async function SearchPage({
           <div className="pk-search-results-col">
             <div className="pk-search-results-header">
               <span className="pk-search-count">
-                <strong>{result.items.length}</strong> verified car park{result.items.length === 1 ? '' : 's'} within{' '}
-                {search.radiusM / 1000} km
+                <strong>{result.items.length}</strong> verified car park
+                {result.items.length === 1 ? '' : 's'} within {search.radiusM / 1000} km
               </span>
               <nav className="pk-row" aria-label="Sort">
                 {(['distance', 'price'] as const).map((sort) =>
