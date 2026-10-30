@@ -201,6 +201,39 @@ A paid or waived overstay is final: a phone re-syncing an old check-out can't ma
 
 Turning on push made the app crash in **Expo Go** on start ("Cannot find native module"), because Expo Go doesn't contain the push module. Push now loads only in a real build, so Expo Go works again, without push. On its own branch, `fix/mobile-push-expo-go`.
 
+### Item 15: receipts (ADR 0021)
+
+**The problem.** The receipt was rebuilt every time it was opened, so its date changed on every view and it had no number. It left out the LASPA permit number, didn't add up after an extension, showed a refund as done while it was still in progress, and there was no PDF and no email.
+
+**What changed.**
+
+| Who | What they see now |
+|---|---|
+| Driver | Every paid booking has a **receipt number** per car park company, like `R-000123`, issued when the payment goes through. The receipt says who issued it ("Issued by Eko Parking through Parkly") and the lot's **LASPA permit number**. |
+| Driver | **Every charge** is listed (booking, extension, overstay) with the **total charged**. Refunds say **Refunded** or **Refund in progress**. |
+| Driver | **Download PDF** on the booking page (web) and in the app, next to "View receipt". The **confirmation email carries the PDF**. |
+| Driver | When money changes (an extension, overstay or refund), the same number gets a new **revision** ("Revision 2, 31 Oct 14:05"). Renaming the lot later never changes an old receipt. |
+| Parkly | **VAT is ready but off.** Switched on, receipts show "Includes VAT at 7.5%: ₦X" and Parkly's VAT number. Prices don't change: VAT is shown as part of the price already charged. |
+
+**How VAT is switched on (when Parkly decides).** Supabase → Table Editor → `platform_settings`:
+- `fees.vat_enabled` → `true`
+- `fees.vat_rate_bps` → `750` (7.5%; change only if the rate changes)
+- `company.vat_number` → `"12345678-0001"` (with the quotes)
+
+Receipts issued from then on show VAT; earlier ones stay as they were.
+
+**Why no storage bucket.** The plan was to save each PDF in a private bucket. Instead the receipt's content is saved in the database, and the PDF is drawn from it each time it is asked for. Every copy of a revision is identical, there is no second copy of personal data to secure and delete, and a refund never leaves an old PDF lying around (ADR 0021). The PDF shows "NGN" instead of "₦", because the standard PDF font has no naira sign.
+
+**For you.** Apply `20261031100000_receipts.sql` and then `20261031100100_receipts_grants_vat.sql` to dev **before** merging. Without them, paying for a booking still works, but receipts return an error.
+
+**To test.**
+1. Book and pay on dev. Open the booking: **View receipt** shows `R-000001` (or the next number for that company), the permit number and the total charged.
+2. **Download PDF**: a file named `parkly-R-000001.pdf` downloads and matches the page.
+3. Extend the booking and pay: the receipt lists both charges, the new total, and "Revision 2".
+4. Cancel a booking with a refund: it says **Refund in progress**, then **Refunded** once Paystack confirms.
+5. In Supabase, `receipts` has one row per paid booking.
+6. Email with the PDF attached arrives once real email is on (Resend, item 12).
+
 ## Doc 20 Sprint 6 tasks against the code
 
 | Task | Status |
@@ -209,7 +242,7 @@ Turning on push made the app crash in **Expo Go** on start ("Cannot find native 
 | 2. Overstay at checkout, pay link, unpaid block, ops waive | **Done.** Priced from the booking's own plan with the operator's overstay terms; pay link by message; unpaid after 24 h blocks new bookings; ops waive with a reason (item 13). |
 | 3. Cancellation policy engine and refund via provider; refund webhooks | **Done** |
 | 4. No-show job every 5 minutes | **Done in SQL**; waits for offline gate phones and skips lots with no way to check in (item 14) |
-| 5. Receipts: HTML/PDF, email, in-app, private bucket | **Partial.** HTML only, now escaped and served by signed link. PDF and email are Wave 3 (item 15). |
+| 5. Receipts: HTML/PDF, email, in-app, private bucket | **Done** (item 15): stored and numbered, HTML and PDF from the same snapshot, PDF on the confirmation email. No bucket: the PDF is drawn on demand (ADR 0021). |
 | 6. Notification service: templates, pgmq queue, retries, SMS fallback, quiet hours | **Done** with an outbox table instead of pgmq (ADR 0020). Real email and push need their switches (doc 22 §2.3c). |
 | 7. Reminders 60 minutes before start, 15 before end | **Done**, every 5 minutes (pg_cron) |
 | 8. Push token registration in mobile | **Done**; needs an EAS build (not Expo Go) |
@@ -229,6 +262,7 @@ Turning on push made the app crash in **Expo Go** on start ("Cannot find native 
 | [0018](../decisions/0018-attendant-email-code-sign-in.md) | Attendants sign in with an email code until SMS is live; the invite page signs them in and accepts in one step. |
 | [0019](../decisions/0019-turnstile-captcha-on-sign-in.md) | Cloudflare Turnstile on every sign-in request, checked by Supabase; switched on in a set order. |
 | [0020](../decisions/0020-notification-outbox.md) | Notifications go through an outbox table (queue and delivery log), not pgmq; contact copies encrypted on `users`. |
+| [0021](../decisions/0021-stored-receipts-pdf-on-demand.md) | Receipts are stored and numbered per operator; the PDF is drawn from the stored copy on demand, not kept in a bucket; VAT designed in, off by default. |
 
 ## Risks
 
@@ -248,7 +282,7 @@ Turning on push made the app crash in **Expo Go** on start ("Cannot find native 
 | 12 | Notifications: outbox, retries, SMS fallback, quiet hours, reminders, push registration, invite emails (ADR 0020) | L-1, O-4, U-6 | **Done** |
 | 13 | Overstay: priced from the booking's plan, unpaid block, ops waive with audit; extensions from the booking's plan | L-3, L-4, U-2, U-12, P-14 | **Done** |
 | 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 | **Done** |
-| 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 | Open |
+| 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 | **Done** (PDF on demand, ADR 0021) |
 | 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 | Open |
 
 ### Owner actions

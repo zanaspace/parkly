@@ -431,6 +431,8 @@ Sprint 6 looks done in the UI, but several parts only work against the in-memory
 
 **Fix:** add a `receipts` table with a sequential number per operator and a frozen JSON snapshot. Render the HTML and PDF from the snapshot, store the PDF in a private bucket, and email it through the email provider interface. Add `receipts` to doc 06 retention.
 
+**Status (Oct 31):** fixed (ADR 0021). Stored receipts numbered per operator, revised only when money changes, with permit number, every charge, refunds split into done and in progress, and VAT when switched on. The PDF is drawn from the snapshot on demand instead of a bucket, and attached to the confirmation email.
+
 ### Smaller Sprint 6 items
 
 | ID | Severity | Finding | Fix |

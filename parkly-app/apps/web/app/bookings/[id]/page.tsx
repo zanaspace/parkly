@@ -12,6 +12,7 @@ import {
   CarIcon,
   ClockIcon,
   CreditCardIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   MapPinIcon,
   MessageCircleIcon,
@@ -401,6 +402,20 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
             >
               <ExternalLinkIcon size={14} />
               <span>View Official Tax Receipt & Invoice</span>
+            </a>
+            <a
+              href={`/bookings/${booking.id}/receipt?format=pdf`}
+              download
+              className="pk-btn-secondary pk-btn-sm"
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                textDecoration: 'none',
+                marginTop: '0.5rem',
+              }}
+            >
+              <DownloadIcon size={14} />
+              <span>Download PDF</span>
             </a>
           </div>
 

@@ -212,16 +212,37 @@ export const BookingReceiptRefundSchema = z.object({
 export const ReceiptLinkSchema = z.object({ url: z.url(), expiresAt: z.iso.datetime() });
 export type ReceiptLink = z.infer<typeof ReceiptLinkSchema>;
 
+/** One paid charge on the receipt: the booking, each extension, the overstay (FR-BOOK-009). */
+export const ReceiptChargeSchema = z.object({
+  kind: z.enum(['BOOKING', 'EXTENSION', 'OVERSTAY', 'PASS']),
+  reference: z.string(),
+  amountKobo: z.number().int(),
+  paidAt: z.iso.datetime().nullable(),
+});
+
+/**
+ * FR-BOOK-009: a stored receipt. Its contents are frozen when issued; a new
+ * charge or refund re-issues it as the next revision under the same number,
+ * so two views of one revision are identical (gap review L-5).
+ */
 export const BookingReceiptSchema = z.object({
+  receiptNumber: z.string(),
+  revision: z.number().int(),
   bookingId: z.uuid(),
   bookingCode: z.string(),
   status: BookingStatusSchema,
+  /** When the receipt was first issued; `revisedAt` when this revision was. */
   issuedAt: z.iso.datetime(),
+  revisedAt: z.iso.datetime(),
+  /** The operator selling the parking. */
+  issuer: z.object({ name: z.string() }),
   lot: z.object({
     id: z.uuid(),
     name: z.string(),
     addressLine: z.string(),
     area: z.string().nullable(),
+    /** The LASPA permit the lot operated under when this revision was issued. */
+    permitNumber: z.string().nullable(),
   }),
   vehicle: z.object({
     plate: z.string(),
@@ -238,7 +259,23 @@ export const BookingReceiptSchema = z.object({
   priceKobo: z.number().int(),
   serviceFeeKobo: z.number().int(),
   totalKobo: z.number().int(),
+  /** The original booking's price breakdown. */
   lines: z.array(QuoteLineSchema),
+  /** Every paid charge; they add up to `totals.chargedKobo`. */
+  charges: z.array(ReceiptChargeSchema),
+  totals: z.object({
+    chargedKobo: z.number().int(),
+    refundedKobo: z.number().int(),
+    refundPendingKobo: z.number().int(),
+  }),
+  /** Only when VAT is switched on (`fees.vat_enabled`); prices include it. */
+  vat: z
+    .object({
+      rateBps: z.number().int(),
+      amountKobo: z.number().int(),
+      number: z.string().nullable(),
+    })
+    .nullable(),
   payments: z.array(BookingReceiptPaymentSchema),
   refunds: z.array(BookingReceiptRefundSchema),
 });

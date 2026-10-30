@@ -271,6 +271,8 @@ Indexes `(status, created_at)`, `(booking_id)`, `(pass_id)`.
 
 **`payment_provider_customers`** — `user_id`, `provider`, `customer_code` (C3), `authorization_code` [enc] (C4, reusable card token for extensions; only if driver opted "save card"), `card_last4`, `exp_month/year`. UNIQUE `(user_id, provider)`.
 
+**`receipts`** (S6, ADR 0021) — `id`, `booking_id` (unique), `operator_id`, `seq`, `number` (`R-000123`, per operator, from `receipt_counters(operator_id, last_seq)` under a row lock), `revision`, `issued_at`, `revised_at`, `content` (jsonb, C3: what the receipt shows, frozen; a revision replaces only money and status). VAT shows when `fees.vat_enabled`; rate `fees.vat_rate_bps`, number `company.vat_number`.
+
 **`refunds`** — `id`, `payment_id`, `amount_kobo`, `reason enum (DRIVER_CANCEL, HOLD_EXPIRED, LOT_UNAVAILABLE, OPS_GOODWILL, DUPLICATE, PERMIT_SUSPENSION, OTHER)`, `status (PENDING, SUCCEEDED, FAILED)`, `provider_refund_id`, `requested_by`, `approved_by` (four-eyes), `note`. CHECK sum of refunds ≤ payment amount (enforced in service under row lock).
 
 **`webhook_events`** *append-only* — `id`, `provider`, `provider_event_id` / dedupe key (`event + data.reference + data.id`) UNIQUE, `event_type`, `signature_valid`, `payload jsonb` (C3, retained 180 days), `received_at`, `processed_at`, `processing_status (PENDING, PROCESSED, FAILED, IGNORED)`, `error`.
@@ -519,7 +521,7 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | POST | `/bookings/:id/extensions/quote` | DRV | — | `{newEndAt}` → Quote | `EXTENSION_UNAVAILABLE` |
 | POST | `/bookings/:id/extensions` | DRV | ✅ | `{newEndAt, useSavedCard?}` → `{extension, payment}` | `EXTENSION_UNAVAILABLE`, `BOOKING_NOT_EXTENDABLE` |
 | PATCH | `/bookings/:id/vehicle` | DRV | ✅ | change vehicle before check-in; reissues QR | `BOOKING_NOT_EDITABLE` |
-| GET | `/bookings/:id/receipt` | DRV | — | JSON + `?format=pdf` | |
+| GET | `/bookings/:id/receipt` | DRV(owner) | — | ADR 0021: the stored receipt, issued or revised first; `?format=json\|html\|pdf`. `POST /bookings/:id/receipt-link` gives a 5-minute signed `/receipts/:id` link (also `&format=pdf`) | `NOT_FOUND` until something is paid |
 | POST | `/payments/:reference/verify` | DRV | ○ | client-triggered verify (§01 5.2) → `{status, booking}` | `PAYMENT_NOT_FOUND` |
 | GET | `/sessions/:id/overstay` · POST `/sessions/:id/overstay/pay` | DRV | ✅ | pay overstay | `OVERSTAY_NOT_DUE` |
 | POST | `/bookings/:id/self-check-in` · `/self-check-out` | DRV(owner) | ✅ (clientEventId) | ADR 0016: `{clientEventId, code: "PKG1.<lotId>", lat, lng}` → `{result: APPLIED|DUPLICATE|CONFLICT|REJECTED, reason}`; the position is checked, never stored | `SELF_CHECKIN_OFF`, `QR_WRONG_LOT`, `SELF_CHECKIN_TOO_FAR` (>150 m), `QR_OUTSIDE_WINDOW`, `BOOKING_NOT_ACTIVE` |

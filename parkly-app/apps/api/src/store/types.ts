@@ -13,6 +13,17 @@ export type UserStatus = 'ACTIVE' | 'LOCKED' | 'SUSPENDED' | 'PENDING_DELETION' 
 export type ConsentType = 'TERMS' | 'PRIVACY' | 'MARKETING' | 'LOCATION' | 'OPERATOR_AGREEMENT';
 export type Platform = 'ANDROID' | 'IOS' | 'WEB' | 'PWA';
 
+/** A stored receipt (FR-BOOK-009); `content` is the frozen receipt body. */
+export type ReceiptRow = {
+  bookingId: string;
+  operatorId: string;
+  number: string;
+  revision: number;
+  issuedAt: Date;
+  revisedAt: Date;
+  content: unknown;
+};
+
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
 
 /** One queued notification (ADR 0020). `payload` is the event the templates render. */
@@ -930,6 +941,21 @@ export type Store = {
       maxAttempts: number;
       limit: number;
     }): Promise<{ id: string; reference: string | null }[]>;
+  };
+  receipts: {
+    /**
+     * Saves `content` as the booking's receipt. The first time it takes the
+     * operator's next number at revision 1; when the content differs from the
+     * stored one, the next revision under the same number; otherwise it is left
+     * as it was. `changed` says whether anything was written.
+     */
+    issue(input: {
+      bookingId: string;
+      operatorId: string;
+      content: unknown;
+      at: Date;
+    }): Promise<ReceiptRow & { changed: boolean }>;
+    find(bookingId: string): Promise<ReceiptRow | null>;
   };
   notifications: {
     /** Queues an event once per dedupe key; false when that key was already queued. */

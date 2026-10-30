@@ -19,6 +19,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   CreditCardIcon,
+  DownloadIcon,
   ExternalLinkIcon,
 } from './icons';
 
@@ -273,6 +274,15 @@ export function BookingLifecycleActions({ booking }: { booking: Booking }) {
         >
           <ExternalLinkIcon size={14} />
           <span>View Official Receipt</span>
+        </a>
+        <a
+          href={`/bookings/${booking.id}/receipt?format=pdf`}
+          download
+          className="pk-btn-secondary pk-btn-sm pk-lifecycle-btn"
+          style={{ textDecoration: 'none' }}
+        >
+          <DownloadIcon size={14} />
+          <span>Download PDF</span>
         </a>
       </div>
 

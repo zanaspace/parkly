@@ -99,6 +99,13 @@
       "when": 1793384440759,
       "tag": "20261030182040_rate_plan_overstay",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793391747113,
+      "tag": "20261031100000_receipts",
+      "breakpoints": true
     }
   ]
 }

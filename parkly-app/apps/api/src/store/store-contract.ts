@@ -1377,6 +1377,64 @@ export function storeContract(
         await store.idempotency.release(actorId, other.key);
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
       });
+
+      it('numbers receipts per operator once, revises only on change, keeps the first issue date', async () => {
+        const lot = await liveLot(3);
+        const a = await hold(lot, await driver());
+        const b = await hold(lot, await driver());
+        const content = { charges: [{ amountKobo: 110_000 }], refunds: [] };
+        const later = new Date(AT.getTime() + 60_000);
+        expect(await store.receipts.find(a.booking.id)).toBeNull();
+        // Two first issues at once still give one receipt and one number.
+        const [first, again] = await Promise.all([
+          store.receipts.issue({
+            bookingId: a.booking.id,
+            operatorId: lot.operatorId,
+            content,
+            at: AT,
+          }),
+          store.receipts.issue({
+            bookingId: a.booking.id,
+            operatorId: lot.operatorId,
+            content,
+            at: AT,
+          }),
+        ]);
+        expect(first.number).toBe('R-000001');
+        expect(again.number).toBe('R-000001');
+        const second = await store.receipts.issue({
+          bookingId: b.booking.id,
+          operatorId: lot.operatorId,
+          content,
+          at: AT,
+        });
+        expect(second).toMatchObject({ number: 'R-000002', revision: 1, changed: true });
+        // Same content in another key order: nothing changes.
+        const same = await store.receipts.issue({
+          bookingId: a.booking.id,
+          operatorId: lot.operatorId,
+          content: { refunds: [], charges: [{ amountKobo: 110_000 }] },
+          at: later,
+        });
+        expect(same).toMatchObject({ number: 'R-000001', revision: 1, changed: false });
+        const revised = await store.receipts.issue({
+          bookingId: a.booking.id,
+          operatorId: lot.operatorId,
+          content: { ...content, refunds: [{ amountKobo: 50_000 }] },
+          at: later,
+        });
+        expect(revised).toMatchObject({
+          number: 'R-000001',
+          revision: 2,
+          changed: true,
+          issuedAt: AT,
+          revisedAt: later,
+        });
+        expect(await store.receipts.find(a.booking.id)).toMatchObject({
+          revision: 2,
+          content: { refunds: [{ amountKobo: 50_000 }] },
+        });
+      });
     });
 
     it('keeps the owner’s self check-in switch per lot', async () => {

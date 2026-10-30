@@ -118,7 +118,7 @@ Retention clock starts at the "trigger" stated. "Account closure" = driver/opera
 | Refunds (amount, reason, requested/approved by) | C3 | Accounting, audit | Legal obligation | `refunds` | At rest | Finance | 6 years ⚖️ | Hard delete |
 | Ledger entries | C3 | Financial record | Legal obligation | `ledger_entries` (append-only) | At rest | Finance | 6 years ⚖️ (or longer if required) | Hard delete after period |
 | Settlements / reconciliation reports | C3 | Operator payouts, audit | Legal obligation + contract | `settlements`, Storage `exports` statements | At rest (DB + Storage) | Finance; operator owner (own) | 6 years ⚖️ | Hard delete |
-| Receipts (PDF/email) | C3 | Consumer protection | Legal obligation + contract | Generated on demand from booking/payment; Resend message logs | — | Driver | Regenerated from records; Resend logs 30 days | — |
+| Receipts (PDF/email) | C3 | Consumer protection | Legal obligation + contract | `receipts.content` (frozen snapshot: issuer, lot, permit no., plate, driver first/last name and phone last 4, charges, refunds); the PDF is drawn from it on demand and attached to the confirmation email (ADR 0021); Resend message logs | — | Driver; support | **6 years** ⚖️, like the payment record; Resend logs 30 days | Hard delete after period; the driver name in `content` is pseudonymised at 24 m with payments (job not built yet) |
 | Idempotency keys + response | C3 | Duplicate protection | Legitimate interest | `idempotency_keys` | At rest | System | 24 h | TTL job |
 | Webhook events (raw payload) | C3 | Payment verification, disputes | Legitimate interest + legal obligation | `webhook_events` | At rest | Finance, system | 90 days raw; parsed fields live in `payments` | Hard delete |
 

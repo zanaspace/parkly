@@ -1,4 +1,6 @@
 import type { Logger } from '../lib/logger.js';
+import { receiptFromRow } from '../modules/bookings/receipt.js';
+import { renderReceiptPdf } from '../modules/bookings/receipt-pdf.js';
 import type { EmailProvider, PushProvider, SmsProvider } from '../providers/index.js';
 import type { NotificationRow, Store } from '../store/types.js';
 import {
@@ -177,7 +179,7 @@ export class NotificationService {
         : null;
     if (emailMsg) {
       try {
-        await this.deps.email.send(emailMsg);
+        await this.deps.email.send({ ...emailMsg, attachments: await this.receiptPdf(event) });
         deliveredChannels.push('EMAIL');
       } catch (err) {
         this.deps.logger.error({ err, ...log }, 'email notification failed');
@@ -193,6 +195,21 @@ export class NotificationService {
 
     this.deps.logger.info({ ...log, deliveredChannels, failedChannels }, 'notification dispatched');
     return { deliveredChannels, failedChannels };
+  }
+
+  /** The confirmation email carries the receipt PDF, from the stored receipt (FR-BOOK-009). */
+  private async receiptPdf(event: NotificationEvent) {
+    if (event.key !== 'booking.confirmed') return undefined;
+    const row = await this.deps.store.receipts.find(event.bookingId);
+    if (!row) return undefined;
+    const receipt = receiptFromRow(row);
+    return [
+      {
+        filename: `parkly-${receipt.receiptNumber}.pdf`,
+        contentType: 'application/pdf',
+        content: await renderReceiptPdf(receipt),
+      },
+    ];
   }
 
   /**

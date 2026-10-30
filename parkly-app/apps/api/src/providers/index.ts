@@ -73,6 +73,8 @@ export interface EmailProvider {
     subject: string;
     html: string;
     text: string;
+    /** E.g. the receipt PDF on a booking confirmation (FR-BOOK-009). */
+    attachments?: { filename: string; contentType: string; content: Uint8Array }[];
   }): Promise<{ providerMessageId: string }>;
 }
 
