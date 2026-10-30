@@ -283,7 +283,8 @@ export class MemoryAttend {
 
     setOverstay: async (sessionId, minutes, amountKobo) => {
       const s = this.sessionRows.find((r) => r.id === sessionId);
-      if (s) {
+      // Paid or waived is final: a re-synced check-out must not reopen it (L-4).
+      if (s && s.overstayStatus !== 'PAID' && s.overstayStatus !== 'WAIVED') {
         Object.assign(s, {
           overstayMinutes: minutes,
           overstayAmountKobo: amountKobo,
@@ -312,6 +313,26 @@ export class MemoryAttend {
       const s = this.sessionRows.find((r) => r.bookingId === bookingId);
       if (!s) throw new Error('SESSION_NOT_FOUND');
       s.overstayStatus = 'PAID';
+    },
+    unpaidOverstay: async (driverId) => {
+      for (const s of this.sessionRows) {
+        if (s.overstayStatus !== 'UNPAID') continue;
+        const b = this.deps.bookings.bookingRows.find((x) => x.id === s.bookingId);
+        if (b?.driverId === driverId)
+          return {
+            bookingId: b.id,
+            bookingCode: b.code,
+            lotId: b.lotId,
+            amountKobo: s.overstayAmountKobo,
+          };
+      }
+      return null;
+    },
+    waiveOverstay: async (bookingId) => {
+      const s = this.sessionRows.find((r) => r.bookingId === bookingId);
+      if (!s || (s.overstayStatus !== 'DUE' && s.overstayStatus !== 'UNPAID')) return false;
+      s.overstayStatus = 'WAIVED';
+      return true;
     },
   };
 

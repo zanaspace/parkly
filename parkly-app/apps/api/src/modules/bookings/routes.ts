@@ -15,6 +15,7 @@ import {
   ExtensionOptionsSchema,
   OverstayPayRequestSchema,
   OverstayPayResponseSchema,
+  UnpaidOverstaySchema,
   ReceiptLinkSchema,
   VerifyPaymentResponseSchema,
   type Booking,
@@ -297,6 +298,13 @@ export function bookingRoutes(deps: AppDeps) {
     body: z.infer<typeof CreateBookingRequestSchema>,
   ): Promise<CreateBookingResponse> {
     const now = deps.now();
+    // FR-BOOK-008: an overstay unpaid for 24 hours must be paid (or waived) first.
+    const unpaid = await deps.store.attend.unpaidOverstay(driverId);
+    if (unpaid)
+      throw new ApiError(
+        'OVERSTAY_UNPAID',
+        `Pay the overstay on booking ${unpaid.bookingCode} before booking again`,
+      );
     const lot = await deps.store.lots.findLive(body.lotId, lagosDateKey(now));
     if (!lot) throw new ApiError('LOT_NOT_BOOKABLE');
     const vehicle = await deps.store.vehicles.find(driverId, body.vehicleId);
@@ -983,6 +991,35 @@ export function bookingRoutes(deps: AppDeps) {
     },
   );
 
+  // FR-BOOK-008: the overstay blocking new bookings, so the apps can show it with a pay button.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/me/unpaid-overstay',
+      tags: ['bookings'],
+      ...secured,
+      responses: { 200: { description: 'Unpaid overstay, if any', ...json(UnpaidOverstaySchema) } },
+    }),
+    async (c) => {
+      const actor = c.get('actor');
+      authorize(c, deps.logger, 'booking:read:own', { ownerUserId: actor.userId });
+      const unpaid = await deps.store.attend.unpaidOverstay(actor.userId);
+      if (!unpaid) return c.json({ unpaid: null }, 200);
+      const lot = await lotOf(unpaid.lotId);
+      return c.json(
+        {
+          unpaid: {
+            bookingId: unpaid.bookingId,
+            bookingCode: unpaid.bookingCode,
+            lotName: lot.name,
+            amountKobo: unpaid.amountKobo,
+          },
+        },
+        200,
+      );
+    },
+  );
+
   // FR-BOOK-008: pay overstay charges.
   app.openapi(
     createRoute({
@@ -1008,7 +1045,8 @@ export function bookingRoutes(deps: AppDeps) {
         const now = deps.now();
 
         const session = await deps.store.attend.sessionByBooking(booking.id);
-        if (!session || session.overstayStatus !== 'DUE' || session.overstayAmountKobo <= 0) {
+        const owed = session?.overstayStatus === 'DUE' || session?.overstayStatus === 'UNPAID';
+        if (!session || !owed || session.overstayAmountKobo <= 0) {
           throw new ApiError('OVERSTAY_NOT_DUE', 'No overstay payment is due for this booking');
         }
 

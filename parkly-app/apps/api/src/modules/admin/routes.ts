@@ -1,5 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import { AuditLogPageSchema, AuditLogQuerySchema } from '@parkly/contracts';
+import {
+  AdminBookingSchema,
+  AuditLogPageSchema,
+  AuditLogQuerySchema,
+  WaiveOverstayRequestSchema,
+} from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
@@ -91,6 +96,95 @@ export function adminRoutes(deps: AppDeps) {
         entityId: userId,
       });
       return c.body(null, 204);
+    },
+  );
+
+  const adminAuth = [authenticate(deps.verifyToken), loadActor(deps.store)];
+  const adminBooking = async (id: string) => {
+    const booking = await deps.store.bookings.find(id);
+    if (!booking) throw new ApiError('NOT_FOUND');
+    const [lot, session] = await Promise.all([
+      deps.store.lots.findById(booking.lotId),
+      deps.store.attend.sessionByBooking(booking.id),
+    ]);
+    return {
+      id: booking.id,
+      code: booking.code,
+      status: booking.status,
+      lotName: lot?.name ?? '',
+      startAt: booking.startAt.toISOString(),
+      endAt: booking.endAt.toISOString(),
+      overstay: session
+        ? {
+            status: session.overstayStatus,
+            minutes: session.overstayMinutes,
+            amountKobo: session.overstayAmountKobo,
+          }
+        : null,
+    };
+  };
+
+  // Support finds a booking by its code to see the overstay (gap review L-4).
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/admin/bookings/by-code/{code}',
+      tags: ['admin'],
+      security: [{ bearerAuth: [] }],
+      middleware: adminAuth,
+      request: { params: z.object({ code: z.string().regex(/^PK-[A-Z0-9]{6}$/) }) },
+      responses: {
+        200: {
+          description: 'Booking',
+          content: { 'application/json': { schema: AdminBookingSchema } },
+        },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'booking:support:read', {});
+      const booking = await deps.store.bookings.findByCode(c.req.valid('param').code);
+      if (!booking) throw new ApiError('NOT_FOUND');
+      return c.json(await adminBooking(booking.id), 200);
+    },
+  );
+
+  // FR-BOOK-008: ops waive an overstay as goodwill, with a reason in the audit log.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/admin/bookings/{id}/overstay/waive',
+      tags: ['admin'],
+      security: [{ bearerAuth: [] }],
+      middleware: adminAuth,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        body: {
+          content: { 'application/json': { schema: WaiveOverstayRequestSchema } },
+          required: true,
+        },
+      },
+      responses: {
+        200: {
+          description: 'Waived',
+          content: { 'application/json': { schema: AdminBookingSchema } },
+        },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'overstay:waive', {});
+      const { id } = c.req.valid('param');
+      const { reason } = c.req.valid('json');
+      const before = await adminBooking(id);
+      if (!(await deps.store.attend.waiveOverstay(id, deps.now())))
+        throw new ApiError('OVERSTAY_NOT_DUE', 'There is no unpaid overstay on this booking');
+      await audit(c, deps, {
+        action: 'overstay.waived',
+        entityType: 'booking',
+        entityId: id,
+        before: { status: before.overstay?.status },
+        after: { reason, amountKobo: before.overstay?.amountKobo ?? 0 },
+      });
+      return c.json(await adminBooking(id), 200);
     },
   );
 

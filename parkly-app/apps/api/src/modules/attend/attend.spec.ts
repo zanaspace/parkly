@@ -728,3 +728,105 @@ describe('self check-in (ADR 0016)', () => {
     expect((await t.self('out')).body?.code).toBe('SELF_CHECKIN_OFF');
   });
 });
+
+describe('unpaid overstay and waivers (FR-BOOK-008, gap review L-4)', () => {
+  async function overstayed() {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    await t.readyDevice();
+    await t.sync([checkIn(paid.id, min(55))]);
+    // Left 40 min after the end: 30 minutes of overstay, ₦250.
+    await t.sync([
+      {
+        type: 'CHECK_OUT',
+        clientEventId: randomUUID(),
+        bookingId: paid.id,
+        method: 'QR',
+        deviceTime: min(220),
+      },
+    ]);
+    const session = t.store.attending.sessionRows.find((s) => s.bookingId === paid.id);
+    if (!session) throw new Error('no session');
+    const vehicleId = t.store.vehicleRows.find((v) => v.userId === paid.driver)?.id;
+    const book = () =>
+      t.call('POST', '/v1/bookings', {
+        as: paid.driver,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { lotId: t.lot.id, vehicleId, startAt: START, endAt: END },
+      });
+    return { t, paid, session, book };
+  }
+
+  it('blocks new bookings while an overstay is unpaid, shows it, and still takes payment', async () => {
+    const { t, paid, session, book } = await overstayed();
+    expect(session.overstayStatus).toBe('DUE');
+    // Not blocked yet: the driver has 24 hours.
+    expect((await t.call('GET', '/v1/me/unpaid-overstay', { as: paid.driver })).body).toEqual({
+      unpaid: null,
+    });
+
+    // fn_mark_overstay_unpaid (pg_cron) after 24 hours.
+    session.overstayStatus = 'UNPAID';
+    const unpaid = await t.call('GET', '/v1/me/unpaid-overstay', { as: paid.driver });
+    expect(unpaid.body?.unpaid).toMatchObject({
+      bookingId: paid.id,
+      lotName: t.lot.name,
+      amountKobo: 25_000,
+    });
+    const refused = await book();
+    expect([refused.status, refused.body?.code]).toEqual([409, 'OVERSTAY_UNPAID']);
+
+    const pay = await t.call('POST', `/v1/bookings/${paid.id}/overstay/pay`, {
+      as: paid.driver,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(pay.status).toBe(200);
+  });
+
+  it('never reopens a paid or waived overstay when a check-out is priced again', async () => {
+    const { t, session } = await overstayed();
+    session.overstayStatus = 'PAID';
+    await t.store.attend.setOverstay(session.id, 45, 37_500);
+    expect(session).toMatchObject({ overstayStatus: 'PAID', overstayAmountKobo: 25_000 });
+  });
+
+  it('lets ops waive it with a reason, audited; support can look it up but not waive', async () => {
+    const { t, paid, session, book } = await overstayed();
+    session.overstayStatus = 'UNPAID';
+    const code = t.store.booking.bookingRows.find((b) => b.id === paid.id)?.code ?? '';
+    const support = t.user([{ role: 'ADMIN_SUPPORT', operatorId: null }]);
+    const ops = t.user([{ role: 'ADMIN_OPS', operatorId: null }]);
+
+    const found = await t.call('GET', `/v1/admin/bookings/by-code/${code}`, {
+      as: support,
+      aal: 'aal2',
+    });
+    expect(found.body).toMatchObject({
+      id: paid.id,
+      code,
+      lotName: t.lot.name,
+      overstay: { status: 'UNPAID', minutes: 30, amountKobo: 25_000 },
+    });
+    const waive = (who: string, body: Record<string, unknown>) =>
+      t.call('POST', `/v1/admin/bookings/${paid.id}/overstay/waive`, {
+        as: who,
+        aal: 'aal2',
+        body,
+      });
+    expect((await waive(support, { reason: 'Barrier was broken' })).status).toBe(403);
+    expect((await waive(ops, { reason: '' })).status).toBe(400);
+
+    const done = await waive(ops, { reason: 'Barrier was broken at exit' });
+    expect(done.status).toBe(200);
+    expect(session.overstayStatus).toBe('WAIVED');
+    expect(t.store.auditRows.at(-1)).toMatchObject({
+      action: 'overstay.waived',
+      entityId: paid.id,
+      after: { reason: 'Barrier was broken at exit', amountKobo: 25_000 },
+    });
+    expect((await waive(ops, { reason: 'Again' })).body?.code).toBe('OVERSTAY_NOT_DUE');
+
+    // Unblocked: no longer refused for an unpaid overstay.
+    expect((await book()).body?.code).not.toBe('OVERSTAY_UNPAID');
+  });
+});

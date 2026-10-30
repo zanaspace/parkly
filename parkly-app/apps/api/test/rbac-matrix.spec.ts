@@ -209,10 +209,25 @@ const MATRIX: Row[] = [
     route: 'POST /v1/admin/users/{userId}/sessions/revoke',
     expect: only(['SUPER_ADMIN'], 204, 403),
   },
+  {
+    method: 'GET',
+    path: '/v1/me/unpaid-overstay',
+    route: 'GET /v1/me/unpaid-overstay',
+    expect: only(['DRIVER'], 200, 403),
+  },
+  {
+    // No such booking: allowed roles get past the permission check to a 404.
+    method: 'GET',
+    path: '/v1/admin/bookings/by-code/PK-AAAAAA',
+    route: 'GET /v1/admin/bookings/by-code/{code}',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
 ];
 
 /** Endpoints covered by dedicated tests instead (public, write-only or per-user resources). */
 const COVERED_ELSEWHERE = new Set([
+  // overstay:waive needs a reason body; ops allowed, support 403: attend.spec; roles: authz.spec
+  'POST /v1/admin/bookings/{id}/overstay/waive',
   'POST /v1/auth/otp/precheck', // public; auth.spec
   'POST /v1/auth/bootstrap', // any valid token; auth.spec
   'POST /v1/auth/sessions/revoke', // own sessions only; auth.spec
