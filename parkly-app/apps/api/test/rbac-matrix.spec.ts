@@ -30,6 +30,10 @@ const OP_A = randomUUID();
 const OP_B = randomUUID();
 const TARGET_USER = randomUUID();
 const LOT_A = randomUUID();
+/** Ids that don't exist: the answer shows the role gate, then "not found". */
+const NO_BOOKING = randomUUID();
+const NO_LOT = randomUUID();
+const NO_FILE = randomUUID();
 const EVERYONE_SIGNED_IN = Object.fromEntries(
   WHO.filter((w) => w !== 'anon').map((w) => [w, 200]),
 ) as Record<Who, number>;
@@ -224,6 +228,75 @@ const MATRIX: Row[] = [
   },
 ];
 
+/** Gap review S-11: Sprint 5 and 6 reads, each with an other-tenant case. */
+MATRIX.push(
+  // A driver's own booking only; anyone else, staff included, is told it doesn't exist.
+  // Own-booking and other-driver cases with real bookings: bookings.spec, receipt.spec.
+  {
+    method: 'GET',
+    path: `/v1/bookings/${NO_BOOKING}`,
+    route: 'GET /v1/bookings/{id}',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/bookings/${NO_BOOKING}/receipt`,
+    route: 'GET /v1/bookings/{id}/receipt',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/bookings/${NO_BOOKING}/extensions/options`,
+    route: 'GET /v1/bookings/{id}/extensions/options',
+    expect: only([], 200, 404),
+  },
+  // Lots this person may check cars in at; empty for everyone else (attend.spec).
+  {
+    method: 'GET',
+    path: '/v1/attend/lots',
+    route: 'GET /v1/attend/lots',
+    expect: { ...EVERYONE_SIGNED_IN, anon: 401 },
+  },
+  // Owner and manager of the lot need a registered phone first (403); others never see it.
+  {
+    method: 'GET',
+    path: `/v1/attend/lots/${LOT_A}/manifest?clientDeviceId=${NO_FILE}`,
+    route: 'GET /v1/attend/lots/{lotId}/manifest',
+    expect: { ...only([], 200, 404), OPERATOR_OWNER: 403, OPERATOR_MANAGER: 403 },
+  },
+  {
+    method: 'GET',
+    path: `/v1/attend/lots/${NO_LOT}/manifest?clientDeviceId=${NO_FILE}`,
+    route: 'GET /v1/attend/lots/{lotId}/manifest (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/lots/${LOT_A}/self-check-in`,
+    route: 'GET /v1/operators/{operatorId}/lots/{lotId}/self-check-in',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/lots/${NO_LOT}/self-check-in`,
+    route: 'GET /v1/operators/{operatorId}/lots/{lotId}/self-check-in (other tenant)',
+    expect: only([], 200, 404),
+  },
+  // Private documents: reviewers only (ops, compliance, super admin).
+  {
+    method: 'GET',
+    path: `/v1/admin/permits/${NO_FILE}/document-url`,
+    route: 'GET /v1/admin/permits/{permitId}/document-url',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/operators/${OP_A}/kyb-documents/${NO_FILE}/url`,
+    route: 'GET /v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+);
+
 /** Endpoints covered by dedicated tests instead (public, write-only or per-user resources). */
 const COVERED_ELSEWHERE = new Set([
   // overstay:waive needs a reason body; ops allowed, support 403: attend.spec; roles: authz.spec
@@ -240,25 +313,20 @@ const COVERED_ELSEWHERE = new Set([
   'DELETE /v1/me/vehicles/{id}', // me.spec: own vehicles, other driver → 404
   // Drivers only (owner 403), other driver's booking or payment → 404, idempotency: bookings.spec
   // Lot-scoped attendant routes, device approval and the device checks: attend.spec
-  'GET /v1/attend/lots',
   'POST /v1/attend/devices',
-  'GET /v1/attend/lots/{lotId}/manifest',
   'POST /v1/attend/sync',
   // Self check-in: owner switch (attendant 404), driver's own booking only (others 404): attend.spec
-  'GET /v1/operators/{operatorId}/lots/{lotId}/self-check-in',
   'POST /v1/operators/{operatorId}/lots/{lotId}/self-check-in',
   'POST /v1/bookings/{id}/self-check-in',
   'POST /v1/bookings/{id}/self-check-out',
   'POST /v1/operators/{operatorId}/devices/{deviceId}',
   'POST /v1/bookings',
-  'GET /v1/bookings/{id}',
-  'GET /v1/bookings/{id}/receipt',
   // Signed receipt link: other drivers 404 (receipt.spec)
   'POST /v1/bookings/{id}/receipt-link',
   // Public, but only with a valid 5-minute signature for that booking (receipt.spec)
   'GET /v1/receipts/{id}',
-  'GET /v1/bookings/{id}/extensions/options',
   'POST /v1/bookings/{id}/extensions',
+  // Other driver and car park staff 404, nothing changes: bookings.spec (gap review T-3)
   'POST /v1/bookings/{id}/cancel',
   'POST /v1/bookings/{id}/overstay/pay',
   'POST /v1/payments/{reference}/verify',
@@ -282,11 +350,9 @@ const COVERED_ELSEWHERE = new Set([
   'PUT /v1/operators/{operatorId}/lots/{lotId}/rate-plans',
   'POST /v1/operators/{operatorId}/lots/{lotId}/visibility',
   // Same kyb:review rule as the rows above; behaviour in admin/kyb.spec
-  'GET /v1/admin/operators/{operatorId}/kyb-documents/{documentId}/url',
   'POST /v1/admin/operators/{operatorId}/kyb/review',
   // lot:review / permit:review / rate-plan:review / lot:verify (authz.spec); allowed and
   // denied roles per decision in admin/lots.spec
-  'GET /v1/admin/permits/{permitId}/document-url',
   'POST /v1/admin/permits/{permitId}/review',
   'POST /v1/admin/rate-plans/{ratePlanId}/review',
   'POST /v1/admin/lot-photos/{photoId}/review',

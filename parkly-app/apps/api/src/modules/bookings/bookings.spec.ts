@@ -415,7 +415,12 @@ describe('POST /v1/webhooks/paystack (doc 02 §7)', () => {
     });
     expect(t.store.booking.refundRows[0]?.providerRefundId).toBeNull();
     t.payments.refund = refund;
-    await settlePaymentsJob(t.deps)({ payload: {}, deadline: new Date('2100-01-01T00:00:00Z') });
+    const deadline = new Date('2100-01-01T00:00:00Z');
+    // A refund younger than 5 minutes may still be on its way: not retried yet.
+    await settlePaymentsJob(t.deps)({ payload: {}, deadline });
+    expect(t.store.booking.refundRows[0]?.providerRefundId).toBeNull();
+    const later = () => new Date(TEST_NOW.getTime() + 6 * 60_000);
+    await settlePaymentsJob({ ...t.deps, now: later })({ payload: {}, deadline });
     expect(t.store.booking.refundRows[0]?.providerRefundId).toBe('rf_1');
   });
 
@@ -1146,6 +1151,65 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
     });
     expect(res.status).toBe(409);
     expect(res.body?.code).toBe('OVERSTAY_NOT_DUE');
+  });
+
+  it('only the booking’s driver can cancel, extend or pay its overstay (gap review T-3)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const created = (await t.book(driver)).body as unknown as Created;
+    t.payments.pay(created.payment.reference);
+    await t.call('POST', `/v1/payments/${created.payment.reference}/verify`, { as: driver.id });
+    t.store.attending.sessionRows.push({
+      id: randomUUID(),
+      bookingId: created.booking.id,
+      lotId: t.lot.id,
+      plateNorm: 'LND123AB',
+      checkInAt: new Date(START),
+      checkOutAt: new Date(new Date(END).getTime() + 45 * 60_000),
+      overstayMinutes: 35,
+      overstayAmountKobo: 37_500,
+      overstayStatus: 'DUE',
+      flags: [],
+    });
+    const id = created.booking.id;
+    const newEndAt = new Date(new Date(END).getTime() + 60 * 60_000).toISOString();
+    const attempt = (as: string) =>
+      Promise.all([
+        t.call('POST', `/v1/bookings/${id}/cancel`, {
+          as,
+          aal: 'aal2',
+          headers: { 'idempotency-key': randomUUID() },
+        }),
+        t.call('POST', `/v1/bookings/${id}/extensions`, {
+          as,
+          aal: 'aal2',
+          headers: { 'idempotency-key': randomUUID() },
+          body: { newEndAt },
+        }),
+        t.call('POST', `/v1/bookings/${id}/overstay/pay`, {
+          as,
+          aal: 'aal2',
+          headers: { 'idempotency-key': randomUUID() },
+        }),
+      ]).then((rs) => rs.map((r) => r.status));
+
+    // Another driver: as if the booking didn't exist.
+    expect(await attempt((await t.newDriver()).id)).toEqual([404, 404, 404]);
+    // The car park's own staff can't act for the driver either, and learn nothing.
+    const owner = t.user([{ role: 'OPERATOR_OWNER', operatorId: t.operatorId }]);
+    const attendant = t.user([{ role: 'OPERATOR_ATTENDANT', operatorId: t.operatorId }]);
+    expect(await attempt(owner)).toEqual([404, 404, 404]);
+    expect(await attempt(attendant)).toEqual([404, 404, 404]);
+    expect(t.store.booking.bookingRows.find((b) => b.id === id)?.status).toBe('CONFIRMED');
+    expect(t.store.booking.extensionRows).toHaveLength(0);
+    expect(t.store.booking.paymentRows.filter((p) => p.bookingId === id)).toHaveLength(1);
+
+    // The driver can.
+    const pay = await t.call('POST', `/v1/bookings/${id}/overstay/pay`, {
+      as: driver.id,
+      headers: { 'idempotency-key': randomUUID() },
+    });
+    expect(pay.status).toBe(200);
   });
 
   it('initiates and settles overstay payment', async () => {

@@ -234,6 +234,28 @@ Receipts issued from then on show VAT; earlier ones stay as they were.
 5. In Supabase, `receipts` has one row per paid booking.
 6. Email with the PDF attached arrives once real email is on (Resend, item 12).
 
+### Item 16: tests against the real database
+
+**The problem.** Most API tests run against an in-memory copy of the database, because it's fast. If the copy behaves differently from Postgres, tests pass while production fails, which has happened before (P-1, L-1, L-2). Many newer features had no test against Postgres at all. Nobody had checked that drivers can't act on someone else's booking for cancel, extend and overstay-pay, or that the map hides a lot when its permit expires today.
+
+**What changed.**
+- **One set of tests, run against both:** cancelling with a refund and following it until Paystack confirms, extensions (hold, pay, release, wrong payment), payments still open, retried webhooks, the notification queue, reminders, overstay waive, and saved phone/email and push tokens. CI runs them on Postgres.
+- **When a lot shows on the map:** it's hidden when its permit expires that day, its site visit is out of date, it's paused or suspended, or its company isn't approved. Shown again when that's fixed.
+- **Other people's bookings:** another driver, or the car park's own staff, can't cancel, extend or pay overstay on a driver's booking. They're told it doesn't exist, and nothing changes.
+- **The permissions table** now includes the Sprint 5 and 6 pages, each with a "different company" case.
+
+**What the tests found, now fixed.** In each case, the in-memory copy behaved differently from Postgres:
+
+| Found | Fixed |
+|---|---|
+| The refund retry ignored its 5-minute wait in tests, so a refund could look retried at once | The copy waits like the database; the test now moves the clock on |
+| Refunds were dated by the computer's clock, not by when the cancel happened | Dated by the action |
+| Confirming an extension without a payment wiped the payment link, and a wrong payment was accepted | Kept, and a wrong payment is refused, as in the database |
+| Booking payments had no type ("booking") in tests | Set, as in the database |
+| **Postgres let a company become active with no payout account** (the copy refused) | **Postgres now refuses too:** no payout account, no approval. The admin page already saves the account first, so nothing changes for staff. |
+
+**For you.** No migrations or settings. If CI goes red on the database job, that's this branch's new Postgres tests doing their work; I'll fix it.
+
 ## Doc 20 Sprint 6 tasks against the code
 
 | Task | Status |
@@ -283,7 +305,7 @@ Receipts issued from then on show VAT; earlier ones stay as they were.
 | 13 | Overstay: priced from the booking's plan, unpaid block, ops waive with audit; extensions from the booking's plan | L-3, L-4, U-2, U-12, P-14 | **Done** |
 | 14 | No-shows skip lots whose gate hasn't synced | G-4, G-12 | **Done** |
 | 15 | Receipts: stored, numbered, PDF in a private bucket, emailed | L-5, O-4 | **Done** (PDF on demand, ADR 0021) |
-| 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 | Open |
+| 16 | Postgres contract tests for new store methods and cross-tenant endpoints | T-2, T-3, T-4, S-11 | **Done** |
 
 ### Owner actions
 
