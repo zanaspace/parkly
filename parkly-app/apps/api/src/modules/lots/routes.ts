@@ -414,7 +414,8 @@ export function lotRoutes(deps: AppDeps) {
       if (lot.status !== 'DRAFT') {
         const upcoming = await deps.store.bookings.listUpcomingForLot(lotId, deps.now());
         const active = upcoming.filter(
-          (b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
+          (b) =>
+            b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
         );
         const conflicting = active.filter(
           (b) =>

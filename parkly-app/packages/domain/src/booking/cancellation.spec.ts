@@ -3,7 +3,6 @@ import type { Kobo } from '../money/money.js';
 import {
   cancellationPolicy,
   cancellationRefundJournal,
-  type CancellationInput,
   type CancellationSettings,
 } from './cancellation.js';
 import type { BookingPayment } from './ledger.js';
@@ -198,8 +197,12 @@ describe('cancellationRefundJournal', () => {
     // Debit platform commission: 12,000 kobo
     // Debit platform service fee: 10,000 kobo
     // Credit provider clearing (or refunds clearing): 110,000 kobo
-    const debits = journal.filter((l) => l.direction === 'DEBIT').reduce((s, l) => s + l.amountKobo, 0);
-    const credits = journal.filter((l) => l.direction === 'CREDIT').reduce((s, l) => s + l.amountKobo, 0);
+    const debits = journal
+      .filter((l) => l.direction === 'DEBIT')
+      .reduce((s, l) => s + l.amountKobo, 0);
+    const credits = journal
+      .filter((l) => l.direction === 'CREDIT')
+      .reduce((s, l) => s + l.amountKobo, 0);
 
     expect(debits).toBe(110_000);
     expect(credits).toBe(110_000);

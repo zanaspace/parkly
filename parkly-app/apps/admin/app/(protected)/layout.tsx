@@ -19,7 +19,11 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         <div className="pk-row" style={{ gap: '1.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <LogoMarkIcon size={26} />
-            <Text variant="label-lg" tone="brand" style={{ fontWeight: '700', letterSpacing: '-0.3px', fontSize: '1.05rem' }}>
+            <Text
+              variant="label-lg"
+              tone="brand"
+              style={{ fontWeight: '700', letterSpacing: '-0.3px', fontSize: '1.05rem' }}
+            >
               Parkly Admin
             </Text>
           </div>
@@ -30,7 +34,11 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
             <Text variant="body-sm" tone="primary" style={{ fontWeight: '600' }}>
               {me.firstName ?? 'Admin'}
             </Text>
-            <Text variant="caption" tone="tertiary" style={{ display: 'block', fontSize: '0.75rem' }}>
+            <Text
+              variant="caption"
+              tone="tertiary"
+              style={{ display: 'block', fontSize: '0.75rem' }}
+            >
               {primaryRole}
             </Text>
           </div>

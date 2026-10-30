@@ -737,7 +737,10 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
-    const body = extRes.body as any;
+    const body = extRes.body as unknown as Record<string, unknown> & {
+      payment: { reference: string };
+      extension: { id: string };
+    };
     expect(body.extension).toMatchObject({
       bookingId: created.booking.id,
       addedMinutes: 60,
@@ -845,7 +848,9 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
   it('auto-confirms extension with null payment when daily cap is reached (₦0 incremental price)', async () => {
     const t = await setup();
     // Update rate plan with daily cap of 100_000 (₦1,000)
-    t.store.ratePlanRows[0]!.dailyCapKobo = 100_000;
+    const plan = t.store.ratePlanRows[0];
+    if (!plan) throw new Error('no rate plan');
+    plan.dailyCapKobo = 100_000;
 
     const driver = await t.newDriver();
     // Book 2 hours: 2h * 500 = 1,000 -> hits the cap
@@ -861,7 +866,7 @@ describe('Booking Extensions (FR-BOOK-005, doc 02 §4)', () => {
       body: { newEndAt: newEnd },
     });
     expect(extRes.status).toBe(200);
-    const body = extRes.body as any;
+    const body = extRes.body as Record<string, unknown>;
     expect(body.extension).toMatchObject({
       bookingId: created.booking.id,
       addedMinutes: 60,
@@ -1026,7 +1031,9 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
       body: { reason: 'Plans changed' },
     });
     expect(cancelRes.status).toBe(200);
-    const body = cancelRes.body as any;
+    const body = cancelRes.body as unknown as Record<string, unknown> & {
+      booking: { status: string };
+    };
     expect(body.isFreeCancellation).toBe(true);
     expect(body.refundKobo).toBe(110_000); // 100% refund of parking + service fee
     expect(body.booking.status).toBe('CANCELLED');
@@ -1078,7 +1085,9 @@ describe('Booking Cancellation (FR-BOOK-006, doc 02 §5)', () => {
       headers: { 'idempotency-key': randomUUID() },
     });
     expect(cancelRes.status).toBe(200);
-    const body = cancelRes.body as any;
+    const body = cancelRes.body as unknown as Record<string, unknown> & {
+      booking: { status: string };
+    };
     expect(body.isFreeCancellation).toBe(false);
     expect(body.refundKobo).toBe(0);
     expect(body.booking.status).toBe('CANCELLED');
@@ -1166,7 +1175,9 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
       headers: { 'idempotency-key': randomUUID() },
     });
     expect(payRes.status).toBe(200);
-    const body = payRes.body as any;
+    const body = payRes.body as unknown as Record<string, unknown> & {
+      payment: { reference: string };
+    };
     expect(body.amountKobo).toBe(37_500);
     expect(body.payment).toMatchObject({
       status: 'PENDING',
@@ -1226,7 +1237,7 @@ describe('Overstay Payment (FR-BOOK-008, doc 02 §4)', () => {
 
     const getRes = await t.call('GET', `/v1/bookings/${created.booking.id}`, { as: driver.id });
     expect(getRes.status).toBe(200);
-    const fetched = getRes.body as any;
+    const fetched = getRes.body as Record<string, unknown>;
     expect(fetched.lot).toMatchObject({
       area: 'Victoria Island',
       location: { lat: 6.4281, lng: 3.4219 },

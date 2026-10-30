@@ -6,3 +6,25 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - supabase
+
+# Security fixes for transitive dependencies (gap review T-1).
+overrides:
+  # jsdom (UI tests) pulls undici 8.12.1; 8.12.2 fixes four advisories and is within jsdom's range.
+  undici@>=8.0.0 <8.12.2: 8.12.2
+
+# Advisories with no compatible fix, accepted until the upstream package moves
+# (doc 05 CI gates). Review by 2027-01-31 or at the next Expo SDK upgrade,
+# whichever comes first; remove an entry once `pnpm why <package>` no longer
+# shows the vulnerable version.
+auditConfig:
+  ignoreGhsas:
+    # node-forge ≤1.4.0 (no patched release), via expo > @expo/cli: the developer
+    # CLI only, never bundled into the app.
+    - GHSA-86w9-cpqp-85rv
+    # zod <4.6.6 via expo > @expo/cli: the fix is zod 4, which the CLI isn't built
+    # for. Developer CLI only. Our own code uses zod 4.6.7.
+    - GHSA-mrhx-c7xc-m3w5
+    # decode-uri-component ≤0.5.0 via expo-router > query-string: the fixed release
+    # is an ESM rewrite query-string can't load. A slow decode needs a crafted link
+    # opened on the user's own phone; no server is exposed.
+    - GHSA-qr28-fpjm-wq7f

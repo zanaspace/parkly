@@ -267,5 +267,3 @@ export function MessageCircleIcon(props: IconProps) {
     </Svg>
   );
 }
-
-

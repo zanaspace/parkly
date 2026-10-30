@@ -28,8 +28,7 @@ export type OverstayCalculation = {
 };
 
 export type OverstayRatePlanValidation =
-  | { ok: true }
-  | { ok: false; code: 'OVERSTAY_RATE_EXCEEDS_MAX' | 'OVERSTAY_GRACE_BELOW_MINIMUM' };
+  { ok: true } | { ok: false; code: 'OVERSTAY_RATE_EXCEEDS_MAX' | 'OVERSTAY_GRACE_BELOW_MINIMUM' };
 
 const MINUTE_MS = 60_000;
 

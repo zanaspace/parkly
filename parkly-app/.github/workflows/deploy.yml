@@ -1,3 +1,7 @@
+# NOT ACTIVE: GitHub only runs workflows from the repository root (.github/workflows).
+# This stays here until staging exists and the deploy secrets are set (S0 carry-over);
+# then move it next to ci.yml and add `defaults.run.working-directory: parkly-app`.
+#
 # Migrations always land before the code that needs them (ADR 0002).
 #   push to main   → migrate dev + staging → deploy staging
 #   tag vX.Y.Z     → manual approval (GitHub environment "production") → migrate prod → deploy prod

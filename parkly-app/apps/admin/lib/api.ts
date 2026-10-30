@@ -55,7 +55,10 @@ export async function apiFetch<T>(
       cache: 'no-store',
     });
   } catch (err) {
-    if (err instanceof Error && (err.name === 'TypeError' || err.message.includes('fetch failed'))) {
+    if (
+      err instanceof Error &&
+      (err.name === 'TypeError' || err.message.includes('fetch failed'))
+    ) {
       throw new Error(
         `Failed to reach the Parkly API at ${apiUrl}. Please ensure the API server is running on port 4000 (pnpm --filter @parkly/api dev).`,
         { cause: err },

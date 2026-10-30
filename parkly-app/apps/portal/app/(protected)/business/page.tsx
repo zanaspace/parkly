@@ -47,7 +47,14 @@ export default async function BusinessPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             <BuildingIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
             <Text variant="heading-xl">Business Profile & Trading Details</Text>
           </div>
@@ -55,7 +62,10 @@ export default async function BusinessPage() {
             Manage your registered company name, trading identity, and official contact details.
           </Text>
         </div>
-        <span className={`pk-badge ${badge.class}`} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+        <span
+          className={`pk-badge ${badge.class}`}
+          style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+        >
           {badge.label}
         </span>
       </div>
@@ -67,7 +77,8 @@ export default async function BusinessPage() {
       )}
       {isOwner && locked && (
         <p className="pk-notice pk-notice--info" role="status">
-          ℹ️ Legal entity details are locked while your KYB review is completed or approved. Contact support to request amendments.
+          ℹ️ Legal entity details are locked while your KYB review is completed or approved. Contact
+          support to request amendments.
         </p>
       )}
 
@@ -80,7 +91,11 @@ export default async function BusinessPage() {
               <Text variant="heading-md" as="h2">
                 Company Information
               </Text>
-              <Text variant="body-sm" tone="secondary" style={{ marginTop: '0.25rem', display: 'block' }}>
+              <Text
+                variant="body-sm"
+                tone="secondary"
+                style={{ marginTop: '0.25rem', display: 'block' }}
+              >
                 Ensure your registered legal name matches your CAC incorporation certificate.
               </Text>
             </div>
@@ -99,7 +114,8 @@ export default async function BusinessPage() {
               </Text>
             </div>
             <Text variant="body-sm" tone="secondary" style={{ lineHeight: 1.5 }}>
-              Your business verification determines your payout account authorization and settlement schedule.
+              Your business verification determines your payout account authorization and settlement
+              schedule.
             </Text>
             <div>
               <Link href="/kyb" className="pk-button pk-button--secondary pk-button--sm">
@@ -124,7 +140,9 @@ export default async function BusinessPage() {
               OPERATOR IDENTIFIER
             </Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <code className="pk-code" style={{ fontSize: '0.85rem' }}>{operator.id}</code>
+              <code className="pk-code" style={{ fontSize: '0.85rem' }}>
+                {operator.id}
+              </code>
               <Text variant="caption" tone="secondary">
                 Reference this identifier when submitting support tickets or configuring webhooks.
               </Text>
@@ -140,7 +158,8 @@ export default async function BusinessPage() {
               </Text>
             </div>
             <Text variant="body-sm" tone="secondary" style={{ lineHeight: 1.5 }}>
-              Assign staff members and approve attendant phones to scan booking tickets at your lots.
+              Assign staff members and approve attendant phones to scan booking tickets at your
+              lots.
             </Text>
             <div>
               <Link href="/team" className="pk-button pk-button--ghost pk-button--sm">

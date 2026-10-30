@@ -25,13 +25,7 @@ export interface UserNavInfo {
   email?: string;
 }
 
-export function PortalNav({
-  isOwner,
-  user,
-}: {
-  isOwner: boolean;
-  user?: UserNavInfo;
-}) {
+export function PortalNav({ isOwner, user }: { isOwner: boolean; user?: UserNavInfo }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -62,20 +56,62 @@ export function PortalNav({
   }, [drawerOpen]);
 
   const links = [
-    { href: '/', label: 'Dashboard', shortLabel: 'Dashboard', icon: DashboardIcon, exact: true, category: 'workspaces' },
-    { href: '/lots', label: 'Lots & Parking', shortLabel: 'Lots', icon: LotsIcon, exact: false, category: 'workspaces' },
-    { href: '/attend', label: 'Gate App', shortLabel: 'Gate App', icon: GateIcon, exact: false, category: 'workspaces' },
-    { href: '/team', label: 'Staff & Attendants', shortLabel: 'Team', icon: TeamIcon, exact: false, category: 'management' },
-    { href: '/kyb', label: 'Verification (KYB)', shortLabel: 'KYB', icon: ShieldCheckIcon, exact: false, category: 'management' },
+    {
+      href: '/',
+      label: 'Dashboard',
+      shortLabel: 'Dashboard',
+      icon: DashboardIcon,
+      exact: true,
+      category: 'workspaces',
+    },
+    {
+      href: '/lots',
+      label: 'Lots & Parking',
+      shortLabel: 'Lots',
+      icon: LotsIcon,
+      exact: false,
+      category: 'workspaces',
+    },
+    {
+      href: '/attend',
+      label: 'Gate App',
+      shortLabel: 'Gate App',
+      icon: GateIcon,
+      exact: false,
+      category: 'workspaces',
+    },
+    {
+      href: '/team',
+      label: 'Staff & Attendants',
+      shortLabel: 'Team',
+      icon: TeamIcon,
+      exact: false,
+      category: 'management',
+    },
+    {
+      href: '/kyb',
+      label: 'Verification (KYB)',
+      shortLabel: 'KYB',
+      icon: ShieldCheckIcon,
+      exact: false,
+      category: 'management',
+    },
     ...(isOwner
-      ? [{ href: '/business', label: 'Business Profile', shortLabel: 'Business', icon: BuildingIcon, exact: false, category: 'management' }]
+      ? [
+          {
+            href: '/business',
+            label: 'Business Profile',
+            shortLabel: 'Business',
+            icon: BuildingIcon,
+            exact: false,
+            category: 'management',
+          },
+        ]
       : []),
   ];
 
   const isMoreActive =
-    pathname.startsWith('/team') ||
-    pathname.startsWith('/kyb') ||
-    pathname.startsWith('/business');
+    pathname.startsWith('/team') || pathname.startsWith('/kyb') || pathname.startsWith('/business');
 
   const initials = user?.name
     ? user.name
@@ -162,9 +198,19 @@ export function PortalNav({
               <div className="pk-drawer-user-card">
                 <div className="pk-drawer-avatar">{initials}</div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     <strong className="pk-drawer-user-name">{user.name}</strong>
-                    <span className="pk-badge pk-badge--verified" style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem' }}>
+                    <span
+                      className="pk-badge pk-badge--verified"
+                      style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem' }}
+                    >
                       {user.role}
                     </span>
                   </div>
@@ -245,12 +291,20 @@ export function PortalNav({
 
             {/* Drawer Footer Actions */}
             <div className="pk-drawer-footer">
-              <form action={signOut} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <form
+                action={signOut}
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+              >
                 <button type="submit" name="scope" value="device" className="pk-drawer-signout-btn">
                   <LogOutIcon size={16} />
                   <span>Sign out this device</span>
                 </button>
-                <button type="submit" name="scope" value="all" className="pk-drawer-signout-subtle-btn">
+                <button
+                  type="submit"
+                  name="scope"
+                  value="all"
+                  className="pk-drawer-signout-subtle-btn"
+                >
                   Sign out everywhere
                 </button>
               </form>

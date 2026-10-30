@@ -33,11 +33,20 @@ export default async function LotQueuePage({
 
   return (
     <main className="pk-page pk-page--wide">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+        }}
+      >
         <div>
           <Text variant="heading-xl">Lots & Permits</Text>
           <Text variant="body-sm" tone="secondary">
-            Manage off-street parking facilities, LASPA permits, on-site verifications, and pricing reviews.
+            Manage off-street parking facilities, LASPA permits, on-site verifications, and pricing
+            reviews.
           </Text>
         </div>
       </div>
@@ -79,7 +88,9 @@ export default async function LotQueuePage({
                 <th scope="col">Photos</th>
                 <th scope="col">Price Review</th>
                 <th scope="col">Registered</th>
-                <th scope="col" style={{ textAlign: 'right' }}>Actions</th>
+                <th scope="col" style={{ textAlign: 'right' }}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -104,7 +115,9 @@ export default async function LotQueuePage({
                     </Text>
                   </td>
                   <td>
-                    <Text variant="body-sm">{l.photoCount} photo{l.photoCount === 1 ? '' : 's'}</Text>
+                    <Text variant="body-sm">
+                      {l.photoCount} photo{l.photoCount === 1 ? '' : 's'}
+                    </Text>
                   </td>
                   <td>
                     {l.pendingPriceCount > 0 ? (
@@ -112,7 +125,9 @@ export default async function LotQueuePage({
                         {l.pendingPriceCount} pending
                       </span>
                     ) : (
-                      <Text variant="body-sm" tone="tertiary">—</Text>
+                      <Text variant="body-sm" tone="tertiary">
+                        —
+                      </Text>
                     )}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>

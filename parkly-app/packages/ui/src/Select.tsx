@@ -194,16 +194,12 @@ export function Select({
           aria-describedby={describedBy}
         >
           <span
-            className={
-              selectedOption ? 'pk-custom-select-value' : 'pk-custom-select-placeholder'
-            }
+            className={selectedOption ? 'pk-custom-select-value' : 'pk-custom-select-placeholder'}
           >
             {selectedOption ? selectedOption.label : (placeholder ?? 'Choose one')}
           </span>
           <svg
-            className={`pk-custom-select-chevron ${
-              open ? 'pk-custom-select-chevron--open' : ''
-            }`}
+            className={`pk-custom-select-chevron ${open ? 'pk-custom-select-chevron--open' : ''}`}
             width="14"
             height="14"
             viewBox="0 0 24 24"

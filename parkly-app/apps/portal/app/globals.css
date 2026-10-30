@@ -460,7 +460,9 @@ a.pk-button {
   border-radius: var(--pk-card-radius);
   background: var(--pk-card-bg);
   box-shadow: var(--pk-card-shadow);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .pk-stat-card:hover {
@@ -527,21 +529,24 @@ a.pk-button {
 }
 
 .pk-badge--submitted {
-  background: #FFF8EB;
-  color: #6F420C;
-  border: 1px solid #FDD48A;
+  background: #fff8eb;
+  color: #6f420c;
+  border: 1px solid #fdd48a;
 }
 
-.pk-badge--verified, .pk-badge--approved, .pk-badge--live {
-  background: #EFFAF2;
-  color: #144E27;
-  border: 1px solid #B0E4C1;
+.pk-badge--verified,
+.pk-badge--approved,
+.pk-badge--live {
+  background: #effaf2;
+  color: #144e27;
+  border: 1px solid #b0e4c1;
 }
 
-.pk-badge--suspended, .pk-badge--rejected {
-  background: #FEF2F2;
-  color: #771A14;
-  border: 1px solid #FBC4C0;
+.pk-badge--suspended,
+.pk-badge--rejected {
+  background: #fef2f2;
+  color: #771a14;
+  border: 1px solid #fbc4c0;
 }
 
 .pk-badge--draft {
@@ -670,7 +675,9 @@ a.pk-button {
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .pk-back-link:hover {
   background: var(--pk-color-bg-subtle);
@@ -752,7 +759,9 @@ a.pk-button {
   color: var(--pk-color-text-brand);
   font-size: 0.875rem;
   font-weight: 700;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 .pk-form-section:focus-within .pk-form-section__step {
   background: var(--pk-color-action-primary-bg);
@@ -803,7 +812,9 @@ a.pk-button {
   font-size: 0.9rem;
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .pk-check-tile input {
   margin: 0;
@@ -1376,13 +1387,19 @@ a.pk-button {
 }
 
 @keyframes pk-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes pk-slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
-
-

@@ -348,7 +348,7 @@ export class MemoryBookings {
       return true;
     },
 
-    confirmExtension: async (extensionId, paymentId, at) => {
+    confirmExtension: async (extensionId, paymentId, _at) => {
       const ext = this.extensionRows.find((r) => r.id === extensionId);
       if (!ext) throw new Error('EXTENSION_NOT_FOUND');
       if (ext.status !== 'PENDING_PAYMENT') throw new Error('EXTENSION_ALREADY_CONFIRMED');

@@ -1,7 +1,12 @@
 import type { Logger } from '../lib/logger.js';
 import { NotificationService } from '../notifications/service.js';
 import { FakePushProvider, FakeSmsProvider } from '../providers/fakes.js';
-import type { EmailProvider, PaymentProvider, PushProvider, SmsProvider } from '../providers/index.js';
+import type {
+  EmailProvider,
+  PaymentProvider,
+  PushProvider,
+  SmsProvider,
+} from '../providers/index.js';
 import type { Store } from '../store/types.js';
 import { markNoShowsJob } from './mark-no-shows.js';
 import { permitExpiryJob } from './permit-expiry.js';

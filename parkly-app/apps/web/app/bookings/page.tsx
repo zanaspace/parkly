@@ -44,10 +44,7 @@ export default async function MyBookings({
   const driver = await requireDriver(`/bookings?status=${tab}`);
   let items: Booking[];
   try {
-    const res = await apiAs<{ items: Booking[] }>(
-      driver.accessToken,
-      `/v1/bookings?status=${tab}`,
-    );
+    const res = await apiAs<{ items: Booking[] }>(driver.accessToken, `/v1/bookings?status=${tab}`);
     items = res.items;
   } catch (err) {
     if (err instanceof ApiProblem && (err.status === 401 || err.status === 403)) {
@@ -161,4 +158,3 @@ export default async function MyBookings({
     </main>
   );
 }
-

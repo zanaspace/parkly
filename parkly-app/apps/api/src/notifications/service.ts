@@ -23,7 +23,12 @@ export class NotificationService {
     const failedChannels: NotificationChannel[] = [];
 
     const user = await this.deps.store.users.find(event.driverId);
-    const u = user as unknown as { phoneEnc?: string; emailEnc?: string; phone?: string; email?: string } | null;
+    const u = user as unknown as {
+      phoneEnc?: string;
+      emailEnc?: string;
+      phone?: string;
+      email?: string;
+    } | null;
 
     // Resolve phone
     let phone: string | null = null;
@@ -52,7 +57,9 @@ export class NotificationService {
     // Resolve push tokens from devices
     const pushTokens: string[] = [];
     try {
-      const memStore = this.deps.store as unknown as { deviceRows?: { userId: string; pushTokenEnc?: string; revokedAt: Date | null }[] };
+      const memStore = this.deps.store as unknown as {
+        deviceRows?: { userId: string; pushTokenEnc?: string; revokedAt: Date | null }[];
+      };
       if (Array.isArray(memStore.deviceRows)) {
         for (const d of memStore.deviceRows) {
           if (d.userId === event.driverId && !d.revokedAt && d.pushTokenEnc) {
@@ -129,7 +136,10 @@ export class NotificationService {
           await this.deps.email.send(emailMsg);
           deliveredChannels.push('EMAIL');
         } catch (err) {
-          this.deps.logger.error({ err, eventId, eventKey: event.key }, 'Email notification failed');
+          this.deps.logger.error(
+            { err, eventId, eventKey: event.key },
+            'Email notification failed',
+          );
           failedChannels.push('EMAIL');
         }
       }

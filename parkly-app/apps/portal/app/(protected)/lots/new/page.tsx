@@ -46,7 +46,14 @@ export default async function NewLotPage() {
 
       <div className="pk-page-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
             <LotsIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
             <Text variant="heading-xl" as="h1">
               Add a new car park
@@ -57,7 +64,10 @@ export default async function NewLotPage() {
             the lot’s page.
           </Text>
         </div>
-        <span className="pk-badge pk-badge--draft" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+        <span
+          className="pk-badge pk-badge--draft"
+          style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+        >
           Step 1 of 6
         </span>
       </div>

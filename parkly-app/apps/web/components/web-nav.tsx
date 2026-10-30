@@ -54,8 +54,18 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
   }, [pathname]);
 
   const navItems = [
-    { href: '/search', label: 'Find parking', icon: SearchIcon, active: pathname === '/search' || pathname === '/' },
-    { href: '/bookings', label: 'My bookings', icon: TicketIcon, active: pathname.startsWith('/bookings') },
+    {
+      href: '/search',
+      label: 'Find parking',
+      icon: SearchIcon,
+      active: pathname === '/search' || pathname === '/',
+    },
+    {
+      href: '/bookings',
+      label: 'My bookings',
+      icon: TicketIcon,
+      active: pathname.startsWith('/bookings'),
+    },
   ];
 
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'DR';
@@ -198,9 +208,7 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
         </div>
       </header>
 
-      {mounted && typeof document !== 'undefined'
-        ? createPortal(mobileNav, document.body)
-        : null}
+      {mounted && typeof document !== 'undefined' ? createPortal(mobileNav, document.body) : null}
     </>
   );
 }

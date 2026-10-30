@@ -71,9 +71,14 @@ export function UserAccountMenu({ user }: UserMenuProps) {
           <div className="pk-user-dropdown-header">
             <span className="pk-user-avatar pk-user-avatar--lg">{initials}</span>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}
+              >
                 <strong className="pk-user-dropdown-name">{user.name}</strong>
-                <span className="pk-badge pk-badge--verified" style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem' }}>
+                <span
+                  className="pk-badge pk-badge--verified"
+                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem' }}
+                >
                   {user.role}
                 </span>
               </div>
@@ -93,12 +98,7 @@ export function UserAccountMenu({ user }: UserMenuProps) {
               <LogOutIcon size={16} />
               <span>Sign out this device</span>
             </button>
-            <button
-              type="submit"
-              name="scope"
-              value="all"
-              className="pk-user-dropdown-btn-subtle"
-            >
+            <button type="submit" name="scope" value="all" className="pk-user-dropdown-btn-subtle">
               Sign out everywhere
             </button>
           </form>

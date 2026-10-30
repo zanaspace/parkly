@@ -60,7 +60,9 @@ export default async function LotPage({
   const hoursEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
   const created = (await searchParams).created === '1';
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
-  const isManager = me.roles.some((r) => r.role === 'OPERATOR_MANAGER' && r.operatorId === operatorId);
+  const isManager = me.roles.some(
+    (r) => r.role === 'OPERATOR_MANAGER' && r.operatorId === operatorId,
+  );
   const canManage = isOwner || isManager;
 
   return (
@@ -69,7 +71,9 @@ export default async function LotPage({
         <ArrowLeftIcon size={16} />
         <span>Back to lots</span>
       </Link>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}
+      >
         <LotsIcon size={22} style={{ color: 'var(--pk-color-text-brand)' }} />
         <Text variant="heading-xl">{lot.name}</Text>
       </div>

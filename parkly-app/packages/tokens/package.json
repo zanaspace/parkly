@@ -29,7 +29,7 @@
     "@parkly/config": "workspace:*",
     "@types/node": "22.20.5",
     "eslint": "10.12.0",
-    "style-dictionary": "4.4.0",
+    "style-dictionary": "5.4.4",
     "typescript": "5.9.3",
     "vitest": "5.0.4"
   }

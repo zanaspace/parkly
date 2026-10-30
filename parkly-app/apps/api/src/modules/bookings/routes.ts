@@ -2,7 +2,6 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
 import {
-  BookingExtensionSchema,
   BookingListQuerySchema,
   BookingListSchema,
   BookingReceiptSchema,

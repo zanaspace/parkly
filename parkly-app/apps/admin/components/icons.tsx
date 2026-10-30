@@ -15,7 +15,13 @@ const defaultProps = {
 };
 
 /** Enterprise dashboard grid (4-quadrant SaaS layout) */
-export function DashboardIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function DashboardIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -96,7 +102,13 @@ export function AuditIcon({ size = 18, strokeWidth = 2, className, style, ...pro
 }
 
 /** Enterprise alert & incident warning */
-export function AlertTriangleIcon({ size = 20, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function AlertTriangleIcon({
+  size = 20,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -116,7 +128,13 @@ export function AlertTriangleIcon({ size = 20, strokeWidth = 2, className, style
 }
 
 /** Enterprise check circle */
-export function CheckCircleIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function CheckCircleIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}
@@ -135,7 +153,13 @@ export function CheckCircleIcon({ size = 18, strokeWidth = 2, className, style, 
 }
 
 /** Enterprise directional arrow */
-export function ArrowRightIcon({ size = 16, strokeWidth = 2, className, style, ...props }: IconProps) {
+export function ArrowRightIcon({
+  size = 16,
+  strokeWidth = 2,
+  className,
+  style,
+  ...props
+}: IconProps) {
   return (
     <svg
       {...defaultProps}

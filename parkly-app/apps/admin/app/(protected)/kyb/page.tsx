@@ -29,14 +29,26 @@ export default async function KybQueuePage({
 
   return (
     <main className="pk-page pk-page--wide">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+        }}
+      >
         <div>
           <Text variant="heading-xl">Operator KYB Queue</Text>
           <Text variant="body-sm" tone="secondary">
-            Operators awaiting legal verification, CAC registration check, and settlement subaccount approval.
+            Operators awaiting legal verification, CAC registration check, and settlement subaccount
+            approval.
           </Text>
         </div>
-        <span className="pk-badge pk-badge--submitted" style={{ fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}>
+        <span
+          className="pk-badge pk-badge--submitted"
+          style={{ fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}
+        >
           {items.length} Pending
         </span>
       </div>
@@ -50,7 +62,9 @@ export default async function KybQueuePage({
       {items.length === 0 ? (
         <div className="pk-card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <Text variant="heading-md">Queue is Clear</Text>
-          <Text tone="secondary">There are currently no operators waiting for KYB verification.</Text>
+          <Text tone="secondary">
+            There are currently no operators waiting for KYB verification.
+          </Text>
         </div>
       ) : (
         <div className="pk-table-wrap">
@@ -60,7 +74,9 @@ export default async function KybQueuePage({
                 <th scope="col">Business Entity</th>
                 <th scope="col">Submission Date</th>
                 <th scope="col">Bank Account Status</th>
-                <th scope="col" style={{ textAlign: 'right' }}>Actions</th>
+                <th scope="col" style={{ textAlign: 'right' }}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -89,9 +105,7 @@ export default async function KybQueuePage({
                         ⚠ Differs from legal name
                       </span>
                     ) : (
-                      <span className="pk-badge pk-badge--verified">
-                        ✓ Name Matches
-                      </span>
+                      <span className="pk-badge pk-badge--verified">✓ Name Matches</span>
                     )}
                   </td>
                   <td style={{ textAlign: 'right' }}>

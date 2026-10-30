@@ -24,7 +24,7 @@ function truncateSms(text: string): string {
 }
 
 export function renderSms(event: NotificationEvent, phone: string): SmsMessage | null {
-  let body = '';
+  let body: string;
   switch (event.key) {
     case 'booking.confirmed': {
       const time = formatLagosTime(event.startAt);
@@ -45,7 +45,8 @@ export function renderSms(event: NotificationEvent, phone: string): SmsMessage |
       break;
     }
     case 'booking.cancelled': {
-      const refundStr = event.refundKobo > 0 ? ` Refund of ${formatNaira(event.refundKobo)} initiated.` : '';
+      const refundStr =
+        event.refundKobo > 0 ? ` Refund of ${formatNaira(event.refundKobo)} initiated.` : '';
       body = `Parkly: Booking ${event.bookingCode} at ${event.lotName} has been cancelled.${refundStr}`;
       break;
     }
@@ -62,8 +63,8 @@ export function renderSms(event: NotificationEvent, phone: string): SmsMessage |
 export function renderPush(event: NotificationEvent, tokens: string[]): PushMessage | null {
   if (!tokens.length) return null;
 
-  let title = '';
-  let body = '';
+  let title: string;
+  let body: string;
   const data: Record<string, string> = {
     bookingId: event.bookingId,
     bookingCode: event.bookingCode,
@@ -124,9 +125,9 @@ export function renderPush(event: NotificationEvent, tokens: string[]): PushMess
 }
 
 export function renderEmail(event: NotificationEvent, email: string): EmailMessage | null {
-  let subject = '';
-  let heading = '';
-  let content = '';
+  let subject: string;
+  let heading: string;
+  let content: string;
 
   switch (event.key) {
     case 'booking.confirmed':
