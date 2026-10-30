@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '../lib/logger.js';
+import { testDeps } from '../test-helpers.js';
 import { FakeEmailProvider, FakePaymentProvider } from '../providers/fakes.js';
 import { logOnlyEmail } from '../providers/log-email.js';
 import { MemoryStore } from '../store/memory.js';
@@ -7,15 +8,18 @@ import { createJobs } from './registry.js';
 
 describe('job registry', () => {
   it('registers the ping, permit expiry and payment safety-net jobs', async () => {
+    const store = new MemoryStore();
     const jobs = createJobs({
-      store: new MemoryStore(),
+      store,
       email: new FakeEmailProvider(),
       payments: new FakePaymentProvider(),
       logger: createLogger({ level: 'silent' }),
       now: () => new Date('2026-10-19T05:00:00Z'),
       appEnv: 'prod',
+      notifications: testDeps({ store }).notifications,
     });
     expect(Object.keys(jobs).sort()).toEqual([
+      'deliver-notifications',
       'mark-no-shows',
       'permit-expiry-check',
       'ping',

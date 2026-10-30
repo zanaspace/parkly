@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { createCrypto } from '../lib/crypto.js';
 import { createLogger } from '../lib/logger.js';
 import { NotificationService } from '../notifications/service.js';
 import {
@@ -76,20 +77,29 @@ describe('Story 4 Background Jobs: mark-no-shows and sweep-reminders', () => {
     const push = new FakePushProvider();
     const email = new FakeEmailProvider();
 
+    const crypto = createCrypto({
+      encKeys: { v1: randomBytes(32) },
+      currentEncVersion: 'v1',
+      pepper: 'test-pepper-test-pepper-test-pepper',
+    });
     const notifications = new NotificationService({
       sms,
       push,
       email,
       store,
       logger,
+      crypto,
+      now: () => clock.now(),
     });
 
     const driverId = randomUUID();
     store.seedUser(driverId, { roles: [{ role: 'DRIVER', operatorId: null }] });
-    const userRow = store.userRows.get(driverId);
-    if (userRow) {
-      (userRow as unknown as { phone: string }).phone = '+2348012345678';
-    }
+    await store.users.setContact(driverId, {
+      phoneHash: null,
+      emailHash: null,
+      phoneEnc: crypto.encrypt('+2348012345678'),
+      emailEnc: null,
+    });
 
     const lotId = randomUUID();
     store.lotRows.set(lotId, {
@@ -115,7 +125,7 @@ describe('Story 4 Background Jobs: mark-no-shows and sweep-reminders', () => {
       createdAt: new Date(),
     });
 
-    // Booking 1: starts in 30 minutes (08:30) -> should trigger reminder_start
+    // Booking 1: starts in 30 minutes (08:30), inside the 60-minute window -> reminder_start
     const bStart = {
       id: randomUUID(),
       code: 'PK-START30',
@@ -149,26 +159,39 @@ describe('Story 4 Background Jobs: mark-no-shows and sweep-reminders', () => {
       status: 'CONFIRMED' as const,
     };
 
-    store.booking.bookingRows.push(bStart, bEnd);
+    // Booking 3: starts in 90 minutes, outside the window -> nothing yet
+    const bLater = {
+      ...bStart,
+      id: randomUUID(),
+      code: 'PK-LATER9',
+      startAt: new Date('2026-10-20T09:30:00Z'),
+      endAt: new Date('2026-10-20T11:30:00Z'),
+    };
 
-    const sentReminders = new Set<string>();
-    const job = reminderSweepJob({
-      store,
-      notifications,
-      logger,
-      now: () => clock.now(),
-      sentReminders,
-    });
+    store.booking.bookingRows.push(bStart, bEnd, bLater);
 
-    const res1 = await job({ payload: {}, deadline: new Date(Date.now() + 10_000) });
+    const job = reminderSweepJob({ store, notifications, now: () => clock.now() });
+    const deadline = new Date('2100-01-01T00:00:00Z');
+
+    // The sweep only queues; nothing is sent until the delivery job runs.
+    const res1 = await job({ payload: {}, deadline });
     expect(res1.processed).toBe(2);
-    expect(sms.sent).toHaveLength(2); // Fallback to SMS as no push token registered
-    expect(sms.sent[0]?.body).toContain('starts in 30 mins');
-    expect(sms.sent[1]?.body).toContain('ends in 15 mins');
+    expect(sms.sent).toHaveLength(0);
+    expect(store.outbox.rows.map((r) => r.dedupeKey).sort()).toEqual(
+      [`booking.reminder_end:${bEnd.id}`, `booking.reminder_start:${bStart.id}`].sort(),
+    );
 
-    // Run again immediately: idempotency prevents duplicate reminder sends
-    const res2 = await job({ payload: {}, deadline: new Date(Date.now() + 10_000) });
-    expect(res2.processed).toBe(0);
-    expect(sms.sent).toHaveLength(2);
+    await notifications.deliverDue({ deadline });
+    // No push token registered, so SMS is the fallback.
+    expect(sms.sent.map((m) => m.body).join(' | ')).toContain('starts in 30 mins');
+    expect(sms.sent.map((m) => m.body).join(' | ')).toContain('ends in 15 mins');
+    expect(store.outbox.rows.every((r) => r.status === 'SENT')).toBe(true);
+
+    // Rerunning queues nothing new: one reminder per booking.
+    expect((await job({ payload: {}, deadline })).processed).toBe(0);
+
+    // Thirty minutes later the third booking enters the window.
+    clock.advance(30 * 60_000);
+    expect((await job({ payload: {}, deadline })).processed).toBe(1);
   });
 });

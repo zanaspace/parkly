@@ -1,3 +1,4 @@
+import type { NotificationService } from './notifications/service.js';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { requestId, type RequestIdVariables } from 'hono/request-id';
@@ -54,6 +55,8 @@ export type AppDeps = {
   verifyToken: TokenVerifier;
   crypto: FieldCrypto;
   sms: { primary: SmsProvider; secondary?: SmsProvider };
+  /** Queues booking and session notifications (ADR 0020). */
+  notifications: NotificationService;
   sessions: SessionRevoker;
   settlement: SettlementProvider;
   /** Paystack checkout, verify and refunds (same key as settlement). */

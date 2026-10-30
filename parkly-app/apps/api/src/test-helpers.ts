@@ -7,10 +7,13 @@ import { InMemoryReplayGuard } from './jobs/replay-guard.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { allowAllRateLimiter, MemoryRateLimiter } from './middleware/rate-limit.js';
+import { NotificationService } from './notifications/service.js';
 import {
+  FakeEmailProvider,
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
+  FakePushProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
@@ -75,7 +78,7 @@ export function testApp(overrides: Partial<AppDeps> = {}) {
 }
 
 export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
-  return {
+  const deps: Omit<AppDeps, 'notifications'> = {
     config: {
       appEnv: 'local',
       paystackWebhookIps: ['52.31.139.75'],
@@ -105,6 +108,19 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     maps: new FakeMapsProvider(),
     ...overrides,
   };
+  // Shares the test's store, clock and key, so a test can read what was queued.
+  const notifications =
+    overrides.notifications ??
+    new NotificationService({
+      sms: deps.sms.primary,
+      email: new FakeEmailProvider(),
+      push: new FakePushProvider(),
+      store: deps.store,
+      logger: deps.logger,
+      crypto: deps.crypto,
+      now: deps.now,
+    });
+  return { ...deps, notifications };
 }
 
 /** A full context for route tests: store, fakes and signed-in users. */

@@ -99,7 +99,6 @@ export type EmailMessage = {
 };
 
 export type DispatchResult = {
-  eventId: string;
   deliveredChannels: NotificationChannel[];
   failedChannels: NotificationChannel[];
 };

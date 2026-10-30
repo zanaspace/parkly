@@ -1,12 +1,6 @@
 import type { Logger } from '../lib/logger.js';
-import { NotificationService } from '../notifications/service.js';
-import { FakePushProvider, FakeSmsProvider } from '../providers/fakes.js';
-import type {
-  EmailProvider,
-  PaymentProvider,
-  PushProvider,
-  SmsProvider,
-} from '../providers/index.js';
+import type { NotificationService } from '../notifications/service.js';
+import type { EmailProvider, PaymentProvider } from '../providers/index.js';
 import type { Store } from '../store/types.js';
 import { markNoShowsJob } from './mark-no-shows.js';
 import { permitExpiryJob } from './permit-expiry.js';
@@ -25,25 +19,15 @@ export function createJobs(deps: {
   logger: Logger;
   now: () => Date;
   appEnv: 'local' | 'dev' | 'staging' | 'prod';
-  sms?: { primary: SmsProvider; secondary?: SmsProvider };
-  push?: PushProvider;
-  notifications?: NotificationService;
+  notifications: NotificationService;
 }): Record<string, JobHandler> {
-  const notifications =
-    deps.notifications ??
-    new NotificationService({
-      sms: deps.sms?.primary ?? new FakeSmsProvider(),
-      email: deps.email,
-      push: deps.push ?? new FakePushProvider(),
-      store: deps.store,
-      logger: deps.logger,
-    });
-
   return {
     ping: async () => ({ processed: 0, remaining: 0 }),
     'permit-expiry-check': permitExpiryJob({ ...deps, allowTimeTravel: deps.appEnv !== 'prod' }),
     'settle-payments': settlePaymentsJob(deps),
     'mark-no-shows': markNoShowsJob(deps),
-    'sweep-reminders': reminderSweepJob({ ...deps, notifications }),
+    'sweep-reminders': reminderSweepJob(deps),
+    // Sends queued notifications and retries failed channels (ADR 0020).
+    'deliver-notifications': ({ deadline }) => deps.notifications.deliverDue({ deadline }),
   };
 }

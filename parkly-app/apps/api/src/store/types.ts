@@ -13,6 +13,35 @@ export type UserStatus = 'ACTIVE' | 'LOCKED' | 'SUSPENDED' | 'PENDING_DELETION' 
 export type ConsentType = 'TERMS' | 'PRIVACY' | 'MARKETING' | 'LOCATION' | 'OPERATOR_AGREEMENT';
 export type Platform = 'ANDROID' | 'IOS' | 'WEB' | 'PWA';
 
+export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+
+/** One queued notification (ADR 0020). `payload` is the event the templates render. */
+export type NotificationRow = {
+  id: string;
+  userId: string;
+  bookingId: string | null;
+  eventKey: string;
+  dedupeKey: string;
+  payload: unknown;
+  status: NotificationStatus;
+  channelsDone: string[];
+  attempts: number;
+  nextAttemptAt: Date;
+  lastError: string | null;
+  sentAt: Date | null;
+};
+
+/** A booking due a start or end reminder that hasn't been queued yet. */
+export type ReminderCandidate = {
+  kind: 'START' | 'END';
+  bookingId: string;
+  driverId: string;
+  bookingCode: string;
+  lotName: string;
+  startAt: Date;
+  endAt: Date;
+};
+
 export type UserRow = {
   id: string;
   firstName: string | null;
@@ -531,6 +560,8 @@ export type Store = {
     }): Promise<void>;
     revokeBySession(userId: string, authSessionId: string): Promise<void>;
     revokeAll(userId: string): Promise<void>;
+    /** Encrypted push tokens on the user's signed-in (not revoked) devices. */
+    pushTokens(userId: string): Promise<string[]>;
   };
   sessions: {
     /** Ends every Supabase Auth session the user has; access tokens still expire within 15 min. */
@@ -893,6 +924,41 @@ export type Store = {
       maxAttempts: number;
       limit: number;
     }): Promise<{ id: string; reference: string | null }[]>;
+  };
+  notifications: {
+    /** Queues an event once per dedupe key; false when that key was already queued. */
+    enqueue(row: {
+      userId: string;
+      bookingId: string | null;
+      eventKey: string;
+      dedupeKey: string;
+      payload: unknown;
+      notBefore: Date;
+    }): Promise<boolean>;
+    /**
+     * Leases up to `limit` due PENDING rows until `leaseUntil`, oldest first,
+     * skipping rows another run holds, and counts the attempt.
+     */
+    claimDue(now: Date, limit: number, leaseUntil: Date): Promise<NotificationRow[]>;
+    /** Records the outcome of an attempt. */
+    finish(
+      id: string,
+      outcome: {
+        status: NotificationStatus;
+        channelsDone: string[];
+        nextAttemptAt: Date;
+        lastError: string | null;
+        sentAt: Date | null;
+      },
+    ): Promise<void>;
+    /**
+     * Confirmed bookings starting within `startWithinMin`, and confirmed or
+     * checked-in bookings ending within `endWithinMin`, not yet reminded.
+     */
+    dueReminders(
+      now: Date,
+      windows: { startWithinMin: number; endWithinMin: number },
+    ): Promise<ReminderCandidate[]>;
   };
   attend: {
     /** This user's attendant phone, by the id the PWA generated. */

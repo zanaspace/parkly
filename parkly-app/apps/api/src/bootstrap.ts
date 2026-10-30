@@ -11,10 +11,12 @@ import { createJobs } from './jobs/registry.js';
 import { createCrypto } from './lib/crypto.js';
 import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
+import { NotificationService } from './notifications/service.js';
 import {
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
+  FakePushProvider,
   FakeSettlementProvider,
   FakeSmsProvider,
   FakeStorageProvider,
@@ -144,13 +146,29 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
   }
 
   const now = () => new Date();
+  const crypto = createCrypto({
+    encKeys: config.encKeys,
+    currentEncVersion: config.encKeyCurrent,
+    pepper: config.hashPepper,
+  });
+  const email = logOnlyEmail(logger);
+  const notifications = new NotificationService({
+    sms: primary,
+    email,
+    push: new FakePushProvider(),
+    store,
+    logger,
+    crypto,
+    now,
+  });
   const jobs = createJobs({
     store,
-    email: logOnlyEmail(logger),
+    email,
     payments,
     logger,
     now,
     appEnv: config.appEnv,
+    notifications,
   });
 
   const app = createApp({
@@ -165,12 +183,9 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     verifyToken: supabaseTokenVerifier(config.supabase.url, {
       allowDevTokens: config.appEnv === 'local',
     }),
-    crypto: createCrypto({
-      encKeys: config.encKeys,
-      currentEncVersion: config.encKeyCurrent,
-      pepper: config.hashPepper,
-    }),
+    crypto,
     sms: { primary },
+    notifications,
     sessions,
     settlement,
     payments,
