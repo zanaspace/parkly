@@ -44,6 +44,7 @@ import {
 } from './types.js';
 import { drizzleAttend } from './drizzle-attend.js';
 import { drizzleNotifications } from './drizzle-notifications.js';
+import { drizzleReceipts } from './drizzle-receipts.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
@@ -1559,6 +1560,8 @@ export function drizzleStore(db: Db): Store {
     attend: attending.attend,
 
     notifications: drizzleNotifications(db),
+
+    receipts: drizzleReceipts(db),
 
     lotKeys: {
       forManifest: attending.forManifest,

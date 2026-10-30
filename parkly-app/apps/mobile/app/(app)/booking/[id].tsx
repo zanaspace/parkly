@@ -1007,6 +1007,18 @@ export default function BookingScreen() {
             }
           }}
         />
+        <Button
+          label="Download PDF receipt"
+          variant="secondary"
+          fullWidth
+          onPress={async () => {
+            try {
+              await Linking.openURL(await api.receiptUrl(booking.id, 'pdf'));
+            } catch {
+              // ignore
+            }
+          }}
+        />
       </View>
 
       {/* View Car Park Button */}

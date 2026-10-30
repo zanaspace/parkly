@@ -5,6 +5,7 @@ import {
   BookingListQuerySchema,
   BookingListSchema,
   BookingReceiptSchema,
+  type BookingReceipt,
   BookingSchema,
   CancelBookingRequestSchema,
   CancelBookingResponseSchema,
@@ -50,7 +51,9 @@ import {
   type PaymentRow,
 } from '../../store/types.js';
 import { loadSettings, toOpeningDay, toPublicQuote } from '../discovery/routes.js';
-import { buildReceiptData, renderReceiptHtml } from './receipt.js';
+import { renderReceiptHtml } from './receipt.js';
+import { issueReceipt } from './receipt-issue.js';
+import { renderReceiptPdf } from './receipt-pdf.js';
 import { overstayPricer } from './overstay-price.js';
 import { verifyAndSettle } from './settle.js';
 
@@ -156,6 +159,17 @@ export function bookingRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
   const middleware = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const secured = { security: [{ bearerAuth: [] }], middleware };
+
+  /** The receipt as a PDF download, named by its number and revision. */
+  async function pdfResponse(c: Context, receipt: BookingReceipt) {
+    const bytes = await renderReceiptPdf(receipt);
+    const name = `parkly-${receipt.receiptNumber}${receipt.revision > 1 ? `-r${receipt.revision}` : ''}.pdf`;
+    return c.body(bytes as unknown as ArrayBuffer, 200, {
+      'content-type': 'application/pdf',
+      'content-disposition': `attachment; filename="${name}"`,
+      'cache-control': 'private, no-store',
+    });
+  }
   const ticketFor = qrTickets(deps);
 
   /**
@@ -489,32 +503,23 @@ export function bookingRoutes(deps: AppDeps) {
           content: {
             'application/json': { schema: BookingReceiptSchema },
             'text/html': { schema: z.string() },
+            'application/pdf': { schema: z.string() },
           },
         },
       },
     }),
     async (c) => {
       const booking = await ownBooking(c, c.req.valid('param').id);
-      const [lot, user, payments, refunds] = await Promise.all([
-        lotOf(booking.lotId),
-        deps.store.users.find(booking.driverId),
-        deps.store.payments.listForBooking(booking.id),
-        deps.store.payments.refundsForBooking(booking.id),
-      ]);
-      const receipt = buildReceiptData({
-        booking,
-        lot,
-        user,
-        payments,
-        refunds,
-        now: deps.now(),
-      });
+      // FR-BOOK-009: the stored receipt, issued or brought up to date (gap review L-5).
+      const issued = await issueReceipt(deps, booking);
+      if (!issued) throw new ApiError('NOT_FOUND', 'There is no receipt until something is paid');
       const format = c.req.valid('query').format;
+      if (format === 'pdf') return pdfResponse(c, issued.receipt);
       const accept = c.req.header('accept') ?? '';
-      if (format === 'html' || format === 'pdf' || accept.includes('text/html')) {
-        return c.html(renderReceiptHtml(receipt), 200);
+      if (format === 'html' || accept.includes('text/html')) {
+        return c.html(renderReceiptHtml(issued.receipt), 200);
       }
-      return c.json(receipt, 200);
+      return c.json(issued.receipt, 200);
     },
   );
 
@@ -556,7 +561,11 @@ export function bookingRoutes(deps: AppDeps) {
       tags: ['bookings'],
       request: {
         params: z.object({ id: z.uuid() }),
-        query: z.object({ exp: z.coerce.number().int(), sig: z.string().max(100) }),
+        query: z.object({
+          exp: z.coerce.number().int(),
+          sig: z.string().max(100),
+          format: z.enum(['html', 'pdf']).default('html'),
+        }),
       },
       responses: {
         200: { description: 'Receipt page', content: { 'text/html': { schema: z.string() } } },
@@ -576,19 +585,11 @@ export function bookingRoutes(deps: AppDeps) {
       if (!valid) throw new ApiError('NOT_FOUND', 'This receipt link has expired');
       const booking = await deps.store.bookings.find(id);
       if (!booking) throw new ApiError('BOOKING_NOT_FOUND');
-      const [lot, user, payments, refunds] = await Promise.all([
-        lotOf(booking.lotId),
-        deps.store.users.find(booking.driverId),
-        deps.store.payments.listForBooking(booking.id),
-        deps.store.payments.refundsForBooking(booking.id),
-      ]);
+      const issued = await issueReceipt(deps, booking);
+      if (!issued) throw new ApiError('NOT_FOUND', 'There is no receipt until something is paid');
       c.header('cache-control', 'private, no-store');
-      return c.html(
-        renderReceiptHtml(
-          buildReceiptData({ booking, lot, user, payments, refunds, now: deps.now() }),
-        ),
-        200,
-      );
+      if (c.req.valid('query').format === 'pdf') return pdfResponse(c, issued.receipt);
+      return c.html(renderReceiptHtml(issued.receipt), 200);
     },
   );
 

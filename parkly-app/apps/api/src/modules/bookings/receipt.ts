@@ -1,6 +1,14 @@
 import type { BookingReceipt } from '@parkly/contracts';
+import { includedVatKobo } from '@parkly/domain/booking';
 import type { Quote as DomainQuote } from '@parkly/domain/pricing';
-import type { BookingRow, LotRow, PaymentRow, RefundRow, UserRow } from '../../store/types.js';
+import type {
+  BookingRow,
+  LotRow,
+  PaymentRow,
+  ReceiptRow,
+  RefundRow,
+  UserRow,
+} from '../../store/types.js';
 import { toPublicQuote } from '../discovery/routes.js';
 
 function quoteLineLabel(line: BookingReceipt['lines'][number]): string {
@@ -37,15 +45,31 @@ function formatLagosDateTime(isoString: string): string {
   });
 }
 
-export function buildReceiptData(params: {
+/** Everything a receipt shows except its number, revision and dates (frozen when issued). */
+export type ReceiptContent = Omit<
+  BookingReceipt,
+  'receiptNumber' | 'revision' | 'issuedAt' | 'revisedAt'
+>;
+
+/** A charge that brought money in; failed and abandoned checkouts are not on the receipt. */
+const PAID = new Set<PaymentRow['status']>(['SUCCEEDED', 'PARTIALLY_REFUNDED', 'REFUNDED']);
+
+/**
+ * FR-BOOK-009: what the receipt says, from the booking's records. Charges add
+ * up to the total; refunds are split into done and still in progress; VAT
+ * (included in prices) is shown only when switched on.
+ */
+export function buildReceiptContent(params: {
   booking: BookingRow;
   lot: Pick<LotRow, 'id' | 'name' | 'addressLine' | 'area'>;
+  issuerName: string;
+  permitNumber: string | null;
   user: UserRow | null;
   payments: PaymentRow[];
   refunds: RefundRow[];
-  now: Date;
-}): BookingReceipt {
-  const { booking, lot, user, payments, refunds, now } = params;
+  vat: { rateBps: number; number: string | null } | null;
+}): ReceiptContent {
+  const { booking, lot, user, payments, refunds } = params;
   const start = new Date(booking.startAt);
   const end = new Date(booking.endAt);
   const durationMinutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000));
@@ -78,16 +102,30 @@ export function buildReceiptData(params: {
           : []),
       ];
 
+  const charges = payments
+    .filter((p) => PAID.has(p.status))
+    .map((p) => ({
+      kind: (p.kind ?? 'BOOKING') as BookingReceipt['charges'][number]['kind'],
+      reference: p.id,
+      amountKobo: p.amountKobo,
+      paidAt: p.paidAt ? p.paidAt.toISOString() : null,
+    }));
+  const sum = (xs: { amountKobo: number }[]) => xs.reduce((n, x) => n + x.amountKobo, 0);
+  const chargedKobo = sum(charges);
+  const refundedKobo = sum(refunds.filter((r) => r.status === 'SUCCEEDED'));
+  const refundPendingKobo = sum(refunds.filter((r) => r.status === 'PENDING'));
+
   return {
     bookingId: booking.id,
     bookingCode: booking.code,
     status: booking.status,
-    issuedAt: now.toISOString(),
+    issuer: { name: params.issuerName },
     lot: {
       id: lot.id,
       name: lot.name,
       addressLine: lot.addressLine,
       area: lot.area,
+      permitNumber: params.permitNumber,
     },
     vehicle: {
       plate: booking.plateNorm,
@@ -105,6 +143,16 @@ export function buildReceiptData(params: {
     serviceFeeKobo: booking.serviceFeeKobo,
     totalKobo: booking.totalKobo,
     lines,
+    charges,
+    totals: { chargedKobo, refundedKobo, refundPendingKobo },
+    vat: params.vat
+      ? {
+          rateBps: params.vat.rateBps,
+          // On what was finally kept: refunds give their VAT back.
+          amountKobo: includedVatKobo(chargedKobo - refundedKobo, params.vat.rateBps),
+          number: params.vat.number,
+        }
+      : null,
     payments: payments.map((p) => ({
       reference: p.id,
       kind: (p.kind ?? 'BOOKING') as BookingReceipt['payments'][number]['kind'],
@@ -120,6 +168,17 @@ export function buildReceiptData(params: {
       reason: r.reason,
       createdAt: r.createdAt.toISOString(),
     })),
+  };
+}
+
+/** The stored receipt: frozen content plus its number, revision and dates. */
+export function receiptFromRow(row: ReceiptRow): BookingReceipt {
+  return {
+    ...(row.content as ReceiptContent),
+    receiptNumber: row.number,
+    revision: row.revision,
+    issuedAt: row.issuedAt.toISOString(),
+    revisedAt: row.revisedAt.toISOString(),
   };
 }
 
@@ -199,13 +258,30 @@ function renderEscaped(receipt: BookingReceipt): string {
     )
     .join('');
 
+  // One row per charge after the booking: extensions and overstay (gap review L-5).
+  const CHARGE_LABEL: Record<BookingReceipt['charges'][number]['kind'], string> = {
+    BOOKING: 'Booking',
+    EXTENSION: 'Extension',
+    OVERSTAY: 'Overstay',
+    PASS: 'Pass',
+  };
+  const chargesHtml =
+    receipt.charges.length > 1
+      ? `<table class="breakdown-table"><tbody>${receipt.charges
+          .map(
+            (ch) =>
+              `<tr><td>${CHARGE_LABEL[ch.kind]}${ch.paidAt ? ` · ${formatLagosDateTime(ch.paidAt)}` : ''}</td><td style="text-align: right;">${formatNaira(ch.amountKobo)}</td></tr>`,
+          )
+          .join('')}</tbody></table>`
+      : '';
+
   const refundItemsHtml = receipt.refunds.length
     ? receipt.refunds
         .map(
           (r: BookingReceipt['refunds'][number]) => `
         <div class="refund-row">
           <div>
-            <span class="refund-label">Refund (${r.reason})</span>
+            <span class="refund-label">${r.status === 'SUCCEEDED' ? 'Refunded' : r.status === 'PENDING' ? 'Refund in progress' : 'Refund failed, retrying'} (${r.reason})</span>
             <span class="refund-date">${formatLagosDateTime(r.createdAt)}</span>
           </div>
           <div class="refund-amount">-${formatNaira(r.amountKobo)}</div>
@@ -628,12 +704,14 @@ function renderEscaped(receipt: BookingReceipt): string {
       </div>
       <div class="header-details">
         <div>
-          <div class="receipt-title">Official Parking Receipt</div>
+          <div class="receipt-title">Official Parking Receipt · ${receipt.receiptNumber}</div>
           <div class="booking-code">${receipt.bookingCode}</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Issued by ${receipt.issuer.name} through Parkly</div>
         </div>
         <div class="issued-date">
           <div>Issued</div>
           <div>${issuedStr}</div>
+          ${receipt.revision > 1 ? `<div style="margin-top: 4px;">Revision ${receipt.revision}, ${formatLagosDateTime(receipt.revisedAt)}</div>` : ''}
         </div>
       </div>
     </header>
@@ -646,6 +724,7 @@ function renderEscaped(receipt: BookingReceipt): string {
           <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
             ${receipt.lot.addressLine}${receipt.lot.area ? `, ${receipt.lot.area}` : ''}
           </div>
+          ${receipt.lot.permitNumber ? `<div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">LASPA permit ${receipt.lot.permitNumber}</div>` : ''}
         </div>
 
         <div class="card">
@@ -681,10 +760,14 @@ function renderEscaped(receipt: BookingReceipt): string {
           </tbody>
         </table>
 
+        ${chargesHtml}
         <div class="total-row">
-          <div class="total-label">Total Amount</div>
-          <div class="total-amount">${formatNaira(receipt.totalKobo)}</div>
+          <div class="total-label">Total Charged</div>
+          <div class="total-amount">${formatNaira(receipt.totals.chargedKobo)}</div>
         </div>
+        ${receipt.totals.refundedKobo > 0 ? `<div class="total-row"><div class="total-label">Refunded</div><div class="total-amount">-${formatNaira(receipt.totals.refundedKobo)}</div></div>` : ''}
+        ${receipt.totals.refundPendingKobo > 0 ? `<div class="total-row"><div class="total-label">Refund in progress</div><div class="total-amount">-${formatNaira(receipt.totals.refundPendingKobo)}</div></div>` : ''}
+        ${receipt.vat ? `<div style="font-size: 13px; color: var(--text-muted); padding-top: 6px;">Includes VAT at ${receipt.vat.rateBps / 100}%: ${formatNaira(receipt.vat.amountKobo)}${receipt.vat.number ? ` · VAT no. ${receipt.vat.number}` : ''}</div>` : ''}
       </div>
 
       <div>

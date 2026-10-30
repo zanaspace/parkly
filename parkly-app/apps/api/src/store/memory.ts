@@ -30,6 +30,7 @@ import {
 import { MemoryAttend } from './memory-attend.js';
 import { MemoryBookings } from './memory-bookings.js';
 import { MemoryNotifications } from './memory-notifications.js';
+import { MemoryReceipts } from './memory-receipts.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -113,6 +114,9 @@ export class MemoryStore implements Store {
     lotRows: this.lotRows,
   });
   readonly notifications: Store['notifications'] = this.outbox.notifications;
+  /** Stored receipts (Sprint 6, gap review L-5). */
+  readonly receiptStore = new MemoryReceipts();
+  readonly receipts: Store['receipts'] = this.receiptStore.receipts;
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {

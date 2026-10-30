@@ -41,6 +41,8 @@ describe('schema conventions (doc 02 §1)', () => {
       'permits',
       'platform_settings',
       'rate_plans',
+      'receipt_counters',
+      'receipts',
       'refunds',
       'sessions',
       'user_roles',
