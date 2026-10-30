@@ -32,14 +32,27 @@ async function preview(inviteToken: string): Promise<InvitePreview> {
  * attendants sign in with a code sent to the invited email or phone, which
  * also accepts the invite.
  */
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ session?: string }>;
+}) {
   const { token } = await params;
+  const sessionEnded = (await searchParams).session === 'ended';
   const here = `/invite/${encodeURIComponent(token)}`;
   const [session, invite] = await Promise.all([loadSession(), preview(token)]);
   const copy = invitePageCopy(invite);
 
   return (
     <AuthPage title={copy.title} intro={copy.body}>
+      {sessionEnded && !session.signedIn && copy.mode !== 'closed' && (
+        <p className="pk-notice pk-notice--info" role="status">
+          Your sign-in had ended, so we signed you out. Sign in again with the invited{' '}
+          {copy.mode === 'manager' ? 'email' : 'email or phone number'} to accept.
+        </p>
+      )}
       {copy.mode === 'manager' && !session.signedIn && (
         <>
           <Link className="pk-link" href={`/sign-in?next=${encodeURIComponent(here)}`}>
