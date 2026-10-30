@@ -97,7 +97,7 @@ describe('Notification Templates', () => {
     expect(email?.html).toContain('Parkly');
     expect(email?.html).toContain('Eko Hotel Car Park');
     expect(email?.html).toContain('₦1,100');
-    expect(email?.html).toContain(`https://parkly.ng/bookings/${baseEvent.bookingId}`);
+    expect(email?.html).toContain(`http://localhost:3000/bookings/${baseEvent.bookingId}`);
   });
 
   it('covers all SMS templates and edge cases', () => {
@@ -158,7 +158,8 @@ describe('Notification Templates', () => {
       '+2348012345678',
     );
     expect(longMsg?.body.length).toBeLessThanOrEqual(160);
-    expect(longMsg?.body.endsWith('...')).toBe(true);
+    // The lot name is shortened; the link at the end stays whole.
+    expect(longMsg?.body).toContain('... http://localhost:3000/bookings/');
   });
 
   it('covers all Push notification templates and edge cases', () => {
@@ -315,6 +316,39 @@ describe('Notification Templates', () => {
     expect(
       renderEmail({ key: 'unknown' } as unknown as NotificationEvent, 'test@example.com'),
     ).toBeNull();
+  });
+});
+
+describe('template safety and links', () => {
+  const web = 'https://parkly-web-two.vercel.app';
+  const event: NotificationEvent = {
+    key: 'booking.confirmed',
+    driverId: randomUUID(),
+    bookingId: '0199a0b4-5c8f-7e1b-9a3d-2f6e8c4b1a70',
+    bookingCode: 'PK-X1Y2Z3',
+    lotName:
+      '<img src=x onerror=alert(1)> Very Long Lot Name At Adeola Odeku Street Victoria Island',
+    startAt: '2026-10-20T07:00:00.000Z',
+    endAt: '2026-10-20T09:00:00.000Z',
+    totalKobo: 110_000,
+  };
+
+  it('escapes what operators typed in email HTML', () => {
+    const email = renderEmail(event, 'ada@example.com', { web });
+    expect(email?.html).not.toContain('<img src=x');
+    expect(email?.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('links to the booking on the configured website', () => {
+    const link = `${web}/bookings/${event.bookingId}`;
+    expect(renderEmail(event, 'ada@example.com', { web })?.html).toContain(link);
+    expect(renderSms(event, '+2348012345678', { web })?.body).toContain(link);
+  });
+
+  it('keeps an SMS within 160 characters without cutting the link', () => {
+    const body = renderSms(event, '+2348012345678', { web })?.body ?? '';
+    expect(body.length).toBeLessThanOrEqual(160);
+    expect(body.endsWith(`${web}/bookings/${event.bookingId}`)).toBe(true);
   });
 });
 

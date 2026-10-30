@@ -1,7 +1,7 @@
 import type { Logger } from '../lib/logger.js';
 import type { EmailProvider, PushProvider, SmsProvider } from '../providers/index.js';
 import type { NotificationRow, Store } from '../store/types.js';
-import { renderEmail, renderPush, renderSms } from './templates.js';
+import { renderEmail, renderPush, renderSms, type TemplateLinks } from './templates.js';
 import type { DispatchResult, NotificationChannel, NotificationEvent } from './types.js';
 
 export interface NotificationServiceDeps {
@@ -13,6 +13,8 @@ export interface NotificationServiceDeps {
   /** Contact details and push tokens are stored encrypted (doc 06 §2). */
   crypto: { decrypt: (encrypted: string) => string };
   now: () => Date;
+  /** Links in SMS and email; the driver website (WEB_BASE_URL). Local default otherwise. */
+  links?: TemplateLinks;
 }
 
 /** FR-NOT-003: five attempts with exponential backoff (minutes after attempts 1–4). */
@@ -149,7 +151,8 @@ export class NotificationService {
     }
 
     const wantsSms = SMS_ALWAYS.has(event.key) || (SMS_IF_NO_PUSH.has(event.key) && !pushDelivered);
-    const smsMsg = wantsSms && phone && !skip.includes('SMS') ? renderSms(event, phone) : null;
+    const smsMsg =
+      wantsSms && phone && !skip.includes('SMS') ? renderSms(event, phone, this.deps.links) : null;
     if (smsMsg) {
       try {
         await this.deps.sms.send({ to: smsMsg.to, body: smsMsg.body, kind: 'TRANSACTIONAL' });
@@ -162,7 +165,7 @@ export class NotificationService {
 
     const emailMsg =
       EMAIL_EVENTS.has(event.key) && email && !skip.includes('EMAIL')
-        ? renderEmail(event, email)
+        ? renderEmail(event, email, this.deps.links)
         : null;
     if (emailMsg) {
       try {

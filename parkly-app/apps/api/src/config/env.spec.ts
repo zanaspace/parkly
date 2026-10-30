@@ -89,6 +89,7 @@ describe('loadConfig', () => {
       ENC_KEY_V1: Buffer.alloc(32, 1).toString('base64'),
       UPSTASH_REDIS_REST_URL: 'https://x.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 't',
+      WEB_BASE_URL: 'https://parkly-web-two.vercel.app',
       STORAGE_PROVIDER: 'supabase',
       SUPABASE_SECRET_KEY: 'sb_secret_0123456789abcdef',
     });

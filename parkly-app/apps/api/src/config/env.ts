@@ -43,6 +43,8 @@ const EnvSchema = z
     EMAIL_FROM: z.string().min(3).optional(),
     /** Push to the driver app through Expo; the access token is optional. */
     PUSH_PROVIDER: z.enum(['fake', 'expo']).default('fake'),
+    /** The driver website, for links in SMS and email (e.g. https://parkly-web-two.vercel.app). */
+    WEB_BASE_URL: z.url().optional(),
     EXPO_ACCESS_TOKEN: z.string().min(10).optional(),
     /** Server-only secret key (sb_secret_…) for Supabase Storage. Never in a client. */
     SUPABASE_SECRET_KEY: z.string().min(20).optional(),
@@ -84,6 +86,7 @@ const EnvSchema = z
       required('SUPABASE_SMS_HOOK_SECRET');
       required('HASH_PEPPER_V1');
       required('ENC_KEY_V1');
+      required('WEB_BASE_URL');
     }
     if (env.APP_ENV === 'prod' && env.SMS_PROVIDER !== 'termii') {
       ctx.addIssue({ code: 'custom', path: ['SMS_PROVIDER'], message: 'must be termii in prod' });
@@ -136,6 +139,8 @@ export type AppConfig = {
   sms: { provider: 'fake' } | { provider: 'termii'; apiKey: string; senderId: string };
   email: { provider: 'log' } | { provider: 'resend'; apiKey: string; from: string };
   push: { provider: 'fake' } | { provider: 'expo'; accessToken: string | undefined };
+  /** The driver website, for links in messages. */
+  webBaseUrl: string;
   settlement: { provider: 'fake' } | { provider: 'paystack'; secretKey: string };
   storage: { provider: 'fake' } | { provider: 'supabase'; secretKey: string };
   malwareScanner: 'fake';
@@ -195,6 +200,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       e.EMAIL_PROVIDER === 'resend' && e.RESEND_API_KEY && e.EMAIL_FROM
         ? { provider: 'resend', apiKey: e.RESEND_API_KEY, from: e.EMAIL_FROM }
         : { provider: 'log' },
+    webBaseUrl: (e.WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
     push:
       e.PUSH_PROVIDER === 'expo'
         ? { provider: 'expo', accessToken: e.EXPO_ACCESS_TOKEN }

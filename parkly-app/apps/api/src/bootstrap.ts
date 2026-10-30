@@ -168,6 +168,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     sms: primary,
     email,
     push,
+    links: { web: config.webBaseUrl },
     store,
     logger,
     crypto,
