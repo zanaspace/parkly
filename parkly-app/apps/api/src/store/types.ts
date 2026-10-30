@@ -1032,9 +1032,7 @@ export type Store = {
      * The driver's overstay still unpaid 24 hours after check-out (UNPAID), if
      * any: it blocks new bookings (FR-BOOK-008, gap review L-4).
      */
-    unpaidOverstay(
-      driverId: string,
-    ): Promise<{
+    unpaidOverstay(driverId: string): Promise<{
       bookingId: string;
       bookingCode: string;
       lotId: string;
