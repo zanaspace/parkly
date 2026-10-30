@@ -19,10 +19,12 @@ export default defineConfig({
         'src/store/drizzle.ts',
         'src/store/drizzle-bookings.ts',
         'src/store/drizzle-attend.ts',
+        'src/store/drizzle-receipts.ts',
         // Test doubles and helpers.
         'src/store/memory.ts',
         'src/store/memory-bookings.ts',
         'src/store/memory-attend.ts',
+        'src/store/memory-receipts.ts',
         'src/store/store-contract.ts',
         'src/test-helpers.ts',
       ],
