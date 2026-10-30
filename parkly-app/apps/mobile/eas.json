@@ -12,17 +12,23 @@
       "extends": "base",
       "distribution": "internal",
       "environment": "preview",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://qbheoilyuvudiefubdco.supabase.co",
-        "EXPO_PUBLIC_API_URL": "https://parkly-api-six.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://parkly-api-six.vercel.app",
+        "EXPO_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFsyOLeaV5XGi7en",
+        "EXPO_PUBLIC_TURNSTILE_ORIGIN": "https://parkly-web-two.vercel.app"
       }
     },
     "production": {
       "extends": "base",
       "environment": "production",
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   }
 }
