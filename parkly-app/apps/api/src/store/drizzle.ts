@@ -1512,10 +1512,13 @@ export function drizzleStore(db: Db): Store {
             .set({ status: 'APPROVED', reviewedBy: reviewerId, reviewedAt: at })
             .where(eq(operatorKybDocuments.operatorId, id));
           // CHECK payout_accounts_active_has_subaccount refuses ACTIVE without the code.
-          await tx
+          const activated = await tx
             .update(payoutAccounts)
             .set({ status: 'ACTIVE', activatedAt: at, pendingAccountNumberEnc: null })
-            .where(eq(payoutAccounts.operatorId, id));
+            .where(eq(payoutAccounts.operatorId, id))
+            .returning({ operatorId: payoutAccounts.operatorId });
+          // No payout account, no ACTIVE operator: there would be nowhere to settle to.
+          if (activated.length === 0) throw new Error('subaccount code not saved');
           return row as OperatorRow;
         });
       },

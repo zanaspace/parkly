@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { RoleGrant } from '@parkly/domain/authz';
 import { generateBookingCode } from '@parkly/domain/codes';
 import { describe, expect, it } from 'vitest';
@@ -1378,6 +1378,362 @@ export function storeContract(
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
       });
 
+      it('finds a booking by code, cancels it with a refund, and tracks the refund to the end', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        expect((await store.bookings.findByCode(booking.code))?.id).toBe(booking.id);
+        expect(await store.bookings.findByCode('PK-NOPE00')).toBeNull();
+        expect((await store.payments.listForBooking(booking.id)).map((p) => p.status)).toEqual([
+          'SUCCEEDED',
+        ]);
+
+        const cancelled = await store.bookings.cancel(
+          booking.id,
+          'DRIVER',
+          d.id,
+          'plans changed',
+          {
+            amountKobo: 60_000,
+            reason: 'DRIVER_CANCEL',
+            refundPriceKobo: 50_000,
+            refundServiceFeeKobo: 10_000,
+          },
+          AT,
+        );
+        expect(cancelled.booking.status).toBe('CANCELLED');
+        expect(cancelled.refunds).toEqual([
+          { id: expect.any(String), paymentId: payment.id, amountKobo: 60_000 },
+        ]);
+        const slots = await store.inventory.slots([lot.lotId], START, END);
+        expect(slots.every((s) => s.booked === 0 && s.held === 0)).toBe(true);
+        await expect(
+          store.bookings.cancel(booking.id, 'DRIVER', d.id, 'again', null, AT),
+        ).rejects.toMatchObject({ code: 'BOOKING_NOT_CANCELLABLE' });
+
+        const refundId = cancelled.refunds[0]?.id ?? '';
+        expect(await store.payments.refundsForBooking(booking.id)).toEqual([
+          expect.objectContaining({
+            id: refundId,
+            amountKobo: 60_000,
+            reason: 'DRIVER_CANCEL',
+            status: 'PENDING',
+            createdAt: AT,
+          }),
+        ]);
+        // The retry job picks up refunds the provider never accepted, older than its cutoff.
+        const retry = (before: Date) =>
+          store.payments.refundsToRetry({ before, limit: 1000 }).then((r) => r.map((x) => x.id));
+        expect(await retry(new Date(AT.getTime() + 60_000))).toContain(refundId);
+        expect(await retry(AT)).not.toContain(refundId);
+        await store.payments.refundRequested(refundId, `rf_${refundId}`);
+        expect(await retry(new Date(AT.getTime() + 60_000))).not.toContain(refundId);
+
+        expect(
+          await store.payments.refundOutcome({
+            providerRefundId: `rf_${refundId}`,
+            paymentId: payment.id,
+            status: 'SUCCEEDED',
+            at: AT,
+          }),
+        ).toBe(true);
+        expect((await store.payments.find(payment.id))?.status).toBe('PARTIALLY_REFUNDED');
+        expect((await store.payments.refundsForBooking(booking.id))[0]?.status).toBe('SUCCEEDED');
+        expect(
+          await store.payments.refundOutcome({
+            providerRefundId: null,
+            paymentId: randomUUID(),
+            status: 'SUCCEEDED',
+            at: AT,
+          }),
+        ).toBe(false);
+      });
+
+      it('extends a paid booking: holds, confirms on payment, releases, and checks the payment', async () => {
+        const lot = await liveLot(2);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        const hour = 60 * 60_000;
+        const LATER = new Date(AT.getTime() + 60_000);
+        const extend = (newEndAt: Date, pay: boolean) => {
+          const id = randomUUID();
+          return store.bookings.holdExtension(
+            {
+              id,
+              bookingId: booking.id,
+              newEndAt,
+              priceKobo: 50_000,
+              platformAmountKobo: 6_000,
+              operatorAmountKobo: 44_000,
+              holdExpiresAt: new Date(LATER.getTime() + 10 * 60_000),
+            },
+            pay
+              ? {
+                  id: randomUUID(),
+                  payerUserId: d.id,
+                  provider: 'FAKE',
+                  amountKobo: 50_000,
+                  platformAmountKobo: 6_000,
+                  operatorAmountKobo: 44_000,
+                  operatorId: lot.operatorId,
+                  subaccountCode: null,
+                }
+              : null,
+            LATER,
+          );
+        };
+
+        // 1. Held, then paid: the booking ends an hour later and costs more.
+        const end1 = new Date(END.getTime() + hour);
+        const first = await extend(end1, true);
+        expect(first.extension).toMatchObject({
+          status: 'PENDING_PAYMENT',
+          startAt: END,
+          newEndAt: end1,
+          addedMinutes: 60,
+        });
+        expect(first.payment).toMatchObject({
+          kind: 'EXTENSION',
+          status: 'INITIATED',
+          bookingId: booking.id,
+        });
+        const held = await store.inventory.slots([lot.lotId], END, end1);
+        expect(held.map((s) => s.held)).toEqual([1, 1, 1, 1]);
+        const paid = await store.payments.settle(
+          first.payment?.id ?? '',
+          charge({ amountKobo: 50_000 }),
+          LATER,
+        );
+        expect(paid).toMatchObject({
+          decision: 'CONFIRM',
+          booking: { endAt: end1, totalKobo: 160_000 },
+        });
+        expect(await store.bookings.findExtension(first.extension.id)).toMatchObject({
+          status: 'CONFIRMED',
+          paymentId: first.payment?.id,
+        });
+        expect((await store.payments.listForBooking(booking.id)).map((p) => p.kind)).toEqual([
+          'BOOKING',
+          'EXTENSION',
+        ]);
+
+        // 2. An unpaid hold gives its space back once, then can't be confirmed.
+        const end2 = new Date(end1.getTime() + hour);
+        const second = await extend(end2, false);
+        expect(await store.bookings.releaseExtension(second.extension.id, 'EXPIRED', LATER)).toBe(
+          true,
+        );
+        expect(await store.bookings.releaseExtension(second.extension.id, 'EXPIRED', LATER)).toBe(
+          false,
+        );
+        expect((await store.bookings.findExtension(second.extension.id))?.status).toBe('EXPIRED');
+        const freed = await store.inventory.slots([lot.lotId], end1, end2);
+        expect(freed.every((s) => s.held === 0)).toBe(true);
+        await expect(
+          store.bookings.confirmExtension(second.extension.id, null, LATER),
+        ).rejects.toThrow();
+
+        // 3. Another booking's payment can't confirm it; without one, it keeps its own.
+        const third = await extend(end2, true);
+        await expect(
+          store.bookings.confirmExtension(third.extension.id, randomUUID(), LATER),
+        ).rejects.toThrow();
+        const confirmed = await store.bookings.confirmExtension(third.extension.id, null, LATER);
+        expect(confirmed.endAt).toEqual(end2);
+        expect((await store.bookings.findExtension(third.extension.id))?.paymentId).toBe(
+          third.payment?.id,
+        );
+        expect(await store.bookings.findExtension(randomUUID())).toBeNull();
+      });
+
+      it('lists open checkouts by when they started, for the settle job', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const { booking } = await hold(lot, d);
+        const T = new Date('2027-02-01T10:00:00Z');
+        const created = await store.payments.create(
+          {
+            id: randomUUID(),
+            payerUserId: d.id,
+            provider: 'FAKE',
+            amountKobo: 25_000,
+            platformAmountKobo: 3_000,
+            operatorAmountKobo: 22_000,
+            operatorId: lot.operatorId,
+            subaccountCode: null,
+            bookingId: booking.id,
+            kind: 'OVERSTAY',
+          },
+          T,
+        );
+        expect(created).toMatchObject({ kind: 'OVERSTAY', status: 'INITIATED' });
+        const open = (from: Date, to: Date) => store.payments.unsettled({ from, to, limit: 1000 });
+        // INITIATED never reached the provider: nothing to ask about.
+        expect(await open(T, new Date(T.getTime() + 60_000))).not.toContain(created.id);
+        await store.payments.checkoutStarted(created.id, checkout, T);
+        expect(await open(T, new Date(T.getTime() + 60_000))).toContain(created.id);
+        expect(await open(new Date(T.getTime() + 1), new Date(T.getTime() + 60_000))).not.toContain(
+          created.id,
+        );
+      });
+
+      it('retries charge.success webhooks that failed, up to the attempt limit', async () => {
+        const T = new Date('2027-02-02T10:00:00Z');
+        const record = (eventType: string) =>
+          store.webhooks.record({
+            provider: 'FAKE',
+            dedupeKey: `${eventType}:${randomUUID()}`,
+            eventType,
+            reference: `ref-${randomUUID()}`,
+            payload: {},
+            at: T,
+          });
+        const success = await record('charge.success');
+        const other = await record('refund.processed');
+        const retryable = () =>
+          store.webhooks
+            .retryable({ before: new Date(T.getTime() + 60_000), maxAttempts: 2, limit: 1000 })
+            .then((r) => r.map((x) => x.id));
+        expect(await retryable()).toContain(success.id);
+        expect(await retryable()).not.toContain(other.id);
+        await store.webhooks.finish(success.id, 'FAILED', 'boom', T);
+        expect(await retryable()).toContain(success.id);
+        await store.webhooks.finish(success.id, 'FAILED', 'boom', T);
+        expect(await retryable()).not.toContain(success.id);
+        expect(
+          await store.webhooks
+            .retryable({ before: T, maxAttempts: 5, limit: 1000 })
+            .then((r) => r.map((x) => x.id)),
+        ).not.toContain(success.id);
+      });
+
+      it('queues a notification once, leases it, and finishes it', async () => {
+        const user = await newUser();
+        const T = new Date('2027-02-03T10:00:00Z');
+        const row = {
+          userId: user,
+          bookingId: null,
+          eventKey: 'session.checked_out',
+          dedupeKey: `test:${randomUUID()}`,
+          payload: { lotName: 'Hold lot' },
+          notBefore: T,
+        };
+        expect(await store.notifications.enqueue(row)).toBe(true);
+        expect(await store.notifications.enqueue(row)).toBe(false);
+        const mine = <T extends { dedupeKey: string }>(rows: T[]) =>
+          rows.filter((r) => r.dedupeKey === row.dedupeKey);
+        const lease = new Date(T.getTime() + 5 * 60_000);
+        expect(
+          mine(await store.notifications.claimDue(new Date(T.getTime() - 1), 1000, lease)),
+        ).toEqual([]);
+        const [claimed] = mine(await store.notifications.claimDue(T, 1000, lease));
+        expect(claimed).toMatchObject({
+          status: 'PENDING',
+          attempts: 1,
+          nextAttemptAt: lease,
+          channelsDone: [],
+          payload: { lotName: 'Hold lot' },
+        });
+        // Leased: another run doesn't take it.
+        expect(mine(await store.notifications.claimDue(T, 1000, lease))).toEqual([]);
+        await store.notifications.finish(claimed?.id ?? '', {
+          status: 'SENT',
+          channelsDone: ['PUSH'],
+          nextAttemptAt: T,
+          lastError: null,
+          sentAt: T,
+        });
+        expect(
+          mine(
+            await store.notifications.claimDue(new Date(T.getTime() + 60 * 60_000), 1000, lease),
+          ),
+        ).toEqual([]);
+      });
+
+      it('finds bookings due a reminder until one is queued', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        const windows = { startWithinMin: 60, endWithinMin: 15, noShowSinceMin: 60 };
+        const due = async (now: Date) =>
+          (await store.notifications.dueReminders(now, windows))
+            .filter((c) => c.bookingId === booking.id)
+            .map((c) => c.kind);
+        expect(await due(new Date(START.getTime() - 30 * 60_000))).toEqual(['START']);
+        expect(await due(new Date(START.getTime() - 90 * 60_000))).toEqual([]);
+        expect(
+          (
+            await store.notifications.dueReminders(new Date(START.getTime() - 30 * 60_000), windows)
+          ).find((c) => c.bookingId === booking.id),
+        ).toMatchObject({ driverId: d.id, bookingCode: booking.code, lotName: 'Hold lot' });
+        await store.notifications.enqueue({
+          userId: d.id,
+          bookingId: booking.id,
+          eventKey: 'booking.reminder_start',
+          dedupeKey: `booking.reminder_start:${booking.id}`,
+          payload: {},
+          notBefore: AT,
+        });
+        expect(await due(new Date(START.getTime() - 30 * 60_000))).toEqual([]);
+        expect(await due(new Date(END.getTime() - 10 * 60_000))).toEqual(['END']);
+      });
+
+      it('waives a due overstay once; only an unpaid one blocks booking', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const attendant = await newUser([]);
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        const batch = () => ({
+          id: randomUUID(),
+          deviceId: randomUUID(),
+          lotId: lot.lotId,
+          attendantId: attendant,
+          deviceSentAt: new Date('2027-01-05T10:00:00Z'),
+          receivedAt: new Date('2027-01-05T10:00:00Z'),
+        });
+        expect(await store.attend.sessionByBooking(booking.id)).toBeNull();
+        await store.attend.applyBatch(batch(), [
+          {
+            type: 'CHECK_IN',
+            clientEventId: randomUUID(),
+            deviceTime: new Date('2027-01-05T07:05:00Z'),
+            bookingId: booking.id,
+            method: 'QR',
+            plateSeen: 'LND123AB',
+            overrideReason: null,
+          },
+        ]);
+        const out = await store.attend.applyBatch(batch(), [
+          {
+            type: 'CHECK_OUT',
+            clientEventId: randomUUID(),
+            deviceTime: new Date('2027-01-05T09:40:00Z'),
+            bookingId: booking.id,
+            method: 'CODE',
+          },
+        ]);
+        await store.attend.setOverstay(out.checkedOut[0] ?? '', 30, 25_000);
+        expect(await store.attend.sessionByBooking(booking.id)).toMatchObject({
+          bookingId: booking.id,
+          lotId: lot.lotId,
+          overstayMinutes: 30,
+          overstayAmountKobo: 25_000,
+          overstayStatus: 'DUE',
+          checkInAt: new Date('2027-01-05T07:05:00Z'),
+          checkOutAt: new Date('2027-01-05T09:40:00Z'),
+        });
+        // DUE doesn't block yet; the hourly job makes it UNPAID after 24 h.
+        expect(await store.attend.unpaidOverstay(d.id)).toBeNull();
+        expect(await store.attend.waiveOverstay(booking.id, AT)).toBe(true);
+        expect((await store.attend.sessionByBooking(booking.id))?.overstayStatus).toBe('WAIVED');
+        expect(await store.attend.waiveOverstay(booking.id, AT)).toBe(false);
+        expect(await store.attend.waiveOverstay(randomUUID(), AT)).toBe(false);
+      });
+
       it('numbers receipts per operator once, revises only on change, keeps the first issue date', async () => {
         const lot = await liveLot(3);
         const a = await hold(lot, await driver());
@@ -1435,6 +1791,237 @@ export function storeContract(
           content: { refunds: [{ amountKobo: 50_000 }] },
         });
       });
+    });
+
+    it('keeps contact copies and push tokens for notifications, and ends sessions', async () => {
+      const id = await newUser();
+      expect(await store.users.contact(randomUUID())).toBeNull();
+      await store.users.setContact(id, {
+        phoneHash: randomBytes(32),
+        emailHash: null,
+        phoneEnc: 'v1:phone',
+        emailEnc: 'v1:email',
+      });
+      expect(await store.users.contact(id)).toEqual({ phoneEnc: 'v1:phone', emailEnc: 'v1:email' });
+
+      const session = randomUUID();
+      await store.devices.upsert({
+        userId: id,
+        clientDeviceId: randomUUID(),
+        platform: 'ANDROID',
+        appVersion: '1',
+        authSessionId: session,
+        pushTokenEnc: 'v1:token-a',
+      });
+      await store.devices.upsert({
+        userId: id,
+        clientDeviceId: randomUUID(),
+        platform: 'IOS',
+        appVersion: '1',
+        authSessionId: randomUUID(),
+        pushTokenEnc: 'v1:token-b',
+      });
+      expect((await store.devices.pushTokens(id)).sort()).toEqual(['v1:token-a', 'v1:token-b']);
+      // A signed-out phone gets no more pushes.
+      await store.devices.revokeBySession(id, session);
+      expect(await store.devices.pushTokens(id)).toEqual(['v1:token-b']);
+      await store.devices.revokeAll(id);
+      expect(await store.devices.pushTokens(id)).toEqual([]);
+      await store.sessions.revokeAll(id);
+    });
+
+    it('lists a lot to drivers only while every listing rule holds (gap review T-4)', async () => {
+      const TODAY = '2027-01-10';
+      const owner = await newUser();
+      const reviewer = { reviewerId: owner, at: new Date('2027-01-02T10:00:00Z') };
+      const tag = randomUUID().slice(0, 8);
+
+      async function operator(approved: boolean) {
+        const op = await store.operators.create({
+          legalName: `Gate ${tag} Ltd`,
+          tradingName: `Gate ${tag}`,
+          type: 'HOTEL',
+          cacNumberEnc: null,
+          tinEnc: null,
+          addressLine: null,
+          contactEmail: null,
+          contactPhoneEnc: null,
+          ownerUserId: approved ? owner : await newUser(),
+          commissionBps: 1200,
+        });
+        if (approved) {
+          await store.payoutAccounts.upsert({
+            operatorId: op.id,
+            bankCode: '058',
+            bankName: 'GTBank',
+            accountNumberLast4: '6789',
+            accountName: 'GATE LTD',
+            pendingAccountNumberEnc: 'enc',
+            nameMismatch: false,
+            verifiedAt: reviewer.at,
+          });
+          await store.payoutAccounts.setSubaccount(op.id, `ACCT_${tag}`);
+          await store.operators.submitKyb(op.id, reviewer.at);
+          await store.operators.approveKyb(op.id, reviewer);
+        }
+        return op.id;
+      }
+
+      async function listedLot(operatorId: string, name: string, lat: number) {
+        const lot = await store.lots.create({
+          operatorId,
+          type: 'HOTEL',
+          name,
+          slug: `gate-${randomUUID()}`,
+          description: null,
+          addressLine: '1 Gate Road',
+          area: null,
+          lga: null,
+          location: { lat, lng: 3.9 },
+          entranceNotes: null,
+          capacityTotal: 10,
+          capacityBookable: 8,
+          amenities: [],
+          vehicleTypes: ['CAR'],
+          createdBy: owner,
+        });
+        const file = (bucket: 'permits' | 'lot-photos' | 'lot-photos-public') =>
+          store.files.create({
+            id: randomUUID(),
+            bucket,
+            path: `lot/${lot.id}/${randomUUID()}`,
+            dataClass: bucket === 'lot-photos-public' ? 'C1' : 'C3',
+            retentionPolicy: 'lot_life',
+            ownerEntityType: 'lot',
+            ownerEntityId: lot.id,
+            uploadedBy: owner,
+            mime: 'image/webp',
+            sizeBytes: 10,
+            sha256: Buffer.alloc(32, 7),
+            createdAt: reviewer.at,
+          });
+        const permit = await store.permits.create({
+          lotId: lot.id,
+          permitNumber: `LASPA/${tag}`,
+          issuedAt: '2026-12-31',
+          expiresAt: '2027-12-31',
+          documentFileId: (await file('permits')).id,
+          submittedBy: owner,
+        });
+        await store.permits.approve(permit.id, { ...reviewer, note: 'checked' });
+        const visit = await store.verifications.create({
+          lotId: lot.id,
+          inspectorUserId: owner,
+          inspectedAt: new Date('2026-06-01T10:00:00Z'),
+          capacityCounted: 10,
+          gps: null,
+          notes: null,
+          validUntil: '2027-06-01',
+          items: [{ item: 'LASPA_PERMIT', result: 'PASS', comment: null }],
+        });
+        await store.verifications.approve(visit.id, reviewer);
+        await store.lots.setStatus(operatorId, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
+        await store.lots.setStatus(operatorId, lot.id, 'PENDING_VERIFICATION', 'LIVE', null);
+        return { lot, permit, visit, file };
+      }
+
+      const opId = await operator(true);
+      const lat = 6.6 + Math.random() / 10;
+      const { lot, permit, visit, file } = await listedLot(opId, `Gate ${tag} car park`, lat);
+      const live = (today = TODAY) => store.lots.findLive(lot.id, today);
+
+      // Listed: by id, slug, name and distance, with what the search page shows.
+      expect(await live()).toMatchObject({ id: lot.id, operatorName: `Gate ${tag}` });
+      expect((await store.lots.findLive(lot.slug, TODAY))?.id).toBe(lot.id);
+      expect(
+        (await store.lots.searchLiveByName(`gate ${tag}`, TODAY, 10)).map((l) => l.id),
+      ).toEqual([lot.id]);
+      // The driver's % is a letter, not a wildcard.
+      expect(await store.lots.searchLiveByName(`Gate%${tag}`, TODAY, 10)).toEqual([]);
+      const near = await store.lots.searchLive({
+        lat,
+        lng: 3.9,
+        radiusM: 100,
+        today: TODAY,
+        limit: 50,
+      });
+      expect(near.find((l) => l.id === lot.id)?.distanceM).toBe(0);
+      expect(
+        (
+          await store.lots.searchLive({
+            lat: lat + 0.05,
+            lng: 3.9,
+            radiusM: 100,
+            today: TODAY,
+            limit: 50,
+          })
+        ).map((l) => l.id),
+      ).not.toContain(lot.id);
+      expect((await store.permits.currentApproved(lot.id, TODAY))?.id).toBe(permit.id);
+      expect((await store.verifications.currentApproved(lot.id, TODAY))?.id).toBe(visit.id);
+      expect((await store.verifications.find(visit.id))?.items).toHaveLength(1);
+
+      // A permit expiring today, or a site visit past its date, takes it off the map.
+      expect(await live('2027-12-31')).toBeNull();
+      expect(await store.permits.currentApproved(lot.id, '2027-12-31')).toBeNull();
+      expect(await live('2027-06-01')).toBeNull();
+      expect(await store.verifications.currentApproved(lot.id, '2027-06-01')).toBeNull();
+      expect(await live('2027-05-31')).not.toBeNull();
+
+      // Paused or suspended lots are hidden; back to LIVE, listed again.
+      await store.lots.setStatus(opId, lot.id, 'LIVE', 'PAUSED', 'owner paused');
+      expect(await live()).toBeNull();
+      expect(await store.lots.searchLiveByName(`gate ${tag}`, TODAY, 10)).toEqual([]);
+      await store.lots.setStatus(opId, lot.id, 'PAUSED', 'LIVE', null);
+      expect(await live()).not.toBeNull();
+      await store.lots.setStatus(opId, lot.id, 'LIVE', 'SUSPENDED', 'permit query');
+      expect(await live()).toBeNull();
+      await store.lots.setStatus(opId, lot.id, 'SUSPENDED', 'LIVE', null);
+
+      // An operator whose KYB isn't approved never lists, whatever its lot has.
+      const pending = await listedLot(await operator(false), `Gate ${tag} pending`, lat);
+      expect(await store.lots.findLive(pending.lot.id, TODAY)).toBeNull();
+
+      // What the search page joins in: prices, public photos and hours.
+      const plan = await store.ratePlans.submit({
+        lotId: lot.id,
+        product: 'HOURLY',
+        hourlyRateKobo: 40_000,
+        minMinutes: 60,
+        dailyCapKobo: null,
+        dailyRateKobo: null,
+        monthlyRateKobo: null,
+        submittedBy: owner,
+      });
+      expect(await store.ratePlans.activeFor([lot.id])).toEqual([]);
+      await store.ratePlans.approve(plan.id, reviewer);
+      expect((await store.ratePlans.activeFor([lot.id, randomUUID()])).map((p) => p.id)).toEqual([
+        plan.id,
+      ]);
+      const photo = await store.lotPhotos.create({
+        lotId: lot.id,
+        fileId: (await file('lot-photos')).id,
+        sort: 0,
+      });
+      expect((await store.lotPhotos.find(lot.id, photo.id))?.id).toBe(photo.id);
+      expect(await store.lotPhotos.find(randomUUID(), photo.id)).toBeNull();
+      expect(await store.lotPhotos.publicFor([lot.id])).toEqual([]);
+      const publicFile = await file('lot-photos-public');
+      await store.lotPhotos.review(
+        photo.id,
+        { status: 'APPROVED', publicFileId: publicFile.id },
+        reviewer,
+      );
+      expect(await store.lotPhotos.publicFor([lot.id])).toEqual([
+        { lotId: lot.id, path: publicFile.path, sort: 0 },
+      ]);
+      await store.lots.setOpeningHours(lot.id, [
+        { weekday: 1, is24h: false, opensAt: '06:00', closesAt: '22:00' },
+      ]);
+      expect(await store.lots.openingHoursFor([lot.id])).toEqual([
+        { lotId: lot.id, weekday: 1, is24h: false, opensAt: '06:00', closesAt: '22:00' },
+      ]);
+      expect(await store.lots.openingHoursFor([])).toEqual([]);
     });
 
     it('keeps the owner’s self check-in switch per lot', async () => {

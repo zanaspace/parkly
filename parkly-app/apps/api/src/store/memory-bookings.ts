@@ -132,7 +132,7 @@ export class MemoryBookings {
     return { ...rest };
   }
 
-  private apply(plan: SettlePlan, b: BookingRow, p: (typeof this.paymentRows)[number]) {
+  private apply(plan: SettlePlan, b: BookingRow, p: (typeof this.paymentRows)[number], at: Date) {
     if (plan.slots === 'convert') this.move(b, -1, 1);
     if (plan.slots === 'release') this.move(b, -1, 0);
     if (plan.booking) {
@@ -158,7 +158,7 @@ export class MemoryBookings {
         id: randomUUID(),
         paymentId: p.id,
         providerRefundId: null,
-        createdAt: new Date(),
+        createdAt: at,
         ...plan.refund,
       };
       this.refundRows.push(refund);
@@ -210,6 +210,7 @@ export class MemoryBookings {
       });
       const row = {
         ...payment,
+        kind: 'BOOKING' as const,
         bookingId: booking.id,
         status: 'INITIATED' as const,
         authorizationUrl: null,
@@ -370,6 +371,9 @@ export class MemoryBookings {
         ext.startAt.getTime() !== b.endAt.getTime()
       )
         throw new Error('EXTENSION_NOT_APPLICABLE');
+      // As fn_confirm_extension: the payment must be this extension's own.
+      if (paymentId !== null && ext.paymentId !== paymentId)
+        throw new Error('EXTENSION_PAYMENT_MISMATCH');
 
       const slots = this.windowSlots(b.lotId, ext.startAt, ext.newEndAt, null);
       for (const s of slots) {
@@ -377,7 +381,7 @@ export class MemoryBookings {
         s.booked += 1;
       }
       ext.status = 'CONFIRMED';
-      ext.paymentId = paymentId;
+      ext.paymentId = paymentId ?? ext.paymentId;
       b.endAt = ext.newEndAt;
       b.priceKobo += ext.priceKobo;
       b.totalKobo += ext.priceKobo;
@@ -443,7 +447,7 @@ export class MemoryBookings {
             reason: refund.reason,
             providerRefundId: null,
             status: 'PENDING',
-            createdAt: new Date(),
+            createdAt: at,
           });
           created.push({ id, ...part });
         }
@@ -518,7 +522,7 @@ export class MemoryBookings {
       return this.publicPayment(p);
     },
 
-    settle: async (id, charge) => {
+    settle: async (id, charge, at) => {
       const p = this.payment(id);
       const b = this.bookingRows.find((r) => r.id === p.bookingId);
       if (!b) throw new Error(`payment ${id} has no booking`);
@@ -543,7 +547,7 @@ export class MemoryBookings {
           if (ext) await this.bookings.confirmExtension(ext.id, p.id, new Date());
           else await this.onOverstayPaid?.(b.id);
         }
-        const refund = this.apply(plan, b, p);
+        const refund = this.apply(plan, b, p, at);
         return {
           decision,
           booking: { ...b },
@@ -564,7 +568,7 @@ export class MemoryBookings {
         if (slots.every((s) => this.free(s) >= 1)) for (const s of slots) s.booked += 1;
         else decision = 'REFUND_HOLD_EXPIRED';
       }
-      const refund = this.apply(settlePlan(decision, charge, b, this.publicPayment(p)), b, p);
+      const refund = this.apply(settlePlan(decision, charge, b, this.publicPayment(p)), b, p, at);
       return {
         decision,
         booking: { ...b },
@@ -584,9 +588,14 @@ export class MemoryBookings {
       if (r) r.providerRefundId = providerRefundId;
     },
 
-    refundsToRetry: async ({ limit }) =>
+    refundsToRetry: async ({ before, limit }) =>
       this.refundRows
-        .filter((r) => (r.status ?? 'PENDING') === 'PENDING' && r.providerRefundId === null)
+        .filter(
+          (r) =>
+            (r.status ?? 'PENDING') === 'PENDING' &&
+            r.providerRefundId === null &&
+            (r.createdAt ?? new Date(0)) < before,
+        )
         .slice(0, limit)
         .map((r) => ({ id: r.id, paymentId: r.paymentId, amountKobo: r.amountKobo })),
 
