@@ -19,7 +19,7 @@ export type RefundReason =
   | 'OTHER';
 
 export type CancellationSettings = {
-  /** `booking.free_cancellation_lead_min`: minutes before start time that allow free cancellation (default 30). */
+  /** `booking.free_cancel_before_start_min`: minutes before start time that allow free cancellation (default 30). */
   freeCancellationLeadMin: number;
 };
 
