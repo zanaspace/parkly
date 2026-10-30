@@ -321,13 +321,17 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
           Sign in to start your shift
         </Text>
         <Text tone="secondary">
-          Use the account your manager invited. You need network the first time.
+          Use the email address or phone number your manager invited. We’ll send you a code. You
+          need network the first time.
         </Text>
         <a
           className="pk-button pk-button--primary pk-button--lg pk-button--full"
-          href="/sign-in?next=/attend"
+          href="/sign-in/code?next=/attend"
         >
-          Sign in
+          Sign in with a code
+        </a>
+        <a className="pk-link" href="/sign-in?next=/attend">
+          Owner or manager? Sign in with your password
         </a>
       </div>
     );

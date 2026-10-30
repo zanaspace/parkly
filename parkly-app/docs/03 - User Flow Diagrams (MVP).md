@@ -412,8 +412,8 @@ flowchart TD
 
 | # | Screen | User action | System response | Edge / error cases | Event |
 |---|---|---|---|---|---|
-| 1 | O-20 Team | Taps "Invite", enters name + phone (attendant) or email (manager), picks role (`OPERATOR_ATTENDANT` / `OPERATOR_MANAGER`), picks lots (attendants only) | Shows the invite link once (expires 72 h) to copy or share on WhatsApp; the SMS/email invite follows with notifications (S6) | Phone already a member: show it. Phone belongs to a driver: allowed; roles are additive. | `member_invited` |
-| 2 | Attendant device | Opens the link | Goes to A-01 to set up a 6-digit PIN after OTP | Expired link: ask the manager to resend | `member_invite_accepted` |
+| 1 | O-20 Team | Taps "Invite", enters name + email or phone (attendant; email until SMS is live, ADR 0018) or email (manager), picks role (`OPERATOR_ATTENDANT` / `OPERATOR_MANAGER`), picks lots (attendants only) | Shows the invite link once (expires 72 h) to copy or share on WhatsApp; the SMS/email invite follows with notifications (S6) | Phone already a member: show it. Phone belongs to a driver: allowed; roles are additive. | `member_invited` |
+| 2 | Attendant device | Opens the link, enters the invited email or phone and the 6-digit code (ADR 0018) | Invite accepted; goes to A-01 to set up a 6-digit PIN | Wrong email or phone: "this link isn't valid for this account", signed out to try again. Expired link: ask the manager to resend | `member_invite_accepted` |
 | 3 | O-20 Team | Removes a member | Revokes all of their sessions and refresh tokens immediately. Their device's offline manifest is wiped on next contact and expires anyway in ≤ 24 h. | — | `member_removed` |
 
 ### 2.4 Verification visit scheduling and go-live
@@ -507,7 +507,7 @@ flowchart TD
 
 | # | Screen | User action | System response | Edge / error cases | Event |
 |---|---|---|---|---|---|
-| 1 | A-01 Login | First time: phone OTP, then set a 6-digit PIN. Later: phone + PIN. | Device registered (`device_id`). Supabase Auth session; the API only honours it for this registered, manager-approved device (`devices.auth_session_id`) and for 12 h since the last OTP sign-in. | Wrong PIN 5×: locked, manager unlocks in O-20. Offline login: allowed with the PIN for ≤ 24 h since the last online auth, verified against a locally stored salted hash. | `attendant_login` |
+| 1 | A-01 Login | First time: a 6-digit code to the invited email or phone (email until SMS is live, ADR 0018), then set a 6-digit PIN. Later: PIN. | Device registered (`device_id`). Supabase Auth session; the API only honours it for this registered, manager-approved device (`devices.auth_session_id`) and for 12 h since the last OTP sign-in. | Wrong PIN 5×: locked, manager unlocks in O-20. Offline login: allowed with the PIN for ≤ 24 h since the last online auth, verified against a locally stored salted hash. | `attendant_login` |
 | 2 | Lot picker | Picks a lot | Only assigned lots | — | `attendant_lot_selected` |
 
 ### 3.2 Offline manifest download

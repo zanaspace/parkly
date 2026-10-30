@@ -199,7 +199,7 @@ Supabase Auth settings that are **MUST** (kept in `supabase/config.toml` and ver
 
 - Passwords (Supabase Auth email provider): min 10 chars, no composition rules, blocked by Supabase **leaked-password protection** (HIBP). Hashing is done by Supabase Auth (bcrypt); Parkly never sees or stores password hashes.
 - TOTP (Supabase MFA, RFC 6238) **mandatory (`aal2`) for `OPERATOR_OWNER` and `OPERATOR_MANAGER`** (doc 00); owners must have a fresh `aal2` (≤ 5 min) for any bank/subaccount change. Recovery: a second TOTP factor or support-assisted reset with identity check (Supabase has no recovery codes; documented in runbook).
-- Attendants: login by phone + OTP on first device registration (Supabase Auth), then 6-digit app PIN (local unlock only, max 5 attempts → wipe local cache + sign out). Device must be approved by a manager (`attendant_devices` table, checked by the API on every attendant request).
+- Attendants: login by a one-time code on first device registration (Supabase Auth): phone + SMS code, or an email code until SMS is live (ADR 0018), then 6-digit app PIN (local unlock only, max 5 attempts → wipe local cache + sign out). Device must be approved by a manager (`attendant_devices` table, checked by the API on every attendant request).
 - Account lockout: Supabase sign-in rate limits + Upstash progressive delay per email + IP after 5 failures; no permanent lockout (DoS); alert owner after 10.
 - Password reset: Supabase recovery link (single-use, 30 min), redirect URL allowlisted; API signs out all other sessions (`signOut({scope:'others'})`) after reset.
 
