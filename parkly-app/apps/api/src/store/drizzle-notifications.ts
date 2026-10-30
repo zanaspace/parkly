@@ -95,7 +95,8 @@ export function drizzleNotifications(db: Db): Store['notifications'] {
     async dueReminders(now, windows) {
       const startBy = new Date(now.getTime() + windows.startWithinMin * MINUTE_MS);
       const endBy = new Date(now.getTime() + windows.endWithinMin * MINUTE_MS);
-      const [starts, ends] = await Promise.all([
+      const noShowFrom = new Date(now.getTime() - windows.noShowSinceMin * MINUTE_MS);
+      const [starts, ends, noShows] = await Promise.all([
         candidates(
           'START',
           and(
@@ -114,8 +115,18 @@ export function drizzleNotifications(db: Db): Store['notifications'] {
             notQueued('booking.reminder_end'),
           ),
         ),
+        // Marked by fn_mark_no_shows in the database (pg_cron), so found here.
+        candidates(
+          'NO_SHOW',
+          and(
+            eq(bookings.status, 'NO_SHOW'),
+            gt(bookings.startAt, noShowFrom),
+            lte(bookings.startAt, now),
+            notQueued('booking.no_show'),
+          ),
+        ),
       ]);
-      return [...starts, ...ends];
+      return [...starts, ...ends, ...noShows];
     },
   };
 }

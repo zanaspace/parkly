@@ -108,8 +108,10 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     maps: new FakeMapsProvider(),
     ...overrides,
   };
-  // Shares the test's store, clock and key, so a test can read what was queued.
-  const notifications =
+  // Shares the test's store, key and clock (read live: tests move it), so a
+  // test can read what was queued.
+  const full = { ...deps } as AppDeps;
+  full.notifications =
     overrides.notifications ??
     new NotificationService({
       sms: deps.sms.primary,
@@ -118,9 +120,9 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
       store: deps.store,
       logger: deps.logger,
       crypto: deps.crypto,
-      now: deps.now,
+      now: () => full.now(),
     });
-  return { ...deps, notifications };
+  return full;
 }
 
 /** A full context for route tests: store, fakes and signed-in users. */

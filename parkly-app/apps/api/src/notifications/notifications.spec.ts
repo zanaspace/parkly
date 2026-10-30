@@ -73,7 +73,6 @@ describe('Notification Templates', () => {
         bookingCode: 'PK-ABCDEF',
         lotName: 'Adetokunbo Ademola Lot',
         newEndAt: '2026-10-20T10:00:00.000Z',
-        addedMinutes: 60,
       },
       '+2348012345678',
     );
@@ -190,7 +189,6 @@ describe('Notification Templates', () => {
         bookingCode: 'PK-EXT',
         lotName: 'Eko Lot',
         newEndAt: '2026-10-20T10:00:00.000Z',
-        addedMinutes: 60,
       },
       tokens,
     );

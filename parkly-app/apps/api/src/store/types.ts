@@ -31,9 +31,9 @@ export type NotificationRow = {
   sentAt: Date | null;
 };
 
-/** A booking due a start or end reminder that hasn't been queued yet. */
+/** A booking due a reminder or a no-show notice that hasn't been queued yet. */
 export type ReminderCandidate = {
-  kind: 'START' | 'END';
+  kind: 'START' | 'END' | 'NO_SHOW';
   bookingId: string;
   driverId: string;
   bookingCode: string;
@@ -952,12 +952,13 @@ export type Store = {
       },
     ): Promise<void>;
     /**
-     * Confirmed bookings starting within `startWithinMin`, and confirmed or
-     * checked-in bookings ending within `endWithinMin`, not yet reminded.
+     * Confirmed bookings starting within `startWithinMin`, confirmed or
+     * checked-in bookings ending within `endWithinMin`, and no-shows that
+     * started within the last `noShowSinceMin`, not yet notified.
      */
     dueReminders(
       now: Date,
-      windows: { startWithinMin: number; endWithinMin: number },
+      windows: { startWithinMin: number; endWithinMin: number; noShowSinceMin: number },
     ): Promise<ReminderCandidate[]>;
   };
   attend: {

@@ -36,7 +36,6 @@ export type NotificationEvent =
       bookingCode: string;
       lotName: string;
       newEndAt: string;
-      addedMinutes: number;
     }
   | {
       key: 'booking.cancelled';

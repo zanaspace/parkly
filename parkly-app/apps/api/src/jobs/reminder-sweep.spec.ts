@@ -194,4 +194,66 @@ describe('Story 4 Background Jobs: mark-no-shows and sweep-reminders', () => {
     clock.advance(30 * 60_000);
     expect((await job({ payload: {}, deadline })).processed).toBe(1);
   });
+
+  it('tells the driver once about a booking the database marked as a no-show', async () => {
+    const store = new MemoryStore();
+    const clock = new FakeClock(new Date('2026-10-20T08:00:00Z'));
+    const crypto = createCrypto({
+      encKeys: { v1: randomBytes(32) },
+      currentEncVersion: 'v1',
+      pepper: 'test-pepper-test-pepper-test-pepper',
+    });
+    const notifications = new NotificationService({
+      sms: new FakeSmsProvider(),
+      push: new FakePushProvider(),
+      email: new FakeEmailProvider(),
+      store,
+      logger: createLogger({ level: 'silent' }),
+      crypto,
+      now: () => clock.now(),
+    });
+    const lotId = randomUUID();
+    store.lotRows.set(lotId, { name: 'Eko Lot' } as never);
+    const base = {
+      driverId: randomUUID(),
+      vehicleId: randomUUID(),
+      plateNorm: 'ABC123XY',
+      lotId,
+      ratePlanId: randomUUID(),
+      product: 'HOURLY' as const,
+      holdExpiresAt: null,
+      priceKobo: 100_000,
+      serviceFeeKobo: 10_000,
+      totalKobo: 110_000,
+      commissionBps: 1200,
+      pricingBreakdown: null,
+      source: 'MOBILE' as const,
+      version: 1,
+      createdAt: new Date('2026-10-19T07:00:00Z'),
+    };
+    // Marked NO_SHOW by fn_mark_no_shows (pg_cron) after the 30-minute grace.
+    const missed = {
+      ...base,
+      id: randomUUID(),
+      code: 'PK-MISS01',
+      startAt: new Date('2026-10-20T07:00:00Z'),
+      endAt: new Date('2026-10-20T09:00:00Z'),
+      status: 'NO_SHOW' as const,
+    };
+    // A no-show from days ago is not announced now.
+    const old = {
+      ...missed,
+      id: randomUUID(),
+      code: 'PK-OLD001',
+      startAt: new Date('2026-10-17T07:00:00Z'),
+      endAt: new Date('2026-10-17T09:00:00Z'),
+    };
+    store.booking.bookingRows.push(missed, old);
+
+    const job = reminderSweepJob({ store, notifications, now: () => clock.now() });
+    const deadline = new Date('2100-01-01T00:00:00Z');
+    expect((await job({ payload: {}, deadline })).processed).toBe(1);
+    expect(store.outbox.rows.map((r) => r.dedupeKey)).toEqual([`booking.no_show:${missed.id}`]);
+    expect((await job({ payload: {}, deadline })).processed).toBe(0);
+  });
 });

@@ -81,6 +81,13 @@ export class MemoryNotifications {
           !queued.has(`booking.reminder_end:${b.id}`)
         )
           out.push({ kind: 'END', ...base });
+        if (
+          b.status === 'NO_SHOW' &&
+          start <= t &&
+          start > t - windows.noShowSinceMin * MINUTE_MS &&
+          !queued.has(`booking.no_show:${b.id}`)
+        )
+          out.push({ kind: 'NO_SHOW', ...base });
       }
       return out;
     },
