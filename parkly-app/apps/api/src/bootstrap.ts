@@ -199,6 +199,15 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     }),
     crypto,
     sms: { primary },
+    ...(config.emailHookSecret
+      ? {
+          authEmail: {
+            provider: email,
+            hookSecret: config.emailHookSecret,
+            supabaseUrl: config.supabase.url,
+          },
+        }
+      : {}),
     notifications,
     sessions,
     settlement,

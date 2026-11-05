@@ -162,6 +162,13 @@ export function world(overrides: Partial<AppDeps> = {}) {
       links: { web: 'http://localhost:3000', portal: 'http://localhost:3001' },
       emailLive: () => emailIsLive,
     });
+  // Auth emails (ADR 0022) go to the same visible fake, signed like the SMS hook.
+  if (!('authEmail' in overrides))
+    deps.authEmail = {
+      provider: email,
+      hookSecret: TEST_HOOK_SECRET,
+      supabaseUrl: 'https://test.supabase.co',
+    };
   const app = createApp(deps);
 
   const user = (

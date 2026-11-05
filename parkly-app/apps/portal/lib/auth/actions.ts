@@ -178,7 +178,7 @@ export async function requestPasswordReset(_prev: FormState, form: FormData): Pr
   // Same answer whether or not the account exists.
   return {
     message:
-      'If an account uses that email, we’ve sent a link to reset the password. It expires in 30 minutes.',
+      'If an account uses that email, we’ve sent a link to reset the password. It expires in 5 minutes.',
   };
 }
 

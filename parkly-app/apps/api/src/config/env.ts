@@ -29,6 +29,8 @@ const EnvSchema = z
     /** Publishable (anon) key; used only as the `apikey` header when signing users out. */
     SUPABASE_PUBLISHABLE_KEY: z.string().min(20).optional(),
     SUPABASE_SMS_HOOK_SECRET: z.string().startsWith('v1,whsec_').optional(),
+    /** Send Email Hook secret (ADR 0022). Set it and every auth email goes out through EMAIL_PROVIDER. */
+    SUPABASE_EMAIL_HOOK_SECRET: z.string().startsWith('v1,whsec_').optional(),
     HASH_PEPPER_V1: z.string().min(32).optional(),
     ENC_KEY_V1: base64Key.optional(),
     ENC_KEY_V2: base64Key.optional(),
@@ -121,6 +123,14 @@ const EnvSchema = z
       required('RESEND_API_KEY');
       required('EMAIL_FROM');
     }
+    // Auth codes and reset links would only be logged: nobody could sign in.
+    if (
+      env.SUPABASE_EMAIL_HOOK_SECRET &&
+      env.APP_ENV !== 'local' &&
+      env.EMAIL_PROVIDER !== 'resend'
+    )
+      issue('EMAIL_PROVIDER', 'must be resend when SUPABASE_EMAIL_HOOK_SECRET is set');
+    if (env.APP_ENV === 'prod') required('SUPABASE_EMAIL_HOOK_SECRET');
     if (env.APP_ENV === 'prod') {
       if (env.EMAIL_PROVIDER !== 'resend') issue('EMAIL_PROVIDER', 'must be resend in prod');
       if (env.PUSH_PROVIDER !== 'expo') issue('PUSH_PROVIDER', 'must be expo in prod');
@@ -136,6 +146,8 @@ export type AppConfig = {
   databaseUrl: string | undefined;
   supabase: { url: string; publishableKey: string | undefined };
   smsHookSecret: string;
+  /** Unset until the Send Email Hook is switched on in Supabase (ADR 0022). */
+  emailHookSecret: string | null;
   hashPepper: string;
   encKeys: Record<string, Buffer>;
   encKeyCurrent: string;
@@ -194,6 +206,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       publishableKey: e.SUPABASE_PUBLISHABLE_KEY,
     },
     smsHookSecret: e.SUPABASE_SMS_HOOK_SECRET ?? LOCAL.smsHookSecret,
+    emailHookSecret: e.SUPABASE_EMAIL_HOOK_SECRET ?? null,
     hashPepper: e.HASH_PEPPER_V1 ?? LOCAL.pepper,
     encKeys,
     encKeyCurrent: e.ENC_KEY_CURRENT,
