@@ -56,21 +56,33 @@ describe('Send Email Hook (ADR 0022)', () => {
     const op = w.email.sent[1];
     expect(op?.subject).toBe('Confirm your email for Parkly');
     expect(op?.html).not.toContain('123456');
-    expect(op?.html).toContain(
-      `${SUPABASE}/auth/v1/verify?token=hash_for_new_or_only_address&amp;type=signup`,
+    // verifyOtp's name for a signup confirmation is `email`.
+    expect(op?.text).toContain(
+      'https://portal.parkly.test/auth/confirm?next=%2Fupdate-password&token_hash=hash_for_new_or_only_address&type=email',
     );
   });
 
-  it('password reset: a link through Supabase verify back to our /auth/confirm', async () => {
+  it('password reset: the link goes straight to our /auth/confirm, so it opens in any browser', async () => {
     const w = world();
     expect((await send(w, payload('recovery'))).status).toBe(200);
     const m = w.email.sent[0];
     expect(m?.subject).toBe('Reset your Parkly password');
-    const url = new URL(
-      `${SUPABASE}/auth/v1/verify?token=hash_for_new_or_only_address&type=recovery&redirect_to=${encodeURIComponent('https://portal.parkly.test/auth/confirm?next=/update-password')}`,
+    const link = new URL(
+      /https:\/\/portal\.parkly\.test\/auth\/confirm\S+/.exec(m?.text ?? '')?.[0] ?? 'x:',
     );
-    expect(m?.text).toContain(url.toString());
+    expect(link.searchParams.get('token_hash')).toBe('hash_for_new_or_only_address');
+    expect(link.searchParams.get('type')).toBe('recovery');
+    expect(link.searchParams.get('next')).toBe('/update-password');
+    expect(m?.text).not.toContain(SUPABASE);
     expect(m?.html).not.toContain('123456');
+  });
+
+  it('falls back to Supabase verify when the app didn’t ask to come back to /auth/confirm', async () => {
+    const w = world();
+    await send(w, payload('recovery', { data: { redirect_to: 'parkly://reset' } }));
+    expect(w.email.sent[0]?.text).toContain(
+      `${SUPABASE}/auth/v1/verify?token=hash_for_new_or_only_address&type=recovery&redirect_to=parkly%3A%2F%2Freset`,
+    );
   });
 
   it('secure email change: two emails, with Supabase’s reversed token names', async () => {
@@ -83,8 +95,8 @@ describe('Send Email Hook (ADR 0022)', () => {
       }),
     );
     const byTo = Object.fromEntries(w.email.sent.map((m) => [m.to, m.text]));
-    expect(byTo['old@example.com']).toContain('token=hash_for_current');
-    expect(byTo['new@example.com']).toContain('token=hash_for_new_or_only_address');
+    expect(byTo['old@example.com']).toContain('token_hash=hash_for_current');
+    expect(byTo['new@example.com']).toContain('token_hash=hash_for_new_or_only_address');
   });
 
   it('security notices are sent and are not rate limited', async () => {

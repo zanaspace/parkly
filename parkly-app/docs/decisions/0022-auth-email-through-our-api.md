@@ -23,7 +23,7 @@ That split meant two senders, two looks, templates living in a dashboard rather 
    - **Links:** `recovery`, `invite`, `email_change`, and operator `signup` (`operator_signup` in the user's metadata).
    - **Security notices:** any `*_notification` type, if those are enabled in Supabase.
    - **Anything else** is refused with 400, so a new Supabase type fails loudly instead of sending nothing.
-3. **Links go through Supabase's `/auth/v1/verify`** with the token hash and the app's `redirect_to`, exactly as Supabase's own `{{ .ConfirmationURL }}` did. The portal and admin `/auth/confirm` routes are unchanged.
+3. **Links go straight to the app's `/auth/confirm`** with `token_hash` and `type`, and the page calls `verifyOtp`. This works in any browser, including the one inside the Gmail app. Supabase's own link used the PKCE `code` exchange, which only works in the browser that asked for the email, so a reset link opened from Gmail showed "expired" (found Nov 6). When `redirect_to` isn't an `/auth/confirm` page, the link falls back to Supabase's `/auth/v1/verify`.
 4. **Security rules match the SMS hook.**
    - The Standard Webhooks signature is checked against `SUPABASE_EMAIL_HOOK_SECRET`.
    - Codes and links are limited per account: 3 per 15 min, 5 per hour, 10 per day. The limit is keyed on the Supabase user id, so no address is stored. Security notices aren’t limited.
