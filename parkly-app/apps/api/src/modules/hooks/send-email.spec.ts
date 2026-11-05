@@ -4,13 +4,14 @@ import { signedHook, world } from '../../test-helpers.js';
 
 const HOOK = '/hooks/supabase/send-email';
 const SUPABASE = 'https://test.supabase.co';
+const ADA = randomUUID();
 
 function payload(
   type: string,
   over: { user?: Record<string, unknown>; data?: Record<string, unknown> } = {},
 ) {
   return JSON.stringify({
-    user: { id: randomUUID(), email: 'ada@example.com', user_metadata: {}, ...over.user },
+    user: { id: ADA, email: 'ada@example.com', user_metadata: {}, ...over.user },
     email_data: {
       token: '123456',
       token_hash: 'hash_for_new_or_only_address',
@@ -108,15 +109,16 @@ describe('Send Email Hook (ADR 0022)', () => {
     expect(w.email.sent).toHaveLength(0);
   });
 
-  it('limits codes per address: the 4th in 15 minutes is refused', async () => {
+  it('limits codes per account: the 4th in 15 minutes is refused', async () => {
     const w = world();
     for (let i = 0; i < 3; i++) expect((await send(w, payload('magiclink'))).status).toBe(200);
     const res = await send(w, payload('recovery'));
     expect(res.status).toBe(429);
     expect(w.email.sent).toHaveLength(3);
-    // A different address is unaffected.
+    // Another account is unaffected.
     expect(
-      (await send(w, payload('magiclink', { user: { email: 'bo@example.com' } }))).status,
+      (await send(w, payload('magiclink', { user: { id: randomUUID(), email: 'bo@example.com' } })))
+        .status,
     ).toBe(200);
   });
 

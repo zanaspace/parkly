@@ -8,6 +8,8 @@ import { brandedEmail, button, codeCard, esc, note, paragraph } from './layout.j
  */
 export const SendEmailPayloadSchema = z.object({
   user: z.object({
+    /** Supabase's auth user id: the rate-limit key, so no address is stored. */
+    id: z.uuid(),
     email: z.string().optional().default(''),
     new_email: z.string().optional().default(''),
     user_metadata: z.record(z.string(), z.unknown()).optional().default({}),

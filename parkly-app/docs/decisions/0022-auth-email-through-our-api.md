@@ -26,7 +26,7 @@ That split meant two senders, two looks, templates living in a dashboard rather 
 3. **Links go through Supabase's `/auth/v1/verify`** with the token hash and the app's `redirect_to`, exactly as Supabase's own `{{ .ConfirmationURL }}` did. The portal and admin `/auth/confirm` routes are unchanged.
 4. **Security rules match the SMS hook.**
    - The Standard Webhooks signature is checked against `SUPABASE_EMAIL_HOOK_SECRET`.
-   - Codes and links are limited per recipient: 3 per 15 min, 5 per hour, 10 per day. The limit is keyed on a peppered hash of the address. Security notices aren't limited.
+   - Codes and links are limited per account: 3 per 15 min, 5 per hour, 10 per day. The limit is keyed on the Supabase user id, so no address is stored. Security notices aren’t limited.
    - Logs carry only the action type, never the code, the token or the address.
 5. **Config guards.**
    - Setting the hook secret outside local requires `EMAIL_PROVIDER=resend`. Otherwise codes would only be logged and nobody could sign in.

@@ -58,26 +58,25 @@ export function sendEmailHook(deps: AppDeps) {
     }
     if (messages.some((m) => !m.to.includes('@'))) return hookError(400, 'No email address');
 
-    // The same per-recipient limits as SMS codes (doc 05 §4.1), keyed on a hash
-    // so no address sits in Redis.
+    // The same limits as SMS codes (doc 05 §4.1), per account. Keyed on the auth
+    // user id, so no address sits in Redis. One hook call counts once, even when
+    // an email change sends to both addresses.
     if (!isNotice(type)) {
-      for (const m of messages) {
-        const key = `email:${deps.crypto.lookupHash(m.to.toLowerCase()).toString('hex')}`;
-        for (const rule of OTP_PHONE_RULES) {
-          const { success } = await deps.rateLimiter.limit(key, {
-            ...rule,
-            name: rule.name.replace('phone', 'email'),
-          });
-          if (!success) {
-            deps.logger.warn(
-              { event: 'auth_email.rate_limited', type, rule: rule.name },
-              'auth email blocked',
-            );
-            return hookError(
-              429,
-              'Too many emails requested. Please wait a few minutes and try again.',
-            );
-          }
+      const key = `auth-email:${payload.user.id}`;
+      for (const rule of OTP_PHONE_RULES) {
+        const { success } = await deps.rateLimiter.limit(key, {
+          ...rule,
+          name: rule.name.replace('phone', 'email'),
+        });
+        if (!success) {
+          deps.logger.warn(
+            { event: 'auth_email.rate_limited', type, rule: rule.name },
+            'auth email blocked',
+          );
+          return hookError(
+            429,
+            'Too many emails requested. Please wait a few minutes and try again.',
+          );
         }
       }
     }
