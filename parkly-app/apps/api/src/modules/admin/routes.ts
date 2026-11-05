@@ -104,9 +104,7 @@ export function adminRoutes(deps: AppDeps) {
   const adminAuth = [authenticate(deps.verifyToken), loadActor(deps.store)];
   const adminBooking = async (bookingOrId: string | BookingRow) => {
     const booking =
-      typeof bookingOrId === 'string'
-        ? await deps.store.bookings.find(bookingOrId)
-        : bookingOrId;
+      typeof bookingOrId === 'string' ? await deps.store.bookings.find(bookingOrId) : bookingOrId;
     if (!booking) throw new ApiError('NOT_FOUND');
     const [lot, session] = await Promise.all([
       deps.store.lots.findById(booking.lotId),
