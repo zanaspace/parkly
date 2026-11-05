@@ -18,6 +18,7 @@ import { adminLotRoutes } from './modules/admin/lots.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
+import { sendEmailHook } from './modules/hooks/send-email.js';
 import { sendSmsHook } from './modules/hooks/send-sms.js';
 import { meRoutes } from './modules/me/routes.js';
 import { kybRoutes } from './modules/kyb/routes.js';
@@ -32,6 +33,7 @@ import { webhookRoutes } from './modules/webhooks/routes.js';
 import type {
   MapsProvider,
   MalwareScanner,
+  EmailProvider,
   PaymentProvider,
   SettlementProvider,
   SmsProvider,
@@ -55,6 +57,8 @@ export type AppDeps = {
   verifyToken: TokenVerifier;
   crypto: FieldCrypto;
   sms: { primary: SmsProvider; secondary?: SmsProvider };
+  /** Supabase Send Email Hook (ADR 0022): auth emails rendered by us, sent by `provider`. */
+  authEmail?: { provider: EmailProvider; hookSecret: string; supabaseUrl: string };
   /** Queues booking and session notifications (ADR 0020). */
   notifications: NotificationService;
   sessions: SessionRevoker;
@@ -120,6 +124,7 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/hooks', sendSmsHook(deps));
+  app.route('/hooks', sendEmailHook(deps));
 
   app.use('*', rateLimit(deps.rateLimiter, deps.now));
   app.route('/health', healthRoutes(deps.readinessChecks));

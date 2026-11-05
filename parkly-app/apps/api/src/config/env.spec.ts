@@ -70,6 +70,24 @@ describe('loadConfig', () => {
     expect(loadConfig({}).push).toEqual({ provider: 'fake' });
   });
 
+  it('sends auth email through our hook only with real email; prod must have it (ADR 0022)', () => {
+    const fail = (env: Record<string, string>) => {
+      try {
+        loadConfig(env);
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+    const secret = `v1,whsec_${Buffer.from('a-32-byte-test-key-for-the-hook!').toString('base64')}`;
+    expect(fail({ APP_ENV: 'prod' })).toMatch(/SUPABASE_EMAIL_HOOK_SECRET/);
+    expect(fail({ APP_ENV: 'dev', SUPABASE_EMAIL_HOOK_SECRET: secret })).toMatch(
+      /EMAIL_PROVIDER: must be resend when SUPABASE_EMAIL_HOOK_SECRET is set/,
+    );
+    expect(loadConfig({}).emailHookSecret).toBeNull();
+    expect(loadConfig({ SUPABASE_EMAIL_HOOK_SECRET: secret }).emailHookSecret).toBe(secret);
+  });
+
   it('never falls back to the local secret outside local', () => {
     expect(() => loadConfig({ APP_ENV: 'staging' })).toThrow(/JOB_HMAC_SECRET/);
   });

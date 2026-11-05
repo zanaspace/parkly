@@ -1,3 +1,4 @@
+import { brandedEmail, button, detailsCard, esc, note, paragraph } from '../emails/layout.js';
 import type { EmailMessage, NotificationEvent, PushMessage, SmsMessage } from './types.js';
 
 function formatNaira(kobo: number): string {
@@ -24,16 +25,6 @@ const LOCAL_LINKS: TemplateLinks = { web: 'http://localhost:3000' };
 
 const bookingUrl = (links: TemplateLinks, bookingId: string) =>
   `${links.web.replace(/\/$/, '')}/bookings/${encodeURIComponent(bookingId)}`;
-
-/** Lot names and codes are typed by operators: never raw in HTML. */
-const ENTITIES: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-};
-const esc = (s: string | undefined) => (s ?? '').replace(/[&<>"']/g, (ch) => ENTITIES[ch] ?? ch);
 
 /** One 160-character SMS. A long lot name shortens the text, never the link. */
 function sms(text: string, link?: string): string {
@@ -168,85 +159,64 @@ export function renderEmail(
   email: string,
   links: TemplateLinks = LOCAL_LINKS,
 ): EmailMessage | null {
+  // Lot names and codes are typed by operators: escaped before they go in HTML.
   const code = esc(event.bookingCode);
   const lot = esc(event.lotName);
-  const link = esc(bookingUrl(links, event.bookingId));
+  const link = bookingUrl(links, event.bookingId);
   let subject: string;
   let heading: string;
-  let content: string;
+  let body: string;
 
   switch (event.key) {
     case 'booking.confirmed':
-      subject = `Booking Confirmed: ${event.bookingCode} at ${event.lotName}`;
-      heading = 'Your Parking Space is Confirmed';
-      content = `
-        <p>Your parking booking at <strong>${lot}</strong> is confirmed.</p>
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0 0 8px;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 16px;">${code}</span></p>
-          <p style="margin: 0 0 8px;"><strong>Location:</strong> ${lot}</p>
-          <p style="margin: 0 0 8px;"><strong>Starts:</strong> ${formatLagosTime(event.startAt)}</p>
-          <p style="margin: 0 0 8px;"><strong>Ends:</strong> ${formatLagosTime(event.endAt)}</p>
-          <p style="margin: 0;"><strong>Total Paid:</strong> ${formatNaira(event.totalKobo)}</p>
-        </div>
-        <p>Show your digital QR code or booking code to the attendant when arriving at the car park.</p>
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${link}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Booking & Ticket</a>
-        </div>
-      `;
+      subject = `Booking confirmed: ${event.bookingCode} at ${event.lotName}`;
+      heading = 'Your parking space is confirmed';
+      body = [
+        paragraph(`Your parking booking at <strong>${lot}</strong> is confirmed.`),
+        detailsCard([
+          [
+            'Booking code',
+            `<span style="font-family: 'SF Mono', Consolas, Monaco, monospace">${code}</span>`,
+          ],
+          ['Car park', lot],
+          ['Starts', esc(formatLagosTime(event.startAt))],
+          ['Ends', esc(formatLagosTime(event.endAt))],
+          ['Total paid', esc(formatNaira(event.totalKobo))],
+        ]),
+        paragraph('Show your QR code or booking code to the attendant when you arrive.'),
+        button('View booking and ticket', link),
+      ].join('');
       break;
 
     case 'booking.cancelled':
-      subject = `Booking Cancelled: ${event.bookingCode}`;
-      heading = 'Booking Cancellation';
-      content = `
-        <p>Your booking <strong>${code}</strong> at <strong>${lot}</strong> has been cancelled.</p>
-        ${
-          event.refundKobo > 0
-            ? `<p style="color: #065f46; font-weight: bold;">A refund of ${formatNaira(event.refundKobo)} has been initiated to your original payment method.</p>`
-            : '<p>In accordance with our cancellation policy, no refund is due for late cancellation.</p>'
-        }
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${link}/receipt" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">View Receipt</a>
-        </div>
-      `;
+      subject = `Booking cancelled: ${event.bookingCode}`;
+      heading = 'Your booking was cancelled';
+      body = [
+        paragraph(
+          `Your booking <strong>${code}</strong> at <strong>${lot}</strong> has been cancelled.`,
+        ),
+        event.refundKobo > 0
+          ? paragraph(
+              `<strong>A refund of ${esc(formatNaira(event.refundKobo))} has been initiated</strong> to your original payment method.`,
+            )
+          : paragraph(
+              'In accordance with our cancellation policy, no refund is due for late cancellation.',
+            ),
+        button('View receipt', `${link}/receipt`),
+      ].join('');
       break;
 
     default:
       return null;
   }
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #111827; margin: 0; padding: 24px; }
-    .card { background: #ffffff; max-width: 580px; margin: 0 auto; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: #008080; color: #ffffff; padding: 24px; text-align: center; }
-    .content { padding: 28px; line-height: 1.6; }
-    .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <h1 style="margin: 0; font-size: 24px;">Parkly</h1>
-      <p style="margin: 4px 0 0; opacity: 0.85; font-size: 13px;">Smart Cashless Parking</p>
-    </div>
-    <div class="content">
-      <h2 style="color: #008080; font-size: 20px; margin-top: 0;">${heading}</h2>
-      ${content}
-    </div>
-    <div class="footer">
-      <p style="margin: 0 0 4px;">Parkly Technologies Ltd • Lagos, Nigeria</p>
-      <p style="margin: 0;">Need help? Email <a href="mailto:support@parkly.ng" style="color: #008080;">support@parkly.ng</a></p>
-    </div>
-  </div>
-</body>
-</html>`;
+  const html = brandedEmail({ title: subject, preheader: subject, heading, body });
+  const text = `${heading}
 
-  const text = `${heading}\n\nBooking: ${event.bookingCode}\nLocation: ${event.lotName}\n\nParkly Technologies Ltd • support@parkly.ng`;
+Booking: ${event.bookingCode}
+Car park: ${event.lotName}
 
+${link}`;
   return { to: email, subject, text, html };
 }
 
@@ -258,32 +228,24 @@ export function renderInviteEmail(input: {
   link: string;
 }): EmailMessage {
   const business = esc(input.businessName);
-  const link = esc(input.link);
   const as = input.role === 'MANAGER' ? 'a manager' : 'an attendant';
   const next =
     input.role === 'MANAGER'
       ? 'Open the link, sign in or create an account with this email, then accept.'
       : 'Open the link on the phone you will use at the gate and sign in with the code we send to this email.';
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #111827; margin: 0; padding: 24px;">
-  <div style="background: #ffffff; max-width: 580px; margin: 0 auto; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
-    <div style="background: #008080; color: #ffffff; padding: 24px; text-align: center;">
-      <h1 style="margin: 0; font-size: 24px;">Parkly</h1>
-    </div>
-    <div style="padding: 28px; line-height: 1.6;">
-      <h2 style="color: #008080; font-size: 20px; margin-top: 0;">${business} invited you to Parkly</h2>
-      <p>${business} has invited you to join their team as ${as}.</p>
-      <p>${esc(next)}</p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="${link}" style="background: #008080; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">Accept the invite</a>
-      </div>
-      <p style="font-size: 13px; color: #6b7280;">This link works once and expires in 72 hours. If you weren't expecting it, ignore this email.</p>
-    </div>
-  </div>
-</body>
-</html>`;
+  const html = brandedEmail({
+    title: `${input.businessName} invited you to Parkly`,
+    preheader: `Join ${input.businessName} on Parkly as ${as}.`,
+    heading: `${input.businessName} invited you to Parkly`,
+    body: [
+      paragraph(`${business} has invited you to join their team as ${as}.`),
+      paragraph(esc(next)),
+      button('Accept the invite', input.link),
+      note(
+        'This link works once and expires in 72 hours. If you weren’t expecting it, ignore this email.',
+      ),
+    ].join(''),
+  });
   const text = `${input.businessName} invited you to Parkly as ${as}.\n\n${next}\n\n${input.link}\n\nThis link works once and expires in 72 hours.`;
   return { to: input.to, subject: `${input.businessName} invited you to Parkly`, html, text };
 }

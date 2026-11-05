@@ -29,8 +29,8 @@
 | GitHub environments / secrets | ❌ not set (repo `zanaspace/parkly`); `gh` CLI not installed, so use the website |
 | Custom Access Token Hook, Send SMS Hook (hosted) | ❌ not enabled (S1 carry-over) |
 | Vault secrets, `parkly_api` login (hosted) | ❌ not set (S0 carry-over) |
-| Auth email sender (dev, Oct 30) | ⚠️ Gmail SMTP with an app password, for testing only. Resend needs a verified domain to reach anyone but the account owner (§2.3a). |
-| Email codes (dev, Oct 30) | ✅ 6 digits, 300 s; Confirm signup and Magic Link templates from `supabase/templates/` |
+| Auth email sender (dev) | ⚠️ Moving to our Send Email Hook through Resend (ADR 0022, §2.3a). Resend domain `parkly.sellytichq.com` verified Nov 5; `EMAIL_PROVIDER=resend` on `parkly-api` Production. Until the hook is enabled, Supabase still sends through Gmail SMTP. |
+| Email codes (dev, Oct 30) | ✅ 6 digits, 300 s. Templates come from our API once the Send Email Hook is on (ADR 0022). |
 | Turnstile captcha (dev, Oct 30) | ✅ On in Supabase; site key on the portal, admin and web Vercel projects and the mobile preview build; mobile `production` EAS env still to set (§2.3b) |
 
 ---
@@ -90,11 +90,11 @@ Run `pnpm exec supabase config diff` to preview, then `pnpm exec supabase config
 Drivers sign in with a 6-digit code by email until SMS is live. In each project:
 
 1. **Auth → Sign In / Providers → Email:** enabled. Keep "Confirm email" on. Set **Email OTP Length** to `6` (every sign-in form expects 6 digits; new hosted projects default to 8) and **Email OTP Expiration** to `300`.
-2. **Auth → Email Templates:** paste the HTML from `supabase/templates/` (local Supabase uses the same files through `config.toml`).
-   - **Magic Link** (a returning driver or attendant): `magic_link.html`, subject `Your Parkly code`. It shows the code only.
-   - **Confirm signup** (a brand-new address): `confirmation.html`, subject `Confirm your Parkly account`. It shows the **link only** to operators who signed up with a password in the portal (the sign-up sets `operator_signup` in user metadata), and the **code only** to everyone else (drivers and attendants signing in by email code).
-3. **Project Settings → Authentication → SMTP Settings: enable custom SMTP.** Supabase's built-in sender only reaches the project's own team members and a few emails an hour. Example with Resend (free tier): create an account, add and verify the sending domain (or start with Resend's test sender), create an API key, then set host `smtp.resend.com`, port `465`, user `resend`, password = the API key, sender `Parkly <no-reply@your-domain>`. The key lives only in Supabase, never in git or Vercel.
-4. **Auth → Rate Limits:** raise "emails sent per hour" once custom SMTP is on (e.g. 100 for dev).
+2. **Auth → Hooks → Send Email** (ADR 0022): add an **HTTPS** hook to `https://<api-domain>/hooks/supabase/send-email`. Click **Generate secret**, copy it (`v1,whsec_…`) and set it on the `parkly-api` Vercel project as `SUPABASE_EMAIL_HOOK_SECRET` (Sensitive) **before** you enable the hook. Check that `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` and `EMAIL_FROM` are set (§2.3c), redeploy, then enable the hook. From then on Supabase sends no email: sign-in codes, password reset, operator signup confirmation, email change and security notices are rendered in the Parkly layout by our API and sent through Resend. Email templates and SMTP settings in the dashboard are no longer used.
+3. **Remove the old sender:** turn custom SMTP off (or leave it, since the hook overrides it), and delete the Google app password from that Gmail account.
+4. **Test:** use "Forgot password" on the portal and admin, and request an email code on the mobile app and on the portal's code sign-in. Each email arrives from `EMAIL_FROM` in the Parkly layout and shows in the Resend dashboard under Emails. If a request fails with "couldn't send", the API log has `auth_email.send_failed` or `auth_email.rate_limited` (never the code or address).
+
+Locally, the hook is off by default and codes land in Inbucket using `supabase/templates/`. To try the real emails, uncomment `[auth.hook.send_email]` in `supabase/config.toml` and set `SUPABASE_EMAIL_HOOK_SECRET` in both `supabase/.env` and `apps/api/.env`.
 
 ### 2.3b Security check on sign-in (ADR 0019)
 
@@ -112,7 +112,7 @@ To turn it off, reverse the order: disable it in Supabase first, then remove the
 
 The API sends booking notices and team invites itself (Supabase only sends sign-in emails). Until these are switched on, dev logs emails and fakes push, and invites are shared by copying the link.
 
-1. **Email:** verify a sending domain in Resend (a subdomain such as `parkly.cicod.com` works; add the DNS records Resend shows). Create an API key. On the `parkly-api` Vercel project set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` (Sensitive) and `EMAIL_FROM=Parkly <no-reply@<that domain>>`, then redeploy. Use the same domain for Supabase SMTP (§2.3a) and delete the Google app password.
+1. **Email:** verify a sending domain in Resend (a subdomain such as `parkly.cicod.com` works; add the DNS records Resend shows). Create an API key. On the `parkly-api` Vercel project set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` (Sensitive) and `EMAIL_FROM=Parkly <no-reply@<that domain>>`, then redeploy. The same settings send the auth emails once the Send Email Hook is on (§2.3a).
 2. **Push:** set `PUSH_PROVIDER=expo` on `parkly-api` and redeploy. Push reaches only phones running an EAS build that registered a token after sign-in; Expo Go can't get tokens on Android.
 3. **Check:** book and pay on dev. Within a minute `notifications` has a `booking.confirmed` row with `status = 'SENT'`. A row stuck on `PENDING` with `attempts >= 3` shows the failing channel in `last_error`.
 
@@ -122,6 +122,7 @@ The API sends booking notices and team invites itself (Supabase only sends sign-
 |---|---|---|---|
 | Custom Access Token | Postgres | `public.fn_custom_access_token_hook` (created by migration) | all |
 | Send SMS | **HTTPS** | `https://<api-domain>/hooks/supabase/send-sms`. Copy the generated secret (`v1,whsec_…`) into the API env `SUPABASE_SMS_HOOK_SECRET`. | staging, prod (and dev once the API is deployed) |
+| Send Email | **HTTPS** | `https://<api-domain>/hooks/supabase/send-email`. Copy the generated secret into `SUPABASE_EMAIL_HOOK_SECRET` (§2.3a, ADR 0022). | dev, staging, prod |
 
 Until the API is deployed somewhere public, dev can't reach an HTTPS hook. Keep using test phone numbers there.
 
@@ -205,6 +206,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `SUPABASE_PUBLISHABLE_KEY` | dev publishable | staging | prod | |
 | `SUPABASE_SECRET_KEY` | dev `sb_secret_…` | staging | prod | ✅ |
 | `SUPABASE_SMS_HOOK_SECRET` | from Send SMS hook | from hook | from hook | ✅ |
+| `SUPABASE_EMAIL_HOOK_SECRET` | from Send Email hook (unset = hook off) | from Send Email hook | from Send Email hook (required) | ✅ |
 | `JOB_HMAC_SECRET` | `openssl rand -hex 32` (same value in Vault, §2.5) | own value | own value | ✅ |
 | `HASH_PEPPER_V1` | `openssl rand -hex 32` | own value | own value | ✅ |
 | `ENC_KEY_V1` | `openssl rand -base64 32` | own value | own value | ✅ |

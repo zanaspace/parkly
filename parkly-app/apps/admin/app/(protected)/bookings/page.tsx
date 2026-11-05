@@ -53,9 +53,7 @@ export default async function BookingsPage({
   const { me, accessToken } = await requireAccess();
   const params = await searchParams;
   const typed = params.q ?? params.code ?? '';
-  const currentTab: TabId = TABS.some((t) => t.id === params.tab)
-    ? (params.tab as TabId)
-    : 'all';
+  const currentTab: TabId = TABS.some((t) => t.id === params.tab) ? (params.tab as TabId) : 'all';
 
   // 1. Fetch recent bookings list
   let items: AdminBooking[] = [];
@@ -73,7 +71,8 @@ export default async function BookingsPage({
   // 2. If a specific code was selected or typed, fetch/find it
   const code = typed ? bookingCode(typed) : null;
   let selectedBooking: AdminBooking | null = null;
-  let problem: string | null = typed && !code && params.code ? 'Booking codes look like PK-3MV7BU.' : null;
+  let problem: string | null =
+    typed && !code && params.code ? 'Booking codes look like PK-3MV7BU.' : null;
 
   if (code) {
     selectedBooking = items.find((b) => b.code === code) ?? null;
@@ -117,7 +116,8 @@ export default async function BookingsPage({
     filteredItems = filteredItems.filter((b) => overstayOwed(b.overstay));
   } else if (currentTab === 'active') {
     filteredItems = filteredItems.filter(
-      (b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
+      (b) =>
+        b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
     );
   } else if (currentTab === 'completed') {
     filteredItems = filteredItems.filter((b) => b.status === 'COMPLETED');
@@ -130,7 +130,8 @@ export default async function BookingsPage({
           Bookings & Overstays
         </Text>
         <Text variant="body-sm" tone="secondary">
-          Browse bookings across all lots, inspect driver stays, and manage overstay waivers with audit tracking.
+          Browse bookings across all lots, inspect driver stays, and manage overstay waivers with
+          audit tracking.
         </Text>
       </div>
 
@@ -227,7 +228,8 @@ export default async function BookingsPage({
                 className={`pk-badge ${
                   selectedBooking.status === 'COMPLETED'
                     ? 'pk-badge--verified'
-                    : selectedBooking.status === 'CONFIRMED' || selectedBooking.status === 'CHECKED_IN'
+                    : selectedBooking.status === 'CONFIRMED' ||
+                        selectedBooking.status === 'CHECKED_IN'
                       ? 'pk-badge--live'
                       : 'pk-badge--submitted'
                 }`}

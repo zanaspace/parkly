@@ -308,6 +308,15 @@ uri = "pg-functions://postgres/public/fn_custom_access_token_hook"
 # uri = "http://host.docker.internal:4000/hooks/supabase/send-sms"
 # secrets = "env(SUPABASE_SMS_HOOK_SECRET)"
 
+# ADR 0022: every auth email (codes, password reset, signup confirmation, invites,
+# email change, security notices) is rendered and sent by our API through Resend.
+# With this on, Supabase sends no email itself and the templates/ files are unused.
+# Off locally by default so codes land in Inbucket; turn it on to test the real emails.
+# [auth.hook.send_email]
+# enabled = true
+# uri = "http://host.docker.internal:4000/hooks/supabase/send-email"
+# secrets = "env(SUPABASE_EMAIL_HOOK_SECRET)"
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 enabled = false

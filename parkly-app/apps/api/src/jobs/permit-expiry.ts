@@ -1,5 +1,6 @@
 import { checkLotTransition, listability, permitExpiryAction } from '@parkly/domain/lot';
 import { lagosDateKey } from '@parkly/domain/time';
+import { brandedEmail, esc, paragraph } from '../emails/layout.js';
 import type { Logger } from '../lib/logger.js';
 import type { EmailProvider } from '../providers/index.js';
 import { StaleVersionError, type LotRow, type PermitRow, type Store } from '../store/types.js';
@@ -7,8 +8,6 @@ import type { JobHandler } from './routes.js';
 
 const BATCH = 100;
 const SUSPEND_REASON = 'LASPA permit expired. Upload the renewed permit to go live again.';
-
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
 function email(lot: LotRow, permit: PermitRow, kind: 'remind' | 'suspended', days?: number) {
   const subject =
@@ -19,7 +18,13 @@ function email(lot: LotRow, permit: PermitRow, kind: 'remind' | 'suspended', day
     kind === 'remind'
       ? `The LASPA permit ${permit.permitNumber} for ${lot.name} expires on ${permit.expiresAt}. Renew it with LASPA and upload the new permit on the Parkly portal so the lot stays live.`
       : `The LASPA permit ${permit.permitNumber} for ${lot.name} expired on ${permit.expiresAt}, so the lot is hidden from drivers. Upload the renewed permit on the Parkly portal; once Parkly approves it the lot can go live again.`;
-  return { subject, text, html: `<p>${escapeHtml(text)}</p>` };
+  const heading =
+    kind === 'remind' ? 'Your LASPA permit is expiring' : 'Your car park is suspended';
+  return {
+    subject,
+    text,
+    html: brandedEmail({ title: subject, preheader: subject, heading, body: paragraph(esc(text)) }),
+  };
 }
 
 /**
