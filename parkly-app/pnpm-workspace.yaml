@@ -11,6 +11,9 @@ onlyBuiltDependencies:
 overrides:
   # jsdom (UI tests) pulls undici 8.12.1; 8.12.2 fixes four advisories and is within jsdom's range.
   undici@>=8.0.0 <8.12.2: 8.12.2
+  # @expo/cli (developer CLI) pulls node-forge 1.4.0; 1.4.2 fixes five high advisories
+  # (GHSA-7wch, -jc66, -8hrf, -hqq3, -5x38) and is within its ^1 range.
+  node-forge@<1.4.1: 1.4.2
 
 # Advisories with no compatible fix, accepted until the upstream package moves
 # (doc 05 CI gates). Review by 2027-01-31 or at the next Expo SDK upgrade,
@@ -18,9 +21,6 @@ overrides:
 # shows the vulnerable version.
 auditConfig:
   ignoreGhsas:
-    # node-forge ≤1.4.0 (no patched release), via expo > @expo/cli: the developer
-    # CLI only, never bundled into the app.
-    - GHSA-86w9-cpqp-85rv
     # zod <4.6.6 via expo > @expo/cli: the fix is zod 4, which the CLI isn't built
     # for. Developer CLI only. Our own code uses zod 4.6.7.
     - GHSA-mrhx-c7xc-m3w5
