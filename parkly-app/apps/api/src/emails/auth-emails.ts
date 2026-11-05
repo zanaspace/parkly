@@ -32,10 +32,29 @@ export const AUTH_EMAIL_EXPIRY_MINUTES = 5;
 const NOT_YOU = 'If you didn’t ask for this, you can ignore this email. Your account is safe.';
 
 /**
- * The link Supabase would have put in {{ .ConfirmationURL }}: Supabase checks the
- * token, then sends the browser to `redirect_to` (our /auth/confirm), which works
- * for both the PKCE `code` and the `token_hash` flow.
+ * The link in an auth email. When the app asked to come back to its own
+ * /auth/confirm (portal, admin), the token hash goes straight there and the page
+ * calls verifyOtp: that works in any browser, including the one inside the Gmail
+ * app. Supabase's own link went through the PKCE `code` exchange, which only
+ * works in the browser that asked for the email, so links opened elsewhere
+ * showed "expired". Anything else falls back to Supabase's verify endpoint.
  */
+export function authLink(supabaseUrl: string, tokenHash: string, type: string, redirectTo: string) {
+  const target = URL.canParse(redirectTo) ? new URL(redirectTo) : null;
+  const toConfirmPage =
+    target !== null &&
+    (target.protocol === 'https:' || target.protocol === 'http:') &&
+    target.pathname.replace(/\/$/, '').endsWith('/auth/confirm');
+  if (target && toConfirmPage) {
+    target.searchParams.set('token_hash', tokenHash);
+    // verifyOtp names a signup confirmation `email` (`signup` is deprecated).
+    target.searchParams.set('type', type === 'signup' ? 'email' : type);
+    return target.toString();
+  }
+  return verifyUrl(supabaseUrl, tokenHash, type, redirectTo);
+}
+
+/** Supabase's own {{ .ConfirmationURL }}: it checks the token, then redirects to `redirect_to`. */
 export function verifyUrl(
   supabaseUrl: string,
   tokenHash: string,
@@ -152,7 +171,7 @@ export function renderAuthEmails(
   const { user, email_data: d } = payload;
   const type = d.email_action_type;
   const link = (hash: string, linkType = type) =>
-    verifyUrl(supabaseUrl, hash, linkType, d.redirect_to);
+    authLink(supabaseUrl, hash, linkType, d.redirect_to);
 
   switch (type) {
     // Drivers and attendants sign in with a 6-digit code (ADR 0015). A first
