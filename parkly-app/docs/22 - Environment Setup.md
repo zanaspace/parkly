@@ -29,7 +29,7 @@
 | GitHub environments / secrets | ❌ not set (repo `zanaspace/parkly`); `gh` CLI not installed, so use the website |
 | Custom Access Token Hook, Send SMS Hook (hosted) | ❌ not enabled (S1 carry-over) |
 | Vault secrets, `parkly_api` login (hosted) | ❌ not set (S0 carry-over) |
-| Auth email sender (dev) | ⚠️ Moving to our Send Email Hook through Resend (ADR 0022, §2.3a). Resend domain `parkly.sellytichq.com` verified Nov 5; `EMAIL_PROVIDER=resend` on `parkly-api` Production. Until the hook is enabled, Supabase still sends through Gmail SMTP. |
+| Auth email sender (dev, Nov 6) | ✅ Send Email Hook → `parkly-api` → Resend from `no-reply@parkly.sellytichq.com` (ADR 0022). Password reset tested on portal and admin, including links opened from the Gmail app. Gmail SMTP retired. |
 | Email codes (dev, Oct 30) | ✅ 6 digits, 300 s. Templates come from our API once the Send Email Hook is on (ADR 0022). |
 | Turnstile captcha (dev, Oct 30) | ✅ On in Supabase; site key on the portal, admin and web Vercel projects and the mobile preview build; mobile `production` EAS env still to set (§2.3b) |
 
