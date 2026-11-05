@@ -27,7 +27,8 @@
 | Vercel (dev hosting) | ✅ Team `sellytics-1483` (**Hobby**, temporary: for dev only, move to a Parkly Pro team before staging). Projects **`parkly-api`** → https://parkly-api-six.vercel.app (`/health/ready`: db ok, redis ok) and **`parkly-admin`** → https://parkly-khaki.vercel.app (admin sign-in with TOTP verified) and **`parkly-portal`** → https://parkly-portal.vercel.app (pages load; operators exist from S2 slice A). and **`parkly-web`** → https://parkly-web-two.vercel.app (placeholder page until S3). All point at the **dev** Supabase project for Production and Preview; the API allows all three sites (`CORS_ORIGINS`). Preview deployments are behind Vercel Authentication; on Hobby the production URLs are public (admin still needs password + TOTP; no IP allowlist until Pro). |
 | Upstash | ✅ Redis in eu-west-1 (free), used by `parkly-api` |
 | GitHub environments / secrets | ❌ not set (repo `zanaspace/parkly`); `gh` CLI not installed, so use the website |
-| Custom Access Token Hook, Send SMS Hook (hosted) | ❌ not enabled (S1 carry-over) |
+| Custom Access Token Hook (hosted dev, Nov 6) | ✅ Postgres hook `public.fn_custom_access_token_hook`; dry-run on dev returned the right `app_roles` and `operator_id`. Claims are a UI hint only; the API re-reads roles every request. |
+| Send SMS Hook (hosted) | ❌ not enabled; waits for an SMS provider (S1 carry-over) |
 | Vault secrets, `parkly_api` login (hosted) | ❌ not set (S0 carry-over) |
 | Auth email sender (dev, Nov 6) | ✅ Send Email Hook → `parkly-api` → Resend from `no-reply@parkly.sellytichq.com` (ADR 0022). Password reset tested on portal and admin, including links opened from the Gmail app. Gmail SMTP retired. |
 | Email codes (dev, Oct 30) | ✅ 6 digits, 300 s. Templates come from our API once the Send Email Hook is on (ADR 0022). |
