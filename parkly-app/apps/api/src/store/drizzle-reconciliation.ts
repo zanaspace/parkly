@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type {
   ReconciliationItemRecord,
@@ -127,9 +127,14 @@ export function drizzleReconciliation(db: Db): Store['reconciliation'] {
     async listRuns(query): Promise<ReconciliationRunRow[]> {
       const conditions = [];
       if (query.before) {
-        conditions.push(
-          sql`(${reconciliationRuns.createdAt}, ${reconciliationRuns.id}) < (${query.before.createdAt}, ${query.before.id})`,
+        const cursor = or(
+          lt(reconciliationRuns.createdAt, query.before.createdAt),
+          and(
+            eq(reconciliationRuns.createdAt, query.before.createdAt),
+            lt(reconciliationRuns.id, query.before.id),
+          ),
         );
+        if (cursor) conditions.push(cursor);
       }
       const rows = await db
         .select(runColumns)
@@ -146,12 +151,17 @@ export function drizzleReconciliation(db: Db): Store['reconciliation'] {
         conditions.push(eq(reconciliationItems.result, query.result));
       }
       if (query.unresolvedOnly) {
-        conditions.push(sql`${reconciliationItems.resolvedAt} IS NULL`);
+        conditions.push(isNull(reconciliationItems.resolvedAt));
       }
       if (query.before) {
-        conditions.push(
-          sql`(${reconciliationItems.createdAt}, ${reconciliationItems.id}) < (${query.before.createdAt}, ${query.before.id})`,
+        const cursor = or(
+          lt(reconciliationItems.createdAt, query.before.createdAt),
+          and(
+            eq(reconciliationItems.createdAt, query.before.createdAt),
+            lt(reconciliationItems.id, query.before.id),
+          ),
         );
+        if (cursor) conditions.push(cursor);
       }
       const rows = await db
         .select(itemColumns)
