@@ -61,4 +61,31 @@ Decisions I need from you
 4. **Roadmap & Sprint Timing:**
    - ADR 0023 Stages 1 & 2 (clear check-in timer + paid early start when space is free) are **built and committed** on `feat/early-start`.
    - **Proceed immediately with completing Sprint 7** (Task 4: Daily reconciliation job, Task 5: Revenue reports, Task 6: Admin finance views).
-   - Package the remaining flexible booking features (hold-then-start clock, holding fee billing, hold capacity caps) into **Sprint 8**.
+   - Package the remaining flexible booking features (hold-then-start clock, holding fee billing, hold capacity caps) into **Sprint 8**.
+
+---
+
+## 5. Operator Financial Dashboard & Payout Views (Scheduled Next)
+
+### Context & Gap Analysis
+In Sprint 7 Task 5, we engineered and verified the complete backend financial reporting engine (`GET /v1/operators/{operatorId}/reports/revenue` and `GET /v1/operators/{operatorId}/reports/statements` with PDF generation). However, the **Operator Portal (`apps/portal`)** currently only displays operational and compliance metrics (lots, bookable bays, live gate scanner, KYB status, and staff counts). 
+
+Car park owners cannot currently view their financial KPIs (gross cash collected from drivers, platform commissions, net payouts, or overstay revenue) on their portal dashboard or download their monthly financial statements.
+
+### Feature Scope & Deliverables
+1. **Executive Financial Cards on Operator Dashboard (`apps/portal/app/(protected)/page.tsx`)**:
+   - **Total Driver Cash Collected (Gross)**: Real-time sum of completed booking and overstay payments.
+   - **Net Operator Earnings**: Actual revenue credited to the operator's bank account.
+   - **Platform Commission (10%)**: Clear visibility into fees deducted.
+   - **Overstay Revenue & Counts**: Extra earnings captured from overstaying vehicles.
+2. **Dashboard Period Filter**:
+   - Dynamic range toggles: `Today` | `This Week` | `This Month` | `All Time`.
+3. **Operator Financial & Statements Hub (`apps/portal/app/(protected)/finance/page.tsx`)**:
+   - Daily breakdown table showing date, bookings count, gross intake, commission, and net earnings.
+   - Monthly Financial Statement list with one-click official PDF downloads for accounting and tax filing.
+   - Payout subaccount destination indicator (verifying linked bank account).
+
+### Timeline & Build Order
+- **Timing**: **To be built immediately next** (bridges Sprint 7 reporting to the Operator Portal UI before kicking off the Admin Support & NDPA Console).
+- **Effort**: Low-to-medium (backend APIs, ledger accounting, and statement generators are already implemented, tested, and operational).
+
