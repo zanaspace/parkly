@@ -983,3 +983,213 @@ describe('operator bookings list and export (FR-OPS-002)', () => {
     expect(t.store.auditRows.length).toBe(before);
   });
 });
+
+describe('when check-in opens (ADR 0023)', () => {
+  it('tells the driver the earliest check-in time until the car is in', async () => {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    const before = await t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    // 30 minutes before the 10:00 Lagos start (booking.early_arrival_min).
+    expect(before.body?.checkInOpensAt).toBe('2026-10-19T08:30:00.000Z');
+
+    await t.readyDevice();
+    await t.sync([checkIn(paid.id, min(55))]);
+    const after = await t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    expect(after.body?.checkInOpensAt).toBeNull();
+  });
+});
+
+describe('paid early start when there is space (ADR 0023 stage 2)', () => {
+  // TEST_NOW is 09:00 Lagos; the booking is 10:00–12:00, so check-in opens at
+  // 09:30. Starting at 09:30 (08:30 UTC) opens check-in now.
+  const EARLY = '2026-10-19T08:30:00.000Z';
+
+  async function earlySetup() {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    const option = () => t.call('GET', `/v1/bookings/${paid.id}/early-start`, { as: paid.driver });
+    const buy = (newStartAt = EARLY) =>
+      t.call('POST', `/v1/bookings/${paid.id}/early-start`, {
+        as: paid.driver,
+        headers: { 'idempotency-key': randomUUID() },
+        body: { newStartAt },
+      });
+    const verify = (ref: string) =>
+      t.call('POST', `/v1/payments/${ref}/verify`, { as: paid.driver });
+    const view = () => t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    return { ...t, paid, option, buy, verify, view };
+  }
+
+  it('offers a start that opens check-in now, priced by the server', async () => {
+    const t = await earlySetup();
+    const res = await t.option();
+    expect(res.body).toMatchObject({
+      available: true,
+      reason: null,
+      newStartAt: EARLY,
+      addedMinutes: 30,
+    });
+    expect(res.body?.priceKobo as number).toBeGreaterThan(0);
+  });
+
+  it('once paid, the booking starts earlier and check-in opens now', async () => {
+    const t = await earlySetup();
+    const before = (await t.view()).body as { priceKobo: number };
+    const quoted = (await t.option()).body?.priceKobo as number;
+    const res = await t.buy();
+    expect(res.status).toBe(200);
+    const ref = (res.body?.payment as { reference: string }).reference;
+    expect(res.body?.extension).toMatchObject({ kind: 'EARLY_START', startAt: EARLY });
+    t.payments.pay(ref, { amountKobo: quoted });
+    await t.verify(ref);
+    const after = (await t.view()).body as {
+      startAt: string;
+      priceKobo: number;
+      checkInOpensAt: string;
+    };
+    expect(after.startAt).toBe(EARLY);
+    expect(after.priceKobo).toBe(before.priceKobo + quoted);
+    expect(after.checkInOpensAt).toBe(TEST_NOW.toISOString());
+  });
+
+  it('refuses a time that is no longer the quoted one', async () => {
+    const t = await earlySetup();
+    const res = await t.buy('2026-10-19T08:00:00.000Z');
+    expect(res.status).toBe(400);
+    expect(res.body?.code).toBe('BOOKING_WINDOW_INVALID');
+  });
+
+  it('offers nothing when the earlier time is full', async () => {
+    const t = await earlySetup();
+    for (const slot of ['2026-10-19T08:30:00.000Z', '2026-10-19T08:45:00.000Z']) {
+      const row = t.store.slotRows.find(
+        (r) => r.lotId === t.lot.id && r.slotStart.toISOString() === slot,
+      );
+      if (row) row.blocked = row.capacity;
+      else
+        t.store.slotRows.push({
+          lotId: t.lot.id,
+          slotStart: new Date(slot),
+          capacity: 5,
+          booked: 0,
+          held: 0,
+          passReserved: 0,
+          blocked: 5,
+        });
+    }
+    expect((await t.option()).body).toMatchObject({ available: false, reason: 'FULL' });
+    expect((await t.buy()).body?.code).toBe('BOOKING_SLOT_UNAVAILABLE');
+  });
+
+  it('a car checked in before the payment lands keeps its start and is refunded', async () => {
+    const t = await earlySetup();
+    const quoted = (await t.option()).body?.priceKobo as number;
+    const ref = ((await t.buy()).body?.payment as { reference: string }).reference;
+    await t.readyDevice();
+    await t.sync([checkIn(t.paid.id, min(1))]);
+    expect((await t.option()).body).toMatchObject({ available: false, reason: 'NOT_CONFIRMED' });
+    t.payments.pay(ref, { amountKobo: quoted });
+    await t.verify(ref);
+    expect(((await t.view()).body as { startAt: string }).startAt).toBe(START);
+    expect(t.store.booking.refundRows.some((r) => r.paymentId === ref)).toBe(true);
+  });
+
+  it('another driver and the car park’s owner get 404, and nothing is held', async () => {
+    const t = await earlySetup();
+    const other = t.user();
+    for (const as of [other, t.ownerId]) {
+      const aal = as === t.ownerId ? ('aal2' as const) : undefined;
+      expect(
+        (
+          await t.call('GET', `/v1/bookings/${t.paid.id}/early-start`, {
+            as,
+            ...(aal ? { aal } : {}),
+          })
+        ).status,
+      ).toBe(404);
+      expect(
+        (
+          await t.call('POST', `/v1/bookings/${t.paid.id}/early-start`, {
+            as,
+            ...(aal ? { aal } : {}),
+            headers: { 'idempotency-key': randomUUID() },
+            body: { newStartAt: EARLY },
+          })
+        ).status,
+      ).toBe(404);
+    }
+    expect(t.store.booking.extensionRows).toHaveLength(0);
+  });
+
+  it('reports CLOSED and refuses early start when lot is closed at the early time', async () => {
+    const t = await earlySetup();
+    // Monday 09:30 Lagos is open in test data; change opening hours so it opens at 10:00:00 (09:00 UTC)
+    await t.store.lots.setOpeningHours(
+      t.lot.id,
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        weekday,
+        is24h: false,
+        opensAt: '10:00:00',
+        closesAt: '22:00:00',
+      })),
+    );
+    const opt = await t.option();
+    expect(opt.body).toMatchObject({ available: false, reason: 'CLOSED' });
+    const res = await t.buy();
+    expect(res.status).toBe(422);
+    expect(res.body?.code).toBe('BOOKING_OUTSIDE_OPENING_HOURS');
+  });
+
+  it('refuses when check-in is already open (NOT_NEEDED)', async () => {
+    const t = await earlySetup();
+    // Move clock to 09:35 Lagos (08:35 UTC), which is within the 30-min window before 10:00 Lagos
+    t.deps.now = () => new Date('2026-10-19T08:35:00.000Z');
+    const opt = await t.option();
+    expect(opt.body).toMatchObject({ available: false, reason: 'NOT_NEEDED' });
+    const res = await t.buy(EARLY);
+    expect(res.status).toBe(400);
+    expect(res.body?.code).toBe('BOOKING_WINDOW_INVALID');
+  });
+
+  it('validates returnTo origin and handles payment provider failure', async () => {
+    const t = await earlySetup();
+    // Foreign returnTo rejected
+    const badReturn = await t.call('POST', `/v1/bookings/${t.paid.id}/early-start`, {
+      as: t.paid.driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { newStartAt: EARLY, returnTo: 'https://evil.example.com' },
+    });
+    expect(badReturn.status).toBe(400);
+    expect(badReturn.body?.code).toBe('VALIDATION_FAILED');
+
+    // Valid returnTo accepted
+    const goodReturn = await t.call('POST', `/v1/bookings/${t.paid.id}/early-start`, {
+      as: t.paid.driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { newStartAt: EARLY, returnTo: 'http://localhost:3000/callback' },
+    });
+    expect(goodReturn.status).toBe(200);
+
+    // Payment provider failure releases hold
+    t.payments.failInitialize = true;
+    const failRes = await t.call('POST', `/v1/bookings/${t.paid.id}/early-start`, {
+      as: t.paid.driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: { newStartAt: EARLY },
+    });
+    expect(failRes.status).toBe(502);
+    expect(failRes.body?.code).toBe('PAYMENT_PROVIDER_UNAVAILABLE');
+  });
+
+  it('confirms immediately without payment if early start price is 0', async () => {
+    const t = await earlySetup();
+    const row = t.store.booking.bookingRows.find((r) => r.id === t.paid.id);
+    if (row) row.priceKobo = 9999999;
+    const opt = await t.option();
+    expect(opt.body).toMatchObject({ available: true, priceKobo: 0 });
+    const res = await t.buy();
+    expect(res.status).toBe(200);
+    expect(res.body?.payment).toBeNull();
+    expect(res.body?.extension).toMatchObject({ kind: 'EARLY_START' });
+  });
+});

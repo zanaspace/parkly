@@ -11828,6 +11828,14 @@
                             "per15Kobo"
                           ]
                         },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
                         "stay": {
                           "type": [
                             "object",
@@ -12251,6 +12259,14 @@
                               "per15Kobo"
                             ]
                           },
+                          "checkInOpensAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "default": null
+                          },
                           "stay": {
                             "type": [
                               "object",
@@ -12625,6 +12641,14 @@
                         "graceMin",
                         "per15Kobo"
                       ]
+                    },
+                    "checkInOpensAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "stay": {
                       "type": [
@@ -13659,6 +13683,14 @@
                             "per15Kobo"
                           ]
                         },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
                         "stay": {
                           "type": [
                             "object",
@@ -13882,6 +13914,14 @@
                         "bookingId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "EXTEND",
+                            "EARLY_START"
+                          ],
+                          "default": "EXTEND"
                         },
                         "startAt": {
                           "type": "string",
@@ -14193,6 +14233,615 @@
                             "graceMin",
                             "per15Kobo"
                           ]
+                        },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "stay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "checkedInAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "checkedOutAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "overstayMinutes": {
+                              "type": "integer"
+                            },
+                            "overstayKobo": {
+                              "type": "integer"
+                            },
+                            "overstayStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NONE",
+                                "DUE",
+                                "PAID",
+                                "UNPAID",
+                                "WAIVED"
+                              ]
+                            }
+                          },
+                          "default": null,
+                          "required": [
+                            "checkedInAt",
+                            "checkedOutAt",
+                            "overstayMinutes",
+                            "overstayKobo"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "product",
+                        "startAt",
+                        "endAt",
+                        "holdExpiresAt",
+                        "lot",
+                        "vehicle",
+                        "priceKobo",
+                        "serviceFeeKobo",
+                        "totalKobo",
+                        "lines",
+                        "qrToken",
+                        "createdAt"
+                      ]
+                    },
+                    "payment": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "reference": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "INITIATED",
+                            "PENDING",
+                            "SUCCEEDED",
+                            "FAILED",
+                            "ABANDONED",
+                            "PARTIALLY_REFUNDED",
+                            "REFUNDED"
+                          ]
+                        },
+                        "authorizationUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri"
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "reference",
+                        "status",
+                        "authorizationUrl",
+                        "expiresAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "extension",
+                    "booking",
+                    "payment"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bookings/{id}/early-start": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Early start option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "NOT_NEEDED",
+                        "NOT_CONFIRMED",
+                        "FULL",
+                        "CLOSED",
+                        null
+                      ]
+                    },
+                    "newStartAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "addedMinutes": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "priceKobo": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "available",
+                    "reason",
+                    "newStartAt",
+                    "addedMinutes",
+                    "priceKobo"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "newStartAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "returnTo": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "newStartAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Early start",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "extension": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "bookingId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "EXTEND",
+                            "EARLY_START"
+                          ],
+                          "default": "EXTEND"
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "newEndAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "addedMinutes": {
+                          "type": "integer"
+                        },
+                        "priceKobo": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_PAYMENT",
+                            "CONFIRMED",
+                            "CHECKED_IN",
+                            "COMPLETED",
+                            "CANCELLED",
+                            "EXPIRED",
+                            "NO_SHOW"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "startAt",
+                        "newEndAt",
+                        "addedMinutes",
+                        "priceKobo",
+                        "status",
+                        "createdAt"
+                      ]
+                    },
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_PAYMENT",
+                            "CONFIRMED",
+                            "CHECKED_IN",
+                            "COMPLETED",
+                            "CANCELLED",
+                            "EXPIRED",
+                            "NO_SHOW"
+                          ]
+                        },
+                        "product": {
+                          "type": "string",
+                          "enum": [
+                            "HOURLY",
+                            "DAILY"
+                          ]
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "holdExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lot": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "addressLine": {
+                              "type": "string"
+                            },
+                            "area": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "default": null
+                            },
+                            "location": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "lat": {
+                                  "type": "number"
+                                },
+                                "lng": {
+                                  "type": "number"
+                                }
+                              },
+                              "default": null,
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            },
+                            "entranceNotes": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "default": null
+                            },
+                            "contactPhone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "default": null
+                            },
+                            "selfCheckIn": {
+                              "type": "boolean",
+                              "default": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slug",
+                            "name",
+                            "addressLine"
+                          ]
+                        },
+                        "vehicle": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "plate": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "plate"
+                          ]
+                        },
+                        "priceKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "totalKobo": {
+                          "type": "integer"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "HOURLY_DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "minutes": {
+                                    "type": "integer"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  },
+                                  "capped": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "minutes",
+                                  "amountKobo",
+                                  "capped"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "DAY"
+                                    ]
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "date",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "MONTH"
+                                    ]
+                                  },
+                                  "periodStart": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "periodEnd": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "periodStart",
+                                  "periodEnd",
+                                  "amountKobo"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SERVICE_FEE"
+                                    ]
+                                  },
+                                  "amountKobo": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "amountKobo"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "qrToken": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "overstay": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "graceMin": {
+                              "type": "integer"
+                            },
+                            "per15Kobo": {
+                              "type": "integer"
+                            }
+                          },
+                          "default": null,
+                          "required": [
+                            "graceMin",
+                            "per15Kobo"
+                          ]
+                        },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
                         },
                         "stay": {
                           "type": [
@@ -14640,6 +15289,14 @@
                             "graceMin",
                             "per15Kobo"
                           ]
+                        },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
                         },
                         "stay": {
                           "type": [

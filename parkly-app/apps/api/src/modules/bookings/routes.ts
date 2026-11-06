@@ -11,6 +11,8 @@ import {
   CancelBookingResponseSchema,
   CreateBookingRequestSchema,
   CreateBookingResponseSchema,
+  EarlyStartOptionSchema,
+  EarlyStartRequestSchema,
   ExtendBookingRequestSchema,
   ExtendBookingResponseSchema,
   ExtensionOptionsSchema,
@@ -31,9 +33,11 @@ import {
   holdExpiresAt,
   paymentSplit,
   validateExtensionWindow,
+  calculateEarlyStartQuote,
+  earlyStartFor,
 } from '@parkly/domain/booking';
 import { generateBookingCode } from '@parkly/domain/codes';
-import { mulDivRoundHalfUp } from '@parkly/domain/money';
+import { mulDivRoundHalfUp, type Kobo } from '@parkly/domain/money';
 import { quote as priceQuote, type Quote as DomainQuote } from '@parkly/domain/pricing';
 import { lagosDateKey } from '@parkly/domain/time';
 import { v7 as uuidv7 } from 'uuid';
@@ -91,6 +95,7 @@ export const toCheckout = (p: PaymentRow, booking: BookingRow): Checkout => ({
 export const toBookingExtension = (e: BookingExtensionRow): BookingExtension => ({
   id: e.id,
   bookingId: e.bookingId,
+  kind: e.kind,
   startAt: e.startAt.toISOString(),
   newEndAt: e.newEndAt.toISOString(),
   addedMinutes: e.addedMinutes,
@@ -108,6 +113,7 @@ export function toBooking(
     overstay?: Booking['overstay'];
     stay?: Booking['stay'];
     contactPhone?: string | null;
+    checkInOpensAt?: string | null;
   } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
@@ -145,6 +151,7 @@ export function toBooking(
     }).lines,
     qrToken: extra.qrToken ?? null,
     overstay: extra.overstay ?? null,
+    checkInOpensAt: extra.checkInOpensAt ?? null,
     stay: extra.stay ?? null,
     createdAt: b.createdAt.toISOString(),
   };
@@ -182,6 +189,8 @@ export function bookingRoutes(deps: AppDeps) {
     const stays = await deps.store.attend.sessionsForBookings(rows.map((r) => r.id));
     // The booking's own plan and overstay terms, as at check-out (gap review L-3).
     const overstay = overstayPricer(deps.store);
+    // How early the gate lets a car in (ADR 0023); the same setting the gate uses.
+    const earlyMin = (await deps.store.settings.get<number>('booking.early_arrival_min')) ?? 30;
     const phoneMap = new Map<string, string | null>();
     for (const lotId of new Set(rows.map((r) => r.lotId))) {
       const l = await lotOf(lotId);
@@ -210,6 +219,10 @@ export function bookingRoutes(deps: AppDeps) {
         return {
           qrToken: await ticketFor(b),
           overstay: terms,
+          checkInOpensAt:
+            b.status === 'CONFIRMED' && !s?.checkInAt
+              ? new Date(b.startAt.getTime() - earlyMin * 60_000).toISOString()
+              : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };
@@ -874,6 +887,233 @@ export function bookingRoutes(deps: AppDeps) {
           deps.logger.error(
             { err, bookingId: booking.id, extensionId },
             'extension checkout failed',
+          );
+          // Give the space back now rather than when the hold runs out (gap review P-4).
+          await deps.store.bookings.releaseExtension(extensionId, 'EXPIRED', deps.now());
+          throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE');
+        }
+
+        const [view] = await viewsFor([booking]);
+        return c.json(
+          {
+            extension: toBookingExtension(held.extension),
+            booking: toBooking(booking, lot, view),
+            payment: toCheckout(payment, booking),
+          },
+          200,
+        );
+      });
+    },
+  );
+
+  /**
+   * ADR 0023 stage 2: what an early start would cost now, or why there is none.
+   * Free space and opening hours are checked here and again by the hold.
+   */
+  async function earlyStartOption(booking: BookingRow) {
+    const none = (reason: 'NOT_NEEDED' | 'NOT_CONFIRMED' | 'FULL' | 'CLOSED') => ({
+      available: false,
+      reason,
+      newStartAt: null,
+      addedMinutes: null,
+      priceKobo: null,
+      quote: null,
+    });
+    if (booking.status !== 'CONFIRMED') return none('NOT_CONFIRMED');
+    const now = deps.now();
+    const earlyArrivalMin =
+      (await deps.store.settings.get<number>('booking.early_arrival_min')) ?? 30;
+    const early = earlyStartFor({ now, startAt: booking.startAt, earlyArrivalMin });
+    if (!early) return none('NOT_NEEDED');
+    const lot = await lotOf(booking.lotId);
+    const hours = (await deps.store.lots.openingHours(lot.id)).map(toOpeningDay);
+    if (
+      !isOpenDuring({
+        hours,
+        startAt: early.newStartAt,
+        endAt: booking.startAt,
+        product: booking.product,
+      })
+    )
+      return none('CLOSED');
+    const slots = await deps.store.inventory.slots([lot.id], early.newStartAt, booking.startAt);
+    const full = slots.some((x) => x.capacity - x.booked - x.held - x.passReserved - x.blocked < 1);
+    if (full || lot.status !== 'LIVE') return none('FULL');
+    const plan = await deps.store.ratePlans.find(booking.ratePlanId);
+    if (!plan) return none('CLOSED');
+    const q = calculateEarlyStartQuote({
+      ratePlan: plan,
+      commissionBps: booking.commissionBps,
+      newStartAt: early.newStartAt,
+      endAt: booking.endAt,
+      currentPriceKobo: booking.priceKobo as Kobo,
+    });
+    return {
+      available: true,
+      reason: null,
+      newStartAt: early.newStartAt.toISOString(),
+      addedMinutes: early.addedMinutes,
+      priceKobo: q.priceKobo as number,
+      quote: q,
+    };
+  }
+
+  // ADR 0023 stage 2: can this early driver start now, and for how much?
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/bookings/{id}/early-start',
+      tags: ['bookings'],
+      ...secured,
+      request: { params: z.object({ id: z.uuid() }) },
+      responses: { 200: { description: 'Early start option', ...json(EarlyStartOptionSchema) } },
+    }),
+    async (c) => {
+      const booking = await ownBooking(c, c.req.valid('param').id);
+      const option = await earlyStartOption(booking);
+      return c.json(
+        {
+          available: option.available,
+          reason: option.reason,
+          newStartAt: option.newStartAt,
+          addedMinutes: option.addedMinutes,
+          priceKobo: option.priceKobo,
+        },
+        200,
+      );
+    },
+  );
+
+  // ADR 0023 stage 2: pay to start earlier when there is space.
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/bookings/{id}/early-start',
+      tags: ['bookings'],
+      ...secured,
+      request: {
+        params: z.object({ id: z.uuid() }),
+        headers: z.object({ 'idempotency-key': z.string().optional() }),
+        body: { ...json(EarlyStartRequestSchema), required: true },
+      },
+      responses: {
+        200: { description: 'Early start', ...json(ExtendBookingResponseSchema) },
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      return replayable(c, `/v1/bookings/${id}/early-start`, async () => {
+        const body = c.req.valid('json');
+        const actor = c.get('actor');
+        const booking = await ownBooking(c, id);
+        const option = await earlyStartOption(booking);
+        if (!option.available || !option.quote || !option.newStartAt) {
+          if (option.reason === 'FULL') throw new ApiError('BOOKING_SLOT_UNAVAILABLE');
+          if (option.reason === 'CLOSED') throw new ApiError('BOOKING_OUTSIDE_OPENING_HOURS');
+          if (option.reason === 'NOT_NEEDED')
+            throw new ApiError('BOOKING_WINDOW_INVALID', 'Check-in is already open: just check in');
+          throw new ApiError('BOOKING_NOT_EXTENDABLE', 'This booking cannot start earlier');
+        }
+        // The driver confirms the time we quoted; it moves every 15 minutes.
+        if (new Date(body.newStartAt).getTime() !== Date.parse(option.newStartAt))
+          throw new ApiError(
+            'BOOKING_WINDOW_INVALID',
+            'The early start time has changed. Check the new price and try again',
+          );
+        const newStartAt = new Date(option.newStartAt);
+        const q = option.quote;
+        const lot = await lotOf(booking.lotId);
+        const now = deps.now();
+        const extensionId = uuidv7();
+        const earlyStart = {
+          id: extensionId,
+          bookingId: booking.id,
+          newStartAt,
+          priceKobo: q.priceKobo,
+          platformAmountKobo: q.commissionKobo,
+          operatorAmountKobo: q.operatorAmountKobo,
+        };
+
+        if (q.priceKobo === 0) {
+          try {
+            const held = await deps.store.bookings.holdEarlyStart(
+              { ...earlyStart, holdExpiresAt: now },
+              null,
+              now,
+            );
+            const updated = await deps.store.bookings.confirmExtension(extensionId, null, now);
+            const extRow = await deps.store.bookings.findExtension(extensionId);
+            const [view] = await viewsFor([updated]);
+            return c.json(
+              {
+                extension: toBookingExtension(extRow ?? held.extension),
+                booking: toBooking(updated, lot, view),
+                payment: null,
+              },
+              200,
+            );
+          } catch (err) {
+            if (err instanceof BookingHoldError) throw new ApiError(err.code);
+            throw err;
+          }
+        }
+
+        const payout = await deps.store.payoutAccounts.find(lot.operatorId);
+        const subaccountCode = payout?.status === 'ACTIVE' ? payout.providerSubaccountCode : null;
+        if (!subaccountCode && deps.config.appEnv === 'prod')
+          throw new ApiError('LOT_NOT_BOOKABLE', 'This lot cannot take payments yet');
+        let callbackUrl: string | null = null;
+        if (body.returnTo) {
+          if (!deps.config.corsOrigins.includes(new URL(body.returnTo).origin))
+            throw new ApiError('VALIDATION_FAILED', 'returnTo must be a Parkly site');
+          callbackUrl = body.returnTo;
+        }
+
+        const paymentId = uuidv7();
+        let held: Awaited<ReturnType<typeof deps.store.bookings.holdEarlyStart>>;
+        try {
+          held = await deps.store.bookings.holdEarlyStart(
+            {
+              ...earlyStart,
+              holdExpiresAt: holdExpiresAt(
+                now,
+                (await deps.store.settings.get<number>('booking.hold_minutes')) ?? 10,
+              ),
+            },
+            {
+              id: paymentId,
+              kind: 'EXTENSION',
+              payerUserId: actor.userId,
+              provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+              amountKobo: q.priceKobo,
+              platformAmountKobo: q.commissionKobo,
+              operatorAmountKobo: q.operatorAmountKobo,
+              operatorId: lot.operatorId,
+              subaccountCode,
+            },
+            now,
+          );
+        } catch (err) {
+          if (err instanceof BookingHoldError) throw new ApiError(err.code);
+          throw err;
+        }
+
+        let payment: PaymentRow;
+        try {
+          const checkout = await deps.payments.initialize({
+            reference: paymentId,
+            amountKobo: q.priceKobo,
+            email: checkoutEmail(actor.userId),
+            subaccountCode,
+            platformShareKobo: q.commissionKobo,
+            callbackUrl,
+            metadata: { bookingCode: booking.code, bookingId: booking.id, extensionId },
+          });
+          payment = await deps.store.payments.checkoutStarted(paymentId, checkout, deps.now());
+        } catch (err) {
+          deps.logger.error(
+            { err, bookingId: booking.id, extensionId },
+            'early start checkout failed',
           );
           // Give the space back now rather than when the hold runs out (gap review P-4).
           await deps.store.bookings.releaseExtension(extensionId, 'EXPIRED', deps.now());

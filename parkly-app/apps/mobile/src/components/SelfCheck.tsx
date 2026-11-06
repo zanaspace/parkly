@@ -1,14 +1,21 @@
-import type { Booking } from '@parkly/contracts';
+import type { Booking, EarlyStartOption } from '@parkly/contracts';
+import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import * as Location from 'expo-location';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ApiError } from '../lib/api';
 import { api } from '../lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../logic/errors';
-import { positionProblem, selfCheckKind } from '../logic/self-check';
+import {
+  checkInNotYet,
+  outsideWindowMessage,
+  positionProblem,
+  selfCheckKind,
+} from '../logic/self-check';
 import { Notice } from './Notice';
 
 /**
@@ -23,7 +30,59 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const eventId = useRef<string | null>(null);
+  // ADR 0023: before the gate accepts the car, show when it will; the button
+  // appears by itself at that time.
+  const notYet = kind === 'in' ? checkInNotYet(booking, now) : null;
+  useEffect(() => {
+    if (!notYet) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [notYet]);
+  // ADR 0023 stage 2: while it's too early, offer to start now if there's space.
+  const router = useRouter();
+  const [early, setEarly] = useState<EarlyStartOption | null>(null);
+  const [buying, setBuying] = useState(false);
+  const waiting = notYet !== null;
+  useEffect(() => {
+    if (!waiting) return setEarly(null);
+    let live = true;
+    api
+      .earlyStartOption(booking.id)
+      .then((o) => live && setEarly(o))
+      .catch(() => live && setEarly(null));
+    return () => {
+      live = false;
+    };
+  }, [waiting, booking.id]);
+
+  async function startEarly() {
+    if (!early?.newStartAt) return;
+    setBuying(true);
+    setError(null);
+    try {
+      const res = await api.startEarly(
+        booking.id,
+        early.newStartAt,
+        `early-${booking.id}-${Date.parse(early.newStartAt)}`,
+      );
+      if (res.payment?.authorizationUrl)
+        router.push({
+          pathname: '/pay/[reference]',
+          params: {
+            reference: res.payment.reference,
+            url: res.payment.authorizationUrl,
+            bookingId: booking.id,
+          },
+        });
+      else onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    } finally {
+      setBuying(false);
+    }
+  }
   if (!kind) return null;
   const verb = kind === 'in' ? 'Check in' : 'Check out';
 
@@ -65,7 +124,9 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
       eventId.current = null;
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      if (err instanceof ApiError && err.code === 'QR_OUTSIDE_WINDOW')
+        setError(outsideWindowMessage(booking, Date.now()));
+      else setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSending(false);
     }
@@ -85,6 +146,20 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
             onBarcodeScanned={({ data }) => void scanned(data)}
           />
           <Button label="Cancel" variant="ghost" fullWidth onPress={() => setScanning(false)} />
+        </>
+      ) : notYet ? (
+        <>
+          <Notice kind="info" message={notYet} />
+          {early?.available && early.priceKobo !== null && early.newStartAt ? (
+            <Button
+              label={`Start now: ${formatNaira(early.priceKobo as never)} for ${early.addedMinutes} more minutes`}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              loading={buying}
+              onPress={() => void startEarly()}
+            />
+          ) : null}
         </>
       ) : (
         <Button

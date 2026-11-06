@@ -68,6 +68,8 @@ export const ledgerAccountTypeEnum = pgEnum('ledger_account_type', [
   'REVENUE',
   'EXPENSE',
 ]);
+/** ADR 0023: an extension adds time at the end; an early start adds it at the beginning. */
+export const extensionKindEnum = pgEnum('extension_kind', ['EXTEND', 'EARLY_START']);
 export const ledgerDirectionEnum = pgEnum('ledger_direction', ['DEBIT', 'CREDIT']);
 /** S7 task 3. NEEDS_REVIEW: the provider's record didn't match what we expect; never posted. */
 export const settlementStatusEnum = pgEnum('settlement_status', [
@@ -387,6 +389,8 @@ export const bookingExtensions = pgTable(
     bookingId: uuid('booking_id')
       .notNull()
       .references(() => bookings.id, { onDelete: 'restrict' }),
+    /** EXTEND: [booking end, new end). EARLY_START: [new start, booking start). Either way the held window. */
+    kind: extensionKindEnum('kind').notNull().default('EXTEND'),
     startAt: timestamp('start_at', { withTimezone: true }).notNull(),
     newEndAt: timestamp('new_end_at', { withTimezone: true }).notNull(),
     addedMinutes: integer('added_minutes').notNull(),

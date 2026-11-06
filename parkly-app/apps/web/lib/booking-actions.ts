@@ -3,6 +3,7 @@
 import type {
   CancelBookingResponse,
   CreateBookingResponse,
+  EarlyStartOption,
   ExtendBookingResponse,
   ExtensionOptions,
   OverstayPayResponse,
@@ -92,13 +93,13 @@ export async function addCar(_prev: BookState, form: FormData): Promise<BookStat
   redirect(back.startsWith('/') ? back : '/bookings');
 }
 
-export type SelfCheckResult = { ok: boolean; message?: string };
+export type SelfCheckResult = { ok: boolean; message?: string; code?: string };
 
 const SELF_MESSAGES: Record<string, string> = {
   SELF_CHECKIN_OFF: 'Self check-in is not active for this car park.',
   QR_WRONG_LOT: 'That code does not match this car park. Scan the barrier or attendant QR.',
   SELF_CHECKIN_TOO_FAR: 'You must be physically at the car park (within 150 m) to check in or out.',
-  QR_OUTSIDE_WINDOW: 'You can only check in up to 30 minutes before your booked start time.',
+  QR_OUTSIDE_WINDOW: 'It’s outside this booking’s check-in time.',
   BOOKING_NOT_ACTIVE: 'This booking is not currently active.',
   NOT_FOUND: 'Booking not found.',
 };
@@ -118,7 +119,7 @@ export async function submitSelfCheck(
     return { ok: true };
   } catch (err) {
     const msg = (err instanceof ApiProblem && SELF_MESSAGES[err.code]) || message(err);
-    return { ok: false, message: msg };
+    return { ok: false, message: msg, ...(err instanceof ApiProblem ? { code: err.code } : {}) };
   }
 }
 
@@ -248,4 +249,51 @@ export async function payOverstay(bookingId: string): Promise<PayOverstayResult>
 
 function minuteBucket() {
   return Math.floor(Date.now() / 60_000);
+}
+
+/** ADR 0023: whether this early driver can start now, and the server's price. */
+export async function getEarlyStart(bookingId: string): Promise<EarlyStartOption | null> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    return await apiAs<EarlyStartOption>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/early-start`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** ADR 0023: pay to start at `newStartAt` (from the option); returns where to pay. */
+export async function startEarly(
+  bookingId: string,
+  newStartAt: string,
+): Promise<ExtendBookingResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    const origin = await siteOrigin();
+    const response = await apiAs<ExtendBookingResponse>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/early-start`,
+      {
+        method: 'POST',
+        headers: {
+          'idempotency-key': `early-${bookingId}-${new Date(newStartAt).getTime()}-${minuteBucket()}`,
+        },
+        body: { newStartAt, returnTo: `${origin}/bookings/${bookingId}` },
+      },
+    );
+    return { ok: true, authorizationUrl: response.payment?.authorizationUrl ?? null };
+  } catch (err) {
+    const code = err instanceof ApiProblem ? err.code : null;
+    const msg =
+      code === 'BOOKING_WINDOW_INVALID'
+        ? 'The early start time has just changed. Check the new price and try again.'
+        : code === 'BOOKING_SLOT_UNAVAILABLE'
+          ? 'Sorry, there’s no free space for the earlier time any more.'
+          : err instanceof ApiProblem
+            ? MESSAGES[err.code] || message(err)
+            : message(err);
+    return { ok: false, message: msg };
+  }
 }

@@ -75,6 +75,13 @@ export const BookingSchema = z.object({
    * Overstay is the server's figure: live while the car is still in after
    * end + grace, final after check-out. Clients only display it.
    */
+  /**
+   * The earliest moment the gate accepts this car: the start less the early
+   * arrival allowance (`booking.early_arrival_min`, ADR 0023). Set while the
+   * booking is CONFIRMED and not yet checked in; clients show it instead of
+   * offering a check-in that would be refused. Null from older APIs.
+   */
+  checkInOpensAt: z.iso.datetime().nullable().default(null),
   stay: z
     .object({
       checkedInAt: z.iso.datetime().nullable(),
@@ -137,6 +144,8 @@ export const ExtendBookingRequestSchema = z.object({
 export const BookingExtensionSchema = z.object({
   id: z.uuid(),
   bookingId: z.uuid(),
+  /** EXTEND adds time at the end; EARLY_START at the beginning (ADR 0023). */
+  kind: z.enum(['EXTEND', 'EARLY_START']).default('EXTEND'),
   startAt: z.iso.datetime(),
   newEndAt: z.iso.datetime(),
   addedMinutes: z.number().int(),
@@ -167,6 +176,31 @@ export const ExtensionOptionsSchema = z.object({
   reopensAt: z.iso.datetime().nullable(),
   /** The longest stay allowed caps the end here (booking start + 24h for hourly). */
   maxEndAt: z.iso.datetime(),
+});
+
+/**
+ * ADR 0023 stage 2: `GET /v1/bookings/{id}/early-start`. Whether a driver who
+ * arrived early can start now, and for how much: the new start lets check-in
+ * open now (the free early minutes still count). Prices are the server's.
+ */
+export const EarlyStartOptionSchema = z.object({
+  available: z.boolean(),
+  /**
+   * Why not, when not available: NOT_NEEDED (check-in is already open),
+   * NOT_CONFIRMED (not paid, or the car is already in), FULL (no free space for
+   * the earlier time), CLOSED (the car park is closed then).
+   */
+  reason: z.enum(['NOT_NEEDED', 'NOT_CONFIRMED', 'FULL', 'CLOSED']).nullable(),
+  newStartAt: z.iso.datetime().nullable(),
+  addedMinutes: z.number().int().nullable(),
+  priceKobo: z.number().int().nullable(),
+});
+
+/** ADR 0023 stage 2: `POST /v1/bookings/{id}/early-start` (Idempotency-Key). */
+export const EarlyStartRequestSchema = z.object({
+  /** From the option; on the 15-minute grid, not before the current slot. */
+  newStartAt: z.iso.datetime(),
+  returnTo: z.url().max(500).optional(),
 });
 
 /** FR-BOOK-006: `POST /v1/bookings/{id}/cancel`. */
@@ -289,6 +323,8 @@ export type CreateBookingResponse = z.infer<typeof CreateBookingResponseSchema>;
 export type BookingList = z.infer<typeof BookingListSchema>;
 export type VerifyPaymentResponse = z.infer<typeof VerifyPaymentResponseSchema>;
 export type ExtendBookingRequest = z.input<typeof ExtendBookingRequestSchema>;
+export type EarlyStartOption = z.infer<typeof EarlyStartOptionSchema>;
+export type EarlyStartRequest = z.infer<typeof EarlyStartRequestSchema>;
 export type BookingExtension = z.infer<typeof BookingExtensionSchema>;
 export type ExtendBookingResponse = z.infer<typeof ExtendBookingResponseSchema>;
 export type ExtensionOptions = z.infer<typeof ExtensionOptionsSchema>;

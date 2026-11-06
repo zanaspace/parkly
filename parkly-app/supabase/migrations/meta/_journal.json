@@ -113,6 +113,13 @@
       "when": 1793956492969,
       "tag": "20261106091452_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793961355247,
+      "tag": "20261106103555_extension_kind",
+      "breakpoints": true
     }
   ]
 }

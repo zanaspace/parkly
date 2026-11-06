@@ -3,6 +3,7 @@ import {
   addOnDecision,
   allocateRefund,
   confirmDecision,
+  extensionApplies,
   isBalanced,
   type JournalLine,
 } from '@parkly/domain/booking';
@@ -13,6 +14,7 @@ import {
   type BookingExtensionRow,
   type BookingRow,
   type LotRow,
+  type NewPayment,
   type PaymentRow,
   type RefundRow,
   type SlotRow,
@@ -106,6 +108,31 @@ export class MemoryBookings {
       rows.push(row);
     }
     return rows;
+  }
+
+  /** The checkout row for an extension or early start (kind EXTENSION). */
+  private addOnPayment(payment: NewPayment | null, bookingId: string, at: Date): PaymentRow | null {
+    let paymentRow: PaymentRow | null = null;
+    if (payment) {
+      const row = {
+        ...payment,
+        kind: 'EXTENSION' as const,
+        bookingId,
+        status: 'INITIATED' as const,
+        authorizationUrl: null,
+        paidAt: null,
+        failureCode: null,
+        createdAt: at,
+        feesKobo: null,
+        channel: null,
+        cardLast4: null,
+        cardBrand: null,
+        accessCode: null,
+      };
+      this.paymentRows.push(row);
+      paymentRow = this.publicPayment(row);
+    }
+    return paymentRow;
   }
 
   private free = (s: SlotRow) => s.capacity - s.booked - s.held - s.passReserved - s.blocked;
@@ -317,6 +344,7 @@ export class MemoryBookings {
       const extensionRow: BookingExtensionRow & { paymentId: string | null } = {
         id: ext.id,
         bookingId: ext.bookingId,
+        kind: 'EXTEND',
         startAt: b.endAt,
         newEndAt: ext.newEndAt,
         addedMinutes,
@@ -329,27 +357,54 @@ export class MemoryBookings {
       };
       this.extensionRows.push(extensionRow);
 
-      let paymentRow: PaymentRow | null = null;
-      if (payment) {
-        const row = {
-          ...payment,
-          kind: 'EXTENSION' as const,
-          bookingId: b.id,
-          status: 'INITIATED' as const,
-          authorizationUrl: null,
-          paidAt: null,
-          failureCode: null,
-          createdAt: at,
-          feesKobo: null,
-          channel: null,
-          cardLast4: null,
-          cardBrand: null,
-          accessCode: null,
-        };
-        this.paymentRows.push(row);
-        paymentRow = this.publicPayment(row);
-      }
-      return { extension: { ...extensionRow }, payment: paymentRow };
+      return { extension: { ...extensionRow }, payment: this.addOnPayment(payment, b.id, at) };
+    },
+
+    holdEarlyStart: async (ext, payment, at) => {
+      const b = this.bookingRows.find((r) => r.id === ext.bookingId);
+      if (!b || b.status !== 'CONFIRMED') throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
+      if (ext.newStartAt >= b.startAt || ext.newStartAt.getTime() % SLOT_MS !== 0)
+        throw new BookingHoldError('BOOKING_WINDOW_INVALID');
+      const lot = this.lotRows.get(b.lotId);
+      if (!lot || lot.status !== 'LIVE') throw new BookingHoldError('LOT_NOT_BOOKABLE');
+      // As fn_hold_early_start: a new request replaces the driver's own unpaid one.
+      for (const prev of this.extensionRows.filter(
+        (r) => r.bookingId === b.id && r.status === 'PENDING_PAYMENT',
+      ))
+        await this.bookings.releaseExtension(prev.id, 'EXPIRED', at);
+      if (
+        this.bookingRows.some(
+          (o) =>
+            o.id !== b.id &&
+            o.vehicleId === b.vehicleId &&
+            LIVE_STATUSES.has(o.status) &&
+            o.startAt < b.startAt &&
+            o.endAt > ext.newStartAt,
+        )
+      )
+        throw new BookingHoldError('BOOKING_OVERLAP_SAME_VEHICLE');
+
+      const slots = this.windowSlots(lot.id, ext.newStartAt, b.startAt, lot.capacityBookable);
+      if (slots.some((s) => this.free(s) < 1))
+        throw new BookingHoldError('BOOKING_SLOT_UNAVAILABLE');
+      for (const s of slots) s.held += 1;
+
+      const extensionRow: BookingExtensionRow & { paymentId: string | null } = {
+        id: ext.id,
+        bookingId: ext.bookingId,
+        kind: 'EARLY_START',
+        startAt: ext.newStartAt,
+        newEndAt: b.startAt,
+        addedMinutes: Math.round((b.startAt.getTime() - ext.newStartAt.getTime()) / 60_000),
+        priceKobo: ext.priceKobo,
+        platformAmountKobo: ext.platformAmountKobo,
+        operatorAmountKobo: ext.operatorAmountKobo,
+        paymentId: payment ? payment.id : null,
+        status: 'PENDING_PAYMENT',
+        createdAt: at,
+      };
+      this.extensionRows.push(extensionRow);
+      return { extension: { ...extensionRow }, payment: this.addOnPayment(payment, b.id, at) };
     },
 
     releaseExtension: async (id, status) => {
@@ -371,11 +426,7 @@ export class MemoryBookings {
       if (ext.status !== 'PENDING_PAYMENT') throw new Error('EXTENSION_ALREADY_CONFIRMED');
       const b = this.bookingRows.find((r) => r.id === ext.bookingId);
       if (!b) throw new BookingHoldError('BOOKING_NOT_EXTENDABLE');
-      if (
-        (b.status !== 'CONFIRMED' && b.status !== 'CHECKED_IN') ||
-        ext.startAt.getTime() !== b.endAt.getTime()
-      )
-        throw new Error('EXTENSION_NOT_APPLICABLE');
+      if (!extensionApplies(ext, b)) throw new Error('EXTENSION_NOT_APPLICABLE');
       // As fn_confirm_extension: the payment must be this extension's own.
       if (paymentId !== null && ext.paymentId !== paymentId)
         throw new Error('EXTENSION_PAYMENT_MISMATCH');
@@ -387,7 +438,8 @@ export class MemoryBookings {
       }
       ext.status = 'CONFIRMED';
       ext.paymentId = paymentId ?? ext.paymentId;
-      b.endAt = ext.newEndAt;
+      if (ext.kind === 'EARLY_START') b.startAt = ext.startAt;
+      else b.endAt = ext.newEndAt;
       b.priceKobo += ext.priceKobo;
       b.totalKobo += ext.priceKobo;
       return { ...b };
@@ -537,10 +589,7 @@ export class MemoryBookings {
           p.kind === 'EXTENSION' ? this.extensionRows.find((r) => r.paymentId === p.id) : undefined;
         const applicable =
           p.kind === 'EXTENSION'
-            ? !!ext &&
-              ext.status === 'PENDING_PAYMENT' &&
-              (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') &&
-              ext.startAt.getTime() === b.endAt.getTime()
+            ? !!ext && ext.status === 'PENDING_PAYMENT' && extensionApplies(ext, b)
             : (this.overstayDue?.(b.id) ?? false);
         const decision = addOnDecision({
           payment: { status: p.status, amountKobo: p.amountKobo },

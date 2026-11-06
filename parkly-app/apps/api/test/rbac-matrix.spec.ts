@@ -292,6 +292,12 @@ MATRIX.push(
     route: 'GET /v1/bookings/{id}/extensions/options',
     expect: only([], 200, 404),
   },
+  {
+    method: 'GET',
+    path: `/v1/bookings/${NO_BOOKING}/early-start`,
+    route: 'GET /v1/bookings/{id}/early-start',
+    expect: only([], 200, 404),
+  },
   // Lots this person may check cars in at; empty for everyone else (attend.spec).
   {
     method: 'GET',
@@ -368,6 +374,8 @@ const COVERED_ELSEWHERE = new Set([
   // Public, but only with a valid 5-minute signature for that booking (receipt.spec)
   'GET /v1/receipts/{id}',
   'POST /v1/bookings/{id}/extensions',
+  // Another driver and the car park's staff 404, nothing held (attend.spec, ADR 0023)
+  'POST /v1/bookings/{id}/early-start',
   // Other driver and car park staff 404, nothing changes: bookings.spec (gap review T-3)
   'POST /v1/bookings/{id}/cancel',
   'POST /v1/bookings/{id}/overstay/pay',
