@@ -311,7 +311,8 @@ Receipts issued from then on show VAT; earlier ones stay as they were.
 
 - [ ] Create staging (Supabase and Vercel). No sprint has run its demo on staging yet.
 - [x] Verify a sending subdomain in Resend: `parkly.sellytichq.com`, verified Nov 5.
-- [ ] Turn on the Supabase Send Email Hook (ADR 0022, doc 22 §2.3a) so every auth email (codes, password reset, signup confirmation) goes through Resend in the Parkly layout. Then delete the Google app password.
+- [x] Supabase Send Email Hook on (Nov 6, ADR 0022): every auth email goes through Resend in the Parkly layout. Tested on portal and admin.
+- [ ] Delete the Google app password used for the old Gmail SMTP.
 - [ ] Add `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_TURNSTILE_ORIGIN` to the `production` EAS environment before the next store build.
 - [ ] Choose an SMS provider. Phone becomes the default sign-in for drivers and attendants with no code change.
 - [ ] Apply the item 13 migrations to dev, then merge `feat/s6-overstay`.
