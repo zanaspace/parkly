@@ -133,6 +133,11 @@ export const bookings = pgTable(
     index('bookings_vehicle_idx').on(t.vehicleId),
     index('bookings_rate_plan_idx').on(t.ratePlanId),
     index('bookings_cancelled_by_idx').on(t.cancelledBy),
+    index('bookings_lot_active_holds_idx')
+      .on(t.lotId, t.bookingType, t.status)
+      .where(
+        sql`${t.bookingType} = 'PARK_NOW' and ${t.status} in ('PENDING_PAYMENT', 'CONFIRMED')`,
+      ),
     check('bookings_window_check', sql`${t.endAt} > ${t.startAt}`),
     check(
       'bookings_grid_check',
