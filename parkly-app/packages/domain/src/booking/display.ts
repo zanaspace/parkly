@@ -32,15 +32,20 @@ export function bookingWindowLabel(b: { startAt: string; endAt: string }): strin
 export type CheckoutState = 'waiting' | 'paid' | 'failed' | 'expired' | 'refunding';
 
 /**
- * What the payment screen shows next. Only the server's word counts: the
- * booking is paid when the API says CONFIRMED (it checked with Paystack).
+ * What the payment screen shows next. Only the server's word counts:
+ * - When the booking expired or was cancelled: late success refunds; failures fail; otherwise expired.
+ * - When the booking is active (pending, confirmed, checked in, completed):
+ *   succeeded payment is paid; failed or abandoned is failed; initiated/pending is waiting.
  */
 export function checkoutState(s: { booking: BookingStatus; payment: string }): CheckoutState {
-  if (s.booking === 'CONFIRMED') return 'paid';
-  if (s.booking === 'PENDING_PAYMENT') return 'waiting';
-  if (s.payment === 'FAILED') return 'failed';
-  if (s.payment === 'SUCCEEDED') return 'refunding';
-  return 'expired';
+  if (s.booking === 'EXPIRED' || s.booking === 'CANCELLED') {
+    if (s.payment === 'SUCCEEDED') return 'refunding';
+    if (s.payment === 'FAILED') return 'failed';
+    return 'expired';
+  }
+  if (s.payment === 'SUCCEEDED') return 'paid';
+  if (s.payment === 'FAILED' || s.payment === 'ABANDONED') return 'failed';
+  return 'waiting';
 }
 
 const MINUTE = 60_000;

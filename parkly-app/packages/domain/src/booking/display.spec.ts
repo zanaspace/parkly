@@ -48,6 +48,22 @@ describe('checkout state', () => {
     expect(checkoutState({ booking: 'EXPIRED', payment: 'SUCCEEDED' })).toBe('refunding');
     expect(checkoutState({ booking: 'CANCELLED', payment: 'ABANDONED' })).toBe('expired');
   });
+
+  it('handles overstay and extension payments on active or completed bookings', () => {
+    // Overstay or extension while parked
+    expect(checkoutState({ booking: 'CHECKED_IN', payment: 'INITIATED' })).toBe('waiting');
+    expect(checkoutState({ booking: 'CHECKED_IN', payment: 'PENDING' })).toBe('waiting');
+    expect(checkoutState({ booking: 'CHECKED_IN', payment: 'SUCCEEDED' })).toBe('paid');
+    expect(checkoutState({ booking: 'CHECKED_IN', payment: 'FAILED' })).toBe('failed');
+
+    // Overstay after vehicle exited
+    expect(checkoutState({ booking: 'COMPLETED', payment: 'INITIATED' })).toBe('waiting');
+    expect(checkoutState({ booking: 'COMPLETED', payment: 'SUCCEEDED' })).toBe('paid');
+
+    // Extension on confirmed booking before arrival
+    expect(checkoutState({ booking: 'CONFIRMED', payment: 'INITIATED' })).toBe('waiting');
+    expect(checkoutState({ booking: 'CONFIRMED', payment: 'SUCCEEDED' })).toBe('paid');
+  });
 });
 
 describe('stay timer (ADR 0016)', () => {

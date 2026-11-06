@@ -122,6 +122,25 @@ export function TicketIcon({ size = 18, strokeWidth = 2, className, style, ...pr
   );
 }
 
+/** Finance, ledger & reconciliation scale/bank icon */
+export function FinanceIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+  return (
+    <svg
+      {...defaultProps}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      strokeWidth={strokeWidth}
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      {...props}
+    >
+      <line x1="12" y1="2" x2="12" y2="22" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
 /** Enterprise alert & incident warning */
 export function AlertTriangleIcon({
   size = 20,

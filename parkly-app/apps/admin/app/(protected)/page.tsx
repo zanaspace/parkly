@@ -1,7 +1,7 @@
-import type { AdminLotSummary, AdminOperatorSummary } from '@parkly/contracts';
+import type { AdminLotSummary, AdminOperatorSummary, ReconciliationRun } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
-import { AuditIcon, KybIcon, LotsIcon } from '../../components/icons';
+import { AuditIcon, FinanceIcon, KybIcon, LotsIcon } from '../../components/icons';
 import { apiFetch } from '../../lib/api';
 import { requireAccess } from '../../lib/auth/session';
 import { publicEnv } from '../../lib/env';
@@ -9,14 +9,16 @@ import { publicEnv } from '../../lib/env';
 export const metadata = { title: 'Dashboard · Parkly Admin' };
 
 const AUDIT_READERS = new Set(['ADMIN_COMPLIANCE', 'SUPER_ADMIN']);
+const FINANCE_READERS = new Set(['ADMIN_FINANCE', 'SUPER_ADMIN']);
 
 export default async function AdminHome() {
   const { me, accessToken } = await requireAccess();
   const canReadAudit = me.roles.some((r) => AUDIT_READERS.has(r.role));
+  const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
   const primaryRole = me.roles[0]?.role ?? 'ADMIN';
 
   // Load operational queues in parallel
-  const [kybRes, lotsRes] = await Promise.all([
+  const [kybRes, lotsRes, reconRes] = await Promise.all([
     apiFetch<{ items: AdminOperatorSummary[] }>(
       publicEnv().apiUrl,
       '/v1/admin/operators?kybStatus=SUBMITTED',
@@ -27,10 +29,19 @@ export default async function AdminHome() {
       '/v1/admin/lots?status=PENDING_VERIFICATION',
       accessToken,
     ).catch(() => ({ items: [] })),
+    canReadFinance
+      ? apiFetch<{ runs: ReconciliationRun[] }>(
+          publicEnv().apiUrl,
+          '/v1/admin/reconciliation/runs?limit=1',
+          accessToken,
+        ).catch(() => ({ runs: [] }))
+      : Promise.resolve({ runs: [] }),
   ]);
 
   const pendingKybCount = kybRes.items.length;
   const pendingLotsCount = lotsRes.items.length;
+  const latestRun = reconRes.runs[0];
+  const hasExceptions = latestRun && latestRun.mismatchedCount > 0;
 
   return (
     <main className="pk-page pk-page--wide">
@@ -210,6 +221,71 @@ export default async function AdminHome() {
             </Text>
           )}
         </div>
+
+        {/* Finance & Reconciliation Card */}
+        {canReadFinance && (
+          <div className="pk-stat-card">
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: 'var(--pk-color-text-brand)',
+                  }}
+                >
+                  <FinanceIcon size={19} />
+                  <Text variant="label-lg" tone="brand">
+                    Finance & Reconciliation
+                  </Text>
+                </div>
+                <span
+                  className={`pk-badge ${hasExceptions ? 'pk-badge--submitted' : 'pk-badge--approved'}`}
+                  style={
+                    hasExceptions
+                      ? { background: '#fff1f0', color: '#cf1322', borderColor: '#ffa39e' }
+                      : undefined
+                  }
+                >
+                  {hasExceptions
+                    ? `${latestRun.mismatchedCount} Exceptions`
+                    : latestRun
+                      ? 'Balanced'
+                      : 'Active'}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  color: 'var(--pk-color-text-primary)',
+                  margin: '0.5rem 0',
+                }}
+              >
+                Daily Paystack Matching
+              </div>
+              <Text variant="body-sm" tone="secondary">
+                Daily automated payment matching against double-entry ledger. Inspect variances and
+                resolve discrepancies.
+              </Text>
+            </div>
+            <Link
+              className="pk-nav-link pk-nav-link--active"
+              href="/finance"
+              style={{ justifyContent: 'center' }}
+            >
+              Open Finance Console →
+            </Link>
+          </div>
+        )}
       </div>
     </main>
   );
