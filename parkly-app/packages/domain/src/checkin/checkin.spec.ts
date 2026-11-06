@@ -46,6 +46,14 @@ describe('gate decision (doc 03 §3.3)', () => {
       plate: 'LND123AB',
     });
     expect(decide(booking(), -30)).toMatchObject({ colour: 'GREEN' });
+    expect(decide(booking({ bookingType: 'PARK_NOW' }), -60)).toMatchObject({
+      colour: 'GREEN',
+      reason: 'OK',
+    });
+    expect(decide(booking({ bookingType: 'PARK_NOW' }), 121)).toMatchObject({
+      colour: 'RED',
+      reason: 'ENDED',
+    });
   });
 
   it('asks for judgement when early, late or already in', () => {

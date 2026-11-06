@@ -76,6 +76,10 @@ Real-Time Occupancy Dashboard: Read model aggregating expected arrivals, current
 Audited CSV Exports: Bookings and revenue CSV exports with user-ID watermarking.
 Automated Daily Reconciliation Job: Ingestion of Paystack settlements matching provider transactions vs payments vs ledger vs payouts to the kobo.
 Monthly Operator Financial Statement: PDF statements generated on the 1st of each month.
+⏳ Next Immediate Build — Operator Financial Dashboard & Payout Views (apps/portal)
+- Real-time revenue overview cards on the operator home dashboard (gross driver payments, net operator payouts, platform commissions, overstay fees).
+- Time filters (Today, This Week, This Month, All Time).
+- Dedicated /finance hub with daily breakdown table, payout status, and one-click monthly PDF statement downloads.
 ⏳ Sprint 8 — Admin Console, Support & NDPA Compliance
 Global Support Search: Search tool for support staff (lookup by phone, plate, booking code, or payment ref) with masked PII and audited "reveal" logs.
 Support Booking Actions: Maker-checker workflow for refunds over ₦50,000, bay relocation, and ticket re-sending.
