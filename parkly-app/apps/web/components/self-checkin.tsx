@@ -4,6 +4,9 @@ import type { Booking } from '@parkly/contracts';
 import jsQR from 'jsqr';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import type { EarlyStartOption } from '@parkly/contracts';
+import { formatNaira } from '@parkly/domain/money';
+import { getEarlyStart, startEarly } from '../lib/booking-actions';
 import { checkInNotYet, outsideWindowMessage } from '../lib/check-in-timing';
 import { submitSelfCheck } from '../lib/booking-actions';
 import { AlertCircleIcon, CameraIcon, CheckCircleIcon } from './icons';
@@ -95,6 +98,20 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
   }, [open]);
 
   const notYet = kind === 'in' ? checkInNotYet(booking, now) : null;
+  // ADR 0023 stage 2: while it's too early, offer to start now if there's space.
+  const [early, setEarly] = useState<EarlyStartOption | null>(null);
+  const [buying, setBuying] = useState(false);
+  const waiting = notYet !== null;
+  useEffect(() => {
+    if (!waiting) return;
+    let live = true;
+    void getEarlyStart(booking.id).then((o) => {
+      if (live) setEarly(o);
+    });
+    return () => {
+      live = false;
+    };
+  }, [waiting, booking.id]);
   if (!kind) return null;
 
   const verb = kind === 'in' ? 'Check in' : 'Check out';
@@ -160,11 +177,42 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
     );
   }
 
+  async function buyEarlyStart() {
+    if (!early?.newStartAt) return;
+    setBuying(true);
+    setError(null);
+    const res = await startEarly(booking.id, early.newStartAt);
+    if (res.ok && res.authorizationUrl) window.location.href = res.authorizationUrl;
+    else if (res.ok) router.refresh();
+    else setError(res.message ?? 'We couldn’t start your booking early. Please try again.');
+    setBuying(false);
+  }
+
   if (notYet)
     return (
-      <p className="pk-notice pk-notice--info" role="status" style={{ marginTop: '1rem' }}>
-        {notYet}
-      </p>
+      <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
+        <p className="pk-notice pk-notice--info" role="status">
+          {notYet}
+        </p>
+        {early?.available && early.priceKobo !== null && early.newStartAt ? (
+          <button
+            type="button"
+            className="pk-self-check-btn"
+            disabled={buying}
+            onClick={() => void buyEarlyStart()}
+          >
+            <span>
+              Start now: {formatNaira(early.priceKobo as never)} for {early.addedMinutes} more
+              minutes
+            </span>
+          </button>
+        ) : null}
+        {error ? (
+          <p className="pk-notice pk-notice--error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
     );
 
   return (

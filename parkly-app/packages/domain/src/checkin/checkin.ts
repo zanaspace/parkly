@@ -1,4 +1,4 @@
-import type { BookingStatus } from '../booking/booking.js';
+import type { BookingStatus, BookingType } from '../booking/booking.js';
 import { normalisePlate } from '../plate/plate.js';
 
 /**
@@ -21,6 +21,7 @@ export type GateBooking = {
   startAt: Date;
   endAt: Date;
   status: BookingStatus;
+  bookingType?: BookingType;
   checkedInAt: Date | null;
 };
 
@@ -102,6 +103,10 @@ export function gateDecision(input: {
   if (b.status === 'COMPLETED') return decision('ENDED', who);
   const inAt = input.localCheckedInAt ?? b.checkedInAt;
   if (inAt || b.status === 'CHECKED_IN') return decision('ALREADY_IN', who, inAt);
+  // ADR 0024: PARK_NOW space is held immediately; driver can check in anytime while hold is active
+  if (b.bookingType === 'PARK_NOW' && b.status === 'CONFIRMED') {
+    return now.getTime() >= b.endAt.getTime() ? decision('ENDED', who) : decision('OK', who);
+  }
   const t = timing(b.startAt, b.endAt, now, rules);
   if (b.status === 'NO_SHOW' && t === 'OK') return decision('LATE', who);
   return decision(t, who);

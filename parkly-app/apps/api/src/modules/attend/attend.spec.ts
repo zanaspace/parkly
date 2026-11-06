@@ -769,6 +769,51 @@ describe('self check-in (ADR 0016)', () => {
     expect(outRes.body?.result).toBe('APPLIED');
   });
 
+  it('allows PARK_NOW driver to self check-in immediately and shifts stay clock to arrival time', async () => {
+    const t = await selfSetup();
+    await t.toggle(true);
+    const driver = t.user();
+    const vehicle = await t.store.vehicles.create({
+      userId: driver,
+      plateRaw: 'LND 999 AB',
+      plateNorm: 'LND999AB',
+      make: null,
+      model: null,
+      colour: null,
+      isDefault: true,
+    });
+    const created = await t.call('POST', '/v1/bookings', {
+      as: driver,
+      headers: { 'idempotency-key': randomUUID() },
+      body: {
+        lotId: t.lot.id,
+        vehicleId: vehicle.id,
+        startAt: min(60),
+        endAt: min(120),
+        bookingType: 'PARK_NOW',
+      },
+    });
+    const ref = (created.body?.payment as { reference: string }).reference;
+    t.payments.pay(ref);
+    await t.call('POST', `/v1/payments/${ref}/verify`, { as: driver });
+    const parkNowId = (created.body?.booking as { id: string }).id;
+
+    // Driver checks in at min(17) (not on 15m grid, before scheduled start)
+    t.deps.now = () => new Date(min(17));
+    const res = await t.call('POST', `/v1/bookings/${parkNowId}/self-check-in`, {
+      as: driver,
+      body: { clientEventId: randomUUID(), code: t.poster, ...AT_LOT },
+    });
+    expect(res.body).toEqual({ result: 'APPLIED', reason: null });
+    const view = await t.call('GET', `/v1/bookings/${parkNowId}`, { as: driver });
+    expect(view.body).toMatchObject({
+      status: 'CHECKED_IN',
+      startAt: new Date(min(17)).toISOString(),
+      endAt: new Date(min(17 + 60)).toISOString(),
+      stay: { checkedInAt: new Date(min(17)).toISOString() },
+    });
+  });
+
   it('can be turned off again', async () => {
     const t = await selfSetup();
     await t.toggle(true);

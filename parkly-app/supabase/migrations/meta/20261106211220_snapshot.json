@@ -1,6 +1,6 @@
 {
-  "id": "5ec925ea-0783-40c0-a7aa-99e7681a19fe",
-  "prevId": "6eb2c429-0885-4e84-bbe2-39eb34b13b21",
+  "id": "7974ef6d-7330-4421-9af9-119f4ddee342",
+  "prevId": "70bbe620-afb5-4694-9e13-7a49727e2fa2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4788,7 +4788,7 @@
         },
         "bookings_grid_check": {
           "name": "bookings_grid_check",
-          "value": "extract(epoch from \"bookings\".\"start_at\")::bigint % 900 = 0 and extract(epoch from \"bookings\".\"end_at\")::bigint % 900 = 0"
+          "value": "\"bookings\".\"booking_type\" = 'PARK_NOW' or (extract(epoch from \"bookings\".\"start_at\")::bigint % 900 = 0 and extract(epoch from \"bookings\".\"end_at\")::bigint % 900 = 0)"
         },
         "bookings_product_check": {
           "name": "bookings_product_check",

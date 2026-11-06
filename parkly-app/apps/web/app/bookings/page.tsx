@@ -55,6 +55,21 @@ export default async function MyBookings({
     throw err;
   }
 
+  const hasActive = items.some(
+    (b) => b.status === 'CHECKED_IN' || Boolean(b.stay?.checkedInAt && !b.stay?.checkedOutAt),
+  );
+  const hasUpcoming = items.some(
+    (b) => (b.status === 'CONFIRMED' || b.status === 'PENDING_PAYMENT') && !b.stay?.checkedInAt,
+  );
+  const activeTabLabel =
+    tab === 'upcoming'
+      ? hasActive && hasUpcoming
+        ? 'Active & Upcoming'
+        : hasActive
+          ? 'Active'
+          : 'Upcoming'
+      : 'Upcoming';
+
   return (
     <main className="pk-page pk-bookings-page">
       <div className="pk-bookings-header">
@@ -73,7 +88,7 @@ export default async function MyBookings({
             aria-current={tab === 'upcoming' ? 'page' : undefined}
           >
             <TicketIcon size={16} />
-            <span>Upcoming</span>
+            <span>{activeTabLabel}</span>
           </Link>
           <Link
             className={`pk-tab-pill ${tab === 'past' ? 'pk-tab-pill--active' : ''}`}

@@ -470,6 +470,7 @@ export function attendRoutes(deps: AppDeps) {
               startAt: booking.startAt,
               endAt: booking.endAt,
               status: booking.status,
+              bookingType: booking.bookingType,
               checkedInAt: null,
             },
             now,

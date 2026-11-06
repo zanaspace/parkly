@@ -12,6 +12,7 @@ import { api, tickets } from '../../src/lib/client';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
+import { upcomingTabLabel } from '../../src/logic/booking-tabs';
 
 /** My bookings (FR-BOOK-004): upcoming first, then past. */
 export default function MyBookings() {
@@ -19,6 +20,7 @@ export default function MyBookings() {
   const router = useRouter();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [items, setItems] = useState<Booking[] | null>(null);
+  const [liveItems, setLiveItems] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const { me } = useAuth();
@@ -34,7 +36,10 @@ export default function MyBookings() {
       .then((rows) => {
         if (!live) return;
         setItems(rows);
-        if (tab === 'upcoming' && userId) void tickets.save(userId, rows).catch(() => undefined);
+        if (tab === 'upcoming') {
+          setLiveItems(rows);
+          if (userId) void tickets.save(userId, rows).catch(() => undefined);
+        }
       })
       .catch(async (err: unknown) => {
         if (!live) return;
@@ -43,6 +48,7 @@ export default function MyBookings() {
           const saved = await tickets.all(userId).catch(() => []);
           if (saved.length > 0) {
             setItems(saved);
+            setLiveItems(saved);
             setOffline(true);
             return;
           }
@@ -54,11 +60,17 @@ export default function MyBookings() {
     };
   }, [tab, userId]);
 
+  const activeTabLabel = upcomingTabLabel(tab === 'upcoming' ? items : liveItems);
+
   return (
     <Screen showNav>
       <Text variant="heading.xl">My bookings</Text>
       <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
-        <Chip label="Upcoming" selected={tab === 'upcoming'} onPress={() => setTab('upcoming')} />
+        <Chip
+          label={activeTabLabel}
+          selected={tab === 'upcoming'}
+          onPress={() => setTab('upcoming')}
+        />
         <Chip label="Past" selected={tab === 'past'} onPress={() => setTab('past')} />
       </View>
       {offline ? (
@@ -68,7 +80,9 @@ export default function MyBookings() {
       {!items && !error ? <ActivityIndicator accessibilityLabel="Loading bookings" /> : null}
       {items && items.length === 0 ? (
         <Text tone="secondary">
-          {tab === 'upcoming' ? 'No upcoming bookings yet.' : 'Nothing here yet.'}
+          {tab === 'upcoming'
+            ? `No ${activeTabLabel.toLowerCase()} bookings yet.`
+            : 'Nothing here yet.'}
         </Text>
       ) : null}
       {items?.map((b) => (
