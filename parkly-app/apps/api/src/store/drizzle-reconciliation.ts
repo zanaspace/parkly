@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type {
   ReconciliationItemRecord,
@@ -44,44 +44,88 @@ const itemColumns = {
 const asRunRow = (r: Record<string, unknown>) => r as unknown as ReconciliationRunRow;
 const asItemRow = (r: Record<string, unknown>) => r as unknown as ReconciliationItemRow;
 
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+async function upsertRun(db: Db | Tx, run: ReconciliationRunRecord): Promise<ReconciliationRunRow> {
+  const now = new Date();
+  const [upserted] = await db
+    .insert(reconciliationRuns)
+    .values({
+      id: uuidv7(),
+      businessDate: run.businessDate,
+      provider: run.provider,
+      status: run.status,
+      totalInternal: run.totalInternal,
+      totalProvider: run.totalProvider,
+      matchedCount: run.matchedCount,
+      mismatchedCount: run.mismatchedCount,
+      startedAt: run.startedAt,
+      finishedAt: run.finishedAt,
+      error: run.error,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [reconciliationRuns.provider, reconciliationRuns.businessDate],
+      set: {
+        status: run.status,
+        totalInternal: run.totalInternal,
+        totalProvider: run.totalProvider,
+        matchedCount: run.matchedCount,
+        mismatchedCount: run.mismatchedCount,
+        startedAt: run.startedAt,
+        finishedAt: run.finishedAt,
+        error: run.error,
+        updatedAt: now,
+      },
+    })
+    .returning(runColumns);
+  if (!upserted) throw new Error('reconciliation run upsert returned no row');
+  return asRunRow(upserted);
+}
+
 export function drizzleReconciliation(db: Db): Store['reconciliation'] {
   return {
-    async saveRun(run: ReconciliationRunRecord): Promise<ReconciliationRunRow> {
-      const now = new Date();
-      const [upserted] = await db
-        .insert(reconciliationRuns)
-        .values({
-          id: uuidv7(),
-          businessDate: run.businessDate,
-          provider: run.provider,
-          status: run.status,
-          totalInternal: run.totalInternal,
-          totalProvider: run.totalProvider,
-          matchedCount: run.matchedCount,
-          mismatchedCount: run.mismatchedCount,
-          startedAt: run.startedAt,
-          finishedAt: run.finishedAt,
-          error: run.error,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoUpdate({
-          target: [reconciliationRuns.provider, reconciliationRuns.businessDate],
-          set: {
-            status: run.status,
-            totalInternal: run.totalInternal,
-            totalProvider: run.totalProvider,
-            matchedCount: run.matchedCount,
-            mismatchedCount: run.mismatchedCount,
-            startedAt: run.startedAt,
-            finishedAt: run.finishedAt,
-            error: run.error,
-            updatedAt: now,
-          },
-        })
-        .returning(runColumns);
-      if (!upserted) throw new Error('reconciliation run upsert returned no row');
-      return asRunRow(upserted);
+    saveRun: (run) => upsertRun(db, run),
+
+    async recordRun(run, items) {
+      return db.transaction(async (tx) => {
+        const saved = await upsertRun(tx, run);
+        const resolved = await tx
+          .select({
+            providerReference: reconciliationItems.providerReference,
+            result: reconciliationItems.result,
+          })
+          .from(reconciliationItems)
+          .where(
+            and(eq(reconciliationItems.runId, saved.id), isNotNull(reconciliationItems.resolvedAt)),
+          );
+        const kept = new Set(resolved.map((r) => `${r.providerReference}|${r.result}`));
+        await tx
+          .delete(reconciliationItems)
+          .where(
+            and(eq(reconciliationItems.runId, saved.id), isNull(reconciliationItems.resolvedAt)),
+          );
+        const fresh = items.filter((i) => !kept.has(`${i.providerReference}|${i.result}`));
+        if (fresh.length > 0) {
+          const now = new Date();
+          await tx.insert(reconciliationItems).values(
+            fresh.map((item) => ({
+              id: uuidv7(),
+              runId: saved.id,
+              paymentId: item.paymentId,
+              providerReference: item.providerReference,
+              result: item.result,
+              details: item.details,
+              resolvedBy: null,
+              resolvedAt: null,
+              resolutionNotes: null,
+              createdAt: now,
+            })),
+          );
+        }
+        return saved;
+      });
     },
 
     async findRun(provider, businessDate): Promise<ReconciliationRunRow | null> {
@@ -188,7 +232,8 @@ export function drizzleReconciliation(db: Db): Store['reconciliation'] {
           resolvedAt: resolution.resolvedAt,
           resolutionNotes: resolution.notes,
         })
-        .where(eq(reconciliationItems.id, id))
+        // Only an open item: a second click or a race can't overwrite who resolved it.
+        .where(and(eq(reconciliationItems.id, id), isNull(reconciliationItems.resolvedAt)))
         .returning(itemColumns);
       return updated ? asItemRow(updated) : null;
     },

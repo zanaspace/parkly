@@ -203,3 +203,40 @@ describe('reconcileTransactions', () => {
     expect(out.items[0]?.result).toBe('MATCHED');
   });
 });
+
+describe('refunds (review fix 5)', () => {
+  const internal = (status: string) => ({
+    id: 'p1',
+    reference: 'p1',
+    amountKobo: kobo(110_000),
+    currency: 'NGN',
+    status,
+    paidAt: new Date('2026-11-05T10:00:00Z'),
+  });
+  const provider = (status: string) => ({
+    reference: 'p1',
+    amountKobo: kobo(110_000),
+    currency: 'NGN',
+    status,
+    paidAt: new Date('2026-11-05T10:00:00Z'),
+  });
+
+  it('a refund Paystack shows as reversed matches our refunded payment', () => {
+    for (const ours of ['REFUNDED', 'PARTIALLY_REFUNDED']) {
+      const out = reconcileTransactions({
+        internal: [internal(ours)],
+        provider: [provider('reversed')],
+      });
+      expect(out.items[0]?.result).toBe('MATCHED');
+      expect(out.summary.mismatchedCount).toBe(0);
+    }
+  });
+
+  it('a reversal we never recorded is still a status mismatch', () => {
+    const out = reconcileTransactions({
+      internal: [internal('SUCCEEDED')],
+      provider: [provider('reversed')],
+    });
+    expect(out.items[0]?.result).toBe('STATUS_MISMATCH');
+  });
+});

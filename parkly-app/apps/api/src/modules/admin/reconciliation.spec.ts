@@ -293,13 +293,23 @@ describe('admin reconciliation endpoints (Sprint 7 Task 4)', () => {
     expect(auditRows[0]?.action).toBe('reconciliation.item_resolved');
     expect(auditRows[0]?.actorUserId).toBe(fin);
 
-    // 404 if resolveItem returns null
+    // Resolving again is refused, and so is losing a race to another resolver.
+    const again = await w.call('POST', `/v1/admin/reconciliation/items/${item.id}/resolve`, {
+      ...asFin,
+      body: { notes: 'A second attempt to resolve' },
+    });
+    expect(again.status).toBe(409);
+    expect(again.body?.code).toBe('INVALID_STATE_TRANSITION');
+    const open = (await w.store.reconciliation.findItem(item.id)) as NonNullable<
+      Awaited<ReturnType<typeof w.store.reconciliation.findItem>>
+    >;
+    w.store.reconciliation.findItem = async () => ({ ...open, resolvedAt: null });
     w.store.reconciliation.resolveItem = async () => null;
     const concurrentFail = await w.call(
       'POST',
       `/v1/admin/reconciliation/items/${item.id}/resolve`,
       { ...asFin, body: { notes: 'Another valid note' } },
     );
-    expect(concurrentFail.status).toBe(404);
+    expect(concurrentFail.status).toBe(409);
   });
 });

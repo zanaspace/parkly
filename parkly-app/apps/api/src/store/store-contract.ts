@@ -805,6 +805,47 @@ export function storeContract(
       expect(runs.some((r) => r.id === run.id)).toBe(true);
     });
 
+    it('re-running a day replaces open exceptions and keeps resolved ones (review fix 2)', async () => {
+      const finance = await newUser();
+      const day = {
+        businessDate: '2026-10-01',
+        provider: 'FAKE' as const,
+        status: 'COMPLETED_WITH_EXCEPTIONS' as const,
+        totalInternal: 2,
+        totalProvider: 2,
+        matchedCount: 0,
+        mismatchedCount: 2,
+        startedAt: new Date('2026-10-02T06:00:00Z'),
+        finishedAt: new Date('2026-10-02T06:00:05Z'),
+        error: null,
+      };
+      const item = (ref: string) => ({
+        paymentId: null,
+        providerReference: ref,
+        result: 'MISSING_INTERNAL' as const,
+        details: { reason: 'probe' },
+      });
+      const run = await store.reconciliation.recordRun(day, [item('R-A'), item('R-B')]);
+      const first = await store.reconciliation.listItems({ runId: run.id, limit: 10 });
+      const a = first.find((i) => i.providerReference === 'R-A');
+      if (!a) throw new Error('expected R-A');
+      await store.reconciliation.resolveItem(a.id, {
+        resolvedBy: finance,
+        resolvedAt: new Date('2026-10-02T09:00:00Z'),
+        notes: 'Paid by bank transfer outside Parkly',
+      });
+
+      const again = await store.reconciliation.recordRun(day, [
+        item('R-A'),
+        item('R-B'),
+        item('R-C'),
+      ]);
+      expect(again.id).toBe(run.id);
+      const after = await store.reconciliation.listItems({ runId: run.id, limit: 10 });
+      expect(after.map((i) => i.providerReference).sort()).toEqual(['R-A', 'R-B', 'R-C']);
+      expect(after.find((i) => i.providerReference === 'R-A')?.resolvedBy).toBe(finance);
+    });
+
     it('generates operator earnings reports and monthly statements (S7 task 5)', async () => {
       const owner = await newUser();
       const op = await store.operators.create({

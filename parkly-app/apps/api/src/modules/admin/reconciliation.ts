@@ -198,13 +198,17 @@ export function adminReconciliationRoutes(deps: AppDeps) {
 
       const item = await deps.store.reconciliation.findItem(id);
       if (!item) throw new ApiError('NOT_FOUND', 'Reconciliation item not found');
+      if (item.resolvedAt)
+        throw new ApiError('INVALID_STATE_TRANSITION', 'This exception was already resolved');
 
       const resolved = await deps.store.reconciliation.resolveItem(id, {
         resolvedBy: actor.userId,
         resolvedAt: deps.now(),
         notes: req.notes,
       });
-      if (!resolved) throw new ApiError('NOT_FOUND', 'Reconciliation item not found');
+      // Someone resolved it a moment ago.
+      if (!resolved)
+        throw new ApiError('INVALID_STATE_TRANSITION', 'This exception was already resolved');
 
       await audit(c, deps, {
         action: 'reconciliation.item_resolved',

@@ -1067,7 +1067,11 @@ export type Store = {
     }): Promise<boolean>;
     /** Checkouts still open (PENDING) that were started in [from, to): the job asks the provider. */
     unsettled(window: { from: Date; to: Date; limit: number }): Promise<string[]>;
-    /** Payments within a date range for daily reconciliation (doc 02 §2.7). */
+    /**
+     * Payments created in [from, to) for daily reconciliation (doc 02 §2.7):
+     * created time, as Paystack filters its transactions, so a checkout started
+     * before midnight and paid after it falls on the same day on both sides.
+     */
     forReconciliation(params: {
       provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
       from: Date;
@@ -1124,6 +1128,15 @@ export type Store = {
     ): Promise<ReconciliationRunRow | null>;
     findRunById(id: string): Promise<ReconciliationRunRow | null>;
     saveItems(runId: string, items: ReconciliationItemRecord[]): Promise<void>;
+    /**
+     * Saves a day's run and its exceptions in one transaction (review fix 2).
+     * Re-running a day replaces its unresolved items; items finance already
+     * resolved are kept, and the same exception is not added again.
+     */
+    recordRun(
+      run: ReconciliationRunRecord,
+      items: ReconciliationItemRecord[],
+    ): Promise<ReconciliationRunRow>;
     listRuns(query: {
       before?: { createdAt: Date; id: string };
       limit: number;
@@ -1136,6 +1149,7 @@ export type Store = {
       limit: number;
     }): Promise<ReconciliationItemRow[]>;
     findItem(id: string): Promise<ReconciliationItemRow | null>;
+    /** Null when the item doesn't exist or is already resolved (never overwritten). */
     resolveItem(
       id: string,
       resolution: { resolvedBy: string; resolvedAt: Date; notes: string },

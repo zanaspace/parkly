@@ -134,6 +134,26 @@ export function reconcileTransactions(input: {
     const providerSuccess = isProviderSuccessful(pTx.status);
     const internalSuccess = isInternalSuccessful(internal.status);
 
+    // A refunded charge: Paystack marks it reversed, we mark it (partially) refunded.
+    if (
+      pTx.status.toLowerCase() === 'reversed' &&
+      (internal.status === 'REFUNDED' || internal.status === 'PARTIALLY_REFUNDED')
+    ) {
+      matchedCount++;
+      items.push({
+        paymentId: internal.id,
+        providerReference: pTx.reference,
+        result: 'MATCHED',
+        details: {
+          internalAmountKobo: internal.amountKobo,
+          providerAmountKobo: pTx.amountKobo,
+          internalStatus: internal.status,
+          providerStatus: pTx.status,
+        },
+      });
+      continue;
+    }
+
     if (providerSuccess && internalSuccess) {
       if (internal.amountKobo === pTx.amountKobo && internal.currency === pTx.currency) {
         matchedCount++;

@@ -660,8 +660,8 @@ export class MemoryBookings {
       this.paymentRows
         .filter((p) => {
           if (p.provider !== provider) return false;
-          const t = p.paidAt ?? p.createdAt;
-          return t >= from && t < to;
+          // Created time, like Paystack's own date filter (review fix 3).
+          return p.createdAt >= from && p.createdAt < to;
         })
         .map((p) => ({ ...p })),
 
