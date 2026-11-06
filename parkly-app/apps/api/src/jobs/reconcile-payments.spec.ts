@@ -4,6 +4,7 @@ import type { PaymentStatus } from '@parkly/domain/booking';
 import { createLogger } from '../lib/logger.js';
 import { FakePaymentProvider } from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
+import { testDeps } from '../test-helpers.js';
 import type { BookingRow, PaymentRow, SettleResult } from '../store/types.js';
 import { reconcilePaymentsJob } from './reconcile-payments.js';
 
@@ -12,7 +13,8 @@ function setup(nowStr = '2026-11-06T06:00:00.000Z') {
   const payments = new FakePaymentProvider();
   const logger = createLogger({ level: 'silent' });
   const now = () => new Date(nowStr);
-  const job = reconcilePaymentsJob({ store, payments, logger, now });
+  const notifications = testDeps({ store }).notifications;
+  const job = reconcilePaymentsJob({ store, payments, logger, now, notifications });
   return { store, payments, logger, now, job };
 }
 
@@ -267,6 +269,17 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
       feesKobo: 900,
       channel: 'card',
     });
+    // The fix goes through verifyAndSettle, which asks Paystack again (review fix 4).
+    await payments.initialize({
+      reference: ref,
+      amountKobo: 60_000,
+      email: 'driver@example.com',
+      subaccountCode: null,
+      platformShareKobo: 6_000,
+      callbackUrl: null,
+      metadata: {},
+    });
+    payments.pay(ref);
 
     await job({ deadline: new Date('2100-01-01T00:00:00Z'), payload: {} });
 
@@ -336,6 +349,7 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
       payments,
       logger,
       now: () => new Date('2026-11-06T06:00:00.000Z'),
+      notifications: testDeps({ store }).notifications,
     });
 
     payments.listTransactions = async () => {
@@ -480,5 +494,83 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
     const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
     expect(run?.status).toBe('FAILED');
     expect(run?.error).toContain('Provider API network timeout');
+  });
+});
+
+describe('review fixes (2026-11-06)', () => {
+  const RUN = { deadline: new Date('2100-01-01T00:00:00Z'), payload: {} };
+  const paidOn = new Date('2026-11-05T12:00:00.000Z');
+  const tx = (reference: string, amountKobo = 10_000) => ({
+    reference,
+    amountKobo,
+    currency: 'NGN',
+    status: 'success',
+    paidAt: paidOn,
+    feesKobo: 150,
+    channel: 'card',
+  });
+
+  it('fix 1: reads every page of Paystack transactions, not just the first 50', async () => {
+    const { job, store, payments } = setup();
+    for (let i = 0; i < 120; i++) {
+      const id = randomUUID();
+      addPayment(store, { id, amountKobo: 10_000, status: 'SUCCEEDED', paidAt: paidOn });
+      payments.transactions.push(tx(id));
+    }
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    expect(run).toMatchObject({ status: 'COMPLETED', matchedCount: 120, mismatchedCount: 0 });
+  });
+
+  it('fix 2: re-running a day does not pile up its exceptions', async () => {
+    const { job, store, payments } = setup();
+    payments.transactions.push(tx('unknown-ref-1'), tx('unknown-ref-2'));
+    await job(RUN);
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    const items = await store.reconciliation.listItems({ runId: run?.id ?? '', limit: 50 });
+    expect(items.map((i) => i.providerReference).sort()).toEqual([
+      'unknown-ref-1',
+      'unknown-ref-2',
+    ]);
+  });
+
+  it('fix 3: a payment we hold under the day before is matched, not missing', async () => {
+    const { job, store, payments } = setup();
+    const id = randomUUID();
+    // Created 23:55 Lagos the day before; Paystack lists it on the business day.
+    addPayment(store, {
+      id,
+      amountKobo: 10_000,
+      status: 'SUCCEEDED',
+      paidAt: null,
+      createdAt: new Date('2026-11-04T22:55:00.000Z'),
+    });
+    const row = store.booking.paymentRows.find((p) => p.id === id);
+    if (row)
+      Object.assign(row, { createdAt: new Date('2026-11-04T22:55:00.000Z'), paidAt: paidOn });
+    payments.transactions.push(tx(id));
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    expect(run).toMatchObject({ matchedCount: 1, mismatchedCount: 0 });
+  });
+
+  it('fix 3: a settled payment Paystack lists under another day is verified, not missing', async () => {
+    const { job, store, payments } = setup();
+    const id = randomUUID();
+    addPayment(store, { id, amountKobo: 10_000, status: 'SUCCEEDED', paidAt: paidOn });
+    await payments.initialize({
+      reference: id,
+      amountKobo: 10_000,
+      email: 'driver@example.com',
+      subaccountCode: null,
+      platformShareKobo: 1_000,
+      callbackUrl: null,
+      metadata: {},
+    });
+    payments.pay(id);
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    expect(run).toMatchObject({ matchedCount: 1, mismatchedCount: 0 });
   });
 });

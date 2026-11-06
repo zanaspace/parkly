@@ -43,6 +43,24 @@ export class MemoryReconciliation {
       return found ? { ...found } : null;
     },
 
+    recordRun: async (run, items) => {
+      const saved = await this.reconciliation.saveRun(run);
+      const resolved = new Set(
+        this.itemRows
+          .filter((i) => i.runId === saved.id && i.resolvedAt)
+          .map((i) => `${i.providerReference}|${i.result}`),
+      );
+      for (let i = this.itemRows.length - 1; i >= 0; i--) {
+        const row = this.itemRows[i];
+        if (row && row.runId === saved.id && !row.resolvedAt) this.itemRows.splice(i, 1);
+      }
+      await this.reconciliation.saveItems(
+        saved.id,
+        items.filter((i) => !resolved.has(`${i.providerReference}|${i.result}`)),
+      );
+      return saved;
+    },
+
     saveItems: async (runId, items: ReconciliationItemRecord[]): Promise<void> => {
       const now = new Date();
       for (const item of items) {
@@ -107,7 +125,8 @@ export class MemoryReconciliation {
 
     resolveItem: async (id, resolution): Promise<ReconciliationItemRow | null> => {
       const found = this.itemRows.find((i) => i.id === id);
-      if (!found) return null;
+      // As Postgres: only an open item is resolved, so a second click can't overwrite.
+      if (!found || found.resolvedAt) return null;
       found.resolvedBy = resolution.resolvedBy;
       found.resolvedAt = resolution.resolvedAt;
       found.resolutionNotes = resolution.notes;

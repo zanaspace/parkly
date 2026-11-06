@@ -73,14 +73,20 @@ export class FakePaymentProvider implements PaymentProvider {
   verifyWebhook(_rawBody: string, signature: string | undefined) {
     return signature === 'valid';
   }
-  async listTransactions(_input: {
+  /** Pages like Paystack (50 a page by default), so a caller that doesn't page misses rows. */
+  async listTransactions(input: {
     from: Date;
     to: Date;
     page?: number;
     perPage?: number;
   }): Promise<{ items: ProviderTransaction[]; total: number }> {
+    const perPage = input.perPage ?? 50;
+    const start = ((input.page ?? 1) - 1) * perPage;
     if (this.transactions.length > 0) {
-      return { items: this.transactions, total: this.transactions.length };
+      return {
+        items: this.transactions.slice(start, start + perPage),
+        total: this.transactions.length,
+      };
     }
     const items: ProviderTransaction[] = this.initialized.map((init) => {
       const outcome = this.outcomes.get(init.reference) ?? {};
@@ -95,7 +101,7 @@ export class FakePaymentProvider implements PaymentProvider {
         channel: status === 'success' ? 'card' : null,
       };
     });
-    return { items, total: items.length };
+    return { items: items.slice(start, start + perPage), total: items.length };
   }
 }
 

@@ -819,8 +819,9 @@ export function drizzleBookings(
           .where(
             and(
               eq(payments.provider, provider),
-              sql`coalesce(${payments.paidAt}, ${payments.createdAt}) >= ${from}`,
-              sql`coalesce(${payments.paidAt}, ${payments.createdAt}) < ${to}`,
+              // Created time, like Paystack's own date filter (review fix 3).
+              gte(payments.createdAt, from),
+              lt(payments.createdAt, to),
             ),
           )
           .orderBy(asc(payments.createdAt));
