@@ -1,7 +1,7 @@
 # Sprint 6 — Extend, overstay, cancel, refunds, receipts, notifications: report
 
-- **Status:** **In progress.** The lifecycle features are merged, and the hardening pass from the [gap review](S0-S6-gap-review.md) has finished Waves 1 and 2 and three of the six Wave 3 items: automatic checks (CI), notifications, and overstay. Attendants are invited and signed in by email code, and every sign-in request carries a captcha. Still open: no-shows while a gate is offline, stored receipts, and database tests; staging doesn't exist yet, so the exit criteria are not met.
-- **Updated:** 2026-10-30
+- **Status:** **Done (code complete).** The lifecycle features and every item of the [gap review](S0-S6-gap-review.md) Waves 1 to 3 are merged. Exit criteria wait for staging. Work after this report continues in the [S7 report](S7-report.md).
+- **Updated:** 2026-11-06
 - **Entry check:**
   - S5 is done (code complete).
   - The gap review (Oct 28) said S6 was not ready to merge and set out four fix waves. This report tracks them.

@@ -463,7 +463,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 |---|---|---|---|
 | S0 | Vercel projects/env/Firewall, Sentry + Better Stack, external accounts (tasks 11, 12, 14) | Need owner accounts and approvals | Owner setup, before S4 |
 | S1 | Attendant sign-in: phone OTP + lot PIN, device registration (task 4) | Attendant flow lives in the `/attend` PWA built in S5; lot assignments only exist from S2 | S5 |
-| S1 | OTP delivered on a real Nigerian number in staging; Send SMS + Custom Access Token hooks enabled on hosted projects | Termii sender ID / DND approval; hosted dashboard access | When Termii approves; fake SMS + test numbers until then |
+| S1 | OTP delivered on a real Nigerian number in staging; Send SMS + Custom Access Token hooks enabled on hosted projects | Termii sender ID / DND approval; hosted dashboard access | Custom Access Token hook **on for dev** (Nov 6). SMS hook and real-number OTP: when an SMS provider is chosen |
 | S2 | Lot closures and operator pause/resume | Only matter once drivers can book; not built in S4 | S5 |
 | S2 | Operator "Go live" button (O-13), "ready to go live" email | Ops take lots live (doc 02 §3.3); notifications S6. The "≥ 1 active attendant" rule is **dropped**: owners and managers can work the gate themselves (owner decision, 2026-10-23) | S6 |
 | S2 | Emails (permit reminders, suspension, KYB decision) and SMS invites | Email provider + notification outbox are S6; SMS needs Termii | S6 |
@@ -475,6 +475,8 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S4 | Booking confirmation SMS, push and email receipt | Notifications are S6 | S6 |
 | S4 | Webhook queue (pgmq) per doc 02 §7 | Inline processing + `settle-payments` job cover it for the pilot volume | S9 (hardening) |
 | S5 | Attendant sign-in by phone OTP (from S1) | SMS isn't live | **Done in S6** with an email code, phone as the alternative (ADR 0018) |
-| S6 | Notifications in production, reminders, push registration, invite emails | Gap review L-1; real email needs a verified Resend domain | S6 Wave 3, before S7 |
-| S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | S6 Wave 3, before S7 |
+| S6 | Notifications in production, reminders, push registration, invite emails | Gap review L-1; real email needs a verified Resend domain | **Done in S6 Wave 3**; real email live on dev Nov 6, with every auth email through Resend too (ADR 0022) |
+| S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | **Done in S6 Wave 3** |
 | S6 | Per-phone failed-code counter (doc 05 §4.1) | Not enforceable on Supabase; risk recorded in ADR 0019 | Revisit if Supabase adds a verify hook |
+| S7 | Operator bookings list and CSV export (task 2) | Admin list shipped first (#70); task 1 and G-9 came first | S7 |
+| S7 | Late bank transfers and `NEEDS_REVIEW` refunds (gap review P-9) | Moved from the gap review into S7 | S7, with reconciliation |
