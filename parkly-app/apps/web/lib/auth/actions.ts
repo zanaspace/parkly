@@ -42,8 +42,8 @@ const authMessage = (error: { code?: string; status?: number }) =>
 
 /**
  * Step 1 (doc 03 D-02). Phone: our API's precheck gives a friendly wait before
- * Supabase sends the SMS. Email: Supabase sends the code and applies its own
- * email limits.
+ * Supabase sends the SMS. Email: Supabase hands the code to our Send Email Hook,
+ * which sends it through Resend and applies per-account limits (ADR 0022).
  */
 export async function sendCode(_prev: SignInState, form: FormData): Promise<SignInState> {
   const method = methodOf(form);
