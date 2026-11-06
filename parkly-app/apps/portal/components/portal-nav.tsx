@@ -16,6 +16,7 @@ import {
   PlusIcon,
   ShieldCheckIcon,
   TeamIcon,
+  FileTextIcon,
 } from './icons';
 import { signOut } from '../lib/auth/actions';
 
@@ -69,6 +70,14 @@ export function PortalNav({ isOwner, user }: { isOwner: boolean; user?: UserNavI
       label: 'Lots & Parking',
       shortLabel: 'Lots',
       icon: LotsIcon,
+      exact: false,
+      category: 'workspaces',
+    },
+    {
+      href: '/bookings',
+      label: 'Bookings',
+      shortLabel: 'Bookings',
+      icon: FileTextIcon,
       exact: false,
       category: 'workspaces',
     },

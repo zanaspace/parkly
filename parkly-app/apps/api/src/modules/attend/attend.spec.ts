@@ -886,3 +886,100 @@ describe('unpaid overstay and waivers (FR-BOOK-008, gap review L-4)', () => {
     expect((await book()).body?.code).not.toBe('OVERSTAY_UNPAID');
   });
 });
+
+describe('operator bookings list and export (FR-OPS-002)', () => {
+  const TODAY = 'from=2026-10-19&to=2026-10-19';
+
+  it('lists today’s bookings for the owner, driver shown by plate only', async () => {
+    const t = await setup();
+    await t.paidBooking('LND 111 AB');
+    await t.paidBooking('LND 222 AB');
+    const res = await t.call('GET', `/v1/operators/${t.operatorId}/bookings?${TODAY}`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(200);
+    const items = res.body?.items as { plate: string; lotName: string; status: string }[];
+    expect(items.map((i) => i.plate).sort()).toEqual(['LND111AB', 'LND222AB']);
+    expect(items[0]).toMatchObject({
+      lotName: 'Eko Hotel Car Park',
+      status: 'CONFIRMED',
+      checkInAt: null,
+      autoClosed: false,
+    });
+    expect(res.body?.nextCursor).toBeNull();
+  });
+
+  it('pages with a cursor and filters by status and date', async () => {
+    const t = await setup();
+    await t.paidBooking('LND 111 AB');
+    await t.paidBooking('LND 222 AB');
+    const get = (q: string) =>
+      t.call('GET', `/v1/operators/${t.operatorId}/bookings?${q}`, { as: t.ownerId, aal: 'aal2' });
+    const p1 = await get(`${TODAY}&limit=1`);
+    expect((p1.body?.items as unknown[]).length).toBe(1);
+    const cursor = p1.body?.nextCursor as string;
+    expect(cursor).toBeTruthy();
+    const p2 = await get(`${TODAY}&limit=1&cursor=${cursor}`);
+    expect((p2.body?.items as { id: string }[])[0]?.id).not.toBe(
+      (p1.body?.items as { id: string }[])[0]?.id,
+    );
+    expect(p2.body?.nextCursor).toBeNull();
+
+    expect((await get(`${TODAY}&status=CANCELLED`)).body?.items).toEqual([]);
+    expect((await get('from=2026-10-20&to=2026-10-20')).body?.items).toEqual([]);
+  });
+
+  it('refuses a backwards or too-long range, a bad status and a bad cursor', async () => {
+    const t = await setup();
+    const get = (q: string) =>
+      t.call('GET', `/v1/operators/${t.operatorId}/bookings?${q}`, { as: t.ownerId, aal: 'aal2' });
+    expect((await get('from=2026-10-20&to=2026-10-19')).body?.code).toBe('REPORT_RANGE_INVALID');
+    expect((await get('from=2026-01-01&to=2026-12-31')).body?.code).toBe('REPORT_RANGE_INVALID');
+    expect((await get('from=2026-02-30&to=2026-03-01')).body?.code).toBe('REPORT_RANGE_INVALID');
+    expect((await get(`${TODAY}&status=PARKED`)).status).toBe(400);
+    expect((await get(`${TODAY}&cursor=bm9wZQ`)).body?.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('exports CSV stamped with who exported it, and audits the export', async () => {
+    const t = await setup();
+    await t.paidBooking('LND 111 AB');
+    const res = await t.call('GET', `/v1/operators/${t.operatorId}/bookings/export?${TODAY}`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/csv');
+    expect(res.headers.get('content-disposition')).toContain(
+      'parkly-bookings-2026-10-19-to-2026-10-19',
+    );
+    const lines = res.raw.split('\r\n');
+    expect(lines[0]).toContain(`Exported by user ${t.ownerId}`);
+    expect(lines[2]?.startsWith('booking_code,car_park,status')).toBe(true);
+    expect(lines[3]).toContain(
+      'Eko Hotel Car Park,CONFIRMED,HOURLY,2026-10-19 10:00,2026-10-19 12:00,LND111AB',
+    );
+    expect(lines.filter(Boolean)).toHaveLength(3);
+    expect(t.store.auditRows.at(-1)).toMatchObject({
+      action: 'operator.bookings_exported',
+      actorUserId: t.ownerId,
+      entityId: t.operatorId,
+      after: expect.objectContaining({ from: '2026-10-19', to: '2026-10-19', rows: 1 }),
+    });
+  });
+
+  it('another operator gets 404 for the list and the export, and nothing is audited', async () => {
+    const t = await setup();
+    const before = t.store.auditRows.length;
+    for (const path of ['bookings', 'bookings/export'])
+      expect(
+        (
+          await t.call('GET', `/v1/operators/${randomUUID()}/${path}?${TODAY}`, {
+            as: t.ownerId,
+            aal: 'aal2',
+          })
+        ).status,
+      ).toBe(404);
+    expect(t.store.auditRows.length).toBe(before);
+  });
+});

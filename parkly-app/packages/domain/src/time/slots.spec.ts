@@ -6,6 +6,7 @@ import {
   floorToSlot,
   isSlotAligned,
   lagosDateKey,
+  lagosDayStart,
   slotStartsBetween,
 } from './slots.js';
 
@@ -83,5 +84,20 @@ describe('lagosDateKey (Africa/Lagos = UTC+1, no DST)', () => {
     ['2026-06-15T00:00:00Z', '2026-06-15'],
   ])('%s → %s', (iso, key) => {
     expect(lagosDateKey(t(iso))).toBe(key);
+  });
+});
+
+describe('lagosDayStart', () => {
+  it('is midnight in Lagos, 23:00 UTC the day before', () => {
+    expect(lagosDayStart('2026-11-06')).toEqual(new Date('2026-11-05T23:00:00Z'));
+  });
+
+  it('round-trips with lagosDateKey', () => {
+    expect(lagosDateKey(lagosDayStart('2026-12-31'))).toBe('2026-12-31');
+  });
+
+  it('refuses anything but YYYY-MM-DD', () => {
+    expect(() => lagosDayStart('6/11/2026')).toThrow(RangeError);
+    expect(() => lagosDayStart('2026-02-30')).toThrow(RangeError);
   });
 });

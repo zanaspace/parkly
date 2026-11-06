@@ -40,3 +40,15 @@ export function ceil15Minutes(minutes: number): number {
 export function lagosDateKey(date: Date): string {
   return new Date(date.getTime() + LAGOS_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/** Midnight in Africa/Lagos at the start of `key` (YYYY-MM-DD), as a UTC instant. */
+export function lagosDayStart(key: string): Date {
+  const d = new Date(`${key}T00:00:00Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(key) ||
+    Number.isNaN(d.getTime()) ||
+    d.toISOString().slice(0, 10) !== key
+  )
+    throw new RangeError(`Not a YYYY-MM-DD date: ${key}`);
+  return new Date(d.getTime() - LAGOS_OFFSET_MS);
+}

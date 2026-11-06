@@ -558,11 +558,12 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | POST | `.../lots/:lotId/submit` | OWN, MGR | ✅ | DRAFT → PENDING_VERIFICATION (doc 02 §3.3) when the lot has ≥ 3 photos, opening hours, a price, a usable permit (submitted/in review/approved, not expired) and the operator a verified payout account; conditional on the lot still being DRAFT; locks the lot. Audited `lot.submitted` | `LOT_INCOMPLETE` (`errors[].path` = PHOTOS, OPENING_HOURS, RATE_PLAN, PERMIT, PAYOUT_ACCOUNT), `INVALID_STATE_TRANSITION` |
 | POST | `.../lots/:lotId/pause` · `/resume` | OWN, MGR | ✅ | | `LOT_NOT_LISTABLE` |
 | POST | `.../lots/:lotId/blocks` | OWN, MGR | ✅ | block N bays for a window | `LOT_CAPACITY_BELOW_COMMITTED` |
-| GET | `.../lots/:lotId/bookings` | OWN, MGR, ATT(lot) | — | filter by date/status; driver PII masked (first name + plate) | |
+| GET | `/operators/:operatorId/bookings` | OWN, MGR | — | FR-OPS-002, as built: `from`, `to` (Lagos dates, both included, ≤ 93 days, matched on the booking's start), `lotId?`, `status?` (comma-separated; default excludes abandoned checkouts), `cursor?`, `limit` (≤ 100). Newest start first, keyset-paged (`nextCursor`). Driver shown by first name and plate only. Attendants use the manifest instead | `REPORT_RANGE_INVALID`, `VALIDATION_FAILED` (bad cursor or status) |
 | GET | `/operators/:operatorId/occupancy` | OWN, MGR | — | FR-OPS-001, as built: per LIVE/PAUSED lot `parked` (Parkly cars in), `walkIns`, `expected` (paid, due in 24 h, not in), `available` (total spaces less cars in, never below 0), plus `asOf`. The portal polls it every 15 s through its same-origin `/api/operators/:operatorId/occupancy` route | |
 | GET | `/operators/:operatorId/outlook` | OWN, MGR | — | FR-OPS-001: today (from the current slot) and the next 6 Lagos days per lot: `arrivals` (paid, not yet in), `peakInUse` and `minFree` at the busiest 15 minutes, from `lot_slot_inventory` | |
 | GET | `/operators/:operatorId/reports/earnings` | OWN, MGR | — | `from,to,lotId` → gross, commission, fees, net, settlements | |
-| GET | `/operators/:operatorId/reports/export` | OWN | ✅ | CSV via async job → download URL | |
+| GET | `/operators/:operatorId/bookings/export` | OWN, MGR | — | FR-OPS-002, as built: same filters as the list → `text/csv` download, at most 10,000 rows. First row is the watermark (exporting user id, Lagos time, filters); cells starting `= + - @` are defused against spreadsheet formulas. Audited `operator.bookings_exported` with the filters and row count. Built synchronously, not as an async job, for pilot volumes (S7 report) | `REPORT_RANGE_INVALID`, `EXPORT_TOO_LARGE` |
+| GET | `/operators/:operatorId/reports/export` | OWN | ✅ | Earnings export with the revenue report (S7 task 5) | |
 | GET | `/operators/:operatorId/settlements` | OWN | — | | |
 | GET | `/operators/:operatorId/incidents` · POST | OWN, MGR, ATT | ✅ | | |
 
