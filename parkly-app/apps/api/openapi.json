@@ -9609,6 +9609,566 @@
         }
       }
     },
+    "/v1/admin/reconciliation/runs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation runs list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "businessDate": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "enum": [
+                              "PAYSTACK",
+                              "FLUTTERWAVE",
+                              "FAKE"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "RUNNING",
+                              "COMPLETED",
+                              "COMPLETED_WITH_EXCEPTIONS",
+                              "FAILED"
+                            ]
+                          },
+                          "totalInternal": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalProvider": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "matchedCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mismatchedCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "startedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "finishedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "error": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "businessDate",
+                          "provider",
+                          "status",
+                          "totalInternal",
+                          "totalProvider",
+                          "matchedCount",
+                          "mismatchedCount",
+                          "startedAt",
+                          "finishedAt",
+                          "error",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "runs",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/reconciliation/runs/{id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation run details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "businessDate": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "PAYSTACK",
+                        "FLUTTERWAVE",
+                        "FAKE"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "RUNNING",
+                        "COMPLETED",
+                        "COMPLETED_WITH_EXCEPTIONS",
+                        "FAILED"
+                      ]
+                    },
+                    "totalInternal": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "totalProvider": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "matchedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "mismatchedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "startedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "finishedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "error": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "businessDate",
+                    "provider",
+                    "status",
+                    "totalInternal",
+                    "totalProvider",
+                    "matchedCount",
+                    "mismatchedCount",
+                    "startedAt",
+                    "finishedAt",
+                    "error",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Run not found"
+          }
+        }
+      }
+    },
+    "/v1/admin/reconciliation/runs/{id}/items": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MATCHED",
+                "MISSING_INTERNAL",
+                "MISSING_PROVIDER",
+                "AMOUNT_MISMATCH",
+                "STATUS_MISMATCH",
+                "AUTO_FIXED"
+              ]
+            },
+            "required": false,
+            "name": "result",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "unresolvedOnly",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation items for run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "runId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "paymentId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "providerReference": {
+                            "type": "string"
+                          },
+                          "result": {
+                            "type": "string",
+                            "enum": [
+                              "MATCHED",
+                              "MISSING_INTERNAL",
+                              "MISSING_PROVIDER",
+                              "AMOUNT_MISMATCH",
+                              "STATUS_MISMATCH",
+                              "AUTO_FIXED"
+                            ]
+                          },
+                          "details": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "resolvedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "resolvedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "resolutionNotes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "runId",
+                          "paymentId",
+                          "providerReference",
+                          "result",
+                          "details",
+                          "resolvedBy",
+                          "resolvedAt",
+                          "resolutionNotes",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Run not found"
+          }
+        }
+      }
+    },
+    "/v1/admin/reconciliation/items/{id}/resolve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "notes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved reconciliation item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "runId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "paymentId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "providerReference": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "MATCHED",
+                        "MISSING_INTERNAL",
+                        "MISSING_PROVIDER",
+                        "AMOUNT_MISMATCH",
+                        "STATUS_MISMATCH",
+                        "AUTO_FIXED"
+                      ]
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "resolvedBy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "resolvedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "resolutionNotes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "runId",
+                    "paymentId",
+                    "providerReference",
+                    "result",
+                    "details",
+                    "resolvedBy",
+                    "resolvedAt",
+                    "resolutionNotes",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found"
+          }
+        }
+      }
+    },
     "/v1/operators/{operatorId}/members": {
       "get": {
         "tags": [

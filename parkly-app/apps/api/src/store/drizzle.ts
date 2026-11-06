@@ -46,6 +46,7 @@ import { drizzleAttend } from './drizzle-attend.js';
 import { drizzleNotifications } from './drizzle-notifications.js';
 import { drizzleReceipts } from './drizzle-receipts.js';
 import { drizzleSettlements } from './drizzle-settlements.js';
+import { drizzleReconciliation } from './drizzle-reconciliation.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
@@ -1590,6 +1591,8 @@ export function drizzleStore(db: Db): Store {
     receipts: drizzleReceipts(db),
 
     settlements: drizzleSettlements(db),
+
+    reconciliation: drizzleReconciliation(db),
 
     lotKeys: {
       forManifest: attending.forManifest,

@@ -49,4 +49,16 @@ Decisions I need from you
 3. Refund for leaving early. Offer it at launch, or later? I'd say later: start without it and add it once pilot volumes are stable.
 4. Timing. Finish S7 (reconciliation, revenue report, finance views) first and then build this as its own sprint, or bring part of it forward now? I'd bring only the clearer check-in message and the early-start-when-space-is-free forward. They're small and fix today's pain.
 
-What do you think of the overall shape before we lock in the numbers?
+## Agreed Decisions (Nov 6, 2026)
+
+1. **Free courtesy windows:**
+   - Free hold for "Park now": **60 minutes**.
+   - Free early arrival: **30 minutes** (built in ADR 0023 stage 1).
+2. **Holding fee:**
+   - **Share of hourly rate (25% per 15 minutes / 100% per hour held)** with a ₦150 floor. Accrued holding fees to be collected at checkout to avoid micro-transaction fees.
+3. **Refund for leaving early:**
+   - **Deferred to Phase 2 (post-pilot)** to prevent card refund processing delays and gateway fee losses.
+4. **Roadmap & Sprint Timing:**
+   - ADR 0023 Stages 1 & 2 (clear check-in timer + paid early start when space is free) are **built and committed** on `feat/early-start`.
+   - **Proceed immediately with completing Sprint 7** (Task 4: Daily reconciliation job, Task 5: Revenue reports, Task 6: Admin finance views).
+   - Package the remaining flexible booking features (hold-then-start clock, holding fee billing, hold capacity caps) into **Sprint 8**.

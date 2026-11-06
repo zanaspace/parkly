@@ -22,6 +22,17 @@ export type VerifiedCharge = {
   cardBrand: string | null;
 };
 
+/** A transaction as reported by the provider list API for daily reconciliation (doc 02 §2.7). */
+export type ProviderTransaction = {
+  reference: string;
+  amountKobo: number;
+  currency: string;
+  status: string;
+  paidAt: Date | null;
+  feesKobo: number | null;
+  channel: string | null;
+};
+
 export interface PaymentProvider {
   readonly name: 'paystack' | 'fake';
   initialize(input: {
@@ -44,6 +55,11 @@ export interface PaymentProvider {
   }): Promise<{ refundId: string; status: 'PENDING' | 'PROCESSED' }>;
   /** Checks the webhook signature over the exact raw body. */
   verifyWebhook(rawBody: string, signature: string | undefined): boolean;
+  /** Transactions in [from, to] for daily reconciliation (doc 02 §2.7). */
+  listTransactions(input: { from: Date; to: Date; page?: number; perPage?: number }): Promise<{
+    items: ProviderTransaction[];
+    total: number;
+  }>;
 }
 
 export interface SmsProvider {

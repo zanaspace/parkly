@@ -27,6 +27,7 @@ describe('job registry', () => {
       'deliver-notifications',
       'permit-expiry-check',
       'ping',
+      'reconcile-payments',
       'settle-payments',
       'settlements-sync',
       'sweep-reminders',

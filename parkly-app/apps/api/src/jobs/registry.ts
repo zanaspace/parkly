@@ -6,6 +6,7 @@ import { permitExpiryJob } from './permit-expiry.js';
 import { reminderSweepJob } from './reminder-sweep.js';
 import { settlePaymentsJob } from './settle-payments.js';
 import { settlementsSyncJob } from './settlements-sync.js';
+import { reconcilePaymentsJob } from './reconcile-payments.js';
 import type { JobHandler } from './routes.js';
 
 /**
@@ -29,6 +30,8 @@ export function createJobs(deps: {
     'sweep-reminders': reminderSweepJob(deps),
     // Provider payouts into `settlements` and the ledger, hourly (S7 task 3).
     'settlements-sync': settlementsSyncJob(deps),
+    // Daily payments reconciliation job (S7 task 4).
+    'reconcile-payments': reconcilePaymentsJob(deps),
     // Sends queued notifications and retries failed channels (ADR 0020).
     'deliver-notifications': ({ deadline }) => deps.notifications.deliverDue({ deadline }),
   };

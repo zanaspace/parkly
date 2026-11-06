@@ -268,6 +268,31 @@ const MATRIX: Row[] = [
     route: 'GET /v1/admin/bookings',
     expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
   },
+  {
+    method: 'GET',
+    path: '/v1/admin/reconciliation/runs',
+    route: 'GET /v1/admin/reconciliation/runs',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/reconciliation/runs/${TARGET_USER}`,
+    route: 'GET /v1/admin/reconciliation/runs/{id}',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/reconciliation/runs/${TARGET_USER}/items`,
+    route: 'GET /v1/admin/reconciliation/runs/{id}/items',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/reconciliation/items/${TARGET_USER}/resolve`,
+    route: 'POST /v1/admin/reconciliation/items/{id}/resolve',
+    body: { notes: 'Resolved with provider support' },
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
 ];
 
 /** Gap review S-11: Sprint 5 and 6 reads, each with an other-tenant case. */

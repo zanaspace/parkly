@@ -15,6 +15,16 @@ type VerifyData = {
   authorization?: { last4?: string | null; brand?: string | null } | null;
 };
 
+type TransactionItem = {
+  reference: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paid_at: string | null;
+  fees: number | null;
+  channel: string | null;
+};
+
 /**
  * Paystack checkout, verify, refund and webhook signatures (doc 01 §5.2,
  * ADR 0004). The split sends the operator's share to their subaccount;
@@ -93,6 +103,30 @@ export function paystackPaymentProvider(options: PaystackOptions): PaymentProvid
       if (!signature || !/^[0-9a-f]{128}$/i.test(signature)) return false;
       const expected = createHmac('sha512', options.secretKey).update(rawBody).digest();
       return timingSafeEqual(expected, Buffer.from(signature, 'hex'));
+    },
+
+    async listTransactions(input) {
+      const params = new URLSearchParams({
+        from: input.from.toISOString(),
+        to: input.to.toISOString(),
+        ...(input.page ? { page: String(input.page) } : {}),
+        ...(input.perPage ? { perPage: String(input.perPage) } : {}),
+      });
+      const res = await call<TransactionItem[]>('GET', `/transaction?${params.toString()}`);
+      const items = (res.data ?? []).map((t) => ({
+        reference: t.reference,
+        amountKobo: t.amount,
+        currency: t.currency,
+        status: t.status,
+        paidAt: t.paid_at ? new Date(t.paid_at) : null,
+        feesKobo: t.fees ?? null,
+        channel: t.channel ?? null,
+      }));
+      const meta = (res as { meta?: { total?: number } }).meta;
+      return {
+        items,
+        total: meta?.total ?? items.length,
+      };
     },
   };
 }
