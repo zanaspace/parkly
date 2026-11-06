@@ -29,6 +29,10 @@ export const reconciliationResultEnum = pgEnum('reconciliation_result', [
   'AMOUNT_MISMATCH',
   'STATUS_MISMATCH',
   'AUTO_FIXED',
+  // Review items 7 and 8 (2026-11-06): the ledger and settlements.
+  'LEDGER_MISSING',
+  'LEDGER_MISMATCH',
+  'SETTLEMENT_REVIEW',
 ]);
 
 /**

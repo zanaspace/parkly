@@ -7,6 +7,12 @@ export const RECONCILIATION_RESULTS = [
   'AMOUNT_MISMATCH',
   'STATUS_MISMATCH',
   'AUTO_FIXED',
+  /** A settled payment with no ledger journal (doc 02 §2.7). */
+  'LEDGER_MISSING',
+  /** Its journal took in a different amount from Paystack than the payment. */
+  'LEDGER_MISMATCH',
+  /** A provider payout held for review (S7 task 3) and still open. */
+  'SETTLEMENT_REVIEW',
 ] as const;
 
 export type ReconciliationResult = (typeof RECONCILIATION_RESULTS)[number];
@@ -53,6 +59,7 @@ export type ReconciliationItemOutcome = {
     internalCurrency?: string | null;
     providerCurrency?: string | null;
     reason?: string;
+    ledgerAmountKobo?: Kobo | null;
   };
 };
 
@@ -273,4 +280,46 @@ export function reconcileTransactions(input: {
     },
     items,
   };
+}
+
+/**
+ * Review item 7: every settled payment must have its ledger journal, which
+ * took in exactly the payment's amount from the provider (debit to
+ * PROVIDER_CLEARING; doc 02 §2.7). `clearingDebits` is that debit per payment.
+ */
+export function ledgerExceptions(input: {
+  payments: readonly { id: string; status: string; amountKobo: Kobo }[];
+  clearingDebits: ReadonlyMap<string, Kobo>;
+}): ReconciliationItemOutcome[] {
+  const out: ReconciliationItemOutcome[] = [];
+  for (const p of input.payments) {
+    if (!isInternalSuccessful(p.status)) continue;
+    const posted = input.clearingDebits.get(p.id);
+    if (posted === undefined) {
+      out.push({
+        paymentId: p.id,
+        providerReference: p.id,
+        result: 'LEDGER_MISSING',
+        details: {
+          internalAmountKobo: p.amountKobo,
+          ledgerAmountKobo: null,
+          internalStatus: p.status,
+          reason: `Payment is ${p.status} but has no ledger journal`,
+        },
+      });
+    } else if (posted !== p.amountKobo) {
+      out.push({
+        paymentId: p.id,
+        providerReference: p.id,
+        result: 'LEDGER_MISMATCH',
+        details: {
+          internalAmountKobo: p.amountKobo,
+          ledgerAmountKobo: posted,
+          internalStatus: p.status,
+          reason: `Ledger took in ${posted} kobo for a ${p.amountKobo} kobo payment`,
+        },
+      });
+    }
+  }
+  return out;
 }

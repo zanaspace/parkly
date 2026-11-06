@@ -208,6 +208,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `SUPABASE_SECRET_KEY` | dev `sb_secret_…` | staging | prod | ✅ |
 | `SUPABASE_SMS_HOOK_SECRET` | from Send SMS hook | from hook | from hook | ✅ |
 | `SUPABASE_EMAIL_HOOK_SECRET` | from Send Email hook (unset = hook off) | from Send Email hook | from Send Email hook (required) | ✅ |
+| `FINANCE_ALERT_EMAIL` | optional (a team inbox) | finance inbox | finance inbox | — |
 | `JOB_HMAC_SECRET` | `openssl rand -hex 32` (same value in Vault, §2.5) | own value | own value | ✅ |
 | `HASH_PEPPER_V1` | `openssl rand -hex 32` | own value | own value | ✅ |
 | `ENC_KEY_V1` | `openssl rand -base64 32` | own value | own value | ✅ |

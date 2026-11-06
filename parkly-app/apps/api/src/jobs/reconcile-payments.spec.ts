@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { PaymentStatus } from '@parkly/domain/booking';
 import { createLogger } from '../lib/logger.js';
-import { FakePaymentProvider } from '../providers/fakes.js';
+import { FakeEmailProvider, FakePaymentProvider } from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
 import { testDeps } from '../test-helpers.js';
 import type { BookingRow, PaymentRow, SettleResult } from '../store/types.js';
@@ -25,6 +25,10 @@ function addPayment(
     amountKobo: number;
     status: PaymentStatus;
     paidAt: Date | null;
+    /** Leave out the ledger journal (review item 7 tests). */
+    noLedger?: boolean;
+    /** Post the journal with another amount (review item 7 tests). */
+    ledgerAmountKobo?: number;
   },
 ) {
   const createdAt = payment.paidAt ?? new Date('2026-11-05T12:00:00.000Z');
@@ -51,6 +55,15 @@ function addPayment(
     createdAt,
   };
   store.booking.paymentRows.push(row);
+  // A settled payment has its journal (review item 7), as the real settle path posts.
+  if (['SUCCEEDED', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(row.status) && !payment.noLedger)
+    store.booking.ledgerRows.push({
+      account: `PROVIDER_CLEARING:${row.provider}`,
+      direction: 'DEBIT',
+      amountKobo: (payment.ledgerAmountKobo ?? row.amountKobo) as never,
+      journalId: randomUUID(),
+      paymentId: row.id,
+    });
   return row;
 }
 
@@ -569,8 +582,155 @@ describe('review fixes (2026-11-06)', () => {
       metadata: {},
     });
     payments.pay(id);
+    // Paystack's day list holds something else, so ours is found only by verify.
+    const other = randomUUID();
+    addPayment(store, { id: other, amountKobo: 10_000, status: 'SUCCEEDED', paidAt: paidOn });
+    payments.transactions.push(tx(other));
     await job(RUN);
     const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
-    expect(run).toMatchObject({ matchedCount: 1, mismatchedCount: 0 });
+    expect(run).toMatchObject({ matchedCount: 2, mismatchedCount: 0 });
+  });
+
+  it('fix 3: when verify fails too, the payment is reported missing at the provider', async () => {
+    const { job, store, payments } = setup();
+    const id = randomUUID();
+    addPayment(store, { id, amountKobo: 10_000, status: 'SUCCEEDED', paidAt: paidOn });
+    payments.transactions.push(tx('someone-else'));
+    payments.verify = async () => {
+      throw new Error('provider down');
+    };
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    const items = await store.reconciliation.listItems({ runId: run?.id ?? '', limit: 10 });
+    expect(items.find((i) => i.providerReference === id)?.result).toBe('MISSING_PROVIDER');
+  });
+
+  it('fix 1: stops with a failed run rather than paging forever', async () => {
+    const { job, store, payments } = setup();
+    payments.listTransactions = async () => ({ items: [tx(randomUUID())], total: 1e9 });
+    await expect(job(RUN)).rejects.toThrow('provider transactions in one day');
+    expect(await store.reconciliation.findRun('FAKE', '2026-11-05')).toMatchObject({
+      status: 'FAILED',
+    });
+  });
+});
+
+describe('ledger, settlements and the alert (review items 7 and 8)', () => {
+  const RUN = { deadline: new Date('2100-01-01T00:00:00Z'), payload: {} };
+  const paidOn = new Date('2026-11-05T12:00:00.000Z');
+  const tx = (reference: string, amountKobo = 10_000) => ({
+    reference,
+    amountKobo,
+    currency: 'NGN',
+    status: 'success',
+    paidAt: paidOn,
+    feesKobo: 150,
+    channel: 'card',
+  });
+
+  it('flags a settled payment with no journal, or one for the wrong amount', async () => {
+    const { job, store, payments } = setup();
+    const none = randomUUID();
+    const wrong = randomUUID();
+    addPayment(store, {
+      id: none,
+      amountKobo: 10_000,
+      status: 'SUCCEEDED',
+      paidAt: paidOn,
+      noLedger: true,
+    });
+    addPayment(store, {
+      id: wrong,
+      amountKobo: 10_000,
+      status: 'SUCCEEDED',
+      paidAt: paidOn,
+      ledgerAmountKobo: 9_000,
+    });
+    payments.transactions.push(tx(none), tx(wrong));
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    const items = await store.reconciliation.listItems({ runId: run?.id ?? '', limit: 50 });
+    const byRef = new Map(
+      items
+        .filter((i) => i.result.startsWith('LEDGER'))
+        .map((i) => [i.providerReference, i.result]),
+    );
+    expect(byRef.get(none)).toBe('LEDGER_MISSING');
+    expect(byRef.get(wrong)).toBe('LEDGER_MISMATCH');
+    expect(run).toMatchObject({ status: 'COMPLETED_WITH_EXCEPTIONS', mismatchedCount: 2 });
+  });
+
+  it('lists provider payouts still held for review', async () => {
+    const { job, store } = setup();
+    await store.settlements.record(
+      {
+        provider: 'PAYSTACK',
+        providerSettlementId: '3090026',
+        operatorId: null,
+        subaccountCode: null,
+        status: 'NEEDS_REVIEW',
+        amountKobo: 70_000,
+        grossKobo: 70_000,
+        feesKobo: 0,
+        settledAt: paidOn,
+        raw: {},
+        reviewReason: 'Unknown settlement status: on_hold',
+      },
+      paidOn,
+    );
+    await job(RUN);
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    const items = await store.reconciliation.listItems({ runId: run?.id ?? '', limit: 50 });
+    expect(items).toEqual([
+      expect.objectContaining({
+        result: 'SETTLEMENT_REVIEW',
+        providerReference: 'settlement:3090026',
+        details: expect.objectContaining({ reason: 'Unknown settlement status: on_hold' }),
+      }),
+    ]);
+  });
+
+  it('emails finance a summary when there are exceptions, and only then', async () => {
+    const store = new MemoryStore();
+    const payments = new FakePaymentProvider();
+    const email = new FakeEmailProvider();
+    const job = reconcilePaymentsJob({
+      store,
+      payments,
+      logger: createLogger({ level: 'silent' }),
+      now: () => new Date('2026-11-06T06:00:00.000Z'),
+      notifications: testDeps({ store }).notifications,
+      email,
+      financeAlertEmail: 'finance@parkly.test',
+    });
+    await job(RUN);
+    expect(email.sent).toHaveLength(0);
+
+    payments.transactions.push(tx('stranger'));
+    await job(RUN);
+    expect(email.sent).toHaveLength(1);
+    expect(email.sent[0]).toMatchObject({
+      to: 'finance@parkly.test',
+      subject: 'Parkly reconciliation 2026-11-05: 1 to review',
+    });
+    expect(email.sent[0]?.text).toContain('MISSING_INTERNAL: 1');
+  });
+
+  it('a failing alert email never fails the run', async () => {
+    const store = new MemoryStore();
+    const payments = new FakePaymentProvider();
+    const email = new FakeEmailProvider();
+    email.failNext = true;
+    const job = reconcilePaymentsJob({
+      store,
+      payments,
+      logger: createLogger({ level: 'silent' }),
+      now: () => new Date('2026-11-06T06:00:00.000Z'),
+      notifications: testDeps({ store }).notifications,
+      email,
+      financeAlertEmail: 'finance@parkly.test',
+    });
+    payments.transactions.push(tx('stranger'));
+    await expect(job(RUN)).resolves.toMatchObject({ remaining: 0 });
   });
 });

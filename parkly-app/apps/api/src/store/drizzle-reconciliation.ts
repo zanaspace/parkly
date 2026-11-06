@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, desc, eq, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type {
   ReconciliationItemRecord,
@@ -10,7 +10,7 @@ import type {
   Store,
 } from './types.js';
 
-const { reconciliationRuns, reconciliationItems } = schema;
+const { reconciliationRuns, reconciliationItems, ledgerEntries, ledgerAccounts } = schema;
 
 const runColumns = {
   id: reconciliationRuns.id,
@@ -87,6 +87,28 @@ async function upsertRun(db: Db | Tx, run: ReconciliationRunRecord): Promise<Rec
 export function drizzleReconciliation(db: Db): Store['reconciliation'] {
   return {
     saveRun: (run) => upsertRun(db, run),
+
+    async clearingDebits(provider, paymentIds) {
+      if (paymentIds.length === 0) return new Map();
+      const rows = await db
+        .select({
+          paymentId: ledgerEntries.paymentId,
+          total: sql<string>`sum(${ledgerEntries.amountKobo})`,
+        })
+        .from(ledgerEntries)
+        .innerJoin(ledgerAccounts, eq(ledgerAccounts.id, ledgerEntries.accountId))
+        .where(
+          and(
+            inArray(ledgerEntries.paymentId, paymentIds),
+            eq(ledgerEntries.direction, 'DEBIT'),
+            eq(ledgerAccounts.code, `PROVIDER_CLEARING:${provider}`),
+          ),
+        )
+        .groupBy(ledgerEntries.paymentId);
+      return new Map(
+        rows.flatMap((r) => (r.paymentId ? [[r.paymentId, Number(r.total)] as const] : [])),
+      );
+    },
 
     async recordRun(run, items) {
       return db.transaction(async (tx) => {

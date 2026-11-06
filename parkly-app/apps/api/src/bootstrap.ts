@@ -184,6 +184,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     now,
     appEnv: config.appEnv,
     notifications,
+    financeAlertEmail: config.financeAlertEmail,
   });
 
   const app = createApp({

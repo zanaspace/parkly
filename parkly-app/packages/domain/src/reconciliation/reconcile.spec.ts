@@ -3,6 +3,7 @@ import type { Kobo } from '../money/money.js';
 import {
   reconcileTransactions,
   type InternalPaymentRecord,
+  ledgerExceptions,
   type ProviderTransactionRecord,
 } from './reconcile.js';
 
@@ -238,5 +239,40 @@ describe('refunds (review fix 5)', () => {
       provider: [provider('reversed')],
     });
     expect(out.items[0]?.result).toBe('STATUS_MISMATCH');
+  });
+});
+
+describe('ledgerExceptions (review item 7)', () => {
+  const pay = (id: string, status: string, amount = 110_000) => ({
+    id,
+    status,
+    amountKobo: kobo(amount),
+  });
+
+  it('a settled payment needs a journal that took in exactly its amount', () => {
+    const out = ledgerExceptions({
+      payments: [pay('ok', 'SUCCEEDED'), pay('none', 'SUCCEEDED'), pay('short', 'REFUNDED')],
+      clearingDebits: new Map([
+        ['ok', kobo(110_000)],
+        ['short', kobo(100_000)],
+      ]),
+    });
+    expect(out.map((i) => [i.providerReference, i.result])).toEqual([
+      ['none', 'LEDGER_MISSING'],
+      ['short', 'LEDGER_MISMATCH'],
+    ]);
+    expect(out[1]?.details).toMatchObject({
+      internalAmountKobo: 110_000,
+      ledgerAmountKobo: 100_000,
+    });
+  });
+
+  it('ignores payments that never settled', () => {
+    expect(
+      ledgerExceptions({
+        payments: [pay('a', 'PENDING'), pay('b', 'FAILED'), pay('c', 'ABANDONED')],
+        clearingDebits: new Map(),
+      }),
+    ).toEqual([]);
   });
 });

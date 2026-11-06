@@ -43,6 +43,8 @@ const EnvSchema = z
     RESEND_API_KEY: z.string().startsWith('re_').min(10).optional(),
     /** e.g. `Parkly <no-reply@parkly.example>`, on the domain verified in Resend. */
     EMAIL_FROM: z.string().min(3).optional(),
+    /** Where the daily reconciliation sends its exceptions summary (review item 8). Off when unset. */
+    FINANCE_ALERT_EMAIL: z.email().optional(),
     /** Push to the driver app through Expo; the access token is optional. */
     PUSH_PROVIDER: z.enum(['fake', 'expo']).default('fake'),
     /** The driver website, for links in SMS and email (e.g. https://parkly-web-two.vercel.app). */
@@ -148,6 +150,8 @@ export type AppConfig = {
   smsHookSecret: string;
   /** Unset until the Send Email Hook is switched on in Supabase (ADR 0022). */
   emailHookSecret: string | null;
+  /** Reconciliation exceptions summary goes here (review item 8); null = no email. */
+  financeAlertEmail: string | null;
   hashPepper: string;
   encKeys: Record<string, Buffer>;
   encKeyCurrent: string;
@@ -207,6 +211,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     },
     smsHookSecret: e.SUPABASE_SMS_HOOK_SECRET ?? LOCAL.smsHookSecret,
     emailHookSecret: e.SUPABASE_EMAIL_HOOK_SECRET ?? null,
+    financeAlertEmail: e.FINANCE_ALERT_EMAIL ?? null,
     hashPepper: e.HASH_PEPPER_V1 ?? LOCAL.pepper,
     encKeys,
     encKeyCurrent: e.ENC_KEY_CURRENT,

@@ -124,7 +124,7 @@ export class MemoryStore implements Store {
   readonly settlementStore = new MemorySettlements();
   readonly settlements: Store['settlements'] = this.settlementStore.settlements;
   /** Reconciliation runs & items (S7 task 4). */
-  readonly reconciliationStore = new MemoryReconciliation();
+  readonly reconciliationStore = new MemoryReconciliation(() => this.booking.ledgerRows);
   readonly reconciliation: Store['reconciliation'] = this.reconciliationStore.reconciliation;
   /** Revenue and monthly reports (S7 task 5). */
   readonly reportsStore = new MemoryReports({

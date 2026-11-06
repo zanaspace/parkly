@@ -8,6 +8,15 @@ import type {
 } from './types.js';
 
 export class MemoryReconciliation {
+  constructor(
+    private readonly ledgerLines: () => readonly {
+      account: string;
+      direction: 'DEBIT' | 'CREDIT';
+      amountKobo: number;
+      paymentId: string;
+    }[] = () => [],
+  ) {}
+
   readonly runRows: ReconciliationRunRow[] = [];
   readonly itemRows: ReconciliationItemRow[] = [];
 
@@ -41,6 +50,16 @@ export class MemoryReconciliation {
     findRunById: async (id): Promise<ReconciliationRunRow | null> => {
       const found = this.runRows.find((r) => r.id === id);
       return found ? { ...found } : null;
+    },
+
+    clearingDebits: async (provider, paymentIds) => {
+      const out = new Map<string, number>();
+      for (const l of this.ledgerLines()) {
+        if (!paymentIds.includes(l.paymentId)) continue;
+        if (l.direction !== 'DEBIT' || l.account !== `PROVIDER_CLEARING:${provider}`) continue;
+        out.set(l.paymentId, (out.get(l.paymentId) ?? 0) + l.amountKobo);
+      }
+      return out;
     },
 
     recordRun: async (run, items) => {

@@ -2,7 +2,7 @@ import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import { isBalanced, settlementJournal } from '@parkly/domain/booking';
 import type { Kobo } from '@parkly/domain/money';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { accountIds } from './drizzle-bookings.js';
 import { planSettlement } from './settlement-plan.js';
@@ -100,6 +100,16 @@ export function drizzleSettlements(db: Db): Store['settlements'] {
           posted: true,
         };
       });
+    },
+
+    async needingReview(limit) {
+      const rows = await db
+        .select(columns)
+        .from(settlements)
+        .where(eq(settlements.status, 'NEEDS_REVIEW'))
+        .orderBy(asc(settlements.createdAt))
+        .limit(limit);
+      return rows.map(asRow);
     },
 
     async find(provider, providerSettlementId) {

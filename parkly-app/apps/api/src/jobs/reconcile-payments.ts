@@ -1,15 +1,17 @@
 import type { Kobo } from '@parkly/domain/money';
 import {
+  ledgerExceptions,
   reconcileTransactions,
   type InternalPaymentRecord,
   type ProviderTransactionRecord,
   type ReconciliationRunStatus,
 } from '@parkly/domain/reconciliation';
 import { lagosDateKey, lagosDayStart } from '@parkly/domain/time';
+import { brandedEmail, detailsCard, esc, paragraph } from '../emails/layout.js';
 import type { Logger } from '../lib/logger.js';
 import { verifyAndSettle } from '../modules/bookings/settle.js';
 import type { NotificationService } from '../notifications/service.js';
-import type { PaymentProvider } from '../providers/index.js';
+import type { EmailProvider, PaymentProvider } from '../providers/index.js';
 import type { PaymentRow, Store } from '../store/types.js';
 import type { JobHandler } from './routes.js';
 
@@ -55,6 +57,9 @@ export function reconcilePaymentsJob(deps: {
   logger: Logger;
   now: () => Date;
   notifications: NotificationService;
+  /** Review item 8: the exceptions summary goes here when set. */
+  email?: EmailProvider;
+  financeAlertEmail?: string | null;
 }): JobHandler {
   const provider = deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE';
 
@@ -145,6 +150,7 @@ export function reconcilePaymentsJob(deps: {
         provider: providerRecords,
       });
 
+      const statusAfterFix = new Map<string, string>();
       // Fix 4: money Paystack took that we never settled goes through the one settle path.
       for (const item of output.items) {
         if (item.result !== 'STATUS_MISMATCH' || !item.paymentId) continue;
@@ -170,6 +176,7 @@ export function reconcilePaymentsJob(deps: {
           );
           if (!settled) continue;
           const after = await deps.store.payments.find(internal.id);
+          if (after) statusAfterFix.set(after.id, after.status);
           item.result = 'AUTO_FIXED';
           item.details = {
             ...item.details,
@@ -187,6 +194,34 @@ export function reconcilePaymentsJob(deps: {
           );
         }
       }
+
+      // Item 7a: every settled payment has a journal that took in exactly its amount.
+      const settledNow = internalRecords.map((r) => ({
+        id: r.id,
+        status: statusAfterFix.get(r.id) ?? r.status,
+        amountKobo: r.amountKobo,
+      }));
+      const debits = await deps.store.reconciliation.clearingDebits(
+        provider,
+        settledNow.map((p) => p.id),
+      );
+      const ledgerItems = ledgerExceptions({
+        payments: settledNow,
+        clearingDebits: debits as Map<string, Kobo>,
+      });
+      // Item 7c: provider payouts still held for review (S7 task 3).
+      const heldPayouts = await deps.store.settlements.needingReview(200);
+      const payoutItems = heldPayouts.map((st) => ({
+        paymentId: null,
+        providerReference: `settlement:${st.providerSettlementId}`,
+        result: 'SETTLEMENT_REVIEW' as const,
+        details: {
+          providerAmountKobo: (st.amountKobo ?? null) as Kobo | null,
+          reason: st.reviewReason ?? 'Payout held for review',
+        },
+      }));
+      output.items.push(...ledgerItems, ...payoutItems);
+      output.summary.mismatchedCount += ledgerItems.length + payoutItems.length;
 
       const runStatus: ReconciliationRunStatus =
         output.summary.mismatchedCount > 0 ? 'COMPLETED_WITH_EXCEPTIONS' : 'COMPLETED';
@@ -230,6 +265,41 @@ export function reconcilePaymentsJob(deps: {
           { event: 'reconciliation.matched', ...log },
           'daily payment reconciliation completed successfully',
         );
+
+      if (output.summary.mismatchedCount > 0 && deps.email && deps.financeAlertEmail) {
+        const counts = new Map<string, number>();
+        for (const i of output.items)
+          if (i.result !== 'MATCHED' && i.result !== 'AUTO_FIXED')
+            counts.set(i.result, (counts.get(i.result) ?? 0) + 1);
+        const subject = `Parkly reconciliation ${businessDate}: ${output.summary.mismatchedCount} to review`;
+        const lines = [...counts.entries()].sort();
+        try {
+          await deps.email.send({
+            to: deps.financeAlertEmail,
+            subject,
+            html: brandedEmail({
+              title: subject,
+              preheader: subject,
+              heading: `${output.summary.mismatchedCount} reconciliation exceptions`,
+              body: [
+                paragraph(
+                  `The daily reconciliation for <strong>${esc(businessDate)}</strong> (${esc(provider)}) found exceptions to review.`,
+                ),
+                detailsCard(lines.map(([k, n]) => [k.replace(/_/g, ' ').toLowerCase(), String(n)])),
+                paragraph(
+                  'Open the admin console, Finance, Reconciliation, to review and resolve them.',
+                ),
+              ].join(''),
+            }),
+            text: `${subject}\n\n${lines.map(([k, n]) => `${k}: ${n}`).join('\n')}\n\nReview them in the admin console under Finance, Reconciliation.`,
+          });
+        } catch (err) {
+          deps.logger.error(
+            { err, runId: savedRun.id, event: 'reconciliation.alert_failed' },
+            'reconciliation alert email failed',
+          );
+        }
+      }
 
       return { processed: output.items.length, remaining: 0 };
     } catch (err) {

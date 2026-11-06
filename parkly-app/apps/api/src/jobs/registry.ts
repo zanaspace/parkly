@@ -23,6 +23,8 @@ export function createJobs(deps: {
   now: () => Date;
   appEnv: 'local' | 'dev' | 'staging' | 'prod';
   notifications: NotificationService;
+  /** Reconciliation exceptions summary (review item 8); omitted or null = no email. */
+  financeAlertEmail?: string | null;
 }): Record<string, JobHandler> {
   return {
     ping: async () => ({ processed: 0, remaining: 0 }),
