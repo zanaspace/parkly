@@ -33,6 +33,7 @@ import { MemoryNotifications } from './memory-notifications.js';
 import { MemoryReceipts } from './memory-receipts.js';
 import { MemorySettlements } from './memory-settlements.js';
 import { MemoryReconciliation } from './memory-reconciliation.js';
+import { MemoryReports } from './memory-reports.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -125,6 +126,17 @@ export class MemoryStore implements Store {
   /** Reconciliation runs & items (S7 task 4). */
   readonly reconciliationStore = new MemoryReconciliation();
   readonly reconciliation: Store['reconciliation'] = this.reconciliationStore.reconciliation;
+  /** Revenue and monthly reports (S7 task 5). */
+  readonly reportsStore = new MemoryReports({
+    bookings: this.booking,
+    settlementStore: this.settlementStore,
+    lotRows: this.lotRows,
+    operatorRows: this.operatorRows,
+    userRows: this.userRows,
+    memberRows: this.memberRows,
+    payoutRows: this.payoutRows,
+  });
+  readonly reports: Store['reports'] = this.reportsStore.reports;
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {

@@ -1,3 +1,4 @@
+import type { MonthlyStatement, OperatorEarningsReport } from '@parkly/contracts';
 import type { RoleGrant } from '@parkly/domain/authz';
 import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
 import type { Bucket, VerifiedCharge } from '../providers/index.js';
@@ -1330,6 +1331,25 @@ export type Store = {
   };
   settings: {
     get<T>(key: string): Promise<T | undefined>;
+  };
+  reports: {
+    /** Operator earnings report across a Lagos date range with daily breakdown. */
+    operatorEarnings(filter: {
+      operatorId: string;
+      from: string;
+      to: string;
+      lotId?: string;
+    }): Promise<OperatorEarningsReport>;
+    /** Operator monthly statement with financial summary, lot breakdown and settlements. */
+    monthlyStatement(filter: {
+      operatorId: string;
+      month: string;
+      lotId?: string;
+    }): Promise<MonthlyStatement | null>;
+    /** Active operators who had activity (or active payout account) in the month. */
+    operatorsForMonthlyStatement(
+      month: string,
+    ): Promise<{ id: string; name: string; contactEmail: string }[]>;
   };
 };
 

@@ -805,6 +805,90 @@ export function storeContract(
       expect(runs.some((r) => r.id === run.id)).toBe(true);
     });
 
+    it('generates operator earnings reports and monthly statements (S7 task 5)', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'Reports Operator Ltd',
+        tradingName: 'Reports Op',
+        type: 'COMMERCIAL_LOT',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: '1 Victoria Island, Lagos',
+        contactEmail: 'reports@operator.ng',
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+
+      await store.payoutAccounts.upsert({
+        operatorId: op.id,
+        bankCode: '058',
+        bankName: 'Guaranty Trust Bank',
+        accountNumberLast4: '5678',
+        accountName: 'Reports Operator Ltd',
+        pendingAccountNumberEnc: 'enc-acct',
+        nameMismatch: false,
+        verifiedAt: new Date('2026-11-01T10:00:00Z'),
+      });
+      await store.operators.submitKyb(op.id, new Date('2026-11-01T11:00:00Z'));
+      await store.payoutAccounts.setSubaccount(op.id, 'ACCT_reports_sub');
+      await store.operators.approveKyb(op.id, {
+        reviewerId: owner,
+        at: new Date('2026-11-01T12:00:00Z'),
+      });
+
+      // Record a payout settlement
+      await store.settlements.record(
+        {
+          provider: 'PAYSTACK',
+          providerSettlementId: 'SETTLE_REP_001',
+          operatorId: op.id,
+          subaccountCode: 'ACCT_reports_sub',
+          status: 'SETTLED',
+          amountKobo: 250_000,
+          grossKobo: 260_000,
+          feesKobo: 10_000,
+          settledAt: new Date('2026-11-05T12:00:00Z'),
+          raw: { id: 'SETTLE_REP_001' },
+          reviewReason: null,
+        },
+        new Date('2026-11-05T12:00:00Z'),
+      );
+
+      // Query earnings report
+      const report = await store.reports.operatorEarnings({
+        operatorId: op.id,
+        from: '2026-11-01',
+        to: '2026-11-07',
+      });
+
+      expect(report.operatorId).toBe(op.id);
+      expect(report.from).toBe('2026-11-01');
+      expect(report.to).toBe('2026-11-07');
+      expect(report.daily.length).toBe(7);
+      const day5 = report.daily.find((d) => d.date === '2026-11-05');
+      expect(day5?.settlementKobo).toBe(250_000);
+      expect(day5?.settlementStatus).toBe('SETTLED');
+      expect(day5?.settlementReferences).toEqual(['SETTLE_REP_001']);
+      expect(report.totals.settlementKobo).toBe(250_000);
+
+      // Query monthly statement
+      const statement = await store.reports.monthlyStatement({
+        operatorId: op.id,
+        month: '2026-11',
+      });
+      expect(statement).not.toBeNull();
+      expect(statement?.operatorId).toBe(op.id);
+      expect(statement?.month).toBe('2026-11');
+      expect(statement?.payoutAccount?.bankName).toBe('Guaranty Trust Bank');
+      expect(statement?.statementNumber).toContain('STM-202611-');
+      expect(statement?.totals.settlementKobo).toBe(250_000);
+
+      // Query operators for monthly statement
+      const ops = await store.reports.operatorsForMonthlyStatement('2026-11');
+      expect(ops.some((o) => o.id === op.id)).toBe(true);
+    });
+
     it('reviews a lot: permit, prices, photos and the site visit, then lists by status', async () => {
       const owner = await newUser();
       const op = await store.operators.create({

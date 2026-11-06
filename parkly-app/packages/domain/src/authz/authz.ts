@@ -65,6 +65,9 @@ const RULES = {
   /** FR-OPS-002: the operator's bookings, and the CSV export (audited, watermarked). */
   'operator:bookings:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:bookings:export': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  /** FR-OPS-003, FR-OPS-006: revenue and settlement reports, CSV export, monthly statements. */
+  'operator:reports:read': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
+  'operator:reports:export': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   /** Owners invite managers and attendants; managers invite attendants (checked per role in the API). */
   'operator:members:invite': { scope: 'operator', roles: ['OPERATOR_OWNER', 'OPERATOR_MANAGER'] },
   'operator:members:remove': { scope: 'operator', roles: ['OPERATOR_OWNER'] },

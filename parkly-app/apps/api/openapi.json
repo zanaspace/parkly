@@ -11019,6 +11019,541 @@
         }
       }
     },
+    "/v1/operators/{operatorId}/reports/earnings": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "lotId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator revenue and settlement report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "from": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "to": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "lotId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "bookingsCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "grossBookingKobo": {
+                          "type": "integer"
+                        },
+                        "commissionKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "netOperatorKobo": {
+                          "type": "integer"
+                        },
+                        "settlementKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "bookingsCount",
+                        "grossBookingKobo",
+                        "commissionKobo",
+                        "serviceFeeKobo",
+                        "netOperatorKobo",
+                        "settlementKobo"
+                      ]
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "bookingsCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "grossBookingKobo": {
+                            "type": "integer"
+                          },
+                          "commissionKobo": {
+                            "type": "integer"
+                          },
+                          "serviceFeeKobo": {
+                            "type": "integer"
+                          },
+                          "netOperatorKobo": {
+                            "type": "integer"
+                          },
+                          "settlementKobo": {
+                            "type": "integer"
+                          },
+                          "settlementStatus": {
+                            "type": "string",
+                            "enum": [
+                              "NONE",
+                              "PENDING",
+                              "PROCESSING",
+                              "SETTLED",
+                              "PARTIAL",
+                              "FAILED"
+                            ]
+                          },
+                          "settlementReferences": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "bookingsCount",
+                          "grossBookingKobo",
+                          "commissionKobo",
+                          "serviceFeeKobo",
+                          "netOperatorKobo",
+                          "settlementKobo",
+                          "settlementStatus",
+                          "settlementReferences"
+                        ]
+                      }
+                    },
+                    "settlements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "providerSettlementId": {
+                            "type": "string"
+                          },
+                          "amountKobo": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "PROCESSING",
+                              "SETTLED",
+                              "FAILED",
+                              "NEEDS_REVIEW"
+                            ]
+                          },
+                          "settledAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "providerSettlementId",
+                          "amountKobo",
+                          "status",
+                          "settledAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "operatorId",
+                    "from",
+                    "to",
+                    "lotId",
+                    "totals",
+                    "daily",
+                    "settlements"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/reports/export": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "lotId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue report as watermarked CSV",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/reports/statements/{month}": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "required": true,
+            "name": "month",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "pdf"
+              ],
+              "default": "json"
+            },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monthly statement in JSON or PDF format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statementNumber": {
+                      "type": "string"
+                    },
+                    "month": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}$"
+                    },
+                    "operatorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "operatorName": {
+                      "type": "string"
+                    },
+                    "payoutAccount": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "bankName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accountNumberLast4": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accountName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bankName",
+                        "accountNumberLast4",
+                        "accountName"
+                      ]
+                    },
+                    "periodStart": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "periodEnd": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "bookingsCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "grossBookingKobo": {
+                          "type": "integer"
+                        },
+                        "commissionKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "netOperatorKobo": {
+                          "type": "integer"
+                        },
+                        "settlementKobo": {
+                          "type": "integer"
+                        },
+                        "closingBalanceKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "bookingsCount",
+                        "grossBookingKobo",
+                        "commissionKobo",
+                        "serviceFeeKobo",
+                        "netOperatorKobo",
+                        "settlementKobo",
+                        "closingBalanceKobo"
+                      ]
+                    },
+                    "lots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "bookingsCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "grossBookingKobo": {
+                            "type": "integer"
+                          },
+                          "commissionKobo": {
+                            "type": "integer"
+                          },
+                          "netOperatorKobo": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "lotId",
+                          "lotName",
+                          "bookingsCount",
+                          "grossBookingKobo",
+                          "commissionKobo",
+                          "netOperatorKobo"
+                        ]
+                      }
+                    },
+                    "settlements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "providerSettlementId": {
+                            "type": "string"
+                          },
+                          "amountKobo": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "PROCESSING",
+                              "SETTLED",
+                              "FAILED",
+                              "NEEDS_REVIEW"
+                            ]
+                          },
+                          "settledAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "providerSettlementId",
+                          "amountKobo",
+                          "status",
+                          "settledAt"
+                        ]
+                      }
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "statementNumber",
+                    "month",
+                    "operatorId",
+                    "operatorName",
+                    "payoutAccount",
+                    "periodStart",
+                    "periodEnd",
+                    "totals",
+                    "lots",
+                    "settlements",
+                    "generatedAt"
+                  ]
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/lots/search": {
       "get": {
         "tags": [

@@ -23,6 +23,7 @@ export default defineConfig({
         'src/store/drizzle-settlements.ts',
         'src/store/drizzle-notifications.ts',
         'src/store/drizzle-reconciliation.ts',
+        'src/store/drizzle-reports.ts',
         // Test doubles and helpers.
         'src/store/memory.ts',
         'src/store/memory-bookings.ts',
@@ -31,6 +32,7 @@ export default defineConfig({
         'src/store/memory-settlements.ts',
         'src/store/memory-notifications.ts',
         'src/store/memory-reconciliation.ts',
+        'src/store/memory-reports.ts',
         'src/store/store-contract.ts',
         'src/test-helpers.ts',
       ],
