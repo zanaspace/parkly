@@ -1260,6 +1260,64 @@ export function storeContract(
         expect(listed).toEqual([expect.objectContaining({ id: reg.id, lotName: 'Hold lot' })]);
       });
 
+      it('lists an operator’s bookings with filters and keyset pages (FR-OPS-002)', async () => {
+        const lot = await liveLot(2);
+        const first = await hold(lot, await driver());
+        const second = await hold(lot, await driver());
+        await store.payments.settle(first.payment.id, charge(), AT);
+        await store.payments.settle(second.payment.id, charge(), AT);
+        const day = {
+          from: new Date('2027-01-05T00:00:00Z'),
+          to: new Date('2027-01-06T00:00:00Z'),
+        };
+        const all = await store.attend.operatorBookings({
+          operatorId: lot.operatorId,
+          ...day,
+          statuses: ['CONFIRMED'],
+          limit: 10,
+        });
+        expect(all.map((r) => r.id).sort()).toEqual([first.booking.id, second.booking.id].sort());
+        expect(all[0]).toMatchObject({
+          lotId: lot.lotId,
+          status: 'CONFIRMED',
+          plateNorm: 'LND123AB',
+          checkInAt: null,
+          overstayStatus: 'NONE',
+          sessionFlags: [],
+        });
+        // Same start time: ordered by id, newest first, and the cursor resumes after it.
+        const page1 = await store.attend.operatorBookings({
+          operatorId: lot.operatorId,
+          ...day,
+          statuses: ['CONFIRMED'],
+          limit: 1,
+        });
+        const last = page1[0];
+        if (!last) throw new Error('expected a row');
+        const page2 = await store.attend.operatorBookings({
+          operatorId: lot.operatorId,
+          ...day,
+          statuses: ['CONFIRMED'],
+          after: { startAt: last.startAt, id: last.id },
+          limit: 10,
+        });
+        expect(page2.map((r) => r.id)).toEqual(all.map((r) => r.id).filter((id) => id !== last.id));
+        expect(page1.map((r) => r.id)).toEqual([all[0]?.id]);
+        // Filters: status, date, lot and operator.
+        const none = (over: Partial<Parameters<typeof store.attend.operatorBookings>[0]>) =>
+          store.attend.operatorBookings({
+            operatorId: lot.operatorId,
+            ...day,
+            statuses: ['CONFIRMED'],
+            limit: 10,
+            ...over,
+          });
+        expect(await none({ statuses: ['CANCELLED'] })).toEqual([]);
+        expect(await none({ from: END, to: new Date('2027-01-06T00:00:00Z') })).toEqual([]);
+        expect(await none({ lotId: randomUUID() })).toEqual([]);
+        expect(await none({ operatorId: randomUUID() })).toEqual([]);
+      });
+
       it('syncs check-in, check-out and walk-ins once, and lists them in the manifest', async () => {
         const lot = await liveLot(2);
         const attendant = await newUser([]);
@@ -1396,7 +1454,7 @@ export function storeContract(
         await store.payments.settle(payment.id, charge(), AT);
         expect((await store.bookings.findByCode(booking.code))?.id).toBe(booking.id);
         expect(await store.bookings.findByCode('PK-NOPE00')).toBeNull();
-        expect((await store.bookings.listRecent(10)).some((b) => b.id === booking.id)).toBe(true);
+        expect((await store.bookings.listRecent(1000)).some((b) => b.id === booking.id)).toBe(true);
         expect((await store.payments.listForBooking(booking.id)).map((p) => p.status)).toEqual([
           'SUCCEEDED',
         ]);

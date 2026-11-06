@@ -481,6 +481,39 @@ export type StaySummary = {
   overstayStatus: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
 };
 
+/** FR-OPS-002: filters for an operator's bookings. Times are UTC instants; `to` is exclusive. */
+export type OperatorBookingFilter = {
+  operatorId: string;
+  lotId?: string;
+  from: Date;
+  to: Date;
+  statuses: BookingStatus[];
+  /** Keyset: rows strictly after this one in (startAt desc, id desc) order. */
+  after?: { startAt: Date; id: string };
+  limit: number;
+};
+
+/** One booking as the operator sees it (driver: first name and plate only). */
+export type OperatorBookingRow = {
+  id: string;
+  code: string;
+  lotId: string;
+  lotName: string;
+  status: BookingStatus;
+  product: 'HOURLY' | 'DAILY';
+  startAt: Date;
+  endAt: Date;
+  plateNorm: string;
+  driverFirstName: string | null;
+  priceKobo: number;
+  totalKobo: number;
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+  overstayStatus: StaySummary['overstayStatus'];
+  overstayAmountKobo: number;
+  sessionFlags: string[];
+};
+
 export type AttendBatch = {
   id: string;
   deviceId: string;
@@ -1010,6 +1043,8 @@ export type Store = {
       approve: boolean;
       at: Date;
     }): Promise<AttendDeviceRow>;
+    /** FR-OPS-002: the operator's bookings, newest start first, keyset-paged. */
+    operatorBookings(filter: OperatorBookingFilter): Promise<OperatorBookingRow[]>;
     operatorDevices(
       operatorId: string,
     ): Promise<(AttendDeviceRow & { lotName: string; attendantName: string | null })[]>;

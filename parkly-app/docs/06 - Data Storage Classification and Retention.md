@@ -26,7 +26,7 @@
 | Logging of values | Yes | Yes | **Masked** only | **Never** |
 | In analytics | Yes | Yes | Only pseudonymised (user ID hash, coarse geohash) | Never |
 | In lower environments (dev/staging) | Yes | Yes | **Synthetic only** | **Synthetic only** |
-| Export / download | Free | Staff | Audited; masked by default | `SUPER_ADMIN` + audit + reason |
+| Export / download | Free | Staff | Audited; masked by default (e.g. the operator bookings CSV: driver first name and plate only, watermarked with the exporting user, audited `operator.bookings_exported`) | `SUPER_ADMIN` + audit + reason |
 | Sharing with third parties | Free | NDA | DPA + purpose limitation | DPA + explicit approval by DPO |
 | Disposal | Normal delete | Normal delete | Hard delete / anonymise per §6; crypto-shred where used | Crypto-shred (delete data key) + hard delete |
 | Printing / screenshots | OK | OK | Avoid; ops consoles mask by default | Not allowed |

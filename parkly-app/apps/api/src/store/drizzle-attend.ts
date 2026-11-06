@@ -1,6 +1,19 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { planEvent } from './attend-plan.js';
 import type { AttendDeviceRow, AttendEventResult, Store } from './types.js';
@@ -411,6 +424,57 @@ export function drizzleAttend(db: Db): {
               isNull(sessions.checkInAt),
             ),
           );
+      },
+
+      async operatorBookings(f) {
+        const rows = await db
+          .select({
+            id: bookings.id,
+            code: bookings.code,
+            lotId: bookings.lotId,
+            lotName: lots.name,
+            status: bookings.status,
+            product: bookings.product,
+            startAt: bookings.startAt,
+            endAt: bookings.endAt,
+            plateNorm: bookings.plateNormSnapshot,
+            driverFirstName: users.firstName,
+            priceKobo: bookings.priceKobo,
+            totalKobo: bookings.totalKobo,
+            checkInAt: sessions.checkInAt,
+            checkOutAt: sessions.checkOutAt,
+            overstayStatus: sessions.overstayStatus,
+            overstayAmountKobo: sessions.overstayAmountKobo,
+            sessionFlags: sessions.flags,
+          })
+          .from(bookings)
+          .innerJoin(lots, eq(lots.id, bookings.lotId))
+          .leftJoin(users, eq(users.id, bookings.driverId))
+          .leftJoin(sessions, eq(sessions.bookingId, bookings.id))
+          .where(
+            and(
+              eq(lots.operatorId, f.operatorId),
+              f.lotId ? eq(bookings.lotId, f.lotId) : undefined,
+              gte(bookings.startAt, f.from),
+              lt(bookings.startAt, f.to),
+              inArray(bookings.status, f.statuses),
+              f.after
+                ? or(
+                    lt(bookings.startAt, f.after.startAt),
+                    and(eq(bookings.startAt, f.after.startAt), lt(bookings.id, f.after.id)),
+                  )
+                : undefined,
+            ),
+          )
+          .orderBy(desc(bookings.startAt), desc(bookings.id))
+          .limit(f.limit);
+        return rows.map((r) => ({
+          ...r,
+          product: r.product as 'HOURLY' | 'DAILY',
+          overstayStatus: r.overstayStatus ?? 'NONE',
+          overstayAmountKobo: r.overstayAmountKobo ?? 0,
+          sessionFlags: r.sessionFlags ?? [],
+        }));
       },
 
       async sessionsForBookings(ids) {

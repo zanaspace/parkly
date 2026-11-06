@@ -308,3 +308,20 @@ describe('MFA requirement (FR-AUTH-004)', () => {
     expect(isAdmin(ownerA)).toBe(false);
   });
 });
+
+describe('operator bookings list and export (FR-OPS-002)', () => {
+  it('lets the owner and managers list and export their own bookings', () => {
+    for (const a of ['operator:bookings:read', 'operator:bookings:export'] as const) {
+      expect(can(ownerA, a, { operatorId: OP_A })).toBe(true);
+      expect(can(managerA, a, { operatorId: OP_A })).toBe(true);
+    }
+  });
+
+  it('denies other operators, attendants and drivers', () => {
+    for (const a of ['operator:bookings:read', 'operator:bookings:export'] as const) {
+      expect(can(ownerA, a, { operatorId: OP_B })).toBe(false);
+      expect(can(attendantA, a, { operatorId: OP_A })).toBe(false);
+      expect(can(driver, a, { operatorId: OP_A })).toBe(false);
+    }
+  });
+});

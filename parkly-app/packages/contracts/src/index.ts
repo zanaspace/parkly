@@ -13,3 +13,4 @@ export * from './discovery.js';
 export * from './places.js';
 export * from './bookings.js';
 export * from './attend.js';
+export * from './operator-bookings.js';

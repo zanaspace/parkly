@@ -450,7 +450,7 @@ sequenceDiagram
 | Revenue | Gross booking value, Parkly commission, operator net. Today, 7 d, 30 d, custom. |
 | Upcoming | Next 4 h of arrivals (list) |
 | Issues | Open incidents at their lots, unresolved check-in conflicts, permit status |
-| Export | CSV of bookings and payments (operator-scoped, generated async, link emailed, expires 24 h) |
+| Export | As built (S7 task 2): the **Bookings** page (portal nav) lists bookings by car park, Lagos dates and status, with pages, and **Download CSV** gives every match (up to 10,000 rows) straight away, stamped with who downloaded it and audited. Driver shown by first name and plate only. The original plan (async, link emailed, 24 h) was dropped for pilot volumes. Payments and earnings come with the revenue report (task 5) |
 
 Events: `operator_dashboard_viewed`, `operator_export_requested`.
 

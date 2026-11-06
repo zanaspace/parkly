@@ -104,6 +104,46 @@ export class MemoryAttend {
       return { ...d };
     },
 
+    operatorBookings: async (f) =>
+      this.deps.bookings.bookingRows
+        .filter((b) => {
+          const lot = this.deps.lotRows.get(b.lotId);
+          if (lot?.operatorId !== f.operatorId) return false;
+          if (f.lotId && b.lotId !== f.lotId) return false;
+          if (b.startAt < f.from || b.startAt >= f.to) return false;
+          if (!f.statuses.includes(b.status)) return false;
+          if (f.after) {
+            const t = b.startAt.getTime();
+            const at = f.after.startAt.getTime();
+            if (t > at || (t === at && b.id >= f.after.id)) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => b.startAt.getTime() - a.startAt.getTime() || (a.id < b.id ? 1 : -1))
+        .slice(0, f.limit)
+        .map((b) => {
+          const s = this.sessionRows.find((r) => r.bookingId === b.id);
+          return {
+            id: b.id,
+            code: b.code,
+            lotId: b.lotId,
+            lotName: this.deps.lotRows.get(b.lotId)?.name ?? '',
+            status: b.status,
+            product: b.product,
+            startAt: b.startAt,
+            endAt: b.endAt,
+            plateNorm: b.plateNorm,
+            driverFirstName: this.deps.userRows.get(b.driverId)?.firstName ?? null,
+            priceKobo: b.priceKobo,
+            totalKobo: b.totalKobo,
+            checkInAt: s?.checkInAt ?? null,
+            checkOutAt: s?.checkOutAt ?? null,
+            overstayStatus: s?.overstayStatus ?? 'NONE',
+            overstayAmountKobo: s?.overstayAmountKobo ?? 0,
+            sessionFlags: [...(s?.flags ?? [])],
+          };
+        }),
+
     operatorDevices: async (operatorId) =>
       this.deviceRows
         .filter((d) => d.operatorId === operatorId)

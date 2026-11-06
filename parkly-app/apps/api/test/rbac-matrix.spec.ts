@@ -89,6 +89,30 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}/bookings?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/bookings',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/bookings?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/bookings (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/bookings/export?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/bookings/export',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/bookings/export?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/bookings/export (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: `/v1/operators/${OP_A}/devices`,
     route: 'GET /v1/operators/{operatorId}/devices',
     expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
