@@ -1,7 +1,7 @@
 # Sprint 6 — Extend, overstay, cancel, refunds, receipts, notifications: report
 
-- **Status:** **In progress.** The lifecycle features are merged, and the hardening pass from the [gap review](S0-S6-gap-review.md) has finished Waves 1 and 2 and three of the six Wave 3 items: automatic checks (CI), notifications, and overstay. Attendants are invited and signed in by email code, and every sign-in request carries a captcha. Still open: no-shows while a gate is offline, stored receipts, and database tests; staging doesn't exist yet, so the exit criteria are not met.
-- **Updated:** 2026-10-30
+- **Status:** **Done (code complete).** The lifecycle features and every item of the [gap review](S0-S6-gap-review.md) Waves 1 to 3 are merged. Exit criteria wait for staging. Work after this report continues in the [S7 report](S7-report.md).
+- **Updated:** 2026-11-06
 - **Entry check:**
   - S5 is done (code complete).
   - The gap review (Oct 28) said S6 was not ready to merge and set out four fix waves. This report tracks them.
@@ -311,7 +311,8 @@ Receipts issued from then on show VAT; earlier ones stay as they were.
 
 - [ ] Create staging (Supabase and Vercel). No sprint has run its demo on staging yet.
 - [x] Verify a sending subdomain in Resend: `parkly.sellytichq.com`, verified Nov 5.
-- [ ] Turn on the Supabase Send Email Hook (ADR 0022, doc 22 §2.3a) so every auth email (codes, password reset, signup confirmation) goes through Resend in the Parkly layout. Then delete the Google app password.
+- [x] Supabase Send Email Hook on (Nov 6, ADR 0022): every auth email goes through Resend in the Parkly layout. Tested on portal and admin.
+- [ ] Delete the Google app password used for the old Gmail SMTP.
 - [ ] Add `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_TURNSTILE_ORIGIN` to the `production` EAS environment before the next store build.
 - [ ] Choose an SMS provider. Phone becomes the default sign-in for drivers and attendants with no code change.
 - [ ] Apply the item 13 migrations to dev, then merge `feat/s6-overstay`.

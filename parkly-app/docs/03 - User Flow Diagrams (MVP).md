@@ -445,7 +445,8 @@ sequenceDiagram
 
 | Widget (O-30) | Definition |
 |---|---|
-| Live occupancy | Parkly sessions `CHECKED_IN` now + walk-in count recorded at the gate (by the owner, a manager or an attendant), against `total_capacity`, per lot |
+| Live occupancy | Per lot: Parkly cars in (sessions checked in, not out), walk-ins counted at the gate (by the owner, a manager or an attendant), paid bookings still to arrive in 24 h, and spaces free now (total less cars in). Refreshes every 15 s while the tab is visible; shows "Live · Updated hh:mm:ss", or "Not updating" after 45 s of failed refreshes. A lot with more cars in than spaces shows a warning (a missed check-out or miscounted walk-ins). As built in S7 |
+| Week ahead | Per lot, today and the next 6 days: bookable spaces left at the busiest 15 minutes, and paid arrivals due. Loaded with the page. As built in S7 |
 | Today | Bookings, check-ins, no-shows, cancellations |
 | Revenue | Gross booking value, Parkly commission, operator net. Today, 7 d, 30 d, custom. |
 | Upcoming | Next 4 h of arrivals (list) |
