@@ -64,6 +64,10 @@
     "./checkin": {
       "types": "./dist/checkin/index.d.ts",
       "default": "./dist/checkin/index.js"
+    },
+    "./reconciliation": {
+      "types": "./dist/reconciliation/index.d.ts",
+      "default": "./dist/reconciliation/index.js"
     }
   },
   "scripts": {

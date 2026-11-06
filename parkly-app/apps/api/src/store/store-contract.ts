@@ -710,6 +710,101 @@ export function storeContract(
       expect(await store.settlements.find('PAYSTACK', 'nope')).toBeNull();
     });
 
+    it('records reconciliation runs and items and resolves exceptions (S7 task 4)', async () => {
+      const run = await store.reconciliation.saveRun({
+        businessDate: '2026-11-05',
+        provider: 'PAYSTACK',
+        status: 'COMPLETED_WITH_EXCEPTIONS',
+        totalInternal: 10,
+        totalProvider: 10,
+        matchedCount: 9,
+        mismatchedCount: 1,
+        startedAt: new Date('2026-11-06T06:00:00.000Z'),
+        finishedAt: new Date('2026-11-06T06:01:00.000Z'),
+        error: null,
+      });
+      expect(run.id).toBeTruthy();
+      expect(run.status).toBe('COMPLETED_WITH_EXCEPTIONS');
+
+      const foundRun = await store.reconciliation.findRun('PAYSTACK', '2026-11-05');
+      expect(foundRun?.id).toBe(run.id);
+
+      const notFoundRun = await store.reconciliation.findRun('PAYSTACK', '1999-01-01');
+      expect(notFoundRun).toBeNull();
+
+      const foundById = await store.reconciliation.findRunById(run.id);
+      expect(foundById?.id).toBe(run.id);
+
+      const notFoundById = await store.reconciliation.findRunById(
+        '00000000-0000-0000-0000-000000000000',
+      );
+      expect(notFoundById).toBeNull();
+
+      await store.reconciliation.saveItems(run.id, [
+        {
+          paymentId: null,
+          providerReference: '0199f0a0-0000-7000-8000-000000000099',
+          result: 'MISSING_INTERNAL',
+          details: { reason: 'Missing in internal DB' },
+        },
+        {
+          paymentId: null,
+          providerReference: '0199f0a0-0000-7000-8000-000000000098',
+          result: 'AMOUNT_MISMATCH',
+          details: { reason: 'Amount mismatch' },
+        },
+      ]);
+
+      const items = await store.reconciliation.listItems({ runId: run.id, limit: 10 });
+      expect(items).toHaveLength(2);
+      const firstItem = items[0];
+      expect(firstItem).toBeDefined();
+      if (!firstItem) throw new Error('expected item');
+
+      expect(firstItem.result).toBeDefined();
+
+      const singleItem = await store.reconciliation.findItem(firstItem.id);
+      expect(singleItem?.id).toBe(firstItem.id);
+
+      const missingItem = await store.reconciliation.findItem(
+        '00000000-0000-0000-0000-000000000000',
+      );
+      expect(missingItem).toBeNull();
+
+      const staffUser = await newUser();
+      const missingResolve = await store.reconciliation.resolveItem(
+        '00000000-0000-0000-0000-000000000000',
+        { resolvedBy: staffUser, resolvedAt: new Date(), notes: 'test' },
+      );
+      expect(missingResolve).toBeNull();
+
+      // Test cursor pagination tie-break with same createdAt
+      const paged = await store.reconciliation.listItems({
+        runId: run.id,
+        limit: 10,
+        before: { createdAt: firstItem.createdAt, id: firstItem.id },
+      });
+      expect(paged).toBeDefined();
+
+      const resolved = await store.reconciliation.resolveItem(firstItem.id, {
+        resolvedBy: staffUser,
+        resolvedAt: new Date(),
+        notes: 'Investigated and resolved manually with provider support',
+      });
+      expect(resolved?.resolvedBy).toBe(staffUser);
+      expect(resolved?.resolutionNotes).toContain('Investigated');
+
+      const unresolved = await store.reconciliation.listItems({
+        runId: run.id,
+        unresolvedOnly: true,
+        limit: 10,
+      });
+      expect(unresolved).toHaveLength(1);
+
+      const runs = await store.reconciliation.listRuns({ limit: 10 });
+      expect(runs.some((r) => r.id === run.id)).toBe(true);
+    });
+
     it('reviews a lot: permit, prices, photos and the site visit, then lists by status', async () => {
       const owner = await newUser();
       const op = await store.operators.create({

@@ -42,7 +42,13 @@ const only = (allowed: Who[], ok: number, denied: number) =>
     WHO.map((w) => [w, w === 'anon' ? 401 : allowed.includes(w) ? ok : denied]),
   ) as Record<Who, number>;
 
-type Row = { method: string; path: string; route: string; expect: Record<Who, number> };
+type Row = {
+  method: string;
+  path: string;
+  route: string;
+  body?: unknown;
+  expect: Record<Who, number>;
+};
 
 const MATRIX: Row[] = [
   {
@@ -268,6 +274,31 @@ const MATRIX: Row[] = [
     route: 'GET /v1/admin/bookings',
     expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
   },
+  {
+    method: 'GET',
+    path: '/v1/admin/reconciliation/runs',
+    route: 'GET /v1/admin/reconciliation/runs',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/reconciliation/runs/${TARGET_USER}`,
+    route: 'GET /v1/admin/reconciliation/runs/{id}',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/admin/reconciliation/runs/${TARGET_USER}/items`,
+    route: 'GET /v1/admin/reconciliation/runs/{id}/items',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/reconciliation/items/${TARGET_USER}/resolve`,
+    route: 'POST /v1/admin/reconciliation/items/{id}/resolve',
+    body: { notes: 'Resolved with provider support' },
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
 ];
 
 /** Gap review S-11: Sprint 5 and 6 reads, each with an other-tenant case. */
@@ -481,7 +512,7 @@ describe('RBAC matrix', () => {
         const res = await w.call(
           row.method,
           row.path,
-          who === 'anon' ? {} : { as: ids[who], aal: 'aal2' },
+          who === 'anon' ? { body: row.body } : { as: ids[who], aal: 'aal2', body: row.body },
         );
         expect(res.status).toBe(row.expect[who]);
       });

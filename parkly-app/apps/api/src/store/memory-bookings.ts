@@ -637,6 +637,15 @@ export class MemoryBookings {
         .slice(0, limit)
         .map((p) => p.id),
 
+    forReconciliation: async ({ provider, from, to }) =>
+      this.paymentRows
+        .filter((p) => {
+          if (p.provider !== provider) return false;
+          const t = p.paidAt ?? p.createdAt;
+          return t >= from && t < to;
+        })
+        .map((p) => ({ ...p })),
+
     refundRequested: async (refundId, providerRefundId) => {
       const r = this.refundRows.find((x) => x.id === refundId);
       if (r) r.providerRefundId = providerRefundId;

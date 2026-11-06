@@ -763,6 +763,21 @@ export function drizzleBookings(
         return rows.map((r) => r.id);
       },
 
+      async forReconciliation({ provider, from, to }) {
+        const rows = await db
+          .select(paymentColumns)
+          .from(payments)
+          .where(
+            and(
+              eq(payments.provider, provider),
+              sql`coalesce(${payments.paidAt}, ${payments.createdAt}) >= ${from}`,
+              sql`coalesce(${payments.paidAt}, ${payments.createdAt}) < ${to}`,
+            ),
+          )
+          .orderBy(asc(payments.createdAt));
+        return rows.map(asPayment);
+      },
+
       async refundRequested(refundId, providerRefundId) {
         await db.update(refunds).set({ providerRefundId }).where(eq(refunds.id, refundId));
       },

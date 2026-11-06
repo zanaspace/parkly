@@ -127,6 +127,44 @@ describe('Paystack payments adapter (doc 01 §5.2)', () => {
     expect(bodyOf(calls[0])).toEqual({ transaction: REF, amount: 210_000 });
   });
 
+  it('lists transactions for reconciliation within a time range', async () => {
+    const from = new Date('2026-10-22T00:00:00.000Z');
+    const to = new Date('2026-10-22T23:59:59.000Z');
+    const { provider, calls } = make(200, {
+      status: true,
+      data: [
+        {
+          reference: REF,
+          amount: 210_000,
+          currency: 'NGN',
+          status: 'success',
+          paid_at: '2026-10-22T13:21:05.000Z',
+          fees: 3_150,
+          channel: 'card',
+        },
+      ],
+      meta: { total: 1 },
+    });
+    const res = await provider.listTransactions({ from, to, page: 1, perPage: 50 });
+    expect(res).toEqual({
+      items: [
+        {
+          reference: REF,
+          amountKobo: 210_000,
+          currency: 'NGN',
+          status: 'success',
+          paidAt: new Date('2026-10-22T13:21:05.000Z'),
+          feesKobo: 3_150,
+          channel: 'card',
+        },
+      ],
+      total: 1,
+    });
+    expect(calls[0]?.url).toContain('https://api.paystack.co/transaction?');
+    expect(calls[0]?.url).toContain('from=');
+    expect(calls[0]?.url).toContain('to=');
+  });
+
   it('accepts only webhooks signed with HMAC-SHA512 of the raw body', () => {
     const { provider } = make(200, {});
     const raw = '{"event":"charge.success","data":{"reference":"x"}}';

@@ -504,6 +504,54 @@ export type SettlementRow = {
 
 export type SettlementRecord = Omit<SettlementRow, 'id' | 'ledgerJournalId' | 'postedAt'>;
 
+/** Daily reconciliation run per payment provider (doc 02 §2.7). */
+export type ReconciliationRunStatus =
+  'RUNNING' | 'COMPLETED' | 'COMPLETED_WITH_EXCEPTIONS' | 'FAILED';
+
+export type ReconciliationResult =
+  | 'MATCHED'
+  | 'MISSING_INTERNAL'
+  | 'MISSING_PROVIDER'
+  | 'AMOUNT_MISMATCH'
+  | 'STATUS_MISMATCH'
+  | 'AUTO_FIXED';
+
+export type ReconciliationRunRow = {
+  id: string;
+  businessDate: string;
+  provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
+  status: ReconciliationRunStatus;
+  totalInternal: number;
+  totalProvider: number;
+  matchedCount: number;
+  mismatchedCount: number;
+  startedAt: Date;
+  finishedAt: Date | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ReconciliationRunRecord = Omit<ReconciliationRunRow, 'id' | 'createdAt' | 'updatedAt'>;
+
+export type ReconciliationItemRow = {
+  id: string;
+  runId: string;
+  paymentId: string | null;
+  providerReference: string;
+  result: ReconciliationResult;
+  details: Record<string, unknown>;
+  resolvedBy: string | null;
+  resolvedAt: Date | null;
+  resolutionNotes: string | null;
+  createdAt: Date;
+};
+
+export type ReconciliationItemRecord = Omit<
+  ReconciliationItemRow,
+  'id' | 'runId' | 'resolvedBy' | 'resolvedAt' | 'resolutionNotes' | 'createdAt'
+>;
+
 /** FR-OPS-002: filters for an operator's bookings. Times are UTC instants; `to` is exclusive. */
 export type OperatorBookingFilter = {
   operatorId: string;
@@ -996,6 +1044,12 @@ export type Store = {
     }): Promise<boolean>;
     /** Checkouts still open (PENDING) that were started in [from, to): the job asks the provider. */
     unsettled(window: { from: Date; to: Date; limit: number }): Promise<string[]>;
+    /** Payments within a date range for daily reconciliation (doc 02 §2.7). */
+    forReconciliation(params: {
+      provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
+      from: Date;
+      to: Date;
+    }): Promise<PaymentRow[]>;
   };
   webhooks: {
     /** Stores a provider event once; a repeat of the same dedupe key is `duplicate`. */
@@ -1035,6 +1089,34 @@ export type Store = {
       provider: SettlementRow['provider'],
       providerSettlementId: string,
     ): Promise<SettlementRow | null>;
+  };
+  reconciliation: {
+    /**
+     * Upserts a reconciliation run record for (provider, businessDate).
+     */
+    saveRun(run: ReconciliationRunRecord): Promise<ReconciliationRunRow>;
+    findRun(
+      provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE',
+      businessDate: string,
+    ): Promise<ReconciliationRunRow | null>;
+    findRunById(id: string): Promise<ReconciliationRunRow | null>;
+    saveItems(runId: string, items: ReconciliationItemRecord[]): Promise<void>;
+    listRuns(query: {
+      before?: { createdAt: Date; id: string };
+      limit: number;
+    }): Promise<ReconciliationRunRow[]>;
+    listItems(query: {
+      runId: string;
+      result?: ReconciliationResult;
+      unresolvedOnly?: boolean;
+      before?: { createdAt: Date; id: string };
+      limit: number;
+    }): Promise<ReconciliationItemRow[]>;
+    findItem(id: string): Promise<ReconciliationItemRow | null>;
+    resolveItem(
+      id: string,
+      resolution: { resolvedBy: string; resolvedAt: Date; notes: string },
+    ): Promise<ReconciliationItemRow | null>;
   };
   receipts: {
     /**

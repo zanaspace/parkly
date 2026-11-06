@@ -7,6 +7,7 @@ import type {
   MapsProvider,
   PaymentProvider,
   ProviderSettlement,
+  ProviderTransaction,
   PushProvider,
   SettlementProvider,
   SmsProvider,
@@ -32,6 +33,7 @@ export class FakePaymentProvider implements PaymentProvider {
   readonly refunds: { reference: string; amountKobo: number }[] = [];
   /** Tests set what a later verify() reports; unset references are 'ongoing'. */
   readonly outcomes = new Map<string, Partial<VerifiedCharge>>();
+  readonly transactions: ProviderTransaction[] = [];
   failInitialize = false;
 
   async initialize(input: Parameters<PaymentProvider['initialize']>[0]) {
@@ -70,6 +72,30 @@ export class FakePaymentProvider implements PaymentProvider {
   /** Signature "valid" is accepted; anything else is not. */
   verifyWebhook(_rawBody: string, signature: string | undefined) {
     return signature === 'valid';
+  }
+  async listTransactions(_input: {
+    from: Date;
+    to: Date;
+    page?: number;
+    perPage?: number;
+  }): Promise<{ items: ProviderTransaction[]; total: number }> {
+    if (this.transactions.length > 0) {
+      return { items: this.transactions, total: this.transactions.length };
+    }
+    const items: ProviderTransaction[] = this.initialized.map((init) => {
+      const outcome = this.outcomes.get(init.reference) ?? {};
+      const status = outcome.status ?? 'ongoing';
+      return {
+        reference: init.reference,
+        amountKobo: init.amountKobo,
+        currency: 'NGN',
+        status,
+        paidAt: status === 'success' ? new Date(0) : null,
+        feesKobo: status === 'success' ? 1_500 : null,
+        channel: status === 'success' ? 'card' : null,
+      };
+    });
+    return { items, total: items.length };
   }
 }
 

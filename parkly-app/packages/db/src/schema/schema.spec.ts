@@ -43,6 +43,8 @@ describe('schema conventions (doc 02 §1)', () => {
       'rate_plans',
       'receipt_counters',
       'receipts',
+      'reconciliation_items',
+      'reconciliation_runs',
       'refunds',
       'sessions',
       'settlements',
