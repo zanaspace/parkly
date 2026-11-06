@@ -1420,7 +1420,11 @@ export function drizzleStore(db: Db): Store {
 
     audit: {
       async write(entry) {
-        await db.insert(auditLogs).values({ id: uuidv7(), ...entry });
+        // Stamped here, to the millisecond: the list cursor carries a JS Date
+        // (milliseconds), so a database time with microseconds left rows written
+        // in the same millisecond outside `before` (a flaky contract test).
+        // Ties within a millisecond sort by the id, which uuid v7 keeps in order.
+        await db.insert(auditLogs).values({ id: uuidv7(), createdAt: new Date(), ...entry });
       },
       async list(q) {
         const filters = [
