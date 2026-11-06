@@ -5,6 +5,7 @@ import {
   DeviceDecisionSchema,
   ManifestSchema,
   OccupancySchema,
+  OutlookSchema,
   SelfCheckinSettingSchema,
   SelfCheckinUpdateSchema,
   SelfCheckRequestSchema,
@@ -25,6 +26,7 @@ import {
   parseGateCode,
   SELF_CHECKIN_RADIUS_M,
 } from '@parkly/domain/checkin';
+import { outlookWindow, weekOutlook } from '@parkly/domain/operator';
 import { toBase64Url } from '@parkly/domain/qr';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
@@ -569,19 +571,68 @@ export function attendRoutes(deps: AppDeps) {
         (l) => l.status === 'LIVE' || l.status === 'PAUSED',
       );
       const ids = lots.map((l) => l.id);
+      const now = deps.now();
       const [counts, walkIns] = await Promise.all([
-        deps.store.attend.occupancy(ids, deps.now()),
+        deps.store.attend.occupancy(ids, now),
         Promise.all(ids.map((id) => deps.store.attend.walkIns(id))),
       ]);
       return c.json(
         {
-          items: lots.map((l, i) => ({
+          items: lots.map((l, i) => {
+            const parked = counts.get(l.id)?.parked ?? 0;
+            const inLot = parked + (walkIns[i] ?? 0);
+            return {
+              lotId: l.id,
+              name: l.name,
+              capacityTotal: l.capacityTotal,
+              parked,
+              walkIns: walkIns[i] ?? 0,
+              expected: counts.get(l.id)?.expected ?? 0,
+              available: Math.max(0, l.capacityTotal - inLot),
+            };
+          }),
+          asOf: now.toISOString(),
+        },
+        200,
+      );
+    },
+  );
+
+  // FR-OPS-001: today and the next six days per lot, from slot inventory.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/operators/{operatorId}/outlook',
+      tags: ['operators'],
+      ...secured,
+      request: { params: z.object({ operatorId: z.uuid() }) },
+      responses: { 200: { description: 'The week ahead per lot', ...json(OutlookSchema) } },
+    }),
+    async (c) => {
+      const { operatorId } = c.req.valid('param');
+      authorize(c, deps.logger, 'operator:read', { operatorId }, { denyAs: 'NOT_FOUND' });
+      const lots = (await deps.store.lots.list(operatorId)).filter(
+        (l) => l.status === 'LIVE' || l.status === 'PAUSED',
+      );
+      const ids = lots.map((l) => l.id);
+      const now = deps.now();
+      const { from, to } = outlookWindow(now);
+      const [slots, arrivals] = await Promise.all([
+        deps.store.inventory.slots(ids, from, to),
+        deps.store.attend.arrivals(ids, from, to),
+      ]);
+      return c.json(
+        {
+          items: lots.map((l) => ({
             lotId: l.id,
             name: l.name,
-            capacityTotal: l.capacityTotal,
-            parked: counts.get(l.id)?.parked ?? 0,
-            walkIns: walkIns[i] ?? 0,
-            expected: counts.get(l.id)?.expected ?? 0,
+            capacityBookable: l.capacityBookable,
+            days: weekOutlook({
+              now,
+              capacityBookable: l.capacityBookable,
+              slots: slots.filter((s) => s.lotId === l.id),
+              arrivals: arrivals.filter((a) => a.lotId === l.id).map((a) => a.startAt),
+            }),
           })),
         },
         200,

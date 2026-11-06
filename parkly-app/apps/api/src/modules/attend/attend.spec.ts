@@ -603,8 +603,52 @@ describe('live occupancy (doc 03 §2.4)', () => {
         parked: 1,
         walkIns: 1,
         expected: 1,
+        available: 8,
       },
     ]);
+    expect(res.body?.asOf).toBe(TEST_NOW.toISOString());
+  });
+
+  it('FR-OPS-001: the week ahead per lot, today first, arrivals not yet in', async () => {
+    const t = await setup();
+    const a = await t.paidBooking('LND 111 AB');
+    await t.paidBooking('LND 222 AB');
+    await t.readyDevice();
+    await t.sync([checkIn(a.id, min(55))]);
+    const res = await t.call('GET', `/v1/operators/${t.operatorId}/outlook`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(200);
+    const [lot] = (res.body?.items ?? []) as {
+      lotId: string;
+      capacityBookable: number;
+      days: { date: string; arrivals: number; peakInUse: number; minFree: number }[];
+    }[];
+    expect(lot?.lotId).toBe(t.lot.id);
+    expect(lot?.days).toHaveLength(7);
+    const bookable = lot?.capacityBookable ?? 0;
+    expect(lot?.days[0]).toEqual({
+      date: '2026-10-19',
+      arrivals: 1,
+      peakInUse: 2,
+      minFree: bookable - 2,
+    });
+    expect(lot?.days[1]).toEqual({
+      date: '2026-10-20',
+      arrivals: 0,
+      peakInUse: 0,
+      minFree: bookable,
+    });
+  });
+
+  it('another operator gets 404 for the outlook', async () => {
+    const t = await setup();
+    const res = await t.call('GET', `/v1/operators/${randomUUID()}/outlook`, {
+      as: t.ownerId,
+      aal: 'aal2',
+    });
+    expect(res.status).toBe(404);
   });
 });
 

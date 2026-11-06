@@ -77,6 +77,18 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}/outlook`,
+    route: 'GET /v1/operators/{operatorId}/outlook',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/outlook`,
+    route: 'GET /v1/operators/{operatorId}/outlook (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: `/v1/operators/${OP_A}/devices`,
     route: 'GET /v1/operators/{operatorId}/devices',
     expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),

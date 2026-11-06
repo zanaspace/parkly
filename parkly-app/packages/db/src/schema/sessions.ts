@@ -62,7 +62,7 @@ export const sessions = pgTable(
     overstayMinutes: integer('overstay_minutes').notNull().default(0),
     overstayAmountKobo: bigint('overstay_amount_kobo', { mode: 'number' }).notNull().default(0),
     overstayStatus: overstayStatusEnum('overstay_status').notNull().default('NONE'),
-    /** ENTRY_AFTER_CANCEL, MISSING_CHECKIN, PLATE_MISMATCH, CLOCK_SKEW, PROVISIONAL */
+    /** ENTRY_AFTER_CANCEL, MISSING_CHECKIN, PLATE_MISMATCH, CLOCK_SKEW, PROVISIONAL, AUTO_CLOSED (G-9) */
     flags: text('flags')
       .array()
       .notNull()

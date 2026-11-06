@@ -1265,6 +1265,14 @@ export function storeContract(
         const attendant = await newUser([]);
         const { booking, payment } = await hold(lot, await driver());
         await store.payments.settle(payment.id, charge(), AT);
+        // FR-OPS-001: a paid booking not yet in counts as an arrival in its start window only.
+        const dayEnd = new Date('2027-01-06T00:00:00Z');
+        expect(await store.attend.arrivals([lot.lotId], START, dayEnd)).toEqual([
+          { lotId: lot.lotId, startAt: START },
+        ]);
+        expect(await store.attend.arrivals([lot.lotId], END, dayEnd)).toEqual([]);
+        expect(await store.attend.arrivals([randomUUID()], START, dayEnd)).toEqual([]);
+        expect(await store.attend.arrivals([], START, dayEnd)).toEqual([]);
         const batch = (id = randomUUID()) => ({
           id,
           deviceId: randomUUID(),
@@ -1295,6 +1303,9 @@ export function storeContract(
         expect(first.results.map((r) => r.result)).toEqual(['APPLIED', 'APPLIED']);
         expect((await store.bookings.find(booking.id))?.status).toBe('CHECKED_IN');
         expect(await store.attend.walkIns(lot.lotId)).toBe(1);
+        expect(
+          await store.attend.arrivals([lot.lotId], START, new Date('2027-01-06T00:00:00Z')),
+        ).toEqual([]);
         expect(
           (await store.attend.occupancy([lot.lotId], new Date('2027-01-05T07:30:00Z'))).get(
             lot.lotId,
