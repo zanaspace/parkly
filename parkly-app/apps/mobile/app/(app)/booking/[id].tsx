@@ -98,6 +98,7 @@ export default function BookingScreen() {
             reference: res.payment.reference,
             url: res.payment.authorizationUrl,
             bookingId: booking.id,
+            kind: 'extension',
           },
         });
       } else {
@@ -146,6 +147,7 @@ export default function BookingScreen() {
             reference: res.payment.reference,
             url: res.payment.authorizationUrl,
             bookingId: booking.id,
+            kind: 'overstay',
           },
         });
       } else {
