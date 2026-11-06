@@ -10,7 +10,21 @@ import {
   isBalanced,
   type JournalLine,
 } from '@parkly/domain/booking';
-import { and, asc, desc, eq, gt, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { addOnSettlePlan, settlePlan, type SettlePlan } from './settle-plan.js';
 import {
@@ -63,10 +77,13 @@ const bookingColumns = {
   plateNorm: bookings.plateNormSnapshot,
   lotId: bookings.lotId,
   product: bookings.product,
+  bookingType: bookings.bookingType,
   startAt: bookings.startAt,
   endAt: bookings.endAt,
   status: bookings.status,
   holdExpiresAt: bookings.holdExpiresAt,
+  holdStartedAt: bookings.holdStartedAt,
+  holdingFeeKobo: bookings.holdingFeeKobo,
   priceKobo: bookings.priceKobo,
   serviceFeeKobo: bookings.serviceFeeKobo,
   totalKobo: bookings.totalKobo,
@@ -210,11 +227,22 @@ async function applyPlan(
   if (plan.slots === 'release')
     await tx.execute(sql`select public.fn_release_slots(${booking.id}, 'held')`);
   if (plan.booking) {
+    let holdExpiresAt: Date | null = null;
+    let holdStartedAt: Date | undefined;
+    if (plan.booking.to === 'CONFIRMED' && booking.bookingType === 'PARK_NOW') {
+      holdStartedAt = at;
+      const [lot] = await tx
+        .select({ maxHoldMinutes: schema.lots.maxHoldMinutes })
+        .from(schema.lots)
+        .where(eq(schema.lots.id, booking.lotId));
+      holdExpiresAt = new Date(at.getTime() + (lot?.maxHoldMinutes ?? 180) * 60_000);
+    }
     await tx
       .update(bookings)
       .set({
         status: plan.booking.to,
-        holdExpiresAt: null,
+        holdExpiresAt,
+        ...(holdStartedAt ? { holdStartedAt } : {}),
         version: sql`${bookings.version} + 1`,
         updatedAt: at,
       })
@@ -273,6 +301,12 @@ export function drizzleBookings(
               createdAt: at,
               updatedAt: at,
             });
+            if (input.bookingType === 'PARK_NOW') {
+              await tx
+                .update(bookings)
+                .set({ bookingType: 'PARK_NOW' })
+                .where(eq(bookings.id, input.id));
+            }
             const [booking] = await tx
               .select(bookingColumns)
               .from(bookings)
@@ -338,6 +372,21 @@ export function drizzleBookings(
           )
           .orderBy(asc(bookings.startAt));
         return rows.map(asBooking);
+      },
+
+      async activeHoldsCount(lotId, now) {
+        const [r] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.lotId, lotId),
+              eq(bookings.bookingType, 'PARK_NOW'),
+              inArray(bookings.status, ['PENDING_PAYMENT', 'CONFIRMED']),
+              or(isNull(bookings.holdExpiresAt), gt(bookings.holdExpiresAt, now)),
+            ),
+          );
+        return r?.count ?? 0;
       },
 
       async releaseHold(id, reason, at) {

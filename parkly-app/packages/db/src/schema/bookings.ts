@@ -33,6 +33,8 @@ export const bookingStatusEnum = pgEnum('booking_status', [
   'EXPIRED',
   'NO_SHOW',
 ]);
+/** ADR 0024: RESERVE is fixed scheduled window; PARK_NOW holds space and timer starts at check-in. */
+export const bookingTypeEnum = pgEnum('booking_type', ['RESERVE', 'PARK_NOW']);
 export const bookingActorEnum = pgEnum('booking_actor', ['DRIVER', 'ADMIN', 'ATTENDANT', 'SYSTEM']);
 export const bookingSourceEnum = pgEnum('booking_source', ['MOBILE', 'WEB', 'ADMIN']);
 export const paymentStatusEnum = pgEnum('payment_status', [
@@ -97,10 +99,15 @@ export const bookings = pgTable(
       .notNull()
       .references(() => lots.id, { onDelete: 'restrict' }),
     product: productEnum('product').notNull(),
+    bookingType: bookingTypeEnum('booking_type').notNull().default('RESERVE'),
     startAt: timestamp('start_at', { withTimezone: true }).notNull(),
     endAt: timestamp('end_at', { withTimezone: true }).notNull(),
     status: bookingStatusEnum('status').notNull().default('PENDING_PAYMENT'),
     holdExpiresAt: timestamp('hold_expires_at', { withTimezone: true }),
+    /** When a PARK_NOW confirmed hold began (ADR 0024). */
+    holdStartedAt: timestamp('hold_started_at', { withTimezone: true }),
+    /** Accrued holding fee collected at checkout (ADR 0024). */
+    holdingFeeKobo: bigint('holding_fee_kobo', { mode: 'number' }).notNull().default(0),
     priceKobo: bigint('price_kobo', { mode: 'number' }).notNull(),
     serviceFeeKobo: bigint('service_fee_kobo', { mode: 'number' }).notNull(),
     totalKobo: bigint('total_kobo', { mode: 'number' }).notNull(),
@@ -126,6 +133,11 @@ export const bookings = pgTable(
     index('bookings_vehicle_idx').on(t.vehicleId),
     index('bookings_rate_plan_idx').on(t.ratePlanId),
     index('bookings_cancelled_by_idx').on(t.cancelledBy),
+    index('bookings_lot_active_holds_idx')
+      .on(t.lotId, t.bookingType, t.status)
+      .where(
+        sql`${t.bookingType} = 'PARK_NOW' and ${t.status} in ('PENDING_PAYMENT', 'CONFIRMED')`,
+      ),
     check('bookings_window_check', sql`${t.endAt} > ${t.startAt}`),
     check(
       'bookings_grid_check',

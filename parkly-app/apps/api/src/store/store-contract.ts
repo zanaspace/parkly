@@ -1444,6 +1444,95 @@ export function storeContract(
         expect((await store.bookings.find(booking.id))?.holdExpiresAt).toBeNull();
       });
 
+      it('supports PARK_NOW flexible hold-then-start and calculates holding fee on late check-in (ADR 0024)', async () => {
+        const lot = await liveLot(5);
+        const d = await driver();
+        const initialStart = new Date('2027-01-05T10:00:00Z');
+        const initialEnd = new Date('2027-01-05T11:00:00Z');
+        const bookingTime = new Date('2027-01-05T09:00:00Z');
+
+        const { booking, payment } = await store.bookings.hold(
+          {
+            id: randomUUID(),
+            code: generateBookingCode(),
+            driverId: d.id,
+            vehicleId: d.vehicleId,
+            plateNorm: 'LND123AB',
+            lotId: lot.lotId,
+            product: 'HOURLY',
+            bookingType: 'PARK_NOW',
+            startAt: initialStart,
+            endAt: initialEnd,
+            holdExpiresAt: new Date(bookingTime.getTime() + 10 * 60_000),
+            priceKobo: 100_000,
+            serviceFeeKobo: 10_000,
+            commissionBps: 1200,
+            ratePlanId: lot.ratePlanId,
+            pricingBreakdown: [],
+            source: 'MOBILE',
+          },
+          {
+            id: randomUUID(),
+            payerUserId: d.id,
+            provider: 'FAKE',
+            amountKobo: 110_000,
+            platformAmountKobo: 22_000,
+            operatorAmountKobo: 88_000,
+            operatorId: lot.operatorId,
+            subaccountCode: null,
+          },
+          bookingTime,
+        );
+
+        expect(booking.bookingType).toBe('PARK_NOW');
+        expect(await store.bookings.activeHoldsCount(lot.lotId, bookingTime)).toBe(1);
+
+        // Settle payment
+        const settled = await store.payments.settle(
+          payment.id,
+          charge({ paidAt: bookingTime }),
+          bookingTime,
+        );
+        expect(settled.decision).toBe('CONFIRM');
+        const confirmed = await store.bookings.find(booking.id);
+        expect(confirmed?.status).toBe('CONFIRMED');
+        expect(confirmed?.holdStartedAt).toBeDefined();
+
+        // Check in 75 minutes after booking confirmation (15 min past free 60-min courtesy window)
+        const checkInTime = new Date(bookingTime.getTime() + 75 * 60_000);
+        await store.attend.applyBatch(
+          {
+            id: randomUUID(),
+            deviceId: d.id,
+            lotId: lot.lotId,
+            attendantId: d.id,
+            deviceSentAt: checkInTime,
+            receivedAt: checkInTime,
+          },
+          [
+            {
+              clientEventId: randomUUID(),
+              bookingId: booking.id,
+              type: 'CHECK_IN',
+              deviceTime: checkInTime,
+              method: 'SELF',
+              plateSeen: null,
+              overrideReason: null,
+            },
+          ],
+        );
+
+        const checkedIn = await store.bookings.find(booking.id);
+        expect(checkedIn?.status).toBe('CHECKED_IN');
+        // Stay clock starts at check-in: 1 hour stay ending at checkInTime + 1 hour
+        expect(checkedIn?.startAt.toISOString()).toBe(checkInTime.toISOString());
+        expect(checkedIn?.endAt.toISOString()).toBe(
+          new Date(checkInTime.getTime() + 60 * 60_000).toISOString(),
+        );
+        // Accrued 1 block of ₦250 (25,000 kobo)
+        expect(checkedIn?.holdingFeeKobo).toBe(25_000);
+      });
+
       it('stores a webhook once', async () => {
         const event = {
           provider: 'FAKE' as const,

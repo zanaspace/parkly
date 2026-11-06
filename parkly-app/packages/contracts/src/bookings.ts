@@ -12,11 +12,15 @@ export const BookingStatusSchema = z.enum([
   'NO_SHOW',
 ]);
 
+/** ADR 0024: RESERVE is a fixed scheduled window; PARK_NOW holds space and parking clock starts at check-in. */
+export const BookingTypeSchema = z.enum(['RESERVE', 'PARK_NOW']);
+
 /** FR-BOOK-001: `POST /v1/bookings` (Idempotency-Key required). Times on the 15-minute grid. */
 export const CreateBookingRequestSchema = z.object({
   lotId: z.uuid(),
   vehicleId: z.uuid(),
   product: z.enum(['HOURLY', 'DAILY']).default('HOURLY'),
+  bookingType: BookingTypeSchema.default('RESERVE'),
   startAt: z.iso.datetime(),
   endAt: z.iso.datetime(),
   source: z.enum(['MOBILE', 'WEB']).default('MOBILE'),
@@ -33,10 +37,15 @@ export const BookingSchema = z.object({
   code: z.string(),
   status: BookingStatusSchema,
   product: z.enum(['HOURLY', 'DAILY']),
+  bookingType: BookingTypeSchema.default('RESERVE'),
   startAt: z.iso.datetime(),
   endAt: z.iso.datetime(),
   /** Pay before this or the space is released (PENDING_PAYMENT only). */
   holdExpiresAt: z.iso.datetime().nullable(),
+  /** When a PARK_NOW confirmed hold began (ADR 0024). */
+  holdStartedAt: z.iso.datetime().nullable().default(null),
+  /** Accrued holding fee collected at checkout (ADR 0024). */
+  holdingFeeKobo: z.number().int().default(0),
   lot: z.object({
     id: z.uuid(),
     slug: z.string(),
@@ -374,6 +383,7 @@ export const WaiveOverstayRequestSchema = z.object({
   reason: z.string().trim().min(5, 'Say why, in a few words').max(500),
 });
 
+export type BookingType = z.infer<typeof BookingTypeSchema>;
 export type UnpaidOverstay = z.infer<typeof UnpaidOverstaySchema>;
 export type AdminBooking = z.infer<typeof AdminBookingSchema>;
 export type AdminBookingList = z.infer<typeof AdminBookingListSchema>;

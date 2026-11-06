@@ -15,6 +15,9 @@ export const BOOKING_STATUSES = [
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
+export const BOOKING_TYPES = ['RESERVE', 'PARK_NOW'] as const;
+export type BookingType = (typeof BOOKING_TYPES)[number];
+
 export type BookingActor = 'DRIVER' | 'ADMIN' | 'ATTENDANT' | 'SYSTEM';
 
 const MINUTE_MS = 60_000;

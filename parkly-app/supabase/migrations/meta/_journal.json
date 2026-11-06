@@ -127,6 +127,13 @@
       "when": 1793965922980,
       "tag": "20261106115202_reconciliation_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793993387793,
+      "tag": "20261106192947_flexible_bookings",
+      "breakpoints": true
     }
   ]
 }

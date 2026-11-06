@@ -196,6 +196,9 @@ const lotColumns = {
   status: lots.status,
   statusReason: lots.statusReason,
   selfCheckinEnabled: lots.selfCheckinEnabled,
+  holdCapPercent: lots.holdCapPercent,
+  freeHoldMinutes: lots.freeHoldMinutes,
+  maxHoldMinutes: lots.maxHoldMinutes,
   version: lots.version,
   createdAt: lots.createdAt,
 };

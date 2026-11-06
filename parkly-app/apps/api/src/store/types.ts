@@ -160,6 +160,9 @@ export type LotFields = {
   capacityBookable: number;
   amenities: string[];
   vehicleTypes: string[];
+  holdCapPercent?: number;
+  freeHoldMinutes?: number;
+  maxHoldMinutes?: number;
 };
 
 export type LotRow = LotFields & {
@@ -170,6 +173,9 @@ export type LotRow = LotFields & {
   statusReason: string | null;
   /** Drivers may check themselves in with the entrance QR (ADR 0016). */
   selfCheckinEnabled: boolean;
+  holdCapPercent: number;
+  freeHoldMinutes: number;
+  maxHoldMinutes: number;
   version: number;
   createdAt: Date;
 };
@@ -312,10 +318,15 @@ export type BookingRow = {
   plateNorm: string;
   lotId: string;
   product: 'HOURLY' | 'DAILY';
+  bookingType?: 'RESERVE' | 'PARK_NOW';
   startAt: Date;
   endAt: Date;
   status: BookingStatus;
   holdExpiresAt: Date | null;
+  /** When a PARK_NOW confirmed hold began (ADR 0024). */
+  holdStartedAt?: Date | null;
+  /** Accrued holding fee collected at checkout (ADR 0024). */
+  holdingFeeKobo?: number;
   priceKobo: number;
   serviceFeeKobo: number;
   totalKobo: number;
@@ -329,9 +340,18 @@ export type BookingRow = {
 
 export type NewBooking = Omit<
   BookingRow,
-  'status' | 'totalKobo' | 'createdAt' | 'holdExpiresAt'
+  | 'status'
+  | 'totalKobo'
+  | 'createdAt'
+  | 'holdExpiresAt'
+  | 'bookingType'
+  | 'holdStartedAt'
+  | 'holdingFeeKobo'
 > & {
   holdExpiresAt: Date;
+  bookingType?: 'RESERVE' | 'PARK_NOW';
+  holdStartedAt?: Date | null;
+  holdingFeeKobo?: number;
 };
 
 export type BookingExtensionRow = {
@@ -929,6 +949,8 @@ export type Store = {
     ): Promise<BookingRow[]>;
     /** Active/upcoming bookings for a lot (CONFIRMED or CHECKED_IN or hold, ending after `now`). */
     listUpcomingForLot(lotId: string, now: Date): Promise<BookingRow[]>;
+    /** Active PARK_NOW holds for a lot (ADR 0024). */
+    activeHoldsCount(lotId: string, now: Date): Promise<number>;
     /**
      * Ends an unpaid hold now (checkout could not start): EXPIRED with the
      * space given back and a SYSTEM history row. No-op unless PENDING_PAYMENT.

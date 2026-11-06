@@ -538,6 +538,9 @@ describe('RBAC matrix', () => {
     status: 'DRAFT',
     statusReason: null,
     selfCheckinEnabled: false,
+    holdCapPercent: 30,
+    freeHoldMinutes: 60,
+    maxHoldMinutes: 180,
     version: 1,
     createdAt: new Date('2026-10-21T00:00:00Z'),
   });

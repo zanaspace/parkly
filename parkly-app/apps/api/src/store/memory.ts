@@ -394,6 +394,9 @@ export class MemoryStore implements Store {
         status: 'DRAFT',
         statusReason: null,
         selfCheckinEnabled: false,
+        holdCapPercent: row.holdCapPercent ?? 30,
+        freeHoldMinutes: row.freeHoldMinutes ?? 60,
+        maxHoldMinutes: row.maxHoldMinutes ?? 180,
         version: 1,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };

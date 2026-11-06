@@ -2,7 +2,7 @@ import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '@parkly/domain/authz';
-import { BOOKING_STATUSES, PAYMENT_STATUSES } from '@parkly/domain/booking';
+import { BOOKING_STATUSES, BOOKING_TYPES, PAYMENT_STATUSES } from '@parkly/domain/booking';
 import { LOT_STATUSES, VERIFICATION_ITEMS } from '@parkly/domain/lot';
 import * as schema from './index.js';
 
@@ -86,6 +86,7 @@ describe('enums match the domain (no silent drift)', () => {
     ['verification_item', schema.verificationItemEnum.enumValues, VERIFICATION_ITEMS],
     ['role', schema.roleEnum.enumValues, ROLES],
     ['booking_status', schema.bookingStatusEnum.enumValues, BOOKING_STATUSES],
+    ['booking_type', schema.bookingTypeEnum.enumValues, BOOKING_TYPES],
     ['payment_status', schema.paymentStatusEnum.enumValues, PAYMENT_STATUSES],
   ] as const)('%s', (_name, db, domain) => {
     expect([...db]).toEqual([...domain]);

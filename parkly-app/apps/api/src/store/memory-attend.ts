@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { calculateHoldingFee } from '@parkly/domain/booking';
 import { applyWalkIn } from '@parkly/domain/checkin';
 import type { MemoryBookings } from './memory-bookings.js';
 import { planEvent, type PlanSession } from './attend-plan.js';
@@ -236,7 +237,25 @@ export class MemoryAttend {
             this.sessionRows.push(session as Session);
           }
           const s = session as Session;
-          if (plan.session.checkInAt) s.checkInAt = plan.session.checkInAt;
+          if (plan.session.checkInAt) {
+            s.checkInAt = plan.session.checkInAt;
+            if (b.bookingType === 'PARK_NOW') {
+              const duration = b.endAt.getTime() - b.startAt.getTime();
+              b.startAt = plan.session.checkInAt;
+              b.endAt = new Date(plan.session.checkInAt.getTime() + duration);
+              b.holdExpiresAt = null;
+              const lot = this.deps.lotRows.get(b.lotId);
+              const fee = calculateHoldingFee({
+                holdStartedAt: b.holdStartedAt ?? b.createdAt,
+                checkedInAt: plan.session.checkInAt,
+                hourlyRateKobo: b.priceKobo,
+                commissionBps: b.commissionBps,
+                freeHoldMinutes: lot?.freeHoldMinutes,
+                maxHoldMinutes: lot?.maxHoldMinutes,
+              });
+              b.holdingFeeKobo = fee.holdingFeeKobo;
+            }
+          }
           if (plan.session.checkOutAt) {
             s.checkOutAt = plan.session.checkOutAt;
             checkedOut.push(s.id);

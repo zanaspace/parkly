@@ -164,7 +164,13 @@ export class MemoryBookings {
     if (plan.slots === 'release') this.move(b, -1, 0);
     if (plan.booking) {
       b.status = plan.booking.to;
-      b.holdExpiresAt = null;
+      if (b.bookingType === 'PARK_NOW' && plan.booking.to === 'CONFIRMED') {
+        b.holdStartedAt = at;
+        const maxHold = this.lotRows.get(b.lotId)?.maxHoldMinutes ?? 180;
+        b.holdExpiresAt = new Date(at.getTime() + maxHold * 60_000);
+      } else {
+        b.holdExpiresAt = null;
+      }
       this.historyRows.push({
         bookingId: b.id,
         from: plan.booking.from,
@@ -223,6 +229,9 @@ export class MemoryBookings {
 
       const booking: BookingRow = {
         ...input,
+        bookingType: input.bookingType ?? 'RESERVE',
+        holdStartedAt: input.holdStartedAt ?? null,
+        holdingFeeKobo: input.holdingFeeKobo ?? 0,
         status: 'PENDING_PAYMENT',
         totalKobo: input.priceKobo + input.serviceFeeKobo,
         createdAt: at,
@@ -286,6 +295,16 @@ export class MemoryBookings {
         .filter((b) => b.lotId === lotId && LIVE_STATUSES.has(b.status) && b.endAt > now)
         .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
         .map((b) => ({ ...b }));
+    },
+
+    activeHoldsCount: async (lotId, now) => {
+      return this.bookingRows.filter(
+        (b) =>
+          b.lotId === lotId &&
+          b.bookingType === 'PARK_NOW' &&
+          (b.status === 'PENDING_PAYMENT' || b.status === 'CONFIRMED') &&
+          (!b.holdExpiresAt || b.holdExpiresAt.getTime() > now.getTime()),
+      ).length;
     },
 
     releaseHold: async (id, reason) => {

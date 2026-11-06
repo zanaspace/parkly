@@ -98,13 +98,16 @@ export function attendRoutes(deps: AppDeps) {
         const notice = await bookingNotice(deps.store, s.bookingId);
         if (!notice) continue;
         const q = await overstay.price(notice.booking, s.checkOutAt);
-        if (!q || q.kobo === 0) continue;
-        await deps.store.attend.setOverstay(id, q.minutes, q.kobo);
+        const overstayKobo = q?.kobo ?? 0;
+        const holdingFeeKobo = notice.booking.holdingFeeKobo ?? 0;
+        const totalDueKobo = overstayKobo + holdingFeeKobo;
+        if (totalDueKobo === 0) continue;
+        await deps.store.attend.setOverstay(id, q?.minutes ?? 0, totalDueKobo);
         await deps.notifications.notify({
           key: 'session.overstay_due',
           ...notice.base,
-          overstayMinutes: q.minutes,
-          amountKobo: q.kobo,
+          overstayMinutes: q?.minutes ?? 0,
+          amountKobo: totalDueKobo,
         });
       } catch (err) {
         deps.logger.error({ err, sessionId: id }, 'overstay could not be priced');

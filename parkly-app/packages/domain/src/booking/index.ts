@@ -8,3 +8,4 @@ export * from './extension.js';
 export * from './overstay.js';
 export * from './receipt.js';
 export * from './early-start.js';
+export * from './flexible-hold.js';
