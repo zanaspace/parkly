@@ -114,3 +114,113 @@ describe('Paystack settlement adapter', () => {
     expect(err?.message).not.toContain(SECRET);
   });
 });
+
+describe('Paystack settlements (S7 task 3)', () => {
+  const FROM = new Date('2026-11-01T00:00:00Z');
+  const TO = new Date('2026-11-06T12:00:00Z');
+
+  it('asks for Parkly’s main account with subaccount=none, paged, in the window', async () => {
+    const { provider, calls } = make(200, fixture('settlements-empty'));
+    expect(
+      await provider.listSettlements({
+        subaccount: null,
+        from: FROM,
+        to: TO,
+        page: 2,
+        perPage: 50,
+      }),
+    ).toEqual({ items: [], pageCount: 0, unreadable: 0 });
+    const url = new URL(calls[0]?.url ?? '');
+    expect(url.pathname).toBe('/settlement');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      subaccount: 'none',
+      from: FROM.toISOString(),
+      to: TO.toISOString(),
+      page: '2',
+      perPage: '50',
+    });
+  });
+
+  it('asks for one operator by subaccount code', async () => {
+    const { provider, calls } = make(200, fixture('settlements-empty'));
+    await provider.listSettlements({
+      subaccount: 'ACCT_eko0001',
+      from: FROM,
+      to: TO,
+      page: 1,
+      perPage: 50,
+    });
+    expect(new URL(calls[0]?.url ?? '').searchParams.get('subaccount')).toBe('ACCT_eko0001');
+  });
+
+  it('trusts only a paid-out NGN settlement with a whole-kobo amount', async () => {
+    const { provider } = make(200, fixture('settlements-assumed'));
+    const { items, pageCount } = await provider.listSettlements({
+      subaccount: 'ACCT_eko0001',
+      from: FROM,
+      to: TO,
+      page: 1,
+      perPage: 50,
+    });
+    expect(pageCount).toBe(1);
+    expect(items[0]).toEqual({
+      id: '3090024',
+      status: 'SETTLED',
+      amountKobo: 176_000,
+      grossKobo: 180_000,
+      feesKobo: 4_000,
+      settledAt: new Date('2026-11-05T00:00:00.000Z'),
+      subaccountCode: 'ACCT_eko0001',
+      reviewReason: null,
+      raw: expect.any(Object),
+    });
+    expect(items.slice(1).map((i) => [i.status, i.reviewReason])).toEqual([
+      ['PENDING', null],
+      ['NEEDS_REVIEW', 'Unknown settlement status: on_hold'],
+      ['NEEDS_REVIEW', 'Currency is USD, not NGN'],
+      ['NEEDS_REVIEW', 'Paid-out amount is not whole kobo'],
+    ]);
+  });
+
+  it('keeps the money fields but never the bank account number or names', async () => {
+    const { provider } = make(200, fixture('settlements-assumed'));
+    const { items } = await provider.listSettlements({
+      subaccount: 'ACCT_eko0001',
+      from: FROM,
+      to: TO,
+      page: 1,
+      perPage: 50,
+    });
+    const raw = JSON.stringify(items[0]?.raw);
+    expect(raw).not.toContain('0123456789');
+    expect(raw).not.toContain('Guaranty Trust');
+    expect(raw).not.toContain('Eko Parking');
+    expect(items[0]?.raw).toMatchObject({
+      id: 3090024,
+      effective_amount: 176000,
+      status: 'success',
+    });
+  });
+
+  it('marks a record it cannot read at all for review instead of failing the page', async () => {
+    const { provider } = make(
+      200,
+      JSON.stringify({
+        status: true,
+        data: [{ id: 1, status: 'success' }, 'nonsense'],
+        meta: { pageCount: 1 },
+      }),
+    );
+    const { items, unreadable } = await provider.listSettlements({
+      subaccount: null,
+      from: FROM,
+      to: TO,
+      page: 1,
+      perPage: 50,
+    });
+    expect(items[0]).toMatchObject({ id: '1', status: 'NEEDS_REVIEW', amountKobo: null });
+    expect(items).toHaveLength(1);
+    // No id: it can't be stored, so it is counted for the job to report.
+    expect(unreadable).toBe(1);
+  });
+});

@@ -45,6 +45,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'receipts',
       'refunds',
       'sessions',
+      'settlements',
       'user_roles',
       'users',
       'vehicles',

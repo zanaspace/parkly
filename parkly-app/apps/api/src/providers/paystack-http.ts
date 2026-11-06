@@ -18,7 +18,7 @@ export function paystackHttp(options: PaystackOptions) {
     method: 'GET' | 'POST',
     path: string,
     init: { query?: Record<string, string>; body?: unknown; allow?: number[] } = {},
-  ): Promise<{ status: number; data: T | null }> {
+  ): Promise<{ status: number; data: T | null; meta?: { pageCount?: number } }> {
     const qs = init.query ? `?${new URLSearchParams(init.query).toString()}` : '';
     const res = await doFetch(`${base}${path}${qs}`, {
       method,
@@ -30,9 +30,13 @@ export function paystackHttp(options: PaystackOptions) {
       signal: AbortSignal.timeout(options.timeoutMs ?? 8_000),
     });
     if (init.allow?.includes(res.status)) return { status: res.status, data: null };
-    const json = (await res.json().catch(() => null)) as { status?: boolean; data?: T } | null;
+    const json = (await res.json().catch(() => null)) as {
+      status?: boolean;
+      data?: T;
+      meta?: { pageCount?: number };
+    } | null;
     if (!res.ok || !json?.status || json.data === undefined)
       throw new Error(`paystack ${method} ${path} failed: HTTP ${res.status}`);
-    return { status: res.status, data: json.data };
+    return { status: res.status, data: json.data, ...(json.meta ? { meta: json.meta } : {}) };
   };
 }

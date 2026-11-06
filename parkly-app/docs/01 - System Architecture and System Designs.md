@@ -442,6 +442,7 @@ Queues (`pgmq`): `webhooks`, `notifications`, `reconciliation`, `exports`. Messa
 | `mark-no-shows` | SQL (`fn_mark_no_shows`) | every 5 min | CONFIRMED and start+30 min passed, no check-in → NO_SHOW (no refund by default); waits for offline gate phones to sync and skips lots with no way to check in (G-4) |
 | `close-stale-sessions` | SQL (`fn_close_stale_sessions`) | hourly (:23) | Checked in, not out, booking ended > 12 h ago → check-out set to the booking's end (no overstay), flag `AUTO_CLOSED`, booking COMPLETED (SYSTEM). Waits like no-shows for gate phones on shift to sync; closes anyway after 24 h. A later real check-out still wins and is priced (G-9) |
 | `reset-walk-ins` | SQL (`fn_reset_walk_ins`) | 03:00 Lagos | Walk-in counts back to 0 (they are counted, not tracked per car) (G-9) |
+| `settlements-sync` | App job (`/internal/jobs/settlements-sync`) | hourly (:41) | Lists provider payouts for Parkly's main account and each operator subaccount (last 14 days), saves each once in `settlements` and posts each paid-out one to the ledger once; doubtful records go to `NEEDS_REVIEW` (S7 task 3) |
 | `booking-reminders` | App | every 5 min | 30 min before start; 15 min before end (extend nudge) |
 | `detect-overstays` | App | every 5 min | Checked-in past end+grace → flag, notify driver with extend/pay link |
 | `verify-stale-payments` | App | every 5 min | PENDING > 3 min → provider verify |

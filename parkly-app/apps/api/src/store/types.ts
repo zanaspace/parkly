@@ -481,6 +481,27 @@ export type StaySummary = {
   overstayStatus: 'NONE' | 'DUE' | 'PAID' | 'UNPAID' | 'WAIVED';
 };
 
+/** A provider payout as stored (S7 task 3, doc 02 §2.7). */
+export type SettlementRow = {
+  id: string;
+  provider: 'PAYSTACK' | 'FAKE';
+  providerSettlementId: string;
+  /** Null for Parkly's main account. */
+  operatorId: string | null;
+  subaccountCode: string | null;
+  status: 'PENDING' | 'SETTLED' | 'FAILED' | 'NEEDS_REVIEW';
+  amountKobo: number | null;
+  grossKobo: number | null;
+  feesKobo: number | null;
+  settledAt: Date | null;
+  raw: Record<string, unknown>;
+  reviewReason: string | null;
+  ledgerJournalId: string | null;
+  postedAt: Date | null;
+};
+
+export type SettlementRecord = Omit<SettlementRow, 'id' | 'ledgerJournalId' | 'postedAt'>;
+
 /** FR-OPS-002: filters for an operator's bookings. Times are UTC instants; `to` is exclusive. */
 export type OperatorBookingFilter = {
   operatorId: string;
@@ -655,6 +676,8 @@ export type Store = {
     find(operatorId: string): Promise<PayoutAccountRow | null>;
     /** Saved straight after the provider creates it, so a retried approval reuses it. */
     setSubaccount(operatorId: string, code: string): Promise<void>;
+    /** S7 task 3: every operator whose payouts go to a provider subaccount. */
+    activeSubaccounts(): Promise<{ operatorId: string; subaccountCode: string }[]>;
   };
   lots: {
     /** DRAFT, version 1. Throws SlugTakenError when the slug is in use. */
@@ -976,6 +999,22 @@ export type Store = {
       maxAttempts: number;
       limit: number;
     }): Promise<{ id: string; reference: string | null }[]>;
+  };
+  settlements: {
+    /**
+     * Saves the provider's record by (provider, providerSettlementId), in one
+     * transaction with the row locked. A SETTLED row with an amount is posted
+     * to the ledger once (doc 02 §2.7). A posted row is never posted again: if
+     * the provider later reports it differently it becomes NEEDS_REVIEW.
+     */
+    record(
+      s: SettlementRecord,
+      at: Date,
+    ): Promise<{ outcome: 'NEW' | 'UPDATED' | 'UNCHANGED'; posted: boolean }>;
+    find(
+      provider: SettlementRow['provider'],
+      providerSettlementId: string,
+    ): Promise<SettlementRow | null>;
   };
   receipts: {
     /**

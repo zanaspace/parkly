@@ -35,7 +35,7 @@ const {
   sessions,
 } = schema;
 
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 const HOLD_CODES = new Set<BookingHoldCode>([
   'BOOKING_SLOT_UNAVAILABLE',
@@ -119,7 +119,7 @@ const asPayment = (r: Omit<PaymentRow, 'provider'> & { provider: string }): Paym
   r as PaymentRow;
 
 /** Account id for a code, creating OPERATOR_PAYABLE:<id> accounts on first use. */
-async function accountIds(tx: Tx, codes: string[]): Promise<Map<string, string>> {
+export async function accountIds(tx: Tx, codes: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(codes)];
   await tx
     .insert(ledgerAccounts)

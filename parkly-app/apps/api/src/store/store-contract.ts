@@ -635,9 +635,79 @@ export function storeContract(
         providerSubaccountCode: 'ACCT_test123',
         pendingAccountNumberEnc: null,
       });
+      // S7 task 3: the settlement sync asks Paystack about this subaccount.
+      expect(await store.payoutAccounts.activeSubaccounts()).toContainEqual({
+        operatorId: op.id,
+        subaccountCode: 'ACCT_test123',
+      });
       await expect(
         store.operators.approveKyb(op.id, { reviewerId: owner, at: new Date() }),
       ).rejects.toBeInstanceOf(StaleVersionError);
+    });
+
+    it('records provider settlements once and posts each payout once (S7 task 3)', async () => {
+      const owner = await newUser();
+      const op = await store.operators.create({
+        legalName: 'S Ltd',
+        tradingName: 'S',
+        type: 'HOTEL',
+        cacNumberEnc: null,
+        tinEnc: null,
+        addressLine: null,
+        contactEmail: null,
+        contactPhoneEnc: null,
+        ownerUserId: owner,
+        commissionBps: 1200,
+      });
+      const at = new Date('2026-11-06T10:00:00Z');
+      const sid = `ST-${randomUUID().slice(0, 8)}`;
+      const payout = {
+        provider: 'PAYSTACK' as const,
+        providerSettlementId: sid,
+        operatorId: op.id,
+        subaccountCode: 'ACCT_s1',
+        status: 'SETTLED' as const,
+        amountKobo: 176_000,
+        grossKobo: 180_000,
+        feesKobo: 4_000,
+        settledAt: new Date('2026-11-05T00:00:00Z'),
+        raw: { id: sid },
+        reviewReason: null,
+      };
+      expect(await store.settlements.record(payout, at)).toEqual({ outcome: 'NEW', posted: true });
+      expect(await store.settlements.record(payout, at)).toEqual({
+        outcome: 'UNCHANGED',
+        posted: false,
+      });
+      const saved = await store.settlements.find('PAYSTACK', sid);
+      expect(saved).toMatchObject({ status: 'SETTLED', amountKobo: 176_000, postedAt: at });
+      expect(saved?.ledgerJournalId).toBeTruthy();
+
+      // Paystack later reports a different amount: flagged, never posted twice.
+      expect(await store.settlements.record({ ...payout, amountKobo: 170_000 }, at)).toEqual({
+        outcome: 'UPDATED',
+        posted: false,
+      });
+      const flagged = await store.settlements.find('PAYSTACK', sid);
+      expect(flagged).toMatchObject({ status: 'NEEDS_REVIEW', amountKobo: 176_000 });
+      expect(flagged?.ledgerJournalId).toBe(saved?.ledgerJournalId);
+
+      // Parkly's main account: pending first, posted when paid out.
+      const main = {
+        ...payout,
+        providerSettlementId: `${sid}-M`,
+        operatorId: null,
+        subaccountCode: null,
+      };
+      expect(await store.settlements.record({ ...main, status: 'PENDING' }, at)).toEqual({
+        outcome: 'NEW',
+        posted: false,
+      });
+      expect(await store.settlements.record(main, at)).toEqual({
+        outcome: 'UPDATED',
+        posted: true,
+      });
+      expect(await store.settlements.find('PAYSTACK', 'nope')).toBeNull();
     });
 
     it('reviews a lot: permit, prices, photos and the site visit, then lists by status', async () => {

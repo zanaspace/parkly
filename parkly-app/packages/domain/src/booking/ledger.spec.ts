@@ -8,6 +8,7 @@ import {
   providerClearing,
   providerFeeJournal,
   refundJournal,
+  settlementJournal,
   type JournalLine,
 } from './ledger.js';
 
@@ -27,6 +28,7 @@ describe('ledger accounts (doc 02 §2.7)', () => {
     expect(accountType(LEDGER_ACCOUNTS.PAYMENT_FEES)).toBe('EXPENSE');
     expect(accountType(LEDGER_ACCOUNTS.REFUNDS_CLEARING)).toBe('LIABILITY');
     expect(accountType(LEDGER_ACCOUNTS.DRIVER_RECEIVABLE)).toBe('ASSET');
+    expect(accountType(LEDGER_ACCOUNTS.CASH_AT_BANK)).toBe('ASSET');
   });
 });
 
@@ -117,5 +119,41 @@ describe('balance check', () => {
     expect(isBalanced([])).toBe(false);
     expect(isBalanced([dr, { ...cr, amountKobo: 99 }])).toBe(false);
     expect(isBalanced([dr, { ...cr, amountKobo: 0 }, { ...cr, amountKobo: 100 }])).toBe(false);
+  });
+});
+
+describe('settlement journal (S7 task 3)', () => {
+  it('an operator payout clears what Parkly owes the operator', () => {
+    const lines = settlementJournal({
+      provider: 'PAYSTACK',
+      operatorId: OP,
+      amountKobo: 176_000 as never,
+    });
+    expect(lines).toEqual([
+      { account: operatorPayable(OP), direction: 'DEBIT', amountKobo: 176_000 },
+      { account: providerClearing('PAYSTACK'), direction: 'CREDIT', amountKobo: 176_000 },
+    ]);
+    expect(isBalanced(lines)).toBe(true);
+  });
+
+  it('Parkly’s own payout moves money from the provider to the bank', () => {
+    expect(
+      settlementJournal({ provider: 'PAYSTACK', operatorId: null, amountKobo: 34_000 as never }),
+    ).toEqual([
+      { account: LEDGER_ACCOUNTS.CASH_AT_BANK, direction: 'DEBIT', amountKobo: 34_000 },
+      { account: providerClearing('PAYSTACK'), direction: 'CREDIT', amountKobo: 34_000 },
+    ]);
+  });
+
+  it('posts nothing for a zero payout and refuses a negative or fractional one', () => {
+    expect(
+      settlementJournal({ provider: 'PAYSTACK', operatorId: OP, amountKobo: 0 as never }),
+    ).toEqual([]);
+    expect(() =>
+      settlementJournal({ provider: 'PAYSTACK', operatorId: OP, amountKobo: -1 as never }),
+    ).toThrow(RangeError);
+    expect(() =>
+      settlementJournal({ provider: 'PAYSTACK', operatorId: OP, amountKobo: 1.5 as never }),
+    ).toThrow(RangeError);
   });
 });
