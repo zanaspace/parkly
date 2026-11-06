@@ -1072,6 +1072,8 @@ export type Store = {
       lotIds: string[],
       now: Date,
     ): Promise<Map<string, { parked: number; expected: number }>>;
+    /** FR-OPS-001: start times of paid bookings starting in [from, to) that have not arrived. */
+    arrivals(lotIds: string[], from: Date, to: Date): Promise<{ lotId: string; startAt: Date }[]>;
     /** Stay times and recorded overstay for these bookings (driver timer, ADR 0016). */
     sessionsForBookings(bookingIds: string[]): Promise<Map<string, StaySummary>>;
   };

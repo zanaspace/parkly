@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { weekOutlook } from './occupancy.js';
+import { outlookWindow, weekOutlook } from './occupancy.js';
 
 // Monday 2026-11-02 09:10 Lagos (08:10 UTC).
 const NOW = new Date('2026-11-02T08:10:00Z');
@@ -89,5 +89,24 @@ describe('weekOutlook (FR-OPS-001)', () => {
       arrivals: [],
     });
     expect(today?.minFree).toBe(0);
+  });
+});
+
+describe('outlookWindow (FR-OPS-001)', () => {
+  it('runs from the current 15-minute slot to midnight Lagos after the seventh day', () => {
+    expect(outlookWindow(NOW)).toEqual({
+      from: new Date('2026-11-02T08:00:00Z'),
+      // 2026-11-09 00:00 Lagos.
+      to: new Date('2026-11-08T23:00:00Z'),
+    });
+  });
+
+  it('uses the Lagos date, not the UTC one, just before midnight', () => {
+    // 2026-11-02 23:50 Lagos is still Monday there.
+    const late = new Date('2026-11-02T22:50:00Z');
+    expect(outlookWindow(late, 1)).toEqual({
+      from: new Date('2026-11-02T22:45:00Z'),
+      to: new Date('2026-11-02T23:00:00Z'),
+    });
   });
 });

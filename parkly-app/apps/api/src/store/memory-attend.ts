@@ -266,6 +266,18 @@ export class MemoryAttend {
       return out;
     },
 
+    arrivals: async (lotIds, from, to) =>
+      this.deps.bookings.bookingRows
+        .filter(
+          (b) =>
+            lotIds.includes(b.lotId) &&
+            b.status === 'CONFIRMED' &&
+            b.startAt >= from &&
+            b.startAt < to &&
+            !this.sessionRows.some((s) => s.bookingId === b.id && s.checkInAt),
+        )
+        .map((b) => ({ lotId: b.lotId, startAt: b.startAt })),
+
     sessionsForBookings: async (ids) =>
       new Map(
         this.sessionRows

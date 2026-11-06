@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { and, eq, gt, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { planEvent } from './attend-plan.js';
 import type { AttendDeviceRow, AttendEventResult, Store } from './types.js';
@@ -394,6 +394,23 @@ export function drizzleAttend(db: Db): {
           if (o) o.expected = r.n;
         }
         return out;
+      },
+
+      async arrivals(lotIds, from, to) {
+        if (lotIds.length === 0) return [];
+        return db
+          .select({ lotId: bookings.lotId, startAt: bookings.startAt })
+          .from(bookings)
+          .leftJoin(sessions, eq(sessions.bookingId, bookings.id))
+          .where(
+            and(
+              inArray(bookings.lotId, lotIds),
+              eq(bookings.status, 'CONFIRMED'),
+              gte(bookings.startAt, from),
+              lt(bookings.startAt, to),
+              isNull(sessions.checkInAt),
+            ),
+          );
       },
 
       async sessionsForBookings(ids) {

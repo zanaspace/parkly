@@ -31,6 +31,17 @@ function lagosMidnight(key: string): number {
 }
 
 /**
+ * The slots and arrivals `weekOutlook` needs: from the current 15-minute slot
+ * to midnight Lagos at the end of the last day.
+ */
+export function outlookWindow(now: Date, days = 7): { from: Date; to: Date } {
+  return {
+    from: floorToSlot(now),
+    to: new Date(lagosMidnight(lagosDateKey(now)) + days * DAY_MS),
+  };
+}
+
+/**
  * FR-OPS-001: today and the next six days for one lot, from its slot inventory
  * and the start times of paid bookings not yet arrived. Today counts only from
  * the current slot on. Slots with no row have nothing booked.

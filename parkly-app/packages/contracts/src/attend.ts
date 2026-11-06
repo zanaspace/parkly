@@ -157,11 +157,39 @@ export const OccupancySchema = z.object({
       walkIns: z.number().int(),
       /** Paid bookings due in the next 24 h that have not arrived. */
       expected: z.number().int(),
+      /** Spaces free right now: total spaces less Parkly cars and walk-ins in the lot. */
+      available: z.number().int().nonnegative(),
+    }),
+  ),
+  /** When these counts were taken; the portal shows it and refreshes every 15 s. */
+  asOf: z.iso.datetime(),
+});
+
+/** FR-OPS-001: today and the next six days per lot (Lagos dates). */
+export const OutlookSchema = z.object({
+  items: z.array(
+    z.object({
+      lotId: z.uuid(),
+      name: z.string(),
+      capacityBookable: z.number().int(),
+      days: z.array(
+        z.object({
+          /** Lagos date, YYYY-MM-DD. */
+          date: z.string(),
+          /** Paid bookings starting that day that have not arrived. */
+          arrivals: z.number().int(),
+          /** Spaces taken at the busiest 15 minutes (bookings, holds, passes, blocks). */
+          peakInUse: z.number().int(),
+          /** Bookable spaces still free at that busiest moment. */
+          minFree: z.number().int(),
+        }),
+      ),
     }),
   ),
 });
 
 export type Occupancy = z.infer<typeof OccupancySchema>;
+export type Outlook = z.infer<typeof OutlookSchema>;
 export type SelfCheckinSetting = z.infer<typeof SelfCheckinSettingSchema>;
 export type SelfCheckRequest = z.infer<typeof SelfCheckRequestSchema>;
 export type SelfCheckResult = z.infer<typeof SelfCheckResultSchema>;

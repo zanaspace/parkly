@@ -15575,6 +15575,10 @@
                           },
                           "expected": {
                             "type": "integer"
+                          },
+                          "available": {
+                            "type": "integer",
+                            "minimum": 0
                           }
                         },
                         "required": [
@@ -15583,7 +15587,103 @@
                           "capacityTotal",
                           "parked",
                           "walkIns",
-                          "expected"
+                          "expected",
+                          "available"
+                        ]
+                      }
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "asOf"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/{operatorId}/outlook": {
+      "get": {
+        "tags": [
+          "operators"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The week ahead per lot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "capacityBookable": {
+                            "type": "integer"
+                          },
+                          "days": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string"
+                                },
+                                "arrivals": {
+                                  "type": "integer"
+                                },
+                                "peakInUse": {
+                                  "type": "integer"
+                                },
+                                "minFree": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "date",
+                                "arrivals",
+                                "peakInUse",
+                                "minFree"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "lotId",
+                          "name",
+                          "capacityBookable",
+                          "days"
                         ]
                       }
                     }

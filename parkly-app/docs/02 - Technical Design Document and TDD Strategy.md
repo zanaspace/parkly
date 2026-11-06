@@ -559,7 +559,8 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | POST | `.../lots/:lotId/pause` · `/resume` | OWN, MGR | ✅ | | `LOT_NOT_LISTABLE` |
 | POST | `.../lots/:lotId/blocks` | OWN, MGR | ✅ | block N bays for a window | `LOT_CAPACITY_BELOW_COMMITTED` |
 | GET | `.../lots/:lotId/bookings` | OWN, MGR, ATT(lot) | — | filter by date/status; driver PII masked (first name + plate) | |
-| GET | `.../lots/:lotId/occupancy` | OWN, MGR | — | live + timeseries | |
+| GET | `/operators/:operatorId/occupancy` | OWN, MGR | — | FR-OPS-001, as built: per LIVE/PAUSED lot `parked` (Parkly cars in), `walkIns`, `expected` (paid, due in 24 h, not in), `available` (total spaces less cars in, never below 0), plus `asOf`. The portal polls it every 15 s through its same-origin `/api/operators/:operatorId/occupancy` route | |
+| GET | `/operators/:operatorId/outlook` | OWN, MGR | — | FR-OPS-001: today (from the current slot) and the next 6 Lagos days per lot: `arrivals` (paid, not yet in), `peakInUse` and `minFree` at the busiest 15 minutes, from `lot_slot_inventory` | |
 | GET | `/operators/:operatorId/reports/earnings` | OWN, MGR | — | `from,to,lotId` → gross, commission, fees, net, settlements | |
 | GET | `/operators/:operatorId/reports/export` | OWN | ✅ | CSV via async job → download URL | |
 | GET | `/operators/:operatorId/settlements` | OWN | — | | |
