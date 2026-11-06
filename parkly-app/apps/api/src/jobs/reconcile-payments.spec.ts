@@ -4,7 +4,7 @@ import type { PaymentStatus } from '@parkly/domain/booking';
 import { createLogger } from '../lib/logger.js';
 import { FakePaymentProvider } from '../providers/fakes.js';
 import { MemoryStore } from '../store/memory.js';
-import type { PaymentRow } from '../store/types.js';
+import type { BookingRow, PaymentRow, SettleResult } from '../store/types.js';
 import { reconcilePaymentsJob } from './reconcile-payments.js';
 
 function setup(nowStr = '2026-11-06T06:00:00.000Z') {
@@ -217,7 +217,7 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
     const createdAt = new Date('2026-11-05T16:00:00.000Z');
 
     for (let t = startAt.getTime(); t < endAt.getTime(); t += 15 * 60 * 1000) {
-      store.booking.slotRows.push({
+      store.slotRows.push({
         lotId,
         slotStart: new Date(t),
         capacity: 10,
@@ -231,34 +231,23 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
     store.booking.bookingRows.push({
       id: bookingId,
       code: 'PK-TEST01',
-      lotId,
       driverId: randomUUID(),
       vehicleId: randomUUID(),
+      plateNorm: 'ABC123XY',
+      lotId,
       product: 'HOURLY',
-      spaces: 1,
       startAt,
       endAt,
       status: 'PENDING_PAYMENT',
       holdExpiresAt: new Date('2026-11-05T16:30:00.000Z'),
-      confirmedAt: null,
-      cancelledAt: null,
-      cancelReason: null,
-      refundKobo: null,
-      operatorId: randomUUID(),
-      subaccountCode: null,
-      subtotalKobo: 60_000,
       priceKobo: 54_000,
       serviceFeeKobo: 6_000,
-      commissionBps: 1000,
-      discountKobo: 0,
-      taxKobo: 0,
       totalKobo: 60_000,
-      platformFeeKobo: 6_000,
-      operatorShareKobo: 54_000,
+      commissionBps: 1000,
       ratePlanId: randomUUID(),
-      isFlexible: false,
+      pricingBreakdown: null,
+      source: 'WEB',
       createdAt,
-      updatedAt: createdAt,
     });
 
     addPayment(store, {
@@ -448,18 +437,11 @@ describe('daily payments reconciliation job (reconcile-payments)', () => {
       channel: 'card',
     });
 
-    store.payments.settle = async () => ({
-      decision: 'EXPIRED',
-      bookingId: 'some-id',
-      operatorId: 'op-id',
-      amountKobo: 50_000,
-      netAmountKobo: 45_000,
-      feeKobo: 5_000,
-      refundPaymentId: null,
-      refundProviderReference: null,
-      journalEntryId: null,
-      settlementPlanId: null,
-      settlementRowId: null,
+    store.payments.settle = async (): Promise<SettleResult> => ({
+      decision: 'REFUND_HOLD_EXPIRED',
+      booking: {} as BookingRow,
+      payment: {} as PaymentRow,
+      refund: null,
     });
 
     await job({ deadline: new Date('2100-01-01T00:00:00Z'), payload: { businessDate: 123 } });

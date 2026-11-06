@@ -11,3 +11,4 @@ select cron.schedule(
   '0 6 * * *',
   $$select public.fn_invoke_job('reconcile-payments')$$
 );
+

@@ -42,7 +42,13 @@ const only = (allowed: Who[], ok: number, denied: number) =>
     WHO.map((w) => [w, w === 'anon' ? 401 : allowed.includes(w) ? ok : denied]),
   ) as Record<Who, number>;
 
-type Row = { method: string; path: string; route: string; expect: Record<Who, number> };
+type Row = {
+  method: string;
+  path: string;
+  route: string;
+  body?: unknown;
+  expect: Record<Who, number>;
+};
 
 const MATRIX: Row[] = [
   {
@@ -506,7 +512,7 @@ describe('RBAC matrix', () => {
         const res = await w.call(
           row.method,
           row.path,
-          who === 'anon' ? {} : { as: ids[who], aal: 'aal2' },
+          who === 'anon' ? { body: row.body } : { as: ids[who], aal: 'aal2', body: row.body },
         );
         expect(res.status).toBe(row.expect[who]);
       });
