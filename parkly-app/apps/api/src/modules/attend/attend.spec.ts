@@ -983,3 +983,18 @@ describe('operator bookings list and export (FR-OPS-002)', () => {
     expect(t.store.auditRows.length).toBe(before);
   });
 });
+
+describe('when check-in opens (ADR 0023)', () => {
+  it('tells the driver the earliest check-in time until the car is in', async () => {
+    const t = await setup();
+    const paid = await t.paidBooking();
+    const before = await t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    // 30 minutes before the 10:00 Lagos start (booking.early_arrival_min).
+    expect(before.body?.checkInOpensAt).toBe('2026-10-19T08:30:00.000Z');
+
+    await t.readyDevice();
+    await t.sync([checkIn(paid.id, min(55))]);
+    const after = await t.call('GET', `/v1/bookings/${paid.id}`, { as: paid.driver });
+    expect(after.body?.checkInOpensAt).toBeNull();
+  });
+});

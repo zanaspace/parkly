@@ -11828,6 +11828,14 @@
                             "per15Kobo"
                           ]
                         },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
                         "stay": {
                           "type": [
                             "object",
@@ -12251,6 +12259,14 @@
                               "per15Kobo"
                             ]
                           },
+                          "checkInOpensAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "default": null
+                          },
                           "stay": {
                             "type": [
                               "object",
@@ -12625,6 +12641,14 @@
                         "graceMin",
                         "per15Kobo"
                       ]
+                    },
+                    "checkInOpensAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "stay": {
                       "type": [
@@ -13659,6 +13683,14 @@
                             "per15Kobo"
                           ]
                         },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
                         "stay": {
                           "type": [
                             "object",
@@ -14194,6 +14226,14 @@
                             "per15Kobo"
                           ]
                         },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
                         "stay": {
                           "type": [
                             "object",
@@ -14640,6 +14680,14 @@
                             "graceMin",
                             "per15Kobo"
                           ]
+                        },
+                        "checkInOpensAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
                         },
                         "stay": {
                           "type": [

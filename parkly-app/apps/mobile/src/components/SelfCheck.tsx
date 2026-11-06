@@ -3,12 +3,17 @@ import { Button, Text, useTheme } from '@parkly/ui-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Crypto from 'expo-crypto';
 import * as Location from 'expo-location';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ApiError } from '../lib/api';
 import { api } from '../lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../logic/errors';
-import { positionProblem, selfCheckKind } from '../logic/self-check';
+import {
+  checkInNotYet,
+  outsideWindowMessage,
+  positionProblem,
+  selfCheckKind,
+} from '../logic/self-check';
 import { Notice } from './Notice';
 
 /**
@@ -23,7 +28,16 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const eventId = useRef<string | null>(null);
+  // ADR 0023: before the gate accepts the car, show when it will; the button
+  // appears by itself at that time.
+  const notYet = kind === 'in' ? checkInNotYet(booking, now) : null;
+  useEffect(() => {
+    if (!notYet) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [notYet]);
   if (!kind) return null;
   const verb = kind === 'in' ? 'Check in' : 'Check out';
 
@@ -65,7 +79,9 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
       eventId.current = null;
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      if (err instanceof ApiError && err.code === 'QR_OUTSIDE_WINDOW')
+        setError(outsideWindowMessage(booking, Date.now()));
+      else setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSending(false);
     }
@@ -86,6 +102,8 @@ export function SelfCheck({ booking, onDone }: { booking: Booking; onDone: () =>
           />
           <Button label="Cancel" variant="ghost" fullWidth onPress={() => setScanning(false)} />
         </>
+      ) : notYet ? (
+        <Notice kind="info" message={notYet} />
       ) : (
         <Button
           label={`${verb} (scan barrier or attendant)`}

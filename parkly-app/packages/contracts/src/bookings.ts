@@ -75,6 +75,13 @@ export const BookingSchema = z.object({
    * Overstay is the server's figure: live while the car is still in after
    * end + grace, final after check-out. Clients only display it.
    */
+  /**
+   * The earliest moment the gate accepts this car: the start less the early
+   * arrival allowance (`booking.early_arrival_min`, ADR 0023). Set while the
+   * booking is CONFIRMED and not yet checked in; clients show it instead of
+   * offering a check-in that would be refused. Null from older APIs.
+   */
+  checkInOpensAt: z.iso.datetime().nullable().default(null),
   stay: z
     .object({
       checkedInAt: z.iso.datetime().nullable(),

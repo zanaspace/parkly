@@ -108,6 +108,7 @@ export function toBooking(
     overstay?: Booking['overstay'];
     stay?: Booking['stay'];
     contactPhone?: string | null;
+    checkInOpensAt?: string | null;
   } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
@@ -145,6 +146,7 @@ export function toBooking(
     }).lines,
     qrToken: extra.qrToken ?? null,
     overstay: extra.overstay ?? null,
+    checkInOpensAt: extra.checkInOpensAt ?? null,
     stay: extra.stay ?? null,
     createdAt: b.createdAt.toISOString(),
   };
@@ -182,6 +184,8 @@ export function bookingRoutes(deps: AppDeps) {
     const stays = await deps.store.attend.sessionsForBookings(rows.map((r) => r.id));
     // The booking's own plan and overstay terms, as at check-out (gap review L-3).
     const overstay = overstayPricer(deps.store);
+    // How early the gate lets a car in (ADR 0023); the same setting the gate uses.
+    const earlyMin = (await deps.store.settings.get<number>('booking.early_arrival_min')) ?? 30;
     const phoneMap = new Map<string, string | null>();
     for (const lotId of new Set(rows.map((r) => r.lotId))) {
       const l = await lotOf(lotId);
@@ -210,6 +214,10 @@ export function bookingRoutes(deps: AppDeps) {
         return {
           qrToken: await ticketFor(b),
           overstay: terms,
+          checkInOpensAt:
+            b.status === 'CONFIRMED' && !s?.checkInAt
+              ? new Date(b.startAt.getTime() - earlyMin * 60_000).toISOString()
+              : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
         };

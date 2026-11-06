@@ -4,6 +4,7 @@ import type { Booking } from '@parkly/contracts';
 import jsQR from 'jsqr';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { checkInNotYet, outsideWindowMessage } from '../lib/check-in-timing';
 import { submitSelfCheck } from '../lib/booking-actions';
 import { AlertCircleIcon, CameraIcon, CheckCircleIcon } from './icons';
 
@@ -16,6 +17,14 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // ADR 0023: refreshed while check-in hasn't opened, so the button appears on time.
+  const [now, setNow] = useState(() => Date.now());
+  const opensAt = booking.status === 'CONFIRMED' ? booking.checkInOpensAt : null;
+  useEffect(() => {
+    if (!opensAt || Date.parse(opensAt) <= Date.now()) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [opensAt]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const doneRef = useRef(false);
 
@@ -85,6 +94,7 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
     };
   }, [open]);
 
+  const notYet = kind === 'in' ? checkInNotYet(booking, now) : null;
   if (!kind) return null;
 
   const verb = kind === 'in' ? 'Check in' : 'Check out';
@@ -127,7 +137,11 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
               onDone?.();
             }, 1200);
           } else {
-            setError(res.message ?? 'Check-in failed. Please try again.');
+            setError(
+              res.code === 'QR_OUTSIDE_WINDOW'
+                ? outsideWindowMessage(booking, Date.now())
+                : (res.message ?? 'Check-in failed. Please try again.'),
+            );
             doneRef.current = false;
           }
         } catch {
@@ -145,6 +159,13 @@ export function SelfCheckinAction({ booking, onDone }: { booking: Booking; onDon
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }
+
+  if (notYet)
+    return (
+      <p className="pk-notice pk-notice--info" role="status" style={{ marginTop: '1rem' }}>
+        {notYet}
+      </p>
+    );
 
   return (
     <div style={{ marginTop: '1rem', width: '100%' }}>
