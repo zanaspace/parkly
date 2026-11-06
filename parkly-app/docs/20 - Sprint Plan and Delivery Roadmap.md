@@ -321,7 +321,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 
 **Goal:** Drivers book for now or for later and arrive when they can; early, late and held time are paid for, so operators earn on every minute a space is held or used.
 
-**Stages:** 1. show when check-in opens (**built**); 2. paid early start when there is space (next, before S7 task 4); 3. "Park now" with a free 60-minute hold, then a holding fee of 25% of the hourly rate per 15 minutes, a per-lot hold cap and "Running late?" (its own sprint after S7); 4. peak pricing and refunds of unused time (after the pilot settles). Details and owner decisions in ADR 0023.
+**Stages:** 1. show when check-in opens (**built**); 2. paid early start when there is space (**built**); 3. "Park now" with a free 60-minute hold, then a holding fee of 25% of the hourly rate per 15 minutes, a per-lot hold cap and "Running late?" (its own sprint after S7); 4. peak pricing and refunds of unused time (after the pilot settles). Details and owner decisions in ADR 0023.
 
 ---
 

@@ -1,6 +1,6 @@
 # 0023 — Flexible arrival: book now or for later, arrive when you can, pay for what you use
 
-- **Status:** Accepted (stage 1 built; stages 2 to 4 planned)
+- **Status:** Accepted (stages 1 and 2 built; stages 3 and 4 planned)
 - **Date:** 2026-11-06
 - **Deciders:** Product owner, engineering lead
 - **Amends:** doc 02 §3.1 booking timing and no-show rules (as each stage lands); doc 03 driver booking and check-in flows
@@ -50,7 +50,7 @@ One flexible booking, three moments:
 | Stage | What | When |
 |---|---|---|
 | 1 | Show when check-in opens instead of a refusal: `checkInOpensAt` on the booking, mobile and web show "Check-in opens at 11:30 (30 minutes before your booking)", the button appears on time, and a refused check-in says "You're early. You can check in from 11:30." or "This booking ended at 14:00." | **Built** (2026-11-06) |
-| 2 | Paid early start when there is space (reuses extension holds, payments and journals, at the start instead of the end) | Next, before S7 task 4 |
+| 2 | Paid early start when there is space: `GET/POST /bookings/{id}/early-start`; `booking_extensions.kind = EARLY_START` holds `[new start, start)`; confirm moves the start earlier; mobile and web offer "Start now: ₦X for N more minutes" beside the opening time | **Built** (2026-11-06) |
 | 3 | Park now: hold-then-start clock, free 60 min, holding fee, per-lot hold cap, "Running late?" | Its own sprint after S7 |
 | 4 | Peak pricing; refund unused time | After the pilot settles |
 
