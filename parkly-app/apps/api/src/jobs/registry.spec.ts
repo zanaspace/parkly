@@ -25,6 +25,7 @@ describe('job registry', () => {
     });
     expect(Object.keys(jobs).sort()).toEqual([
       'deliver-notifications',
+      'monthly-statements',
       'permit-expiry-check',
       'ping',
       'reconcile-payments',

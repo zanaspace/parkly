@@ -7,6 +7,7 @@ import { reminderSweepJob } from './reminder-sweep.js';
 import { settlePaymentsJob } from './settle-payments.js';
 import { settlementsSyncJob } from './settlements-sync.js';
 import { reconcilePaymentsJob } from './reconcile-payments.js';
+import { monthlyStatementsJob } from './monthly-statements.js';
 import type { JobHandler } from './routes.js';
 
 /**
@@ -32,6 +33,8 @@ export function createJobs(deps: {
     'settlements-sync': settlementsSyncJob(deps),
     // Daily payments reconciliation job (S7 task 4).
     'reconcile-payments': reconcilePaymentsJob(deps),
+    // Monthly statement generation and email dispatch (S7 task 5).
+    'monthly-statements': monthlyStatementsJob(deps),
     // Sends queued notifications and retries failed channels (ADR 0020).
     'deliver-notifications': ({ deadline }) => deps.notifications.deliverDue({ deadline }),
   };

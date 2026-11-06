@@ -119,6 +119,42 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/operators/${OP_A}/reports/earnings?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/reports/earnings',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/reports/earnings?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/reports/earnings (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/reports/export?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/reports/export',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/reports/export?from=2026-10-19&to=2026-10-19`,
+    route: 'GET /v1/operators/{operatorId}/reports/export (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_A}/reports/statements/2026-10`,
+    route: 'GET /v1/operators/{operatorId}/reports/statements/{month}',
+    expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),
+  },
+  {
+    method: 'GET',
+    path: `/v1/operators/${OP_B}/reports/statements/2026-10`,
+    route: 'GET /v1/operators/{operatorId}/reports/statements/{month} (other tenant)',
+    expect: only([], 200, 404),
+  },
+  {
+    method: 'GET',
     path: `/v1/operators/${OP_A}/devices`,
     route: 'GET /v1/operators/{operatorId}/devices',
     expect: only(['OPERATOR_OWNER', 'OPERATOR_MANAGER'], 200, 404),

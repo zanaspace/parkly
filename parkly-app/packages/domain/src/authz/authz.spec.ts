@@ -339,3 +339,20 @@ describe('operator bookings list and export (FR-OPS-002)', () => {
     }
   });
 });
+
+describe('operator revenue reports and export (FR-OPS-003, FR-OPS-006)', () => {
+  it('lets the owner and managers read and export their own revenue reports', () => {
+    for (const a of ['operator:reports:read', 'operator:reports:export'] as const) {
+      expect(can(ownerA, a, { operatorId: OP_A })).toBe(true);
+      expect(can(managerA, a, { operatorId: OP_A })).toBe(true);
+    }
+  });
+
+  it('denies other operators, attendants and drivers', () => {
+    for (const a of ['operator:reports:read', 'operator:reports:export'] as const) {
+      expect(can(ownerA, a, { operatorId: OP_B })).toBe(false);
+      expect(can(attendantA, a, { operatorId: OP_A })).toBe(false);
+      expect(can(driver, a, { operatorId: OP_A })).toBe(false);
+    }
+  });
+});

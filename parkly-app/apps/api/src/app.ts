@@ -26,6 +26,7 @@ import { kybRoutes } from './modules/kyb/routes.js';
 import { lotRoutes } from './modules/lots/routes.js';
 import { operatorRoutes } from './modules/operators/routes.js';
 import { operatorBookingRoutes } from './modules/operator-bookings/routes.js';
+import { reportRoutes } from './modules/reports/routes.js';
 import { teamRoutes } from './modules/team/routes.js';
 import { discoveryRoutes } from './modules/discovery/routes.js';
 import { placesRoutes } from './modules/places/routes.js';
@@ -141,6 +142,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminReconciliationRoutes(deps));
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', operatorBookingRoutes(deps));
+  app.route('/v1', reportRoutes(deps));
   app.route('/v1', discoveryRoutes(deps));
   app.route('/v1', placesRoutes(deps));
   app.route('/v1', bookingRoutes(deps));
