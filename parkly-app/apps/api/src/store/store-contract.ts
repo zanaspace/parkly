@@ -708,6 +708,10 @@ export function storeContract(
         posted: true,
       });
       expect(await store.settlements.find('PAYSTACK', 'nope')).toBeNull();
+      // Review item 7: the flagged payout is listed for reconciliation, the others aren't.
+      const held = await store.settlements.needingReview(500);
+      expect(held.map((h) => h.providerSettlementId)).toContain(sid);
+      expect(held.every((h) => h.status === 'NEEDS_REVIEW')).toBe(true);
     });
 
     it('records reconciliation runs and items and resolves exceptions (S7 task 4)', async () => {
@@ -1422,6 +1426,15 @@ export function storeContract(
           refund: null,
         });
         expect((await store.payments.settle(payment.id, charge(), AT)).decision).toBe('NOOP');
+        // Review item 7: the journal took in exactly the payment, once, from the provider.
+        const debits = await store.reconciliation.clearingDebits('FAKE', [
+          payment.id,
+          randomUUID(),
+        ]);
+        expect(debits.get(payment.id)).toBe(110_000);
+        expect(debits.size).toBe(1);
+        expect((await store.reconciliation.clearingDebits('PAYSTACK', [payment.id])).size).toBe(0);
+        expect((await store.reconciliation.clearingDebits('FAKE', [])).size).toBe(0);
         const slots = await store.inventory.slots([lot.lotId], START, END);
         expect(slots.every((s) => s.held === 0 && s.booked === 1)).toBe(true);
         const upcoming = await store.bookings.listForDriver(d.id, 'upcoming', AT, 10);

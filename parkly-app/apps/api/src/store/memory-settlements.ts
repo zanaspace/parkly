@@ -42,6 +42,12 @@ export class MemorySettlements {
       return { outcome, posted: true };
     },
 
+    needingReview: async (limit) =>
+      this.rows
+        .filter((r) => r.status === 'NEEDS_REVIEW')
+        .slice(0, limit)
+        .map((r) => ({ ...r, raw: { ...r.raw } })),
+
     find: async (provider, providerSettlementId) => {
       const r = this.rows.find(
         (x) => x.provider === provider && x.providerSettlementId === providerSettlementId,

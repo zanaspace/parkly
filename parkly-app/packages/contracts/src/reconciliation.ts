@@ -10,6 +10,9 @@ export const ReconciliationResultSchema = z.enum([
   'AMOUNT_MISMATCH',
   'STATUS_MISMATCH',
   'AUTO_FIXED',
+  'LEDGER_MISSING',
+  'LEDGER_MISMATCH',
+  'SETTLEMENT_REVIEW',
 ]);
 export type ReconciliationResult = z.infer<typeof ReconciliationResultSchema>;
 

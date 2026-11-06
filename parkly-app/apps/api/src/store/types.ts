@@ -535,7 +535,10 @@ export type ReconciliationResult =
   | 'MISSING_PROVIDER'
   | 'AMOUNT_MISMATCH'
   | 'STATUS_MISMATCH'
-  | 'AUTO_FIXED';
+  | 'AUTO_FIXED'
+  | 'LEDGER_MISSING'
+  | 'LEDGER_MISMATCH'
+  | 'SETTLEMENT_REVIEW';
 
 export type ReconciliationRunRow = {
   id: string;
@@ -1116,8 +1119,19 @@ export type Store = {
       provider: SettlementRow['provider'],
       providerSettlementId: string,
     ): Promise<SettlementRow | null>;
+    /** Payouts held for review and still open (reconciliation review item 7). */
+    needingReview(limit: number): Promise<SettlementRow[]>;
   };
   reconciliation: {
+    /**
+     * Review item 7: per payment, what its ledger journals took in from the
+     * provider (sum of DEBIT lines on PROVIDER_CLEARING:<provider>). Payments
+     * with no such line are absent from the map.
+     */
+    clearingDebits(
+      provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE',
+      paymentIds: string[],
+    ): Promise<Map<string, number>>;
     /**
      * Upserts a reconciliation run record for (provider, businessDate).
      */
