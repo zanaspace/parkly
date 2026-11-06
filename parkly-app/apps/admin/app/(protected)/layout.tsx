@@ -8,12 +8,15 @@ import { requireAccess } from '../../lib/auth/session';
 const AUDIT_READERS = new Set(['ADMIN_COMPLIANCE', 'SUPER_ADMIN']);
 // Mirrors the API's `booking:support:read` rule.
 const BOOKING_READERS = new Set(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN']);
+// Mirrors the API's `reconciliation:read` rule.
+const FINANCE_READERS = new Set(['ADMIN_FINANCE', 'SUPER_ADMIN']);
 
 /** Everything in (protected) needs an admin role and a completed MFA check (FR-AUTH-004). */
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const { me } = await requireAccess();
   const canReadAudit = me.roles.some((r) => AUDIT_READERS.has(r.role));
   const canReadBookings = me.roles.some((r) => BOOKING_READERS.has(r.role));
+  const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
   const primaryRole = me.roles[0]?.role ?? 'ADMIN';
 
   return (
@@ -30,7 +33,11 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
               Parkly Admin
             </Text>
           </div>
-          <AdminNav canReadAudit={canReadAudit} canReadBookings={canReadBookings} />
+          <AdminNav
+            canReadAudit={canReadAudit}
+            canReadBookings={canReadBookings}
+            canReadFinance={canReadFinance}
+          />
         </div>
         <div className="pk-row" style={{ gap: '1rem' }}>
           <div style={{ textAlign: 'right' }}>
