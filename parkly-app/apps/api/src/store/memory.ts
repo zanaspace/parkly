@@ -31,6 +31,7 @@ import { MemoryAttend } from './memory-attend.js';
 import { MemoryBookings } from './memory-bookings.js';
 import { MemoryNotifications } from './memory-notifications.js';
 import { MemoryReceipts } from './memory-receipts.js';
+import { MemorySettlements } from './memory-settlements.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -117,6 +118,9 @@ export class MemoryStore implements Store {
   /** Stored receipts (Sprint 6, gap review L-5). */
   readonly receiptStore = new MemoryReceipts();
   readonly receipts: Store['receipts'] = this.receiptStore.receipts;
+  /** Provider payouts (S7 task 3). */
+  readonly settlementStore = new MemorySettlements();
+  readonly settlements: Store['settlements'] = this.settlementStore.settlements;
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {
@@ -356,6 +360,12 @@ export class MemoryStore implements Store {
       const p = this.payoutRows.get(operatorId);
       if (p) p.providerSubaccountCode = code;
     },
+    activeSubaccounts: async () =>
+      [...this.payoutRows.values()].flatMap((p) =>
+        p.status === 'ACTIVE' && p.providerSubaccountCode
+          ? [{ operatorId: p.operatorId, subaccountCode: p.providerSubaccountCode }]
+          : [],
+      ),
   };
 
   lots: Store['lots'] = {

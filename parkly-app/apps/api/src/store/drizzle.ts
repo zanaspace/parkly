@@ -45,6 +45,7 @@ import {
 import { drizzleAttend } from './drizzle-attend.js';
 import { drizzleNotifications } from './drizzle-notifications.js';
 import { drizzleReceipts } from './drizzle-receipts.js';
+import { drizzleSettlements } from './drizzle-settlements.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
 const {
@@ -637,6 +638,24 @@ export function drizzleStore(db: Db): Store {
           .update(payoutAccounts)
           .set({ providerSubaccountCode: code })
           .where(eq(payoutAccounts.operatorId, operatorId));
+      },
+
+      async activeSubaccounts() {
+        const rows = await db
+          .select({
+            operatorId: payoutAccounts.operatorId,
+            subaccountCode: payoutAccounts.providerSubaccountCode,
+          })
+          .from(payoutAccounts)
+          .where(
+            and(
+              eq(payoutAccounts.status, 'ACTIVE'),
+              isNotNull(payoutAccounts.providerSubaccountCode),
+            ),
+          );
+        return rows.flatMap((r) =>
+          r.subaccountCode ? [{ operatorId: r.operatorId, subaccountCode: r.subaccountCode }] : [],
+        );
       },
     },
 
@@ -1565,6 +1584,8 @@ export function drizzleStore(db: Db): Store {
     notifications: drizzleNotifications(db),
 
     receipts: drizzleReceipts(db),
+
+    settlements: drizzleSettlements(db),
 
     lotKeys: {
       forManifest: attending.forManifest,

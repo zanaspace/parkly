@@ -141,6 +141,26 @@ export type Bank = { code: string; name: string };
  * Operator settlement accounts (doc 02 §2.3). Paystack resolves the account
  * name and holds the bank details; we keep only the subaccount code.
  */
+/**
+ * One provider payout (S7 task 3), read strictly. Only SETTLED rows with an
+ * amount are posted to the ledger; NEEDS_REVIEW says why the record could not
+ * be trusted (unknown status, missing amount, other currency).
+ */
+export type ProviderSettlement = {
+  id: string;
+  status: 'PENDING' | 'SETTLED' | 'FAILED' | 'NEEDS_REVIEW';
+  /** Paid out, after the provider's deductions (kobo). */
+  amountKobo: number | null;
+  grossKobo: number | null;
+  feesKobo: number | null;
+  settledAt: Date | null;
+  /** Null for Parkly's main account. */
+  subaccountCode: string | null;
+  reviewReason: string | null;
+  /** The money fields as received; never bank account numbers. */
+  raw: Record<string, unknown>;
+};
+
 export interface SettlementProvider {
   readonly name: 'paystack' | 'fake';
   listBanks(): Promise<Bank[]>;
@@ -157,6 +177,22 @@ export interface SettlementProvider {
     percentageCharge: number;
     contactEmail: string | null;
   }): Promise<{ subaccountCode: string }>;
+  /**
+   * Payouts in [from, to] for Parkly's main account (`subaccount: null`) or one
+   * operator subaccount, one page at a time (pages start at 1).
+   */
+  listSettlements(input: {
+    subaccount: string | null;
+    from: Date;
+    to: Date;
+    page: number;
+    perPage: number;
+  }): Promise<{
+    items: ProviderSettlement[];
+    pageCount: number;
+    /** Records with no id, which can't be stored; the job reports them. */
+    unreadable: number;
+  }>;
 }
 
 /** Virus scan for uploaded PDFs (doc 05 V12). Provider chosen in ADR 0013. */

@@ -69,6 +69,13 @@ export const ledgerAccountTypeEnum = pgEnum('ledger_account_type', [
   'EXPENSE',
 ]);
 export const ledgerDirectionEnum = pgEnum('ledger_direction', ['DEBIT', 'CREDIT']);
+/** S7 task 3. NEEDS_REVIEW: the provider's record didn't match what we expect; never posted. */
+export const settlementStatusEnum = pgEnum('settlement_status', [
+  'PENDING',
+  'SETTLED',
+  'FAILED',
+  'NEEDS_REVIEW',
+]);
 export const idempotencyStatusEnum = pgEnum('idempotency_status', ['IN_PROGRESS', 'COMPLETED']);
 
 /** A driver's booking for one lot and window (doc 02 §2.6). Prices are server snapshots. */
@@ -306,6 +313,41 @@ export const ledgerAccounts = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * Provider payouts (S7 task 3, doc 02 §2.7): one row per provider settlement,
+ * to Parkly's main account (`operator_id` null) or an operator's subaccount.
+ * A SETTLED row is posted to the ledger once (`ledger_journal_id`).
+ */
+export const settlements = pgTable(
+  'settlements',
+  {
+    id: id(),
+    provider: paymentProviderEnum('provider').notNull(),
+    providerSettlementId: varchar('provider_settlement_id', { length: 64 }).notNull(),
+    operatorId: uuid('operator_id').references(() => operators.id, { onDelete: 'restrict' }),
+    subaccountCode: varchar('subaccount_code', { length: 64 }), // C4
+    status: settlementStatusEnum('status').notNull(),
+    /** Paid out, after provider deductions. */
+    amountKobo: bigint('amount_kobo', { mode: 'number' }),
+    grossKobo: bigint('gross_kobo', { mode: 'number' }),
+    feesKobo: bigint('fees_kobo', { mode: 'number' }),
+    settledAt: timestamp('settled_at', { withTimezone: true }),
+    /** The provider's record as received (C3: may name the operator's bank). */
+    raw: jsonb('raw').notNull(),
+    reviewReason: text('review_reason'),
+    ledgerJournalId: uuid('ledger_journal_id'),
+    postedAt: timestamp('posted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('settlements_provider_id_key').on(t.provider, t.providerSettlementId),
+    index('settlements_operator_idx').on(t.operatorId, t.settledAt),
+    check('settlements_amounts_check', sql`coalesce(${t.amountKobo}, 0) >= 0`),
+    apiAccess('settlements'),
+  ],
+).enableRLS();
+
 /** Append-only journal lines; each journal balances at commit (`ledger_balanced_check`). */
 export const ledgerEntries = pgTable(
   'ledger_entries',
@@ -319,6 +361,7 @@ export const ledgerEntries = pgTable(
     amountKobo: bigint('amount_kobo', { mode: 'number' }).notNull(),
     paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'restrict' }),
     refundId: uuid('refund_id').references(() => refunds.id, { onDelete: 'restrict' }),
+    settlementId: uuid('settlement_id').references(() => settlements.id, { onDelete: 'restrict' }),
     description: text('description'),
     createdAt: createdAt(),
   },
@@ -327,6 +370,7 @@ export const ledgerEntries = pgTable(
     index('ledger_entries_account_idx').on(t.accountId, t.createdAt),
     index('ledger_entries_payment_idx').on(t.paymentId),
     index('ledger_entries_refund_idx').on(t.refundId),
+    index('ledger_entries_settlement_idx').on(t.settlementId),
     check('ledger_entries_amount_check', sql`${t.amountKobo} > 0`),
     ...apiAppendOnly('ledger_entries'),
   ],

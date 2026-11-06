@@ -12,6 +12,8 @@ export const LEDGER_ACCOUNTS = {
   SERVICE_FEE: 'PLATFORM_REVENUE_SERVICE_FEE',
   PAYMENT_FEES: 'PAYMENT_FEES_EXPENSE',
   REFUNDS_CLEARING: 'REFUNDS_CLEARING',
+  /** Parkly's own bank account, where the provider pays out Parkly's share (S7 task 3). */
+  CASH_AT_BANK: 'CASH_AT_BANK',
 } as const;
 
 export type PaymentProvider = 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
@@ -22,7 +24,11 @@ export const providerClearing = (provider: PaymentProvider) => `PROVIDER_CLEARIN
 export const operatorPayable = (operatorId: string) => `OPERATOR_PAYABLE:${operatorId}`;
 
 export function accountType(code: string): AccountType {
-  if (code.startsWith('PROVIDER_CLEARING:') || code === LEDGER_ACCOUNTS.DRIVER_RECEIVABLE) {
+  if (
+    code.startsWith('PROVIDER_CLEARING:') ||
+    code === LEDGER_ACCOUNTS.DRIVER_RECEIVABLE ||
+    code === LEDGER_ACCOUNTS.CASH_AT_BANK
+  ) {
     return 'ASSET';
   }
   if (code.startsWith('OPERATOR_PAYABLE:') || code === LEDGER_ACCOUNTS.REFUNDS_CLEARING) {
@@ -89,4 +95,26 @@ export function refundJournal(payment: BookingPayment): JournalLine[] {
     ...l,
     direction: l.direction === 'DEBIT' ? 'CREDIT' : 'DEBIT',
   }));
+}
+
+/**
+ * A provider payout (S7 task 3, doc 02 §2.7). Money leaves the provider's
+ * clearing account: to an operator's bank (clearing what Parkly owes them) or,
+ * for Parkly's own settlement, to Parkly's bank. Amounts are what was paid out,
+ * after any provider deductions.
+ */
+export function settlementJournal(input: {
+  provider: PaymentProvider;
+  /** Null for Parkly's main account. */
+  operatorId: string | null;
+  amountKobo: Kobo;
+}): JournalLine[] {
+  const { amountKobo } = input;
+  if (!Number.isSafeInteger(amountKobo) || amountKobo < 0)
+    throw new RangeError(`Invalid settlement amount: ${amountKobo}`);
+  const to = input.operatorId ? operatorPayable(input.operatorId) : LEDGER_ACCOUNTS.CASH_AT_BANK;
+  return [
+    ...line(to, 'DEBIT', amountKobo),
+    ...line(providerClearing(input.provider), 'CREDIT', amountKobo),
+  ];
 }

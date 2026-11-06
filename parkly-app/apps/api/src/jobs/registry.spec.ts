@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '../lib/logger.js';
 import { testDeps } from '../test-helpers.js';
-import { FakeEmailProvider, FakePaymentProvider } from '../providers/fakes.js';
+import {
+  FakeEmailProvider,
+  FakePaymentProvider,
+  FakeSettlementProvider,
+} from '../providers/fakes.js';
 import { logOnlyEmail } from '../providers/log-email.js';
 import { MemoryStore } from '../store/memory.js';
 import { createJobs } from './registry.js';
@@ -13,6 +17,7 @@ describe('job registry', () => {
       store,
       email: new FakeEmailProvider(),
       payments: new FakePaymentProvider(),
+      settlement: new FakeSettlementProvider(),
       logger: createLogger({ level: 'silent' }),
       now: () => new Date('2026-10-19T05:00:00Z'),
       appEnv: 'prod',
@@ -23,6 +28,7 @@ describe('job registry', () => {
       'permit-expiry-check',
       'ping',
       'settle-payments',
+      'settlements-sync',
       'sweep-reminders',
     ]);
     const deadline = new Date('2100-01-01T00:00:00Z');

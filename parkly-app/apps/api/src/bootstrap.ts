@@ -179,6 +179,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     store,
     email,
     payments,
+    settlement,
     logger,
     now,
     appEnv: config.appEnv,

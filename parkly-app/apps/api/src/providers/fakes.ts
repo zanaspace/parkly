@@ -6,6 +6,7 @@ import type {
   MalwareScanner,
   MapsProvider,
   PaymentProvider,
+  ProviderSettlement,
   PushProvider,
   SettlementProvider,
   SmsProvider,
@@ -184,6 +185,8 @@ export class FakeSettlementProvider implements SettlementProvider {
   ];
   readonly accounts = new Map<string, string>([['058:0123456789', 'EKO PARKING SERVICES LTD']]);
   readonly subaccounts: Parameters<SettlementProvider['createSubaccount']>[0][] = [];
+  /** Payouts the fake reports; tests push them. */
+  readonly settlements: ProviderSettlement[] = [];
   failNext = false;
   async listBanks() {
     return [...this.banks];
@@ -197,6 +200,20 @@ export class FakeSettlementProvider implements SettlementProvider {
     this.maybeFail();
     this.subaccounts.push(input);
     return { subaccountCode: `ACCT_fake${this.subaccounts.length}` };
+  }
+  async listSettlements(input: Parameters<SettlementProvider['listSettlements']>[0]) {
+    this.maybeFail();
+    const all = this.settlements.filter(
+      (s) =>
+        s.subaccountCode === input.subaccount &&
+        (!s.settledAt || (s.settledAt >= input.from && s.settledAt <= input.to)),
+    );
+    const start = (input.page - 1) * input.perPage;
+    return {
+      items: all.slice(start, start + input.perPage).map((s) => ({ ...s })),
+      pageCount: Math.ceil(all.length / input.perPage),
+      unreadable: 0,
+    };
   }
   private maybeFail() {
     if (this.failNext) {

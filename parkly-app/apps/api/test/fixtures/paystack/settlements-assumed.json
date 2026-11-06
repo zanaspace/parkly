@@ -1,0 +1,86 @@
+{
+  "status": true,
+  "message": "Settlements retrieved",
+  "data": [
+    {
+      "id": 3090024,
+      "domain": "live",
+      "status": "success",
+      "currency": "NGN",
+      "integration": 100032,
+      "total_amount": 180000,
+      "effective_amount": 176000,
+      "total_fees": 4000,
+      "total_processed": 180000,
+      "deductions": null,
+      "settlement_date": "2026-11-05T00:00:00.000Z",
+      "settled_by": null,
+      "subaccount": {
+        "id": 55,
+        "subaccount_code": "ACCT_eko0001",
+        "business_name": "Eko Parking",
+        "account_number": "0123456789",
+        "settlement_bank": "Guaranty Trust Bank"
+      },
+      "createdAt": "2026-11-05T09:00:00.000Z",
+      "updatedAt": "2026-11-05T10:00:00.000Z"
+    },
+    {
+      "id": 3090025,
+      "domain": "live",
+      "status": "processing",
+      "currency": "NGN",
+      "integration": 100032,
+      "total_amount": 50000,
+      "effective_amount": 50000,
+      "total_fees": 0,
+      "settlement_date": "2026-11-06T00:00:00.000Z",
+      "subaccount": { "subaccount_code": "ACCT_eko0001" },
+      "createdAt": "2026-11-06T09:00:00.000Z",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    {
+      "id": 3090026,
+      "domain": "live",
+      "status": "on_hold",
+      "currency": "NGN",
+      "integration": 100032,
+      "total_amount": 70000,
+      "effective_amount": 70000,
+      "total_fees": 0,
+      "settlement_date": "2026-11-06T00:00:00.000Z",
+      "subaccount": null,
+      "createdAt": "2026-11-06T09:00:00.000Z",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    {
+      "id": 3090027,
+      "domain": "live",
+      "status": "success",
+      "currency": "USD",
+      "integration": 100032,
+      "total_amount": 1000,
+      "effective_amount": 1000,
+      "total_fees": 0,
+      "settlement_date": "2026-11-06T00:00:00.000Z",
+      "subaccount": null,
+      "createdAt": "2026-11-06T09:00:00.000Z",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    {
+      "id": 3090028,
+      "domain": "live",
+      "status": "success",
+      "currency": "NGN",
+      "integration": 100032,
+      "total_amount": 1000,
+      "effective_amount": 999.5,
+      "total_fees": 0,
+      "settlement_date": "2026-11-06T00:00:00.000Z",
+      "subaccount": null,
+      "createdAt": "2026-11-06T09:00:00.000Z",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    }
+  ],
+  "meta": { "total": 5, "skipped": 0, "perPage": 50, "page": 1, "pageCount": 1 }
+}

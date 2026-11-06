@@ -1,0 +1,12 @@
+{
+  "status": true,
+  "message": "Settlements retrieved",
+  "data": [],
+  "meta": {
+    "total": 0,
+    "skipped": 0,
+    "perPage": 50,
+    "page": 1,
+    "pageCount": 0
+  }
+}
