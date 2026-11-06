@@ -71,7 +71,7 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
     // An invited manager returns to their invite; everyone else creates a business.
     options: {
       emailRedirectTo: `${await origin()}/auth/confirm?next=${encodeURIComponent(safeNext(field(form, 'next'), '/onboarding'))}`,
-      // Read only by the "Confirm signup" email template: operators get the link,
+      // Read only by our Send Email Hook (ADR 0022): operators get the link,
       // code sign-ins (drivers, attendants) get the code. Grants nothing.
       data: { operator_signup: true },
       captchaToken: captchaToken(form),

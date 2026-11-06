@@ -45,7 +45,8 @@ export async function requestCode(
 
 /**
  * ADR 0015: sign in with a 6-digit code sent by email (until SMS is live).
- * Supabase sends it; its email template must contain {{ .Token }} (doc 22).
+ * Supabase hands the email to our Send Email Hook, which renders it and sends it
+ * through Resend, with per-account limits (ADR 0022, doc 22 §2.3a).
  */
 export async function requestEmailCode(
   email: string,
