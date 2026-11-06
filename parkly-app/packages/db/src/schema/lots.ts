@@ -95,6 +95,12 @@ export const lots = pgTable(
     timezone: varchar('timezone', { length: 40 }).notNull().default('Africa/Lagos'),
     /** Drivers may check themselves in with the entrance QR (ADR 0016); the owner decides. */
     selfCheckinEnabled: boolean('self_checkin_enabled').notNull().default(false),
+    /** Max percentage of bookable capacity allowed to be held for "Park now" (ADR 0024). */
+    holdCapPercent: integer('hold_cap_percent').notNull().default(30),
+    /** Minutes of free hold courtesy before holding fee starts (ADR 0024). */
+    freeHoldMinutes: integer('free_hold_minutes').notNull().default(60),
+    /** Max hold duration before space is released (ADR 0024). */
+    maxHoldMinutes: integer('max_hold_minutes').notNull().default(180),
     /** Optimistic concurrency for PATCH (CONFLICT_STALE_VERSION). */
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
@@ -107,6 +113,12 @@ export const lots = pgTable(
       'lots_capacity_bookable_check',
       sql`${t.capacityBookable} > 0 and ${t.capacityBookable} <= ${t.capacityTotal}`,
     ),
+    check(
+      'lots_hold_cap_percent_check',
+      sql`${t.holdCapPercent} >= 0 and ${t.holdCapPercent} <= 100`,
+    ),
+    check('lots_free_hold_minutes_check', sql`${t.freeHoldMinutes} >= 0`),
+    check('lots_max_hold_minutes_check', sql`${t.maxHoldMinutes} >= ${t.freeHoldMinutes}`),
     uniqueIndex('lots_slug_key').on(t.slug),
     index('lots_location_gist').using('gist', t.location),
     index('lots_status_idx').on(t.status),

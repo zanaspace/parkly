@@ -53,6 +53,9 @@ async function setup(opts: { status?: LotRow['status']; expiresAt?: string } = {
     status: opts.status ?? 'LIVE',
     statusReason: null,
     selfCheckinEnabled: false,
+    holdCapPercent: 30,
+    freeHoldMinutes: 60,
+    maxHoldMinutes: 180,
     version: 3,
     createdAt: new Date('2026-10-01T00:00:00Z'),
   });

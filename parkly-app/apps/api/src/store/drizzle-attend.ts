@@ -1,5 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
+import { calculateHoldingFee } from '@parkly/domain/booking';
 import {
   and,
   desc,
@@ -219,6 +220,13 @@ export function drizzleAttend(db: Db): {
                       lotId: bookings.lotId,
                       status: bookings.status,
                       plateNorm: bookings.plateNormSnapshot,
+                      bookingType: bookings.bookingType,
+                      holdStartedAt: bookings.holdStartedAt,
+                      createdAt: bookings.createdAt,
+                      startAt: bookings.startAt,
+                      endAt: bookings.endAt,
+                      priceKobo: bookings.priceKobo,
+                      commissionBps: bookings.commissionBps,
                     })
                     .from(bookings)
                     .where(eq(bookings.id, bookingId))
@@ -299,10 +307,38 @@ export function drizzleAttend(db: Db): {
                 }
                 if (plan.session.checkOutAt) sessionOut = sessionId;
                 if (bookingTo) {
+                  let holdingFeeKobo: number | undefined;
+                  let newStartAt: Date | undefined;
+                  let newEndAt: Date | undefined;
+                  if (plan.session.checkInAt && b.bookingType === 'PARK_NOW') {
+                    const duration = b.endAt.getTime() - b.startAt.getTime();
+                    newStartAt = plan.session.checkInAt;
+                    newEndAt = new Date(plan.session.checkInAt.getTime() + duration);
+                    const [lot] = await tx
+                      .select({
+                        freeHoldMinutes: lots.freeHoldMinutes,
+                        maxHoldMinutes: lots.maxHoldMinutes,
+                      })
+                      .from(lots)
+                      .where(eq(lots.id, b.lotId));
+                    const fee = calculateHoldingFee({
+                      holdStartedAt: b.holdStartedAt ?? b.createdAt,
+                      checkedInAt: plan.session.checkInAt,
+                      hourlyRateKobo: b.priceKobo,
+                      commissionBps: b.commissionBps,
+                      freeHoldMinutes: lot?.freeHoldMinutes,
+                      maxHoldMinutes: lot?.maxHoldMinutes,
+                    });
+                    holdingFeeKobo = fee.holdingFeeKobo;
+                  }
                   await tx
                     .update(bookings)
                     .set({
                       status: bookingTo.to,
+                      ...(newStartAt ? { startAt: newStartAt } : {}),
+                      ...(newEndAt ? { endAt: newEndAt } : {}),
+                      ...(holdingFeeKobo !== undefined ? { holdingFeeKobo } : {}),
+                      holdExpiresAt: null,
                       version: sql`${bookings.version} + 1`,
                       updatedAt: batch.receivedAt,
                     })

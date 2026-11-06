@@ -250,6 +250,28 @@ describe('POST /v1/bookings (FR-BOOK-001)', () => {
     expect((await t.book(driver)).status).toBe(201);
   });
 
+  it('supports PARK_NOW flexible booking, hold-then-start, and rejects above hold cap (ADR 0024)', async () => {
+    // Capacity 2, 30% cap -> maxHolds = 1
+    const t = await setup({ capacity: 2 });
+    const d1 = await t.newDriver();
+    const d2 = await t.newDriver();
+
+    // d1 books PARK_NOW
+    const res1 = await t.book(d1, undefined, { bookingType: 'PARK_NOW' });
+    expect(res1.status).toBe(201);
+    const body1 = res1.body as unknown as Created;
+    expect(body1.booking.bookingType).toBe('PARK_NOW');
+
+    // d2 attempts PARK_NOW when cap of 1 active hold is reached
+    const res2 = await t.book(d2, undefined, { bookingType: 'PARK_NOW' });
+    expect(res2.status).toBe(409);
+    expect(res2.body?.code).toBe('HOLD_CAP_REACHED');
+
+    // But d2 CAN still book a scheduled RESERVE
+    const resReserve = await t.book(d2, undefined, { bookingType: 'RESERVE' });
+    expect(resReserve.status).toBe(201);
+  });
+
   it('is for drivers only', async () => {
     const t = await setup();
     const owner = t.user([{ role: 'OPERATOR_OWNER', operatorId: t.operatorId }]);

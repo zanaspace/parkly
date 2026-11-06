@@ -30,6 +30,7 @@ import { checkSearchWindow, extensionWindow, isOpenDuring } from '@parkly/domain
 import {
   calculateExtensionQuote,
   cancellationPolicy,
+  checkHoldCapacity,
   holdExpiresAt,
   paymentSplit,
   validateExtensionWindow,
@@ -122,9 +123,12 @@ export function toBooking(
     code: b.code,
     status: b.status,
     product: b.product,
+    bookingType: b.bookingType ?? 'RESERVE',
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     holdExpiresAt: b.status === 'PENDING_PAYMENT' ? (b.holdExpiresAt?.toISOString() ?? null) : null,
+    holdStartedAt: b.holdStartedAt ? b.holdStartedAt.toISOString() : null,
+    holdingFeeKobo: b.holdingFeeKobo ?? 0,
     lot: {
       id: lot.id,
       slug: lot.slug,
@@ -221,7 +225,9 @@ export function bookingRoutes(deps: AppDeps) {
           overstay: terms,
           checkInOpensAt:
             b.status === 'CONFIRMED' && !s?.checkInAt
-              ? new Date(b.startAt.getTime() - earlyMin * 60_000).toISOString()
+              ? b.bookingType === 'PARK_NOW'
+                ? (b.holdStartedAt ?? b.createdAt).toISOString()
+                : new Date(b.startAt.getTime() - earlyMin * 60_000).toISOString()
               : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
@@ -339,6 +345,21 @@ export function bookingRoutes(deps: AppDeps) {
     const vehicle = await deps.store.vehicles.find(driverId, body.vehicleId);
     if (!vehicle) throw new ApiError('NOT_FOUND', 'Vehicle not found');
 
+    if (body.bookingType === 'PARK_NOW') {
+      const activeHolds = await deps.store.bookings.activeHoldsCount(lot.id, now);
+      const cap = checkHoldCapacity({
+        activeHoldsCount: activeHolds,
+        capacityBookable: lot.capacityBookable,
+        holdCapPercent: lot.holdCapPercent,
+      });
+      if (!cap.allowed) {
+        throw new ApiError(
+          'HOLD_CAP_REACHED',
+          'Park now holds are currently at capacity for this lot. Please reserve for a scheduled time.',
+        );
+      }
+    }
+
     const { fees, limits } = await loadSettings(deps.store);
     const startAt = new Date(body.startAt);
     const endAt = new Date(body.endAt);
@@ -403,6 +424,7 @@ export function bookingRoutes(deps: AppDeps) {
             plateNorm: vehicle.plateNorm,
             lotId: lot.id,
             product: body.product,
+            bookingType: body.bookingType ?? 'RESERVE',
             startAt,
             endAt,
             holdExpiresAt: holdExpiresAt(now, holdMinutes),

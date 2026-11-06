@@ -28,6 +28,7 @@ export default function ReviewAndPay() {
   );
   const [lot, setLot] = useState<PublicLot | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [bookingType, setBookingType] = useState<'RESERVE' | 'PARK_NOW'>('RESERVE');
   const [error, setError] = useState<string | null>(null);
   const [unpaid, setUnpaid] = useState<UnpaidOverstay['unpaid']>(null);
   const [paying, setPaying] = useState(false);
@@ -67,7 +68,14 @@ export default function ReviewAndPay() {
     try {
       const w = searchWindow(search);
       const created = await api.createBooking(
-        { lotId: lot.id, vehicleId, product: w.product, startAt: w.startAt, endAt: w.endAt },
+        {
+          lotId: lot.id,
+          vehicleId,
+          product: w.product,
+          bookingType,
+          startAt: w.startAt,
+          endAt: w.endAt,
+        },
         key,
       );
       if (!created.payment.authorizationUrl) throw new Error('no checkout link');
@@ -160,6 +168,28 @@ export default function ReviewAndPay() {
       <Text variant="heading.xl">{lot.name}</Text>
       <Text tone="secondary">{lot.addressLine}</Text>
       <Text variant="label.lg">{windowLabel(search)}</Text>
+
+      <View style={{ gap: theme.space.stack.sm }}>
+        <Text variant="label.lg">Booking option</Text>
+        <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
+          <Chip
+            label="Reserve for later"
+            selected={bookingType === 'RESERVE'}
+            onPress={() => setBookingType('RESERVE')}
+          />
+          <Chip
+            label="Park now"
+            selected={bookingType === 'PARK_NOW'}
+            onPress={() => setBookingType('PARK_NOW')}
+          />
+        </View>
+        {bookingType === 'PARK_NOW' ? (
+          <Notice
+            kind="info"
+            message="Space held immediately with 60 min free courtesy. Your stay timer starts when you check in."
+          />
+        ) : null}
+      </View>
 
       <View style={{ gap: theme.space.stack.sm }}>
         <Text variant="label.lg">Car</Text>

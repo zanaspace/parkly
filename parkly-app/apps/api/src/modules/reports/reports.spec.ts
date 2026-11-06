@@ -61,6 +61,9 @@ function setup() {
     statusReason: null,
     version: 1,
     selfCheckinEnabled: false,
+    holdCapPercent: 30,
+    freeHoldMinutes: 60,
+    maxHoldMinutes: 180,
     createdAt: new Date('2026-01-01'),
   });
 

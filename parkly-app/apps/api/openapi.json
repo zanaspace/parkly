@@ -2898,6 +2898,22 @@
                         "null"
                       ]
                     },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
+                    },
                     "version": {
                       "type": "integer"
                     },
@@ -3340,6 +3356,22 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
                     },
                     "version": {
                       "type": "integer"
@@ -3891,6 +3923,22 @@
                         "null"
                       ]
                     },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
+                    },
                     "version": {
                       "type": "integer"
                     },
@@ -4402,6 +4450,22 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
                     },
                     "version": {
                       "type": "integer"
@@ -5516,6 +5580,22 @@
                         "null"
                       ]
                     },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
+                    },
                     "version": {
                       "type": "integer"
                     },
@@ -5976,6 +6056,22 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
                     },
                     "version": {
                       "type": "integer"
@@ -7699,6 +7795,22 @@
                             "null"
                           ]
                         },
+                        "holdCapPercent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 30
+                        },
+                        "freeHoldMinutes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 60
+                        },
+                        "maxHoldMinutes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 180
+                        },
                         "version": {
                           "type": "integer"
                         },
@@ -9329,6 +9441,22 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "holdCapPercent": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "default": 30
+                    },
+                    "freeHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 60
+                    },
+                    "maxHoldMinutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 180
                     },
                     "version": {
                       "type": "integer"
@@ -12614,6 +12742,14 @@
                     ],
                     "default": "HOURLY"
                   },
+                  "bookingType": {
+                    "type": "string",
+                    "enum": [
+                      "RESERVE",
+                      "PARK_NOW"
+                    ],
+                    "default": "RESERVE"
+                  },
                   "startAt": {
                     "type": "string",
                     "format": "date-time"
@@ -12683,6 +12819,14 @@
                             "DAILY"
                           ]
                         },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE",
+                            "PARK_NOW"
+                          ],
+                          "default": "RESERVE"
+                        },
                         "startAt": {
                           "type": "string",
                           "format": "date-time"
@@ -12697,6 +12841,18 @@
                             "null"
                           ],
                           "format": "date-time"
+                        },
+                        "holdStartedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "holdingFeeKobo": {
+                          "type": "integer",
+                          "default": 0
                         },
                         "lot": {
                           "type": "object",
@@ -13114,6 +13270,14 @@
                               "DAILY"
                             ]
                           },
+                          "bookingType": {
+                            "type": "string",
+                            "enum": [
+                              "RESERVE",
+                              "PARK_NOW"
+                            ],
+                            "default": "RESERVE"
+                          },
                           "startAt": {
                             "type": "string",
                             "format": "date-time"
@@ -13128,6 +13292,18 @@
                               "null"
                             ],
                             "format": "date-time"
+                          },
+                          "holdStartedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "default": null
+                          },
+                          "holdingFeeKobo": {
+                            "type": "integer",
+                            "default": 0
                           },
                           "lot": {
                             "type": "object",
@@ -13497,6 +13673,14 @@
                         "DAILY"
                       ]
                     },
+                    "bookingType": {
+                      "type": "string",
+                      "enum": [
+                        "RESERVE",
+                        "PARK_NOW"
+                      ],
+                      "default": "RESERVE"
+                    },
                     "startAt": {
                       "type": "string",
                       "format": "date-time"
@@ -13511,6 +13695,18 @@
                         "null"
                       ],
                       "format": "date-time"
+                    },
+                    "holdStartedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "holdingFeeKobo": {
+                      "type": "integer",
+                      "default": 0
                     },
                     "lot": {
                       "type": "object",
@@ -14538,6 +14734,14 @@
                             "DAILY"
                           ]
                         },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE",
+                            "PARK_NOW"
+                          ],
+                          "default": "RESERVE"
+                        },
                         "startAt": {
                           "type": "string",
                           "format": "date-time"
@@ -14552,6 +14756,18 @@
                             "null"
                           ],
                           "format": "date-time"
+                        },
+                        "holdStartedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "holdingFeeKobo": {
+                          "type": "integer",
+                          "default": 0
                         },
                         "lot": {
                           "type": "object",
@@ -15089,6 +15305,14 @@
                             "DAILY"
                           ]
                         },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE",
+                            "PARK_NOW"
+                          ],
+                          "default": "RESERVE"
+                        },
                         "startAt": {
                           "type": "string",
                           "format": "date-time"
@@ -15103,6 +15327,18 @@
                             "null"
                           ],
                           "format": "date-time"
+                        },
+                        "holdStartedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "holdingFeeKobo": {
+                          "type": "integer",
+                          "default": 0
                         },
                         "lot": {
                           "type": "object",
@@ -15690,6 +15926,14 @@
                             "DAILY"
                           ]
                         },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE",
+                            "PARK_NOW"
+                          ],
+                          "default": "RESERVE"
+                        },
                         "startAt": {
                           "type": "string",
                           "format": "date-time"
@@ -15704,6 +15948,18 @@
                             "null"
                           ],
                           "format": "date-time"
+                        },
+                        "holdStartedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "holdingFeeKobo": {
+                          "type": "integer",
+                          "default": 0
                         },
                         "lot": {
                           "type": "object",
@@ -16145,6 +16401,14 @@
                             "DAILY"
                           ]
                         },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE",
+                            "PARK_NOW"
+                          ],
+                          "default": "RESERVE"
+                        },
                         "startAt": {
                           "type": "string",
                           "format": "date-time"
@@ -16159,6 +16423,18 @@
                             "null"
                           ],
                           "format": "date-time"
+                        },
+                        "holdStartedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "holdingFeeKobo": {
+                          "type": "integer",
+                          "default": 0
                         },
                         "lot": {
                           "type": "object",

@@ -506,6 +506,22 @@ export default function BookingScreen() {
         </View>
       )}
 
+      {/* Park Now Flexible Hold Notices */}
+      {booking.bookingType === 'PARK_NOW' &&
+        booking.status === 'CONFIRMED' &&
+        !booking.stay?.checkedInAt && (
+          <Notice
+            kind="info"
+            message="Park now active: your space is held. Drive to the car park and check in — your parking stay timer will start when you arrive!"
+          />
+        )}
+      {booking.holdingFeeKobo > 0 && (
+        <Notice
+          kind="warning"
+          message={`Accrued holding fee: ${formatNaira(booking.holdingFeeKobo)} (for holding past the 60 min courtesy window; collected at checkout).`}
+        />
+      )}
+
       {/* Active Stay Timer & Self-Checkin */}
       <StayTimer booking={booking} />
       {offline ? null : <SelfCheck booking={booking} onDone={() => setReload((n) => n + 1)} />}
