@@ -771,9 +771,10 @@ export function storeContract(
       );
       expect(missingItem).toBeNull();
 
+      const staffUser = await newUser();
       const missingResolve = await store.reconciliation.resolveItem(
         '00000000-0000-0000-0000-000000000000',
-        { resolvedBy: 'user-1', resolvedAt: new Date(), notes: 'test' },
+        { resolvedBy: staffUser, resolvedAt: new Date(), notes: 'test' },
       );
       expect(missingResolve).toBeNull();
 
@@ -785,7 +786,6 @@ export function storeContract(
       });
       expect(paged).toBeDefined();
 
-      const staffUser = await newUser();
       const resolved = await store.reconciliation.resolveItem(firstItem.id, {
         resolvedBy: staffUser,
         resolvedAt: new Date(),
