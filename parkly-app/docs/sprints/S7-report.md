@@ -1,6 +1,6 @@
 # Sprint 7 — Operator dashboard, ledger, settlement and reconciliation: report
 
-- **Status:** **In progress.** Task 1 (live occupancy) is built and merged, with the occupancy drift fix (gap review G-9). Before S7 work started, all auth email moved to Resend in the Parkly design (ADR 0022). Tasks 2 to 7 are open. Staging still doesn't exist, so the exit criteria can't be met yet.
+- **Status:** **In progress.** Task 1 (live occupancy) and the occupancy drift fix (gap review G-9) are merged. Task 2 (operator bookings list and CSV export) is built (branch `feat/s7-operator-bookings`). Before S7 work started, all auth email moved to Resend in the Parkly design (ADR 0022). Tasks 3 to 7 are open. Staging still doesn't exist, so the exit criteria can't be met yet.
 - **Updated:** 2026-11-06
 - **Entry check:**
   - S6 is code complete: every Wave 3 item of the [gap review](S0-S6-gap-review.md) is merged (S6 report, "Still open").
@@ -15,7 +15,7 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
 | # | Task | Status |
 |---|---|---|
 | 1 | Occupancy read model (expected, in, available); portal live dashboard polling every 15 s | **Done** (PRs #70, #73) |
-| 2 | Bookings list with filters + CSV export (owner/manager; exports audited, watermarked with the user id) | Open. The **admin** bookings list with filters and overstay waive shipped in #70; the operator list and the export are not built. |
+| 2 | Bookings list with filters + CSV export (owner/manager; exports audited, watermarked with the user id) | **Done** (branch `feat/s7-operator-bookings`). The admin list shipped earlier in #70. |
 | 3 | Settlement ingestion from Paystack → `settlements` table → ledger | Open |
 | 4 | Daily reconciliation job (07:00 WAT, chunked per operator) | Open |
 | 5 | Revenue report per operator/lot/day; monthly statement PDF (P1) | Open |
@@ -71,6 +71,33 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
   - The maths is the domain function `weekOutlook`, with `outlookWindow` deciding the time range.
 - **Who can see it.** Owners and managers only. Another operator, or any other role, gets 404 (RBAC matrix rows).
 
+## Task 2: the operator bookings list and CSV export, in plain words
+
+**What the operator sees.** A new **Bookings** page in the portal menu.
+
+- **Filters:** car park, a from–to date range and a status ("Paid, not arrived", "Parked now", "Completed", "No-show", "Cancelled"). Dates are when the booking starts, in Lagos time. It opens on the last 7 days, all car parks.
+- **The list:** booking code, car park, stay, plate and driver's first name, status, check-in and check-out times, and what the driver paid, plus any overstay. A car checked out by the 12-hour rule says "Checked out automatically". On phones the rows become cards.
+- **Pages:** 50 at a time, with "Next page".
+- **Download CSV:** every booking matching the filters, up to 10,000, straight away.
+  - The first row says who downloaded it, when, and with which filters.
+  - The download is recorded in the audit log.
+  - If more than 10,000 match, or the dates are wrong, the page says what to change instead of downloading.
+
+**How it works.**
+
+- **The list:** `GET /v1/operators/{id}/bookings`.
+  - It pages with a cursor (start time and id), so pages don't shift when new bookings arrive.
+  - Without a status filter, it leaves out abandoned checkouts (unpaid or expired holds).
+- **The export:** `GET /v1/operators/{id}/bookings/export` returns the same rows as a CSV.
+  - Money is in naira with two decimals and times are in Lagos.
+  - Any cell starting with `=`, `+`, `-` or `@` gets a leading apostrophe, so a plate or car park name can't run as a formula in Excel.
+  - The audit row is `operator.bookings_exported`, with the filters and the row count.
+- **Who:** owners and managers (new permissions `operator:bookings:read` and `operator:bookings:export`). Another operator gets 404. Attendants use the gate manifest instead.
+- **Driver details:** first name and plate only, as doc 02 sets for operators. That is the minimised form doc 06 asks for in an export.
+- **The portal:** the page is a plain form, so filtering works without JavaScript. The download goes through the portal's own route, which adds the access token, so the token never reaches the browser.
+
+**Money columns.** The list and the CSV show the booked price and what the driver paid. Commission, the operator's share and settlements come with the revenue report (task 5), built from the ledger, so they also include extensions and refunds.
+
 ## G-9: occupancy no longer drifts, in plain words
 
 **The problem.** A car whose check-out was never scanned counted as "in" forever, and the walk-in count never went back to zero. Over days, "free now" would get worse and worse.
@@ -88,6 +115,7 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
 
 | Change | Checks |
 |---|---|
+| Operator bookings | Domain tests for the CSV writer (quoting, formula defusing) and Lagos dates; permission tests; 5 API tests (list, pages and filters, bad ranges and cursors, the export's watermark, header and audit row, another operator's 404); RBAC matrix rows; store contract case for filters and pages (runs on Postgres in CI); portal filter tests |
 | Auth email | 13 hook tests (signature, each email type, rate limits, logging, escaping, provider down, links straight to `/auth/confirm`, fallback); config tests; tested on dev |
 | Live occupancy | Domain tests for the outlook window; API tests for both endpoints and the other-operator 404; RBAC matrix; store contract case for arrivals (runs on Postgres in CI); portal helper tests |
 | G-9 | 6 database integration tests (close at 12 h, leave at 11 h, wait for a silent phone, close after 24 h, never touch a checked-out car, walk-in reset, schedules) |
@@ -108,6 +136,9 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
 | A route handler for polling, not a server action | Next 16 runs server actions one at a time per browser |
 | Auto-close after 12 h, at the booking's end, no overstay | Owner, Nov 6: we can't know when the car left, so we don't charge for it |
 | Walk-ins reset at 03:00 Lagos | Owner, Nov 6: walk-ins aren't tracked per car |
+| Bookings CSV is immediate (up to 10,000 rows), not an emailed async job (doc 03 had planned that) | Pilot volumes are small; a direct download is simpler, and the audit row and watermark still record who took the data |
+| Export open to owners and managers | PRD FR-OPS-002 and doc 20 say owner/manager; doc 02 had said owner only, now corrected |
+| No commission or operator share in the bookings list | Those come from the ledger in the revenue report (task 5), which counts extensions and refunds |
 
 ## Risks
 
@@ -126,7 +157,6 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
 
 ### S7 tasks
 
-- 2: the operator bookings list and the CSV export.
 - 3: settlement ingestion.
 - 4: reconciliation.
 - 5: the revenue report.

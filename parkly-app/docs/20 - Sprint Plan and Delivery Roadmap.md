@@ -478,5 +478,5 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S6 | Notifications in production, reminders, push registration, invite emails | Gap review L-1; real email needs a verified Resend domain | **Done in S6 Wave 3**; real email live on dev Nov 6, with every auth email through Resend too (ADR 0022) |
 | S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | **Done in S6 Wave 3** |
 | S6 | Per-phone failed-code counter (doc 05 §4.1) | Not enforceable on Supabase; risk recorded in ADR 0019 | Revisit if Supabase adds a verify hook |
-| S7 | Operator bookings list and CSV export (task 2) | Admin list shipped first (#70); task 1 and G-9 came first | S7 |
+| S7 | Operator bookings list and CSV export (task 2) | Admin list shipped first (#70); task 1 and G-9 came first | **Done in S7** (export is immediate, not an emailed async job) |
 | S7 | Late bank transfers and `NEEDS_REVIEW` refunds (gap review P-9) | Moved from the gap review into S7 | S7, with reconciliation |

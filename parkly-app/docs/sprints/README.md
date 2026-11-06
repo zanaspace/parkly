@@ -11,7 +11,7 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | S4 | Booking, availability holds and payments (Paystack): book and pay in the app and on the web, webhooks, ledger, signed QR ticket | **Done (code complete)**; staging sign-off and k6 run wait for staging | [S4-report.md](S4-report.md) |
 | S5 | QR ticket check-in and the offline attendant PWA: offline gate app, 24 h manifest, camera scan, plate/code search, delta sync, lot pause/resume | **Done (code complete)**; physical device field test in S10 | [S5-report.md](S5-report.md) |
 | S6 | Extend, overstay, cancel, refunds, receipts, notifications | **Done (code complete)**: gap-review Waves 1–3 merged; staging demo pending | [S6-report.md](S6-report.md) |
-| S7 | Operator dashboard, ledger, settlement and reconciliation | **In progress**: live occupancy and drift fix (G-9) merged; all email through Resend (ADR 0022); tasks 2–6 open | [S7-report.md](S7-report.md) |
+| S7 | Operator dashboard, ledger, settlement and reconciliation | **In progress**: live occupancy and drift fix (G-9) merged; operator bookings list and CSV export built; all email through Resend (ADR 0022); tasks 3–6 open | [S7-report.md](S7-report.md) |
 
 ## What exists on dev today
 
