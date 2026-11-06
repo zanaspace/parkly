@@ -336,6 +336,8 @@ export type NewBooking = Omit<
 export type BookingExtensionRow = {
   id: string;
   bookingId: string;
+  /** EXTEND: [booking end, new end). EARLY_START: [new start, booking start) (ADR 0023). */
+  kind: 'EXTEND' | 'EARLY_START';
   startAt: Date;
   newEndAt: Date;
   addedMinutes: number;
@@ -894,6 +896,24 @@ export type Store = {
         platformAmountKobo: number;
         operatorAmountKobo: number;
         /** The unpaid hold gives its space back after this (fn_expire_holds). */
+        holdExpiresAt: Date;
+      },
+      payment: NewPayment | null,
+      at: Date,
+    ): Promise<{ extension: BookingExtensionRow; payment: PaymentRow | null }>;
+    /**
+     * ADR 0023 stage 2: holds [newStartAt, booking start) for a paid booking whose
+     * car is not in (fn_hold_early_start). Same rules as holdExtension: one pending
+     * per booking, expiring hold, no clash with the same car's other bookings.
+     */
+    holdEarlyStart(
+      earlyStart: {
+        id: string;
+        bookingId: string;
+        newStartAt: Date;
+        priceKobo: number;
+        platformAmountKobo: number;
+        operatorAmountKobo: number;
         holdExpiresAt: Date;
       },
       payment: NewPayment | null,

@@ -6,6 +6,7 @@ import {
   allocateRefund,
   cancellationRefundJournal,
   confirmDecision,
+  extensionApplies,
   isBalanced,
   type JournalLine,
 } from '@parkly/domain/booking';
@@ -101,6 +102,7 @@ const paymentColumns = {
 const extensionColumns = {
   id: bookingExtensions.id,
   bookingId: bookingExtensions.bookingId,
+  kind: bookingExtensions.kind,
   startAt: bookingExtensions.startAt,
   newEndAt: bookingExtensions.newEndAt,
   addedMinutes: bookingExtensions.addedMinutes,
@@ -173,11 +175,10 @@ async function lockAddOn(tx: Tx, payment: PaymentRow, booking: BookingRow) {
       .from(bookingExtensions)
       .where(eq(bookingExtensions.paymentId, payment.id))
       .for('update');
-    const live = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
-    if (!ext || ext.status !== 'PENDING_PAYMENT' || !live)
-      return { applicable: false, apply: noop };
+    if (!ext || ext.status !== 'PENDING_PAYMENT') return { applicable: false, apply: noop };
     return {
-      applicable: ext.startAt.getTime() === booking.endAt.getTime(),
+      // Extension meets the end, early start meets the start (ADR 0023).
+      applicable: extensionApplies(ext, booking),
       apply: async () => {
         await tx.execute(
           sql`select public.fn_confirm_extension(${ext.id}::uuid, ${payment.id}::uuid)`,
@@ -372,6 +373,52 @@ export function drizzleBookings(
           return await db.transaction(async (tx) => {
             await tx.execute(sql`select public.fn_hold_extension(
               ${ext.id}::uuid, ${ext.bookingId}::uuid, ${ext.newEndAt.toISOString()}::timestamptz,
+              ${ext.priceKobo}, ${ext.platformAmountKobo}, ${ext.operatorAmountKobo},
+              ${ext.holdExpiresAt.toISOString()}::timestamptz
+            )`);
+
+            let paymentRow: PaymentRow | null = null;
+            if (payment) {
+              await tx.insert(payments).values({
+                ...payment,
+                kind: 'EXTENSION',
+                bookingId: ext.bookingId,
+                providerReference: payment.id,
+                createdAt: at,
+                updatedAt: at,
+              });
+              await tx
+                .update(bookingExtensions)
+                .set({ paymentId: payment.id })
+                .where(eq(bookingExtensions.id, ext.id));
+              const [row] = await tx
+                .select(paymentColumns)
+                .from(payments)
+                .where(eq(payments.id, payment.id));
+              if (row) paymentRow = asPayment(row);
+            }
+
+            const [extension] = await tx
+              .select(extensionColumns)
+              .from(bookingExtensions)
+              .where(eq(bookingExtensions.id, ext.id));
+            if (!extension) throw new Error('extension hold not saved');
+            return { extension: extension as BookingExtensionRow, payment: paymentRow };
+          });
+        } catch (err) {
+          const pg = pgError(err);
+          if (pg.message && HOLD_CODES.has(pg.message as BookingHoldCode)) {
+            throw new BookingHoldError(pg.message as BookingHoldCode);
+          }
+          throw err;
+        }
+      },
+
+      async holdEarlyStart(ext, payment, at) {
+        try {
+          return await db.transaction(async (tx) => {
+            await tx.execute(sql`select public.fn_hold_early_start(
+              ${ext.id}::uuid, ${ext.bookingId}::uuid, ${ext.newStartAt.toISOString()}::timestamptz,
               ${ext.priceKobo}, ${ext.platformAmountKobo}, ${ext.operatorAmountKobo},
               ${ext.holdExpiresAt.toISOString()}::timestamptz
             )`);

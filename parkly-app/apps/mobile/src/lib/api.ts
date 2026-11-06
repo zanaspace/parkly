@@ -7,6 +7,8 @@ import {
   BootstrapResponseSchema,
   CancelBookingResponseSchema,
   CreateBookingResponseSchema,
+  EarlyStartOptionSchema,
+  type EarlyStartOption,
   ExtendBookingResponseSchema,
   ExtensionOptionsSchema,
   OverstayPayResponseSchema,
@@ -256,6 +258,23 @@ export function createApiClient(options: ApiClientOptions) {
         'POST',
         `/v1/bookings/${encodeURIComponent(id)}/extensions`,
         body,
+        ExtendBookingResponseSchema,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    /** ADR 0023: whether this early driver can start now, and the server's price. */
+    earlyStartOption: (id: string) =>
+      request<EarlyStartOption>(
+        'GET',
+        `/v1/bookings/${encodeURIComponent(id)}/early-start`,
+        undefined,
+        EarlyStartOptionSchema,
+      ),
+    /** ADR 0023: pay to start at `newStartAt` (from the option). */
+    startEarly: (id: string, newStartAt: string, idempotencyKey: string) =>
+      request<ExtendBookingResponse>(
+        'POST',
+        `/v1/bookings/${encodeURIComponent(id)}/early-start`,
+        { newStartAt },
         ExtendBookingResponseSchema,
         { 'idempotency-key': idempotencyKey },
       ),

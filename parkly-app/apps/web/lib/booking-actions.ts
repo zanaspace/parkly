@@ -3,6 +3,7 @@
 import type {
   CancelBookingResponse,
   CreateBookingResponse,
+  EarlyStartOption,
   ExtendBookingResponse,
   ExtensionOptions,
   OverstayPayResponse,
@@ -248,4 +249,51 @@ export async function payOverstay(bookingId: string): Promise<PayOverstayResult>
 
 function minuteBucket() {
   return Math.floor(Date.now() / 60_000);
+}
+
+/** ADR 0023: whether this early driver can start now, and the server's price. */
+export async function getEarlyStart(bookingId: string): Promise<EarlyStartOption | null> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    return await apiAs<EarlyStartOption>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/early-start`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** ADR 0023: pay to start at `newStartAt` (from the option); returns where to pay. */
+export async function startEarly(
+  bookingId: string,
+  newStartAt: string,
+): Promise<ExtendBookingResult> {
+  const driver = await requireDriver(`/bookings/${bookingId}`);
+  try {
+    const origin = await siteOrigin();
+    const response = await apiAs<ExtendBookingResponse>(
+      driver.accessToken,
+      `/v1/bookings/${encodeURIComponent(bookingId)}/early-start`,
+      {
+        method: 'POST',
+        headers: {
+          'idempotency-key': `early-${bookingId}-${new Date(newStartAt).getTime()}-${minuteBucket()}`,
+        },
+        body: { newStartAt, returnTo: `${origin}/bookings/${bookingId}` },
+      },
+    );
+    return { ok: true, authorizationUrl: response.payment?.authorizationUrl ?? null };
+  } catch (err) {
+    const code = err instanceof ApiProblem ? err.code : null;
+    const msg =
+      code === 'BOOKING_WINDOW_INVALID'
+        ? 'The early start time has just changed. Check the new price and try again.'
+        : code === 'BOOKING_SLOT_UNAVAILABLE'
+          ? 'Sorry, there’s no free space for the earlier time any more.'
+          : err instanceof ApiProblem
+            ? MESSAGES[err.code] || message(err)
+            : message(err);
+    return { ok: false, message: msg };
+  }
 }

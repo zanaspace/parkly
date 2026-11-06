@@ -1,47 +1,52 @@
-The PRD expects real Google Maps in Sprint 3. It doesn't mention a stand-in.
+Agreed. The aim is to make booking feel generous to drivers, while every minute a space is held or used is either paid for or capped, so operators never lose money. Here's a concrete design for us to react to.
 
-What the documents say:
+Principles
 
-- PRD FR-LOT-101 (search by destination, priority P0, a launch must-have):
-▎ "Places autocomplete or 'near me'; returns LIVE lots within 2 km (expandable to 5 km) with price…, availability, distance, verified badge; list + map."
-- PRD §12, Dependencies:
+1. Pay for what you use. Drivers shouldn't lose money because traffic or plans changed.
+2. A held space is never free for long. Short courtesy windows are free; longer holds cost a little.
+3. Never block a paying driver when there's space. Arriving early or staying late becomes a sale, not an error.
+4. Operators set the prices and limits; Parkly applies them automatically. Clients still never compute prices (non-negotiable #8).
 
-| Dependency                                                  | Needed for | Needed by |
-|-------------------------------------------------------------|------------|-----------|
-| Google Maps Platform (billing account, API keys restricted) | FR-LOT-101 | S3        |
+The design: one flexible booking, three moments
 
-- Doc 00, which wins every conflict: the maps provider is fixed as Google Maps Platform (Places Autocomplete, Geocoding, Maps SDK for Android/JS).
-- Doc 20 Sprint 0, task 14: "start external accounts… Google Maps keys". It should have been requested back in Sprint 0, which we carried over.
-- Doc 20 Sprint 3, task 4: "Google Places autocomplete proxied via API (key never in client for server calls; Android key restricted by package/SHA)".
-- Where the stand-in comes from: AGENTS.md and doc 01 say every external service sits behind an interface with a fake for tests and local dev. A fake MapsProvider already exists in the code, seeded with Victoria Island. It's meant for tests, not as the dev-site experience.
+1. Booking: "Park now" or "Reserve for later"
+- Park now (emergencies, "on my way"):
+  - The driver pays for a minimum stay, say 1 hour, and the space is held for them.
+  - The first 60 minutes of holding are free. After that, a small holding fee per 15 minutes applies, up to a cap (e.g. 3 hours), and then the hold is released.
+  - The parking clock starts when they check in, not when they book.
+  - So a driver stuck in traffic keeps their space; they just pay a little for keeping it waiting.
+- Reserve for later: a timed booking as today, with softer edges (below).
 
-What that means for the choice:
-- The plan expects the real key during Sprint 3, and the Sprint 3 demo ("driver searches 'Eko Hotel'…") needs real address search.
-- But not all of Sprint 3 needs the key: the pricing engine, available spaces, search by distance, the lot page and the seed data can all be built first using the fake.
+2. Arriving: early or late is fine
+- Early, with space:
+  - Up to 15–30 minutes early is free.
+  - Earlier than that, the gate offers "Start now for ₦X?" and charges the extra automatically.
+  - If the car park is full, the driver sees the exact time they can come in.
+- Running late:
+  - A "Running late?" button extends the hold for a fee, instead of losing the space at 30 minutes.
+  - Without it, the no-show rule stays, so operators can resell genuinely abandoned spaces.
 
-My recommendation: do both in parallel. You create the Google key now, since billing setup can take a day. Meanwhile I start Sprint 3 with the parts that don't need it, and plug the key in once you have it. That follows the PRD and doesn't block either of us.
+3. Leaving: pay for actual time
+- Leaving late: the overstay is charged automatically at the booking's own rate. This already exists (pay link, and new bookings blocked until it's paid).
+- Leaving early (optional, a strong incentive): unused whole hours are refunded to the card. This is a refund, not credit, so it respects the no-wallet rule. Operators can turn it off per car park.
 
-To create the key (about 15 minutes; Google asks for a card, but there's a free monthly allowance for dev use):
+How operators stay safe and earn
 
-1. Go to https://console.cloud.google.com and create a project named parkly-dev.
-2. Go to Billing and link a billing account.
-3. Go to APIs & Services → Library and enable:
-   - Places API (New): address search
-   - Geocoding API: address → map point
-   - Maps JavaScript API: map on the website
-   - Maps SDK for Android: map in the app
-4. Go to APIs & Services → Credentials and create two keys.
+- Held time is paid for (holding fees), and the total held time is capped.
+- Limited exposure: each car park sets what share of its spaces can be held as "Park now", e.g. at most 30%, so holds can't block the whole lot.
+- Prepaid minimum: drivers always pay a minimum up front, so no-shows still earn something.
+- Extra time is extra revenue: early starts and overstays are sales, not losses.
+- Dynamic pricing within the operator's bounds: peak and off-peak rates, and optionally a higher holding fee when the car park is nearly full. Prices are always computed on the server.
 
-   Server key, used only by the API:
-   - Application restriction: None. Vercel has no fixed IP address, so the key is kept secret on the server instead.
-   - API restrictions: Places API (New) and Geocoding API only.
-   - You'll add it to Vercel (parkly-api) as GOOGLE_MAPS_SERVER_KEY, marked Sensitive. Don't paste it here.
+Effort
 
-   Browser key, used for the map on the website (it's visible in the page, so it's locked down instead):
-   - Application restriction: Websites, with https://parkly-web-two.vercel.app/* and http://localhost:3000/*.
-   - API restrictions: Maps JavaScript API only.
-5. In Billing → Budgets & alerts, set a budget alert (for example $10/month) so there are no surprises.
+Much of this reuses what's already built: extensions (for early start and "running late"), overstay pricing and pay links, refunds, the no-show job, and per-plan pricing. The genuinely new parts are the hold-then-start clock, holding fees, the per-car-park hold cap, and peak pricing. I'd suggest an ADR and a short spec first, then building it in stages after S7.
 
-The Android map key comes later, when we make a signed Android build.
+Decisions I need from you
 
-Shall I start Sprint 3 now with the parts that don't need the key?
+1. Free courtesy windows. Free hold for "Park now": 60 minutes? Free early arrival: 30 minutes? My suggestion is yes to both.
+2. Holding fee. A fixed fee (e.g. ₦100 per 15 minutes), or a share of the hourly rate (e.g. 25%)? I'd go with a share of the rate, so it scales with each car park's price.
+3. Refund for leaving early. Offer it at launch, or later? I'd say later: start without it and add it once pilot volumes are stable.
+4. Timing. Finish S7 (reconciliation, revenue report, finance views) first and then build this as its own sprint, or bring part of it forward now? I'd bring only the clearer check-in message and the early-start-when-space-is-free forward. They're small and fix today's pain.
+
+What do you think of the overall shape before we lock in the numbers?
