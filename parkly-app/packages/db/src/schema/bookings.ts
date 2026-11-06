@@ -141,7 +141,7 @@ export const bookings = pgTable(
     check('bookings_window_check', sql`${t.endAt} > ${t.startAt}`),
     check(
       'bookings_grid_check',
-      sql`extract(epoch from ${t.startAt})::bigint % 900 = 0 and extract(epoch from ${t.endAt})::bigint % 900 = 0`,
+      sql`${t.bookingType} = 'PARK_NOW' or (extract(epoch from ${t.startAt})::bigint % 900 = 0 and extract(epoch from ${t.endAt})::bigint % 900 = 0)`,
     ),
     check('bookings_product_check', sql`${t.product} in ('HOURLY', 'DAILY')`),
     check(

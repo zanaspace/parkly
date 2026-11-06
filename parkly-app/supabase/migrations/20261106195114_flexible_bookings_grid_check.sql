@@ -1,0 +1,2 @@
+ALTER TABLE "bookings" DROP CONSTRAINT "bookings_grid_check";--> statement-breakpoint
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_grid_check" CHECK ("bookings"."booking_type" = 'PARK_NOW' or (extract(epoch from "bookings"."start_at")::bigint % 900 = 0 and extract(epoch from "bookings"."end_at")::bigint % 900 = 0));
