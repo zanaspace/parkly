@@ -2,9 +2,7 @@ import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import type {
   DailyEarningsItem,
-  MonthlyStatement,
   MonthlyStatementLotSummary,
-  OperatorEarningsReport,
   SettlementSummary,
 } from '@parkly/contracts';
 import { calculateEarningsTotals, calculateStatementTotals } from '@parkly/domain/operator';
@@ -12,17 +10,7 @@ import { lagosDateKey, lagosDayStart } from '@parkly/domain/time';
 import { and, eq, gte, inArray, lt } from 'drizzle-orm';
 import type { Store } from './types.js';
 
-const {
-  payments,
-  refunds,
-  bookings,
-  settlements,
-  lots,
-  operators,
-  payoutAccounts,
-  operatorMembers,
-  users,
-} = schema;
+const { payments, refunds, bookings, settlements, lots, operators, payoutAccounts } = schema;
 
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -37,9 +25,11 @@ function enumerateDays(fromKey: string, toKey: string): string[] {
 }
 
 function monthDateRange(month: string): { from: string; to: string; startUtc: Date; endUtc: Date } {
-  const [y, m] = month.split('-').map(Number);
+  const parts = month.split('-').map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
   const from = `${month}-01`;
-  const lastDay = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const to = `${month}-${String(lastDay).padStart(2, '0')}`;
   const startUtc = lagosDayStart(from);
   const endUtc = new Date(lagosDayStart(to).getTime() + DAY_MS);
@@ -131,11 +121,11 @@ export function drizzleReports(db: Db): Store['reports'] {
         );
 
         let grossBookingKobo = dayPayments.reduce((sum, p) => sum + p.amountKobo, 0);
-        let commissionKobo = dayPayments.reduce(
+        const commissionKobo = dayPayments.reduce(
           (sum, p) => sum + (p.platformAmountKobo - (p.serviceFeeKobo ?? 0)),
           0,
         );
-        let serviceFeeKobo = dayPayments.reduce((sum, p) => sum + (p.serviceFeeKobo ?? 0), 0);
+        const serviceFeeKobo = dayPayments.reduce((sum, p) => sum + (p.serviceFeeKobo ?? 0), 0);
         let netOperatorKobo = dayPayments.reduce((sum, p) => sum + p.operatorAmountKobo, 0);
 
         for (const r of dayRefunds) {
@@ -284,11 +274,13 @@ export function drizzleReports(db: Db): Store['reports'] {
             net: 0,
           });
         }
-        const item = lotsMap.get(p.lotId)!;
-        if (p.bookingId) item.bookings.add(p.bookingId);
-        item.gross += p.amountKobo;
-        item.commission += p.platformAmountKobo - (p.serviceFeeKobo ?? 0);
-        item.net += p.operatorAmountKobo;
+        const item = lotsMap.get(p.lotId);
+        if (item) {
+          if (p.bookingId) item.bookings.add(p.bookingId);
+          item.gross += p.amountKobo;
+          item.commission += p.platformAmountKobo - (p.serviceFeeKobo ?? 0);
+          item.net += p.operatorAmountKobo;
+        }
       }
 
       for (const r of refundRows) {

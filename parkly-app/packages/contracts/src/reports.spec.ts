@@ -61,6 +61,7 @@ describe('reports contracts (FR-OPS-003, FR-OPS-006)', () => {
 
     const parsed = OperatorEarningsReportSchema.safeParse(report);
     expect(parsed.success).toBe(true);
+    expect(DailyEarningsItemSchema.safeParse(report.daily[0]).success).toBe(true);
   });
 
   it('validates a monthly statement object', () => {

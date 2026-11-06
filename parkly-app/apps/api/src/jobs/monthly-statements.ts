@@ -1,4 +1,4 @@
-import { brandedEmail, button, detailsCard, esc, note, paragraph } from '../emails/layout.js';
+import { brandedEmail, detailsCard, esc, note, paragraph } from '../emails/layout.js';
 import type { Logger } from '../lib/logger.js';
 import { renderStatementPdf } from '../modules/reports/statement-pdf.js';
 import type { EmailProvider } from '../providers/index.js';
@@ -49,7 +49,8 @@ export function monthlyStatementsJob(deps: {
         return { processed, remaining: candidates.length - i };
       }
 
-      const op = candidates[i]!;
+      const op = candidates[i];
+      if (!op) continue;
       try {
         const statement = await deps.store.reports.monthlyStatement({
           operatorId: op.id,

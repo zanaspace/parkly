@@ -198,7 +198,7 @@ describe('reports endpoints (FR-OPS-003, FR-OPS-006)', () => {
     expect(resJson.body?.month).toBe('2026-10');
     expect(resJson.body?.statementNumber).toContain('STM-202610-');
     expect(resJson.body?.operatorName).toBe('Eko Parking Ltd');
-    expect((resJson.body as any)?.payoutAccount?.bankName).toBe('Guaranty Trust Bank');
+    expect(resJson.body).toMatchObject({ payoutAccount: { bankName: 'Guaranty Trust Bank' } });
 
     // 2. PDF download
     const resPdf = await w.call(

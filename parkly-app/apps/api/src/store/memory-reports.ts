@@ -1,8 +1,6 @@
 import type {
   DailyEarningsItem,
-  MonthlyStatement,
   MonthlyStatementLotSummary,
-  OperatorEarningsReport,
   SettlementSummary,
 } from '@parkly/contracts';
 import { calculateEarningsTotals, calculateStatementTotals } from '@parkly/domain/operator';
@@ -24,9 +22,11 @@ function enumerateDays(fromKey: string, toKey: string): string[] {
 }
 
 function monthDateRange(month: string): { from: string; to: string; startUtc: Date; endUtc: Date } {
-  const [y, m] = month.split('-').map(Number);
+  const parts = month.split('-').map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
   const from = `${month}-01`;
-  const lastDay = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const to = `${month}-${String(lastDay).padStart(2, '0')}`;
   const startUtc = lagosDayStart(from);
   const endUtc = new Date(lagosDayStart(to).getTime() + DAY_MS);
@@ -83,7 +83,7 @@ export class MemoryReports {
 
       // 4. Daily breakdown
       const daily: DailyEarningsItem[] = days.map((dateKey) => {
-        const dayPayments = payments.filter((p) => lagosDateKey(p.paidAt!) === dateKey);
+        const dayPayments = payments.filter((p) => p.paidAt && lagosDateKey(p.paidAt) === dateKey);
         const dayPaymentIds = new Set(dayPayments.map((p) => p.id));
         const dayRefunds = refunds.filter(
           (r) =>
@@ -91,12 +91,12 @@ export class MemoryReports {
         );
 
         let grossBookingKobo = dayPayments.reduce((sum, p) => sum + p.amountKobo, 0);
-        let commissionKobo = dayPayments.reduce(
+        const commissionKobo = dayPayments.reduce(
           (sum, p) =>
             sum + (p.platformAmountKobo - (p.bookingId ? (bookingFees.get(p.bookingId) ?? 0) : 0)),
           0,
         );
-        let serviceFeeKobo = dayPayments.reduce(
+        const serviceFeeKobo = dayPayments.reduce(
           (sum, p) => sum + (p.bookingId ? (bookingFees.get(p.bookingId) ?? 0) : 0),
           0,
         );
@@ -212,12 +212,14 @@ export class MemoryReports {
             net: 0,
           });
         }
-        const item = lotsMap.get(currentLotId)!;
-        if (p.bookingId) item.bookings.add(p.bookingId);
-        const fee = p.bookingId ? (b?.serviceFeeKobo ?? 0) : 0;
-        item.gross += p.amountKobo;
-        item.commission += p.platformAmountKobo - fee;
-        item.net += p.operatorAmountKobo;
+        const item = lotsMap.get(currentLotId);
+        if (item) {
+          if (p.bookingId) item.bookings.add(p.bookingId);
+          const fee = p.bookingId ? (b?.serviceFeeKobo ?? 0) : 0;
+          item.gross += p.amountKobo;
+          item.commission += p.platformAmountKobo - fee;
+          item.net += p.operatorAmountKobo;
+        }
       }
 
       // Deduct refunds from respective lots
