@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { dayLabel, freeTone, isStale, STALE_AFTER_MS, totals, updatedLabel } from './live';
+import {
+  dayLabel,
+  freeTone,
+  isStale,
+  overCapacity,
+  STALE_AFTER_MS,
+  totals,
+  updatedLabel,
+} from './live';
 
 const item = (parked: number, walkIns: number, expected: number, available: number) => ({
   lotId: '00000000-0000-0000-0000-000000000001',
@@ -43,5 +51,10 @@ describe('live occupancy helpers (FR-OPS-001)', () => {
     expect(freeTone(1, 10)).toBe('busy');
     expect(freeTone(2, 10)).toBe('ok');
     expect(freeTone(3, 0)).toBe('ok');
+  });
+
+  it('warns when more cars are counted in than the car park holds (G-9)', () => {
+    expect(overCapacity(item(8, 2, 0, 0))).toBe(false);
+    expect(overCapacity(item(8, 3, 0, 0))).toBe(true);
   });
 });

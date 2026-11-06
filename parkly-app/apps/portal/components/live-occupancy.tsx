@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import {
   freeTone,
   isStale,
+  overCapacity,
   REFRESH_MS,
   totals,
   updatedLabel,
@@ -113,6 +114,29 @@ function Status() {
   );
 }
 
+const OVER_CAPACITY =
+  'More cars counted in than spaces. A check-out may have been missed or walk-ins miscounted; open the gate app to fix it.';
+
+function OverCapacityNote({ o }: { o: OccupancyItem }) {
+  if (!overCapacity(o)) return null;
+  return (
+    <span
+      role="alert"
+      className="pk-badge"
+      style={{
+        display: 'block',
+        marginTop: '0.35rem',
+        textTransform: 'none',
+        whiteSpace: 'normal',
+        background: 'var(--pk-color-status-danger-bg)',
+        color: 'var(--pk-color-status-danger-fg)',
+      }}
+    >
+      {OVER_CAPACITY}
+    </span>
+  );
+}
+
 function FreeBadge({ o }: { o: OccupancyItem }) {
   return (
     <span
@@ -175,6 +199,7 @@ export function LiveOccupancyTable() {
                     <tr key={o.lotId}>
                       <td>
                         <strong style={{ color: 'var(--pk-color-text-primary)' }}>{o.name}</strong>
+                        <OverCapacityNote o={o} />
                       </td>
                       <td>
                         <span style={{ fontWeight: 600, color: 'var(--pk-color-text-brand)' }}>
@@ -209,6 +234,7 @@ export function LiveOccupancyTable() {
                   </strong>
                   <FreeBadge o={o} />
                 </div>
+                <OverCapacityNote o={o} />
                 <div className="pk-mobile-record-metrics pk-mobile-record-metrics--3col">
                   <div className="pk-mobile-metric-item">
                     <span className="pk-mobile-metric-label">Parkly cars</span>

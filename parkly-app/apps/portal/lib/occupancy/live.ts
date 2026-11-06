@@ -56,3 +56,12 @@ export function freeTone(free: number, capacity: number): 'full' | 'busy' | 'ok'
   if (capacity > 0 && free / capacity < 0.2) return 'busy';
   return 'ok';
 }
+
+/**
+ * More cars counted in than the car park holds (gap review G-9): a check-out
+ * was missed or the walk-in count is off. Stale sessions close on their own
+ * 12 hours after the booking ends and walk-ins reset at 03:00.
+ */
+export function overCapacity(o: OccupancyItem): boolean {
+  return o.parked + o.walkIns > o.capacityTotal;
+}
