@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  BanknoteIcon,
   BuildingIcon,
   CloseIcon,
   DashboardIcon,
@@ -78,6 +79,14 @@ export function PortalNav({ isOwner, user }: { isOwner: boolean; user?: UserNavI
       label: 'Bookings',
       shortLabel: 'Bookings',
       icon: FileTextIcon,
+      exact: false,
+      category: 'workspaces',
+    },
+    {
+      href: '/finance',
+      label: 'Finance',
+      shortLabel: 'Finance',
+      icon: BanknoteIcon,
       exact: false,
       category: 'workspaces',
     },

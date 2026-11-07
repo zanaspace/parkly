@@ -334,6 +334,17 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
+/** Banknote (finance) */
+export function BanknoteIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6 12h.01M18 12h.01" />
+    </Svg>
+  );
+}
+
 /** Price tag (rates) */
 export function TagIcon(props: IconProps) {
   return (
