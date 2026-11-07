@@ -321,7 +321,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 
 **Goal:** Drivers book for now or for later and arrive when they can; early, late and held time are paid for, so operators earn on every minute a space is held or used.
 
-**Stages:** 1. show when check-in opens (**built**); 2. paid early start when there is space (**built**); 3. "Park now" with a free 60-minute hold, then a holding fee of 25% of the hourly rate per 15 minutes, a per-lot hold cap and "Running late?" (its own sprint after S7); 4. peak pricing and refunds of unused time (after the pilot settles). Details and owner decisions in ADR 0023.
+**Stages:** 1. show when check-in opens (**built**); 2. paid early start when there is space (**built**); 3. "Park now" with a free 60-minute hold, then a holding fee of 25% of the hourly rate per 15 minutes, a per-lot hold cap (**built**, ADR 0024; "Running late?" not built yet); 4. peak pricing and refunds of unused time (after the pilot settles). Details and owner decisions in ADR 0023.
 
 ---
 
@@ -487,4 +487,6 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | **Done in S6 Wave 3** |
 | S6 | Per-phone failed-code counter (doc 05 §4.1) | Not enforceable on Supabase; risk recorded in ADR 0019 | Revisit if Supabase adds a verify hook |
 | S7 | Operator bookings list and CSV export (task 2) | Admin list shipped first (#70); task 1 and G-9 came first | **Done in S7** (export is immediate, not an emailed async job) |
-| S7 | Late bank transfers and `NEEDS_REVIEW` refunds (gap review P-9) | Moved from the gap review into S7 | S7, with reconciliation |
+| S7 | Late bank transfers and `NEEDS_REVIEW` refunds (gap review P-9) | Moved from the gap review into S7 | Still open: reconciliation is built (S7 task 4); P-9 to check and close before S8 |
+| S7 | Operator finance pages in the portal (revenue cards, period filter, `/finance` with daily breakdown and statement PDFs) | Task 5 built the API only; the portal shows no money | Next, before S8 (`product doc/nextsteps.md` §5) |
+| S7 | Clearing-account balance check in reconciliation | Needs real Paystack payout timing | After the first live payout |
