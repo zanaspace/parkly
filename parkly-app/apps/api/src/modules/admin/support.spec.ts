@@ -125,6 +125,40 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
         )
       ).status,
     ).toBe(404);
+
+    // Timeline includes refunds and overstay session when present
+    t.w.store.booking.refundRows.push({
+      id: randomUUID(),
+      paymentId: t.reference,
+      providerRefundId: 'ref_1',
+      status: 'SUCCEEDED',
+      amountKobo: 20_000,
+      reason: 'OPS_GOODWILL',
+      createdAt: new Date(),
+    });
+    t.w.store.attending.sessionRows.push({
+      id: randomUUID(),
+      bookingId: t.booking.id,
+      lotId: 'lot-1',
+      checkInAt: new Date(),
+      checkOutAt: null,
+      flags: [],
+      plateNorm: 'LND123AB',
+      overstayMinutes: 15,
+      overstayAmountKobo: 50_000,
+      overstayStatus: 'DUE',
+    });
+    const withDetails = await t.w.call(
+      'GET',
+      `/v1/admin/bookings/${t.booking.id}/support`,
+      t.staff('ADMIN_SUPPORT'),
+    );
+    expect(withDetails.status).toBe(200);
+    expect(withDetails.body?.overstay).toEqual({
+      status: 'DUE',
+      minutes: 15,
+      amountKobo: 50_000,
+    });
   });
 });
 
@@ -154,5 +188,30 @@ describe('revealing a driver’s contact (FR-ADM-002)', () => {
     expect((await reveal('phone', 'compliance wants it', t.staff('ADMIN_COMPLIANCE'))).status).toBe(
       403,
     );
+  });
+});
+
+describe('admin booking list (FR-BOOK-008)', () => {
+  it('lists recent bookings or filters by code', async () => {
+    const t = await setup();
+    const support = t.staff('ADMIN_SUPPORT');
+    const recent = await t.w.call('GET', '/v1/admin/bookings', support);
+    expect(recent.status).toBe(200);
+    expect(recent.body?.items).toHaveLength(1);
+
+    const byCode = (await t.w.call(
+      'GET',
+      `/v1/admin/bookings?code=${t.booking.code}`,
+      support,
+    )) as { body?: { items?: { code: string }[] }; status: number };
+    expect(byCode.status).toBe(200);
+    expect(byCode.body?.items?.[0]?.code).toBe(t.booking.code);
+
+    const notFound = (await t.w.call('GET', '/v1/admin/bookings?code=PK-UNKNOWN', support)) as {
+      body?: { items?: unknown[] };
+      status: number;
+    };
+    expect(notFound.status).toBe(200);
+    expect(notFound.body?.items).toEqual([]);
   });
 });
