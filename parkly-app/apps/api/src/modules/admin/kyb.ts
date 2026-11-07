@@ -6,10 +6,13 @@ import {
   KybReviewRequestSchema,
   OperatorSchema,
   SignedUrlSchema,
+  SetCommissionRequestSchema,
+  CommissionRateListSchema,
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
+import { isAllowedCommission } from '@parkly/domain/booking';
 import { ApiError } from '../../lib/errors.js';
 import { StaleVersionError } from '../../store/types.js';
 import { toOperator } from '../operators/routes.js';
@@ -217,6 +220,69 @@ export function adminKybRoutes(deps: AppDeps) {
           throw new ApiError('INVALID_STATE_TRANSITION', 'KYB was reviewed by someone else');
         throw err;
       }
+    },
+  );
+
+  // Every operator's current rate, for finance (no personal data, so not audited).
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/admin/commission-rates',
+      tags: ['admin'],
+      ...secured,
+      responses: {
+        200: { description: 'Operators and their rates', ...json(CommissionRateListSchema) },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'operator:commission:set', {});
+      const rows = await deps.store.operators.list({});
+      const items = rows
+        .map((o) => ({
+          operatorId: o.id,
+          tradingName: o.tradingName,
+          legalName: o.legalName,
+          kybStatus: o.kybStatus,
+          commissionBps: o.commissionBps,
+        }))
+        .sort((a, b) => a.tradingName.localeCompare(b.tradingName));
+      return c.json({ items }, 200);
+    },
+  );
+
+  // Change an operator's commission: new bookings only, reason audited.
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/admin/operators/{operatorId}/commission',
+      tags: ['admin'],
+      ...secured,
+      request: {
+        params: OperatorIdParam,
+        body: { ...json(SetCommissionRequestSchema), required: true },
+      },
+      responses: { 200: { description: 'Operator with the new rate', ...json(OperatorSchema) } },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'operator:commission:set', {});
+      const { operatorId } = c.req.valid('param');
+      const { commissionBps, reason } = c.req.valid('json');
+      if (!isAllowedCommission(commissionBps))
+        throw new ApiError('VALIDATION_FAILED', 'Commission must be 10–15%.');
+      const before = await deps.store.operators.find(operatorId);
+      if (!before) throw new ApiError('NOT_FOUND');
+      if (before.commissionBps === commissionBps)
+        throw new ApiError('VALIDATION_FAILED', "That is already this operator's rate.");
+      const row = await deps.store.operators.setCommission(operatorId, commissionBps);
+      if (!row) throw new ApiError('NOT_FOUND');
+      await audit(c, deps, {
+        action: 'operator.commission_changed',
+        entityType: 'operator',
+        entityId: operatorId,
+        before: { commissionBps: before.commissionBps },
+        after: { commissionBps, reason },
+      });
+      return c.json(toOperator(row, deps.crypto), 200);
     },
   );
 

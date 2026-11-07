@@ -1550,6 +1550,14 @@ export function drizzleStore(db: Db): Store {
           return row as OperatorRow;
         });
       },
+      async setCommission(id, commissionBps) {
+        const [row] = await db
+          .update(operators)
+          .set({ commissionBps })
+          .where(eq(operators.id, id))
+          .returning(operatorColumns);
+        return (row as OperatorRow | undefined) ?? null;
+      },
       async rejectKyb(id, { reviewerId, at, reason }) {
         const [row] = await db
           .update(operators)

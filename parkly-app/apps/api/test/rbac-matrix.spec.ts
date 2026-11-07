@@ -341,6 +341,20 @@ const MATRIX: Row[] = [
     route: 'GET /v1/admin/reports/platform-earnings',
     expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
   },
+  {
+    // No such operator: allowed roles get past the permission check to a 404.
+    method: 'PUT',
+    path: `/v1/admin/operators/${TARGET_USER}/commission`,
+    route: 'PUT /v1/admin/operators/{operatorId}/commission',
+    body: { commissionBps: 1100, reason: 'Negotiated pilot rate' },
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
+    path: '/v1/admin/commission-rates',
+    route: 'GET /v1/admin/commission-rates',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
 ];
 
 /** Gap review S-11: Sprint 5 and 6 reads, each with an other-tenant case. */

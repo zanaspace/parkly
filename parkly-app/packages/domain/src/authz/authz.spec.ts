@@ -186,6 +186,7 @@ describe('KYB and payout account (FR-LOT-001)', () => {
       'reconciliation:read',
       'reconciliation:resolve',
       'platform:revenue:read',
+      'operator:commission:set',
     ] as const) {
       expect(can(fin, a, {})).toBe(true);
       expect(can(sa, a, {})).toBe(true);

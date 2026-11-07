@@ -6,6 +6,15 @@ import { assertKobo, mulDivRoundHalfUp, type Kobo } from '../money/money.js';
  */
 const MAX_COMMISSION_BPS = 10_000;
 
+/**
+ * The rates an admin may set for an operator: 10–15% (doc 00 §3.9,
+ * `fees.commission_bps_default`). The split itself accepts 0–100%.
+ */
+export const COMMISSION_RANGE_BPS = { min: 1_000, max: 1_500 } as const;
+
+export const isAllowedCommission = (bps: number): boolean =>
+  Number.isSafeInteger(bps) && bps >= COMMISSION_RANGE_BPS.min && bps <= COMMISSION_RANGE_BPS.max;
+
 export type PaymentSplit = {
   /** What the driver pays: price + service fee. */
   amountKobo: Kobo;

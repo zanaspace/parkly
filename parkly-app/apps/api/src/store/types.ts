@@ -1362,6 +1362,8 @@ export type Store = {
     ): Promise<OperatorRow>;
     find(id: string): Promise<OperatorRow | null>;
     update(id: string, patch: Partial<OperatorDetails>): Promise<OperatorRow>;
+    /** New commission rate; bookings already made keep theirs. Null when there's no such operator. */
+    setCommission(id: string, commissionBps: number): Promise<OperatorRow | null>;
     /** KYB → SUBMITTED (callers check the gaps first). */
     submitKyb(id: string, at: Date): Promise<OperatorRow>;
     /** KYB review queue: oldest submission first. */

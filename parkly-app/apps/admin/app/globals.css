@@ -310,3 +310,15 @@ body {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.pk-rates {
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-rates-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--pk-space-stack-sm);
+  cursor: pointer;
+}

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
 import { loadSession } from '../auth/session';
 import { publicEnv } from '../env';
+import { percentToBps } from './commission';
 
 async function token(): Promise<string> {
   const session = await loadSession();
@@ -61,4 +62,35 @@ export async function reviewKyb(_prev: ReviewState, form: FormData): Promise<Rev
   }
   revalidatePath('/kyb');
   redirect(`/kyb?reviewed=${decision === 'REJECT' ? 'rejected' : 'approved'}`);
+}
+
+export type CommissionState = { error?: string; saved?: number } | undefined;
+
+/** Change the operator's commission (finance or super admin); new bookings only. */
+export async function setCommission(
+  _prev: CommissionState,
+  form: FormData,
+): Promise<CommissionState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const commissionBps = percentToBps(String(form.get('percent') ?? ''));
+  const reason = String(form.get('reason') ?? '').trim();
+  if (commissionBps === null) return { error: 'Enter a rate from 10% to 15%.' };
+  if (reason.length < 5)
+    return { error: 'Write why the rate is changing (at least 5 characters).' };
+  try {
+    await apiFetch(publicEnv().apiUrl, `${base(operatorId)}/commission`, await token(), {
+      method: 'PUT',
+      body: { commissionBps, reason },
+    });
+  } catch (err) {
+    if (err instanceof ApiProblem) {
+      if (err.code === 'FORBIDDEN')
+        return { error: 'Only finance and super admins can change rates.' };
+      if (err.code === 'VALIDATION_FAILED')
+        return { error: err.detail || 'Check the rate (10–15%) and the reason.' };
+    }
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  revalidatePath(`/kyb/${operatorId}`);
+  return { saved: commissionBps };
 }

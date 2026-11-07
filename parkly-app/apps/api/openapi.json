@@ -7525,6 +7525,240 @@
         }
       }
     },
+    "/v1/admin/commission-rates": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operators and their rates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "operatorId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tradingName": {
+                            "type": "string"
+                          },
+                          "legalName": {
+                            "type": "string"
+                          },
+                          "kybStatus": {
+                            "type": "string",
+                            "enum": [
+                              "NOT_STARTED",
+                              "SUBMITTED",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "commissionBps": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "operatorId",
+                          "tradingName",
+                          "legalName",
+                          "kybStatus",
+                          "commissionBps"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/operators/{operatorId}/commission": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "operatorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "commissionBps": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 1500
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "commissionBps",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operator with the new rate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "tradingName": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOTEL",
+                        "OFFICE",
+                        "COMMERCIAL_LOT",
+                        "EVENT_CENTRE",
+                        "OTHER"
+                      ]
+                    },
+                    "cacNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tin": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "addressLine": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactEmail": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contactPhone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "SUSPENDED",
+                        "OFFBOARDED"
+                      ]
+                    },
+                    "kybStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "SUBMITTED",
+                        "APPROVED",
+                        "REJECTED"
+                      ]
+                    },
+                    "kybSubmittedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "kybRejectionReason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "commissionBps": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "legalName",
+                    "tradingName",
+                    "type",
+                    "cacNumber",
+                    "tin",
+                    "addressLine",
+                    "contactEmail",
+                    "contactPhone",
+                    "status",
+                    "kybStatus",
+                    "kybSubmittedAt",
+                    "kybRejectionReason",
+                    "commissionBps",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/lots": {
       "get": {
         "tags": [

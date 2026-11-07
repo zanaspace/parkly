@@ -125,11 +125,7 @@ export function PlatformRevenue({
                 <tbody>
                   {report.operators.map((o) => (
                     <tr key={o.operatorId}>
-                      <td>
-                        <Link className="pk-link" href={`/kyb/${o.operatorId}`}>
-                          {o.operatorName}
-                        </Link>
-                      </td>
+                      <td>{o.operatorName}</td>
                       <td>{percent(o.commissionBps)}</td>
                       <td>{o.bookingsCount}</td>
                       <td>{money(o.grossBookingKobo)}</td>
