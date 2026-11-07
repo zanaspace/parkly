@@ -635,7 +635,7 @@ export class MemoryBookings {
             ? !!ext && ext.status === 'PENDING_PAYMENT' && extensionApplies(ext, b)
             : (this.overstayDue?.(b.id) ?? false);
         const decision = addOnDecision({
-          payment: { status: p.status, amountKobo: p.amountKobo },
+          payment: { status: p.status, amountKobo: p.amountKobo, failureCode: p.failureCode },
           verify: charge,
           applicable,
         });
@@ -654,7 +654,7 @@ export class MemoryBookings {
       }
 
       let decision = confirmDecision({
-        payment: { status: p.status, amountKobo: p.amountKobo },
+        payment: { status: p.status, amountKobo: p.amountKobo, failureCode: p.failureCode },
         verify: charge,
         bookingStatus: b.status,
         capacityAvailable: true,

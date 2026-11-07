@@ -7,6 +7,7 @@ import {
   type ConfirmDecision,
   type JournalLine,
   type PaymentStatus,
+  WRONG_AMOUNT,
 } from '@parkly/domain/booking';
 import type { VerifiedCharge } from '../providers/index.js';
 import type { BookingRow, PaymentRow } from './types.js';
@@ -139,8 +140,29 @@ export function settlePlan(
     // is already paid: give it back rather than keep it (gap review P-9).
     case 'NEEDS_REVIEW':
       return refunded(charge, booking, payment, 'DUPLICATE');
+    // Paid more than asked, or another currency: held for finance, marked so it's
+    // flagged once (a refund can't exceed the payment; gap review P-9).
     case 'AMOUNT_MISMATCH':
-      return { ...NOTHING, payment: { failureCode: 'AMOUNT_MISMATCH' } };
+      return { ...NOTHING, payment: { failureCode: WRONG_AMOUNT.HELD } };
+    // Paid less than asked, in naira: give back exactly what was paid and let the
+    // hold go. It never became revenue, so there's no journal (gap review P-9).
+    case 'REFUND_WRONG_AMOUNT':
+      return {
+        payment: {
+          ...(payment.status === 'ABANDONED' ? {} : { status: 'FAILED' as const }),
+          failureCode: WRONG_AMOUNT.REFUNDED,
+          paidAt: charge.paidAt,
+          feesKobo: charge.feesKobo,
+          channel: charge.channel,
+        },
+        booking:
+          booking.status === 'PENDING_PAYMENT'
+            ? { from: 'PENDING_PAYMENT', to: 'EXPIRED', reason: 'payment.wrong_amount' }
+            : null,
+        slots: booking.status === 'PENDING_PAYMENT' ? 'release' : null,
+        journals: [],
+        refund: { amountKobo: charge.amountKobo, reason: 'OTHER' },
+      };
     case 'WAIT':
     case 'NOOP':
       return NOTHING;

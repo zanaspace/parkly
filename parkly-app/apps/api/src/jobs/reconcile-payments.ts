@@ -51,6 +51,17 @@ const toInternal = (p: PaymentRow): InternalPaymentRecord => ({
  * 4. a charge Paystack took that we never settled goes through
  *    verifyAndSettle, the one settle path (receipt, notice, late-money refund).
  */
+/** Settle decisions that leave a charge confirmed or handed back, so the item is fixed. */
+const FIXED_BY: ReadonlySet<string> = new Set([
+  'CONFIRM',
+  'REACQUIRE_AND_CONFIRM',
+  'REFUND_HOLD_EXPIRED',
+  'REFUND_CANCELLED',
+  'REFUND_NOT_APPLIED',
+  'REFUND_WRONG_AMOUNT',
+  'NEEDS_REVIEW',
+]);
+
 export function reconcilePaymentsJob(deps: {
   store: Store;
   payments: PaymentProvider;
@@ -174,7 +185,9 @@ export function reconcilePaymentsJob(deps: {
             },
             internal.id,
           );
-          if (!settled) continue;
+          // Only a settle that confirmed or refunded the money fixes it; a wrong amount
+          // held for finance, or a no-op, stays open (gap review P-9).
+          if (!settled || !FIXED_BY.has(settled.decision)) continue;
           const after = await deps.store.payments.find(internal.id);
           if (after) statusAfterFix.set(after.id, after.status);
           item.result = 'AUTO_FIXED';

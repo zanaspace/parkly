@@ -1484,6 +1484,47 @@ export function storeContract(
         await store.payments.refundRequested(refunded.refund?.id ?? '', 'rf_1');
       });
 
+      it('refunds a short charge once and frees the space; holds an overpaid one (P-9)', async () => {
+        const lot = await liveLot(1);
+        const short = await hold(lot, await driver());
+        const first = await store.payments.settle(
+          short.payment.id,
+          charge({ amountKobo: 1_000 }),
+          AT,
+        );
+        expect(first).toMatchObject({
+          decision: 'REFUND_WRONG_AMOUNT',
+          booking: { status: 'EXPIRED' },
+          payment: { status: 'FAILED', failureCode: 'WRONG_AMOUNT_REFUNDED' },
+          refund: { amountKobo: 1_000 },
+        });
+        expect(
+          (await store.inventory.slots([lot.lotId], START, END)).every((s) => s.held === 0),
+        ).toBe(true);
+        expect(
+          (await store.payments.settle(short.payment.id, charge({ amountKobo: 1_000 }), AT))
+            .decision,
+        ).toBe('NOOP');
+        expect(await store.payments.refundsForBooking(short.booking.id)).toHaveLength(1);
+
+        const over = await hold(lot, await driver());
+        const held = await store.payments.settle(
+          over.payment.id,
+          charge({ amountKobo: 200_000 }),
+          AT,
+        );
+        expect(held).toMatchObject({
+          decision: 'AMOUNT_MISMATCH',
+          booking: { status: 'PENDING_PAYMENT' },
+          payment: { failureCode: 'AMOUNT_MISMATCH' },
+          refund: null,
+        });
+        expect(
+          (await store.payments.settle(over.payment.id, charge({ amountKobo: 200_000 }), AT))
+            .decision,
+        ).toBe('NOOP');
+      });
+
       it('fails a declined charge and frees the space', async () => {
         const lot = await liveLot(1);
         const { payment, booking } = await hold(lot, await driver());

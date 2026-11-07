@@ -735,3 +735,87 @@ describe('ledger, settlements and the alert (review items 7 and 8)', () => {
     await expect(job(RUN)).resolves.toMatchObject({ remaining: 0 });
   });
 });
+
+describe('wrong amounts during reconciliation (gap review P-9)', () => {
+  /** A pending checkout for ₦600 that Paystack says it charged `charged` for. */
+  async function pendingCharged(charged: number) {
+    const ctx = setup();
+    const { store, payments } = ctx;
+    const ref = randomUUID();
+    const bookingId = randomUUID();
+    const lotId = randomUUID();
+    const startAt = new Date('2026-11-05T16:00:00.000Z');
+    const endAt = new Date('2026-11-05T17:00:00.000Z');
+    for (let t = startAt.getTime(); t < endAt.getTime(); t += 15 * 60 * 1000)
+      store.slotRows.push({
+        lotId,
+        slotStart: new Date(t),
+        capacity: 10,
+        booked: 0,
+        held: 1,
+        passReserved: 0,
+        blocked: 0,
+      });
+    store.booking.bookingRows.push({
+      id: bookingId,
+      code: 'PK-WRONG1',
+      driverId: randomUUID(),
+      vehicleId: randomUUID(),
+      plateNorm: 'ABC123XY',
+      lotId,
+      product: 'HOURLY',
+      startAt,
+      endAt,
+      status: 'PENDING_PAYMENT',
+      holdExpiresAt: new Date('2026-11-05T16:30:00.000Z'),
+      priceKobo: 54_000,
+      serviceFeeKobo: 6_000,
+      totalKobo: 60_000,
+      commissionBps: 1000,
+      ratePlanId: randomUUID(),
+      pricingBreakdown: null,
+      source: 'WEB',
+      createdAt: startAt,
+    });
+    addPayment(store, { id: ref, bookingId, status: 'PENDING', amountKobo: 60_000, paidAt: null });
+    payments.transactions.push({
+      reference: ref,
+      amountKobo: charged,
+      currency: 'NGN',
+      status: 'success',
+      paidAt: startAt,
+      feesKobo: 900,
+      channel: 'card',
+    });
+    await payments.initialize({
+      reference: ref,
+      amountKobo: 60_000,
+      email: 'driver@example.com',
+      subaccountCode: null,
+      platformShareKobo: 6_000,
+      callbackUrl: null,
+      metadata: {},
+    });
+    payments.pay(ref, { amountKobo: charged });
+    await ctx.job({ deadline: new Date('2100-01-01T00:00:00Z'), payload: {} });
+    const run = await store.reconciliation.findRun('FAKE', '2026-11-05');
+    const items = await store.reconciliation.listItems({ runId: run?.id ?? '', limit: 10 });
+    return { ...ctx, ref, run, items };
+  }
+
+  it('refunds a short charge and counts it as fixed', async () => {
+    const { items, payments, ref } = await pendingCharged(40_000);
+    expect(items[0]?.result).toBe('AUTO_FIXED');
+    expect(payments.refunds).toEqual([{ reference: ref, amountKobo: 40_000 }]);
+  });
+
+  it('leaves an overpaid charge open for finance instead of calling it fixed', async () => {
+    const { items, run, payments, store, ref } = await pendingCharged(90_000);
+    expect(items[0]?.result).toBe('STATUS_MISMATCH');
+    expect(run?.mismatchedCount).toBe(1);
+    expect(payments.refunds).toEqual([]);
+    expect(store.booking.paymentRows.find((p) => p.id === ref)?.failureCode).toBe(
+      'AMOUNT_MISMATCH',
+    );
+  });
+});

@@ -17,8 +17,10 @@ export async function verifyAndSettle(
   if (!charge) return null;
   const result = await deps.store.payments.settle(paymentId, charge, deps.now());
   const log = { event: 'payment.settled', paymentId, decision: result.decision };
-  if (result.decision === 'AMOUNT_MISMATCH' || result.decision === 'NEEDS_REVIEW')
-    deps.logger.error(log, 'payment needs finance review');
+  if (result.decision === 'AMOUNT_MISMATCH')
+    deps.logger.error(log, 'payment overpaid or in another currency: held for finance to refund');
+  else if (result.decision === 'REFUND_WRONG_AMOUNT' || result.decision === 'NEEDS_REVIEW')
+    deps.logger.warn(log, 'payment refunded instead of confirmed');
   else deps.logger.info(log, 'payment settled');
 
   if (result.refund) {

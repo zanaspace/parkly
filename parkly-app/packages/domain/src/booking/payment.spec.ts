@@ -83,13 +83,32 @@ describe('confirming a payment (doc 02 §7.5, doc 01 §5.2 edge cases)', () => {
     );
   });
 
-  it('flags a wrong amount or currency and never confirms', () => {
+  it('never confirms a wrong amount: refunds a short naira charge, holds the rest (P-9)', () => {
     expect(decide({ verify: { status: 'success', amountKobo: 200_000, currency: 'NGN' } })).toBe(
+      'REFUND_WRONG_AMOUNT',
+    );
+    expect(decide({ verify: { status: 'success', amountKobo: 220_000, currency: 'NGN' } })).toBe(
       'AMOUNT_MISMATCH',
     );
     expect(decide({ verify: { status: 'success', amountKobo: 210_000, currency: 'USD' } })).toBe(
       'AMOUNT_MISMATCH',
     );
+    expect(decide({ verify: { status: 'success', amountKobo: 0, currency: 'NGN' } })).toBe(
+      'AMOUNT_MISMATCH',
+    );
+  });
+
+  it('acts on a wrong amount once: a later verify, webhook or reconciliation is a no-op', () => {
+    const short = { status: 'success', amountKobo: 200_000, currency: 'NGN' };
+    for (const failureCode of ['WRONG_AMOUNT_REFUNDED', 'AMOUNT_MISMATCH'])
+      expect(
+        decide({ payment: { status: 'FAILED', amountKobo: 210_000, failureCode }, verify: short }),
+      ).toBe('NOOP');
+    expect(
+      decide({
+        payment: { status: 'PENDING', amountKobo: 210_000, failureCode: 'AMOUNT_MISMATCH' },
+      }),
+    ).toBe('NOOP');
   });
 
   it('re-acquires capacity after the hold expired, or refunds', () => {
@@ -124,9 +143,16 @@ describe('settling an extension or overstay payment (gap review P-2, P-3, P-6)',
     expect(decide({ payment: { status: 'SUCCEEDED', amountKobo: 50_000 } })).toBe('NOOP');
   });
 
-  it('never confirms a short or foreign-currency charge', () => {
-    expect(decide({ verify: { ...ok, amountKobo: 100 } })).toBe('AMOUNT_MISMATCH');
+  it('never confirms a wrong amount: refunds a short naira charge, holds the rest', () => {
+    expect(decide({ verify: { ...ok, amountKobo: 100 } })).toBe('REFUND_WRONG_AMOUNT');
+    expect(decide({ verify: { ...ok, amountKobo: 60_000 } })).toBe('AMOUNT_MISMATCH');
     expect(decide({ verify: { ...ok, currency: 'USD' } })).toBe('AMOUNT_MISMATCH');
+    expect(
+      decide({
+        payment: { ...pending, status: 'FAILED', failureCode: 'WRONG_AMOUNT_REFUNDED' },
+        verify: { ...ok, amountKobo: 100 },
+      }),
+    ).toBe('NOOP');
   });
 
   it('waits while the provider is still working, and fails only on a final answer', () => {

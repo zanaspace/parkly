@@ -336,12 +336,41 @@ describe('confirming a payment (FR-BOOK-003, FR-PAY-002)', () => {
     expect(t.store.booking.ledgerRows).toHaveLength(ledger.length);
   });
 
-  it('never confirms a wrong amount', async () => {
-    const t = await held();
+  it('never confirms a short charge: refunds exactly what was paid, once, and frees the space (P-9)', async () => {
+    const t = await held({ capacity: 1 });
     t.payments.pay(t.created.payment.reference, { amountKobo: 1_000 });
     const res = await t.verify();
-    expect(res.body).toMatchObject({ booking: { status: 'PENDING_PAYMENT' } });
+    expect(res.body).toMatchObject({
+      payment: { status: 'FAILED' },
+      booking: { status: 'EXPIRED' },
+    });
+    expect(t.payments.refunds).toEqual([
+      { reference: t.created.payment.reference, amountKobo: 1_000 },
+    ]);
+    expect(t.store.booking.refundRows).toEqual([
+      expect.objectContaining({ amountKobo: 1_000, reason: 'OTHER' }),
+    ]);
     expect(t.store.booking.ledgerRows).toEqual([]);
+    expect(t.store.slotRows.every((s) => s.held === 0)).toBe(true);
+    // A webhook or the safety net asking again refunds nothing more.
+    await t.verify();
+    expect(t.payments.refunds).toHaveLength(1);
+    expect(t.store.booking.refundRows).toHaveLength(1);
+  });
+
+  it('holds an overpaid or foreign-currency charge for finance, flagged once, never confirmed', async () => {
+    const t = await held();
+    const ref = t.created.payment.reference;
+    t.payments.pay(ref, { amountKobo: 999_999_00 });
+    const res = await t.verify();
+    expect(res.body).toMatchObject({ booking: { status: 'PENDING_PAYMENT' } });
+    expect(t.store.booking.paymentRows.find((p) => p.id === ref)?.failureCode).toBe(
+      'AMOUNT_MISMATCH',
+    );
+    expect(t.payments.refunds).toEqual([]);
+    expect(t.store.booking.ledgerRows).toEqual([]);
+    await t.verify();
+    expect(t.payments.refunds).toEqual([]);
   });
 
   it('ends the hold when the charge fails', async () => {

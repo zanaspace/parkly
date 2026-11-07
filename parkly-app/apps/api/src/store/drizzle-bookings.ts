@@ -750,7 +750,11 @@ export function drizzleBookings(
           if (payment.kind === 'EXTENSION' || payment.kind === 'OVERSTAY') {
             const addOn = await lockAddOn(tx, payment, booking);
             const decision = addOnDecision({
-              payment: { status: payment.status, amountKobo: payment.amountKobo },
+              payment: {
+                status: payment.status,
+                amountKobo: payment.amountKobo,
+                failureCode: payment.failureCode,
+              },
               verify: charge,
               applicable: addOn.applicable,
             });
@@ -770,7 +774,11 @@ export function drizzleBookings(
           }
 
           let decision = confirmDecision({
-            payment: { status: payment.status, amountKobo: payment.amountKobo },
+            payment: {
+              status: payment.status,
+              amountKobo: payment.amountKobo,
+              failureCode: payment.failureCode,
+            },
             verify: charge,
             bookingStatus: booking.status,
             capacityAvailable: true,

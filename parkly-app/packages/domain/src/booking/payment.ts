@@ -52,8 +52,37 @@ export type VerifyResult = {
   currency: string;
 };
 
+/**
+ * `payments.failure_code` once a wrong-amount charge was dealt with (gap review
+ * P-9), so a later verify, webhook or reconciliation run doesn't act twice.
+ */
+export const WRONG_AMOUNT = {
+  /** Paid less than asked, in naira: refunded in full, never confirmed. */
+  REFUNDED: 'WRONG_AMOUNT_REFUNDED',
+  /** Paid more, or another currency: held for finance (a refund can't exceed the payment). */
+  HELD: 'AMOUNT_MISMATCH',
+} as const;
+
+const HANDLED: readonly string[] = [WRONG_AMOUNT.REFUNDED, WRONG_AMOUNT.HELD];
+
+type PaymentForDecision = { status: PaymentStatus; amountKobo: Kobo; failureCode?: string | null };
+
+/** Null when the charge matches; otherwise refund it (short, naira) or hold it for finance. */
+function wrongAmount(
+  payment: PaymentForDecision,
+  verify: VerifyResult,
+): 'REFUND_WRONG_AMOUNT' | 'AMOUNT_MISMATCH' | null {
+  if (verify.amountKobo === payment.amountKobo && verify.currency === 'NGN') return null;
+  const short =
+    verify.currency === 'NGN' &&
+    Number.isSafeInteger(verify.amountKobo) &&
+    verify.amountKobo > 0 &&
+    verify.amountKobo < payment.amountKobo;
+  return short ? 'REFUND_WRONG_AMOUNT' : 'AMOUNT_MISMATCH';
+}
+
 export type ConfirmInput = {
-  payment: { status: PaymentStatus; amountKobo: Kobo };
+  payment: PaymentForDecision;
   verify: VerifyResult;
   bookingStatus: BookingStatus;
   /** A space is still free for the booking window (checked under lock). */
@@ -75,8 +104,10 @@ export type ConfirmDecision =
   | 'WAIT'
   /** Already handled: a duplicate webhook or a verify race. */
   | 'NOOP'
-  /** Never confirm; raise a `payment.amount_mismatch` incident. */
+  /** Paid more than asked, or in another currency: never confirm; finance refunds it. */
   | 'AMOUNT_MISMATCH'
+  /** Paid less than asked, in naira: never confirm; refund exactly what was paid (P-9). */
+  | 'REFUND_WRONG_AMOUNT'
   /** States disagree (e.g. money for a payment we marked failed); ops look at it. */
   | 'NEEDS_REVIEW'
   /** Extension or overstay money arrived but there is nothing left to apply it to: refund in full. */
@@ -92,13 +123,13 @@ const FAILED: readonly string[] = ['failed', 'reversed'];
 export function confirmDecision(input: ConfirmInput): ConfirmDecision {
   const { payment, verify } = input;
   if (SETTLED.includes(payment.status)) return 'NOOP';
+  if (payment.failureCode && HANDLED.includes(payment.failureCode)) return 'NOOP';
   if (FAILED.includes(verify.status)) {
     return payment.status === 'FAILED' || payment.status === 'ABANDONED' ? 'NOOP' : 'FAIL';
   }
   if (verify.status !== 'success') return 'WAIT';
-  if (verify.amountKobo !== payment.amountKobo || verify.currency !== 'NGN') {
-    return 'AMOUNT_MISMATCH';
-  }
+  const wrong = wrongAmount(payment, verify);
+  if (wrong) return wrong;
   if (payment.status === 'FAILED' || payment.status === 'ABANDONED') return 'NEEDS_REVIEW';
 
   switch (input.bookingStatus) {
@@ -119,19 +150,26 @@ export function confirmDecision(input: ConfirmInput): ConfirmDecision {
  * where it starts, or the overstay is still due. Checked by the caller under lock.
  */
 export function addOnDecision(input: {
-  payment: { status: PaymentStatus; amountKobo: Kobo };
+  payment: PaymentForDecision;
   verify: VerifyResult;
   applicable: boolean;
-}): 'CONFIRM' | 'REFUND_NOT_APPLIED' | 'FAIL' | 'WAIT' | 'NOOP' | 'AMOUNT_MISMATCH' {
+}):
+  | 'CONFIRM'
+  | 'REFUND_NOT_APPLIED'
+  | 'FAIL'
+  | 'WAIT'
+  | 'NOOP'
+  | 'AMOUNT_MISMATCH'
+  | 'REFUND_WRONG_AMOUNT' {
   const { payment, verify } = input;
   if (SETTLED.includes(payment.status)) return 'NOOP';
+  if (payment.failureCode && HANDLED.includes(payment.failureCode)) return 'NOOP';
   if (FAILED.includes(verify.status)) {
     return payment.status === 'FAILED' || payment.status === 'ABANDONED' ? 'NOOP' : 'FAIL';
   }
   if (verify.status !== 'success') return 'WAIT';
-  if (verify.amountKobo !== payment.amountKobo || verify.currency !== 'NGN') {
-    return 'AMOUNT_MISMATCH';
-  }
+  const wrong = wrongAmount(payment, verify);
+  if (wrong) return wrong;
   // Money that arrives late, even after the checkout was abandoned, is applied or given back.
   return input.applicable ? 'CONFIRM' : 'REFUND_NOT_APPLIED';
 }

@@ -220,7 +220,7 @@ sequenceDiagram
 Edge cases:
 - **Callback returns before webhook:** the app calls `POST /v1/payments/:reference/verify`; the API calls Paystack verify and runs the same idempotent `confirmPayment` routine as the `drain-webhooks` job. Whichever arrives first wins; the second is a no-op (guarded by a `payment.status` check inside a row lock).
 - **Payment after hold expired:** if the booking is already `EXPIRED` and capacity is gone, the payment is auto-refunded (`refund.reason = HOLD_EXPIRED`) and the driver is notified. If capacity still exists, re-acquire it and confirm.
-- **Amount mismatch** between verify response and payment row ⇒ do not confirm; flag `payment.amount_mismatch` incident for finance.
+- **Amount mismatch** between verify response and payment row ⇒ never confirm (gap review P-9). **Paid less, in naira:** refund exactly what was paid, mark the payment `FAILED` with `failure_code = WRONG_AMOUNT_REFUNDED` and let the hold go; no journal, as it never became revenue. **Paid more, or another currency:** a refund can't exceed the payment row, so it's held for finance with `failure_code = AMOUNT_MISMATCH`, logged as an error, and left open in the daily reconciliation until resolved. Either code makes later verifies, webhooks and reconciliation runs a no-op. (An incident row comes with the S8 incident model.)
 
 ### 5.3 Attendant offline check-in, sync and conflict resolution
 
