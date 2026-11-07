@@ -11250,6 +11250,18 @@
                         "netOperatorKobo": {
                           "type": "integer"
                         },
+                        "extensionKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "overstayKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "refundKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
                         "settlementKobo": {
                           "type": "integer"
                         }
@@ -11260,6 +11272,9 @@
                         "commissionKobo",
                         "serviceFeeKobo",
                         "netOperatorKobo",
+                        "extensionKobo",
+                        "overstayKobo",
+                        "refundKobo",
                         "settlementKobo"
                       ]
                     },
@@ -11287,6 +11302,18 @@
                           },
                           "netOperatorKobo": {
                             "type": "integer"
+                          },
+                          "extensionKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "overstayKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "refundKobo": {
+                            "type": "integer",
+                            "minimum": 0
                           },
                           "settlementKobo": {
                             "type": "integer"
@@ -11316,6 +11343,9 @@
                           "commissionKobo",
                           "serviceFeeKobo",
                           "netOperatorKobo",
+                          "extensionKobo",
+                          "overstayKobo",
+                          "refundKobo",
                           "settlementKobo",
                           "settlementStatus",
                           "settlementReferences"
@@ -11566,6 +11596,18 @@
                         "netOperatorKobo": {
                           "type": "integer"
                         },
+                        "extensionKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "overstayKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "refundKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
                         "settlementKobo": {
                           "type": "integer"
                         },
@@ -11579,6 +11621,9 @@
                         "commissionKobo",
                         "serviceFeeKobo",
                         "netOperatorKobo",
+                        "extensionKobo",
+                        "overstayKobo",
+                        "refundKobo",
                         "settlementKobo",
                         "closingBalanceKobo"
                       ]

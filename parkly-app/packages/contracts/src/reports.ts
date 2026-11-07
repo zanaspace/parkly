@@ -13,13 +13,31 @@ export const OperatorEarningsQuerySchema = z.object({
   lotId: z.uuid().optional(),
 });
 
-export const DailyEarningsItemSchema = z.object({
-  date: LagosDateSchema,
+/**
+ * What drivers paid and who keeps it, read from the ledger, net of refunds.
+ * Extension and overstay are parts of gross (before refunds), not added to it.
+ */
+const EarningsAmountsShape = {
+  /** Bookings first paid for in the period. */
   bookingsCount: z.number().int().nonnegative(),
+  /** Everything drivers paid (bookings, extensions, overstay, service fee) less refunds. */
   grossBookingKobo: z.number().int(),
   commissionKobo: z.number().int(),
   serviceFeeKobo: z.number().int(),
+  /** The operator's share: what Parkly owes them for the period. */
   netOperatorKobo: z.number().int(),
+  /** Paid for extensions, before refunds. */
+  extensionKobo: z.number().int().nonnegative(),
+  /** Paid for overstay, before refunds. */
+  overstayKobo: z.number().int().nonnegative(),
+  /** Money handed back to drivers (already taken off gross). */
+  refundKobo: z.number().int().nonnegative(),
+};
+
+export const DailyEarningsItemSchema = z.object({
+  date: LagosDateSchema,
+  ...EarningsAmountsShape,
+  /** Payouts that reached the operator's bank this day (SETTLED only). */
   settlementKobo: z.number().int(),
   settlementStatus: z.enum(['NONE', 'PENDING', 'PROCESSING', 'SETTLED', 'PARTIAL', 'FAILED']),
   settlementReferences: z.array(z.string()),
@@ -34,11 +52,7 @@ export const SettlementSummarySchema = z.object({
 });
 
 export const OperatorEarningsTotalsSchema = z.object({
-  bookingsCount: z.number().int().nonnegative(),
-  grossBookingKobo: z.number().int(),
-  commissionKobo: z.number().int(),
-  serviceFeeKobo: z.number().int(),
-  netOperatorKobo: z.number().int(),
+  ...EarningsAmountsShape,
   settlementKobo: z.number().int(),
 });
 
@@ -66,11 +80,7 @@ export const MonthlyStatementLotSummarySchema = z.object({
 });
 
 export const MonthlyStatementTotalsSchema = z.object({
-  bookingsCount: z.number().int().nonnegative(),
-  grossBookingKobo: z.number().int(),
-  commissionKobo: z.number().int(),
-  serviceFeeKobo: z.number().int(),
-  netOperatorKobo: z.number().int(),
+  ...EarningsAmountsShape,
   settlementKobo: z.number().int(),
   closingBalanceKobo: z.number().int(),
 });

@@ -1912,6 +1912,116 @@ export function storeContract(
         ).toBe(false);
       });
 
+      it('reports revenue from the ledger: fee once, extension split, refund on its own day (S7 task 5 review)', async () => {
+        const lot = await liveLot(2);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        // Jan 4, 11:00 Lagos: ₦1,000 + ₦100 fee at 12%.
+        await store.payments.settle(payment.id, charge(), AT);
+        // Jan 4, 11:01 Lagos: a paid one-hour extension, ₦500, no fee.
+        const LATER = new Date(AT.getTime() + 60_000);
+        const ext = await store.bookings.holdExtension(
+          {
+            id: randomUUID(),
+            bookingId: booking.id,
+            newEndAt: new Date(END.getTime() + 60 * 60_000),
+            priceKobo: 50_000,
+            platformAmountKobo: 6_000,
+            operatorAmountKobo: 44_000,
+            holdExpiresAt: new Date(LATER.getTime() + 10 * 60_000),
+          },
+          {
+            id: randomUUID(),
+            payerUserId: d.id,
+            provider: 'FAKE',
+            amountKobo: 50_000,
+            platformAmountKobo: 6_000,
+            operatorAmountKobo: 44_000,
+            operatorId: lot.operatorId,
+            subaccountCode: null,
+          },
+          LATER,
+        );
+        await store.payments.settle(ext.payment?.id ?? '', charge({ amountKobo: 50_000 }), LATER);
+        // Jan 5, 07:00 Lagos: cancelled with ₦500 of the price and the ₦100 fee back.
+        const NEXT_DAY = new Date('2027-01-05T06:00:00Z');
+        await store.bookings.cancel(
+          booking.id,
+          'ADMIN',
+          d.id,
+          'goodwill',
+          {
+            amountKobo: 60_000,
+            reason: 'OPS_GOODWILL',
+            refundPriceKobo: 50_000,
+            refundServiceFeeKobo: 10_000,
+          },
+          NEXT_DAY,
+        );
+
+        const report = await store.reports.operatorEarnings({
+          operatorId: lot.operatorId,
+          from: '2027-01-04',
+          to: '2027-01-05',
+        });
+        expect(report.daily.find((r) => r.date === '2027-01-04')).toMatchObject({
+          bookingsCount: 1,
+          grossBookingKobo: 160_000,
+          commissionKobo: 18_000,
+          serviceFeeKobo: 10_000,
+          netOperatorKobo: 132_000,
+          extensionKobo: 50_000,
+          refundKobo: 0,
+        });
+        expect(report.daily.find((r) => r.date === '2027-01-05')).toMatchObject({
+          bookingsCount: 0,
+          grossBookingKobo: -60_000,
+          commissionKobo: -6_000,
+          serviceFeeKobo: -10_000,
+          netOperatorKobo: -44_000,
+          refundKobo: 60_000,
+        });
+        expect(report.totals).toMatchObject({
+          bookingsCount: 1,
+          grossBookingKobo: 100_000,
+          commissionKobo: 12_000,
+          serviceFeeKobo: 0,
+          netOperatorKobo: 88_000,
+          extensionKobo: 50_000,
+          overstayKobo: 0,
+          refundKobo: 60_000,
+        });
+        // Another car park of the same operator has nothing.
+        const other = await store.reports.operatorEarnings({
+          operatorId: lot.operatorId,
+          from: '2027-01-04',
+          to: '2027-01-05',
+          lotId: randomUUID(),
+        });
+        expect(other.totals.grossBookingKobo).toBe(0);
+
+        const statement = await store.reports.monthlyStatement({
+          operatorId: lot.operatorId,
+          month: '2027-01',
+        });
+        expect(statement?.lots).toEqual([
+          {
+            lotId: lot.lotId,
+            lotName: 'Hold lot',
+            bookingsCount: 1,
+            grossBookingKobo: 100_000,
+            commissionKobo: 12_000,
+            netOperatorKobo: 88_000,
+          },
+        ]);
+        expect(statement?.totals).toMatchObject({
+          grossBookingKobo: 100_000,
+          serviceFeeKobo: 0,
+          refundKobo: 60_000,
+          closingBalanceKobo: 88_000,
+        });
+      });
+
       it('extends a paid booking: holds, confirms on payment, releases, and checks the payment', async () => {
         const lot = await liveLot(2);
         const d = await driver();
