@@ -34,8 +34,9 @@ As decided in `product doc/nextsteps.md` (Agreed Decisions, Nov 6, 2026), Stage 
 - **Accrued Holding Fee:**
   - If check-in occurs after the free hold window, a holding fee accrues for the additional time held:
     - Rate: **25% of the hourly rate per started 15-minute block** (equivalent to 100% of the hourly rate per hour held).
+    - "Hourly rate" is the booking's own rate plan (`rate_plans.hourly_rate_kobo`), or, for a plan without one, the booking's price per hour booked. It is never the booking's total price (fixed 2026-11-07: a 3-hour hold was charged three times over).
     - Minimum floor: **₦150 (15,000 kobo)** per 15-minute holding block.
-  - **Checkout Collection:** To avoid micro-transaction fees and gateway overhead, accrued holding fees are **not** charged upfront or as separate intermediate transactions. Instead, they are tallied and collected at **checkout** alongside any overstay fees (or on the final settlement).
+  - **Checkout Collection:** To avoid micro-transaction fees and gateway overhead, accrued holding fees are **not** charged upfront or as separate intermediate transactions. Instead, they are tallied and collected at **checkout** alongside any overstay fees (or on the final settlement). As built: at check-out (gate sync or self check-out) the fee is added to the session's overstay amount, and the overstay payment charges the total. A stay closed automatically after 12 hours (G-9) charges nothing, so its holding fee is not collected.
 - **Hold Release Cap (No-Show):**
   - Holds are capped at **`max_hold_minutes`** (default **180 minutes / 3 hours**).
   - If the driver has not checked in by `holdStartedAt + max_hold_minutes`, the hold is released, freeing the space for other drivers.

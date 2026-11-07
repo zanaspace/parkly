@@ -109,6 +109,7 @@ export class MemoryStore implements Store {
     slotRows: this.slotRows,
     userRows: this.userRows,
     lotKeyRows: this.lotKeyRows,
+    ratePlanRows: this.ratePlanRows,
   });
   readonly attend: Store['attend'] = this.attending.attend;
   /** Notification outbox (Sprint 6, ADR 0020). */

@@ -3,6 +3,7 @@ import {
   calculateHoldExpiration,
   calculateHoldingFee,
   checkHoldCapacity,
+  holdHourlyRateKobo,
   DEFAULT_FREE_HOLD_MINUTES,
   isFlexibleHoldExpired,
 } from './flexible-hold.js';
@@ -186,5 +187,52 @@ describe('Flexible hold domain logic (ADR 0024)', () => {
       expect(res.allowed).toBe(false);
       expect(res.maxHolds).toBe(0);
     });
+  });
+});
+
+describe('holdHourlyRateKobo (ADR 0024)', () => {
+  const start = new Date('2026-11-07T10:00:00Z');
+  const at = (h: number) => new Date(start.getTime() + h * 3_600_000);
+
+  it("uses the booking's plan rate, however long the stay", () => {
+    expect(
+      holdHourlyRateKobo({
+        planHourlyKobo: 50_000,
+        priceKobo: 150_000,
+        startAt: start,
+        endAt: at(3),
+      }),
+    ).toBe(50_000);
+  });
+
+  it('falls back to the price per hour booked, never the whole price', () => {
+    expect(
+      holdHourlyRateKobo({
+        planHourlyKobo: null,
+        priceKobo: 150_000,
+        startAt: start,
+        endAt: at(3),
+      }),
+    ).toBe(50_000);
+    expect(
+      holdHourlyRateKobo({ planHourlyKobo: 0, priceKobo: 75_000, startAt: start, endAt: at(1.5) }),
+    ).toBe(50_000);
+    expect(
+      holdHourlyRateKobo({ planHourlyKobo: null, priceKobo: 40_000, startAt: start, endAt: start }),
+    ).toBe(40_000);
+  });
+
+  it('makes a 3-hour hold cost the same per block as a 1-hour one', () => {
+    const held = { holdStartedAt: start, checkedInAt: at(1.5), commissionBps: 1200 };
+    const rate = (hours: number) =>
+      holdHourlyRateKobo({
+        planHourlyKobo: null,
+        priceKobo: 50_000 * hours,
+        startAt: start,
+        endAt: at(hours),
+      });
+    expect(calculateHoldingFee({ ...held, hourlyRateKobo: rate(3) }).holdingFeeKobo).toBe(
+      calculateHoldingFee({ ...held, hourlyRateKobo: rate(1) }).holdingFeeKobo,
+    );
   });
 });

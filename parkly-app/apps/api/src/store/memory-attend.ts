@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { calculateHoldingFee } from '@parkly/domain/booking';
+import { calculateHoldingFee, holdHourlyRateKobo } from '@parkly/domain/booking';
 import { applyWalkIn } from '@parkly/domain/checkin';
 import type { MemoryBookings } from './memory-bookings.js';
 import { planEvent, type PlanSession } from './attend-plan.js';
@@ -9,6 +9,7 @@ import type {
   AttendEventResult,
   LotKeyRow,
   LotRow,
+  RatePlanRow,
   SlotRow,
   Store,
   UserRow,
@@ -41,6 +42,7 @@ export class MemoryAttend {
       slotRows: SlotRow[];
       userRows: Map<string, UserRow>;
       lotKeyRows: LotKeyRow[];
+      ratePlanRows: RatePlanRow[];
     },
   ) {}
 
@@ -241,6 +243,13 @@ export class MemoryAttend {
             s.checkInAt = plan.session.checkInAt;
             if (b.bookingType === 'PARK_NOW') {
               const duration = b.endAt.getTime() - b.startAt.getTime();
+              const hourlyRateKobo = holdHourlyRateKobo({
+                planHourlyKobo: this.deps.ratePlanRows.find((p) => p.id === b.ratePlanId)
+                  ?.hourlyRateKobo,
+                priceKobo: b.priceKobo,
+                startAt: b.startAt,
+                endAt: b.endAt,
+              });
               b.startAt = plan.session.checkInAt;
               b.endAt = new Date(plan.session.checkInAt.getTime() + duration);
               b.holdExpiresAt = null;
@@ -248,7 +257,7 @@ export class MemoryAttend {
               const fee = calculateHoldingFee({
                 holdStartedAt: b.holdStartedAt ?? b.createdAt,
                 checkedInAt: plan.session.checkInAt,
-                hourlyRateKobo: b.priceKobo,
+                hourlyRateKobo,
                 commissionBps: b.commissionBps,
                 freeHoldMinutes: lot?.freeHoldMinutes,
                 maxHoldMinutes: lot?.maxHoldMinutes,

@@ -143,3 +143,20 @@ export function checkHoldCapacity(params: {
     activeHoldsCount: params.activeHoldsCount,
   };
 }
+
+/**
+ * The hourly rate a "Park now" hold is charged against (ADR 0024): the
+ * booking's own rate plan, else what the booking cost per hour booked. Never
+ * the booking's total price, which made a 3-hour hold fee three times too big.
+ */
+export function holdHourlyRateKobo(input: {
+  planHourlyKobo: number | null | undefined;
+  priceKobo: number;
+  startAt: Date;
+  endAt: Date;
+}): Kobo {
+  if (input.planHourlyKobo && input.planHourlyKobo > 0) return assertKobo(input.planHourlyKobo);
+  const minutes = Math.round((input.endAt.getTime() - input.startAt.getTime()) / 60_000);
+  if (minutes <= 0) return assertKobo(input.priceKobo);
+  return mulDivRoundHalfUp(assertKobo(input.priceKobo), 60, minutes) as Kobo;
+}

@@ -1583,8 +1583,9 @@ export function storeContract(
         expect(checkedIn?.endAt.toISOString()).toBe(
           new Date(checkInTime.getTime() + 60 * 60_000).toISOString(),
         );
-        // Accrued 1 block of ₦250 (25,000 kobo)
-        expect(checkedIn?.holdingFeeKobo).toBe(25_000);
+        // 1 block at the plan's ₦500/hour: a quarter is ₦125, so the ₦150 floor applies.
+        // (It used to take a quarter of the booking's whole price.)
+        expect(checkedIn?.holdingFeeKobo).toBe(15_000);
       });
 
       it('stores a webhook once', async () => {

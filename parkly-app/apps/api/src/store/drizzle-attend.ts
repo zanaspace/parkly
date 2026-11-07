@@ -1,6 +1,6 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
-import { calculateHoldingFee } from '@parkly/domain/booking';
+import { calculateHoldingFee, holdHourlyRateKobo } from '@parkly/domain/booking';
 import {
   and,
   desc,
@@ -30,6 +30,7 @@ const {
   attendantSyncBatches,
   lotWalkIns,
   lotSigningKeys,
+  ratePlans,
 } = schema;
 
 const deviceColumns = {
@@ -226,6 +227,7 @@ export function drizzleAttend(db: Db): {
                       startAt: bookings.startAt,
                       endAt: bookings.endAt,
                       priceKobo: bookings.priceKobo,
+                      ratePlanId: bookings.ratePlanId,
                       commissionBps: bookings.commissionBps,
                     })
                     .from(bookings)
@@ -321,10 +323,19 @@ export function drizzleAttend(db: Db): {
                       })
                       .from(lots)
                       .where(eq(lots.id, b.lotId));
+                    const [ratePlan] = await tx
+                      .select({ hourlyRateKobo: ratePlans.hourlyRateKobo })
+                      .from(ratePlans)
+                      .where(eq(ratePlans.id, b.ratePlanId));
                     const fee = calculateHoldingFee({
                       holdStartedAt: b.holdStartedAt ?? b.createdAt,
                       checkedInAt: plan.session.checkInAt,
-                      hourlyRateKobo: b.priceKobo,
+                      hourlyRateKobo: holdHourlyRateKobo({
+                        planHourlyKobo: ratePlan?.hourlyRateKobo,
+                        priceKobo: b.priceKobo,
+                        startAt: b.startAt,
+                        endAt: b.endAt,
+                      }),
                       commissionBps: b.commissionBps,
                       freeHoldMinutes: lot?.freeHoldMinutes,
                       maxHoldMinutes: lot?.maxHoldMinutes,
