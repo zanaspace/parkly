@@ -1,20 +1,14 @@
 import type { AdminBooking } from '@parkly/contracts';
 import { formatKobo } from '../../../lib/lots/copy';
-import { Button, Text } from '@parkly/ui';
+import { Text } from '@parkly/ui';
 import Link from 'next/link';
-import { WaiveOverstayForm } from '../../../components/waive-overstay';
-import { apiFetch, ApiProblem } from '../../../lib/api';
+import { SupportSearch } from '../../../components/support-search';
+import { apiFetch } from '../../../lib/api';
 import { requireAccess } from '../../../lib/auth/session';
-import { bookingCode, canWaive, overstayOwed } from '../../../lib/bookings/code';
+import { overstayOwed } from '../../../lib/bookings/code';
 import { publicEnv } from '../../../lib/env';
 
 export const metadata = { title: 'Bookings & Overstays · Parkly Admin' };
-
-const lagosTime = new Intl.DateTimeFormat('en-NG', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'Africa/Lagos',
-});
 
 const lagosShortTime = new Intl.DateTimeFormat('en-NG', {
   month: 'short',
@@ -25,14 +19,6 @@ const lagosShortTime = new Intl.DateTimeFormat('en-NG', {
   timeZone: 'Africa/Lagos',
 });
 
-const OVERSTAY_TEXT: Record<NonNullable<AdminBooking['overstay']>['status'], string> = {
-  NONE: 'None',
-  DUE: 'Due (the driver has 24 hours)',
-  UNPAID: 'Unpaid: blocking new bookings',
-  PAID: 'Paid',
-  WAIVED: 'Waived',
-};
-
 const TABS = [
   { id: 'all', label: 'All Bookings' },
   { id: 'owed', label: 'Overstay Owed' },
@@ -42,17 +28,18 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 /**
- * Support and operations bookings management.
- * Shows recent bookings, quick filters, and lets staff inspect and waive overstays (FR-BOOK-008, gap review L-4).
+ * Support and operations bookings (FR-ADM-002, FR-BOOK-008): one live search box for
+ * a booking code, phone, plate or payment reference, then recent bookings by tab.
+ * Each opens its own page with the timeline, the driver's contact (revealed with
+ * a reason) and the overstay waiver.
  */
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string; q?: string; tab?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { me, accessToken } = await requireAccess();
+  const { accessToken } = await requireAccess();
   const params = await searchParams;
-  const typed = params.q ?? params.code ?? '';
   const currentTab: TabId = TABS.some((t) => t.id === params.tab) ? (params.tab as TabId) : 'all';
 
   // 1. Fetch recent bookings list
@@ -68,44 +55,7 @@ export default async function BookingsPage({
     items = [];
   }
 
-  // 2. If a specific code was selected or typed, fetch/find it
-  const code = typed ? bookingCode(typed) : null;
-  let selectedBooking: AdminBooking | null = null;
-  let problem: string | null =
-    typed && !code && params.code ? 'Booking codes look like PK-3MV7BU.' : null;
-
-  if (code) {
-    selectedBooking = items.find((b) => b.code === code) ?? null;
-    if (!selectedBooking) {
-      try {
-        selectedBooking = await apiFetch<AdminBooking>(
-          publicEnv().apiUrl,
-          `/v1/admin/bookings/by-code/${encodeURIComponent(code)}`,
-          accessToken,
-        );
-      } catch (err) {
-        problem =
-          err instanceof ApiProblem && err.status === 404
-            ? `No booking found for ${code}.`
-            : err instanceof ApiProblem && err.status === 403
-              ? 'Your role cannot look up bookings.'
-              : 'Could not load booking details.';
-      }
-    }
-  }
-
-  // 3. Filter items by search query and active tab
   let filteredItems = items;
-  if (typed && !code) {
-    const qLower = typed.toLowerCase().trim();
-    filteredItems = filteredItems.filter(
-      (b) =>
-        b.code.toLowerCase().includes(qLower) ||
-        (b.plate && b.plate.toLowerCase().includes(qLower)) ||
-        b.lotName.toLowerCase().includes(qLower),
-    );
-  }
-
   const owedCount = items.filter((b) => overstayOwed(b.overstay)).length;
   const activeCount = items.filter(
     (b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN' || b.status === 'PENDING_PAYMENT',
@@ -130,10 +80,16 @@ export default async function BookingsPage({
           Bookings & Overstays
         </Text>
         <Text variant="body-sm" tone="secondary">
-          Browse bookings across all lots, inspect driver stays, and manage overstay waivers with
-          audit tracking.
+          Find any booking, see what happened to it, and sort out the driver’s problem. Phone
+          numbers stay hidden unless you reveal one, and every reveal is logged.
         </Text>
       </div>
+
+      <SupportSearch />
+
+      <Text variant="heading-md" as="h2">
+        Recent bookings
+      </Text>
 
       {/* Styled Filter Sub-Navigation */}
       <nav className="pk-tab-nav" aria-label="Bookings Status Filter">
@@ -163,141 +119,11 @@ export default async function BookingsPage({
         })}
       </nav>
 
-      {/* Search Input Bar */}
-      <form className="pk-row" action="/bookings" method="get">
-        {currentTab !== 'all' ? <input type="hidden" name="tab" value={currentTab} /> : null}
-        <label className="pk-field" style={{ flex: 1 }}>
-          <span className="pk-field__label">Search Bookings</span>
-          <input
-            className="pk-input"
-            name="q"
-            defaultValue={typed}
-            placeholder="Search by code (e.g. PK-WVGMRS), license plate, or lot name..."
-          />
-        </label>
-        <Button type="submit">Search</Button>
-        {typed ? (
-          <Link
-            href={currentTab === 'all' ? '/bookings' : `/bookings?tab=${currentTab}`}
-            className="pk-nav-link"
-            style={{ alignSelf: 'flex-end', paddingBottom: '0.6rem' }}
-          >
-            Clear
-          </Link>
-        ) : null}
-      </form>
-
-      {problem && (
-        <p className="pk-notice pk-notice--error" role="alert">
-          {problem}
-        </p>
-      )}
-
-      {/* Selected Booking Detail & Waiver Card */}
-      {selectedBooking && (
-        <section
-          className="pk-card pk-stack"
-          style={{
-            borderLeft: overstayOwed(selectedBooking.overstay)
-              ? '4px solid #ef4444'
-              : '4px solid var(--pk-color-brand-primary, #00875a)',
-          }}
-          aria-label={`Booking ${selectedBooking.code}`}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div>
-              <Text variant="heading-md" as="h2">
-                {selectedBooking.code} · {selectedBooking.lotName}
-              </Text>
-              <Text tone="secondary">
-                {selectedBooking.plate ? `Vehicle: ${selectedBooking.plate} · ` : ''}
-                {lagosTime.format(new Date(selectedBooking.startAt))} to{' '}
-                {lagosTime.format(new Date(selectedBooking.endAt))}
-              </Text>
-            </div>
-            <div>
-              <span
-                className={`pk-badge ${
-                  selectedBooking.status === 'COMPLETED'
-                    ? 'pk-badge--verified'
-                    : selectedBooking.status === 'CONFIRMED' ||
-                        selectedBooking.status === 'CHECKED_IN'
-                      ? 'pk-badge--live'
-                      : 'pk-badge--submitted'
-                }`}
-              >
-                {selectedBooking.status.replace('_', ' ')}
-              </span>
-            </div>
-          </div>
-
-          {selectedBooking.overstay && selectedBooking.overstay.amountKobo > 0 ? (
-            <div
-              style={{
-                backgroundColor:
-                  selectedBooking.overstay.status === 'UNPAID'
-                    ? '#fef2f2'
-                    : selectedBooking.overstay.status === 'DUE'
-                      ? '#fff8eb'
-                      : 'transparent',
-                padding: '0.75rem 1rem',
-                borderRadius: 'var(--pk-radius-sm, 0.375rem)',
-                border:
-                  selectedBooking.overstay.status === 'UNPAID'
-                    ? '1px solid #fbc4c0'
-                    : selectedBooking.overstay.status === 'DUE'
-                      ? '1px solid #fdd48a'
-                      : 'none',
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: 600,
-                  color:
-                    selectedBooking.overstay.status === 'UNPAID'
-                      ? '#771a14'
-                      : selectedBooking.overstay.status === 'DUE'
-                        ? '#6f420c'
-                        : 'inherit',
-                }}
-              >
-                Overstay: {selectedBooking.overstay.minutes} min,{' '}
-                {formatKobo(selectedBooking.overstay.amountKobo)}.{' '}
-                {OVERSTAY_TEXT[selectedBooking.overstay.status]}
-              </Text>
-            </div>
-          ) : (
-            <Text tone="secondary">No overstay recorded for this booking.</Text>
-          )}
-
-          {overstayOwed(selectedBooking.overstay) && canWaive(me.roles) && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <WaiveOverstayForm
-                bookingId={selectedBooking.id}
-                amount={formatKobo(selectedBooking.overstay?.amountKobo ?? 0)}
-              />
-            </div>
-          )}
-        </section>
-      )}
-
       {/* Bookings Table View */}
       {filteredItems.length === 0 ? (
         <div className="pk-card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <Text variant="heading-md">No bookings found</Text>
-          <Text tone="secondary">
-            {typed
-              ? `No bookings match "${typed}". Try another search or clear the filter.`
-              : 'There are currently no bookings in this view.'}
-          </Text>
+          <Text tone="secondary">There are currently no bookings in this view.</Text>
         </div>
       ) : (
         <div className="pk-table-wrap">
@@ -317,19 +143,13 @@ export default async function BookingsPage({
             </thead>
             <tbody>
               {filteredItems.map((b) => {
-                const isSelected = selectedBooking?.id === b.id;
                 const owed = overstayOwed(b.overstay);
                 return (
-                  <tr
-                    key={b.id}
-                    style={{
-                      background: isSelected ? 'var(--pk-color-bg-subtle, #f8fafc)' : undefined,
-                    }}
-                  >
+                  <tr key={b.id}>
                     <td>
                       <Link
                         className="pk-link"
-                        href={`/bookings?code=${b.code}${currentTab !== 'all' ? `&tab=${currentTab}` : ''}`}
+                        href={`/bookings/${b.id}`}
                         style={{ fontFamily: 'monospace', fontWeight: 700 }}
                       >
                         {b.code}
@@ -389,9 +209,9 @@ export default async function BookingsPage({
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <Link
                         className={`pk-nav-link ${owed ? 'pk-nav-link--active' : ''}`}
-                        href={`/bookings?code=${b.code}${currentTab !== 'all' ? `&tab=${currentTab}` : ''}`}
+                        href={`/bookings/${b.id}`}
                       >
-                        {owed ? 'Waive / Details →' : 'Inspect →'}
+                        {owed ? 'Overstay owed →' : 'Open →'}
                       </Link>
                     </td>
                   </tr>

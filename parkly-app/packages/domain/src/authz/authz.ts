@@ -92,6 +92,11 @@ const RULES = {
     roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
   },
   'overstay:waive': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'] },
+  /** FR-ADM-002: show a driver's full phone or email to support, with a reason (audited). */
+  'booking:contact:reveal': {
+    scope: 'platform',
+    roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
   /** Daily payment reconciliation runs and exception items (doc 02 §2.7). */
   'reconciliation:read': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   'reconciliation:resolve': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },

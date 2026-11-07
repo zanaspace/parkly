@@ -22,7 +22,9 @@ import {
   type OperatorRow,
   type ConsentType,
   type LotKeyRow,
+  type BookingRow,
   type Store,
+  type SupportBookingRow,
   type UserRow,
   type VehicleRow,
   type VerificationRow,
@@ -137,6 +139,69 @@ export class MemoryStore implements Store {
     payoutRows: this.payoutRows,
   });
   readonly reports: Store['reports'] = this.reportsStore.reports;
+
+  /** FR-ADM-002: mirrors drizzle-support. */
+  readonly support: Store['support'] = {
+    search: async (filter, limit) => {
+      const paidFor = filter.paymentId
+        ? this.booking.paymentRows.find((p) => p.id === filter.paymentId)?.bookingId
+        : undefined;
+      const driverIds = filter.phoneHash
+        ? new Set(
+            [...this.userRows.values()]
+              .filter((u) => u.phoneHash && u.phoneHash.equals(filter.phoneHash as Buffer))
+              .map((u) => u.id),
+          )
+        : new Set<string>();
+      return this.booking.bookingRows
+        .filter(
+          (b) =>
+            (filter.code !== undefined && b.code === filter.code) ||
+            (filter.plateNorm !== undefined && b.plateNorm === filter.plateNorm) ||
+            driverIds.has(b.driverId) ||
+            (paidFor !== undefined && b.id === paidFor),
+        )
+        .sort((x, y) => y.startAt.getTime() - x.startAt.getTime())
+        .slice(0, limit)
+        .map((b) => this.supportRow(b));
+    },
+    find: async (bookingId) => {
+      const b = this.booking.bookingRows.find((r) => r.id === bookingId);
+      return b ? this.supportRow(b) : null;
+    },
+    history: async (bookingId) =>
+      this.booking.historyRows
+        .filter((h) => h.bookingId === bookingId)
+        .map((h) => ({
+          from: h.from,
+          to: h.to,
+          actor: h.actor,
+          reason: h.reason,
+          at: h.at ?? null,
+        })),
+  };
+
+  private supportRow(b: BookingRow): SupportBookingRow {
+    const lot = this.lotRows.get(b.lotId);
+    const op = lot ? this.operatorRows.get(lot.operatorId) : undefined;
+    const u = this.userRows.get(b.driverId);
+    return {
+      id: b.id,
+      code: b.code,
+      status: b.status,
+      lotName: lot?.name ?? 'Car park',
+      operatorName: op?.tradingName ?? 'Operator',
+      startAt: b.startAt,
+      endAt: b.endAt,
+      plateNorm: b.plateNorm,
+      totalKobo: b.totalKobo,
+      driverId: b.driverId,
+      driverFirstName: u?.firstName ?? null,
+      driverPhoneLast4: u?.phoneLast4 ?? null,
+      driverHasEmail: Boolean(u?.emailEnc),
+      createdAt: b.createdAt,
+    };
+  }
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {

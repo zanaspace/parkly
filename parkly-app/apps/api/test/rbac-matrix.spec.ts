@@ -312,6 +312,26 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/admin/support/search?q=PK-AAAAAA',
+    route: 'GET /v1/admin/support/search',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    // No such booking: allowed roles get past the permission check to a 404.
+    method: 'GET',
+    path: `/v1/admin/bookings/${TARGET_USER}/support`,
+    route: 'GET /v1/admin/bookings/{id}/support',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/bookings/${TARGET_USER}/reveal`,
+    route: 'POST /v1/admin/bookings/{id}/reveal',
+    body: { field: 'phone', reason: 'Driver called support' },
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/reconciliation/runs',
     route: 'GET /v1/admin/reconciliation/runs',
     expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),

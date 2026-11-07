@@ -642,6 +642,33 @@ export type AuditEntry = {
 
 export type AuditRow = AuditEntry & { id: string; createdAt: Date };
 
+/** A booking for support search (FR-ADM-002): masked driver fields only. */
+export type SupportBookingRow = {
+  id: string;
+  code: string;
+  status: BookingStatus;
+  lotName: string;
+  operatorName: string;
+  startAt: Date;
+  endAt: Date;
+  plateNorm: string | null;
+  totalKobo: number;
+  driverId: string;
+  driverFirstName: string | null;
+  driverPhoneLast4: string | null;
+  driverHasEmail: boolean;
+  createdAt: Date;
+};
+
+/** One booking status change, for the support timeline. */
+export type BookingHistoryRow = {
+  from: string | null;
+  to: string;
+  actor: string;
+  reason: string | null;
+  at: Date | null;
+};
+
 export type Store = {
   users: {
     find(id: string): Promise<UserRow | null>;
@@ -1387,6 +1414,20 @@ export type Store = {
   };
   settings: {
     get<T>(key: string): Promise<T | undefined>;
+  };
+  /** FR-ADM-002: support finds bookings and reads their history. */
+  support: {
+    /**
+     * Bookings matching any of the given keys (code, plate, the driver's phone
+     * blind index, or a payment id), newest first.
+     */
+    search(
+      filter: { code?: string; plateNorm?: string; phoneHash?: Buffer; paymentId?: string },
+      limit: number,
+    ): Promise<SupportBookingRow[]>;
+    find(bookingId: string): Promise<SupportBookingRow | null>;
+    /** Status changes, oldest first. */
+    history(bookingId: string): Promise<BookingHistoryRow[]>;
   };
   reports: {
     /** Operator earnings report across a Lagos date range with daily breakdown. */

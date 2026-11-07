@@ -13,3 +13,4 @@ export * from './booking/index.js';
 export * from './qr/index.js';
 export * from './checkin/index.js';
 export * from './reconciliation/index.js';
+export * from './support/index.js';

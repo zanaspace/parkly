@@ -1839,6 +1839,46 @@ export function storeContract(
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
       });
 
+      it('finds a booking for support by code, plate, phone or payment, with its history (FR-ADM-002)', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const phoneHash = Buffer.from(randomUUID().replace(/-/g, ''), 'hex');
+        await store.users.setContact(d.id, {
+          phoneHash,
+          emailHash: null,
+          phoneEnc: 'enc-phone',
+          emailEnc: null,
+        });
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+
+        const ids = async (filter: Parameters<typeof store.support.search>[0]) =>
+          (await store.support.search(filter, 20)).map((b) => b.id);
+        expect(await ids({ code: booking.code })).toEqual([booking.id]);
+        expect(await ids({ phoneHash })).toEqual([booking.id]);
+        expect(await ids({ paymentId: payment.id })).toEqual([booking.id]);
+        expect(await ids({ plateNorm: 'LND123AB' })).toContain(booking.id);
+        expect(await ids({ code: 'PK-ZZZZZZ' })).toEqual([]);
+        expect(await ids({})).toEqual([]);
+
+        expect(await store.support.find(booking.id)).toMatchObject({
+          id: booking.id,
+          code: booking.code,
+          status: 'CONFIRMED',
+          lotName: 'Hold lot',
+          operatorName: 'Hold',
+          plateNorm: 'LND123AB',
+          totalKobo: 110_000,
+          driverId: d.id,
+          driverHasEmail: false,
+        });
+        expect(await store.support.find(randomUUID())).toBeNull();
+        expect((await store.support.history(booking.id)).map((h) => [h.from, h.to])).toEqual([
+          [null, 'PENDING_PAYMENT'],
+          ['PENDING_PAYMENT', 'CONFIRMED'],
+        ]);
+      });
+
       it('finds a booking by code, cancels it with a refund, and tracks the refund to the end', async () => {
         const lot = await liveLot(1);
         const d = await driver();

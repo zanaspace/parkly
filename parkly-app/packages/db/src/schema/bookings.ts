@@ -131,6 +131,8 @@ export const bookings = pgTable(
     index('bookings_status_hold_idx').on(t.status, t.holdExpiresAt),
     index('bookings_status_start_idx').on(t.status, t.startAt),
     index('bookings_vehicle_idx').on(t.vehicleId),
+    // FR-ADM-002: support finds bookings by plate, newest first.
+    index('bookings_plate_start_idx').on(t.plateNormSnapshot, t.startAt.desc()),
     index('bookings_rate_plan_idx').on(t.ratePlanId),
     index('bookings_cancelled_by_idx').on(t.cancelledBy),
     index('bookings_lot_active_holds_idx')

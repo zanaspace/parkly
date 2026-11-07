@@ -248,3 +248,83 @@ export function world(overrides: Partial<AppDeps> = {}) {
     tokenFor,
   };
 }
+
+/** A LIVE lot with an approved permit, visit and hourly plan (₦500/h), open 24 h. */
+export async function addLiveLot(store: MemoryStore, capacity = 5) {
+  const ownerId = randomUUID();
+  store.seedUser(ownerId, { roles: [] });
+  const op = await store.operators.create({
+    legalName: 'Eko Parking Ltd',
+    tradingName: 'Eko Parking',
+    type: 'HOTEL',
+    cacNumberEnc: null,
+    tinEnc: null,
+    addressLine: null,
+    contactEmail: null,
+    contactPhoneEnc: null,
+    ownerUserId: ownerId,
+    commissionBps: 1200,
+  });
+  Object.assign(store.operatorRows.get(op.id) ?? {}, { status: 'ACTIVE', kybStatus: 'APPROVED' });
+  const lot = await store.lots.create({
+    operatorId: op.id,
+    type: 'HOTEL',
+    name: 'Eko Hotel Car Park',
+    slug: `eko-${randomUUID().slice(0, 8)}`,
+    description: null,
+    addressLine: 'VI',
+    area: null,
+    lga: null,
+    location: { lat: 6.43, lng: 3.42 },
+    entranceNotes: null,
+    capacityTotal: capacity + 5,
+    capacityBookable: capacity,
+    amenities: [],
+    vehicleTypes: ['CAR'],
+    createdBy: ownerId,
+  });
+  const reviewer = { reviewerId: ownerId, at: new Date('2026-10-10T10:00:00Z') };
+  const permit = await store.permits.create({
+    lotId: lot.id,
+    permitNumber: 'LASPA/1',
+    issuedAt: '2026-01-10',
+    expiresAt: '2027-01-09',
+    documentFileId: randomUUID(),
+    submittedBy: ownerId,
+  });
+  await store.permits.approve(permit.id, { ...reviewer, note: 'ok' });
+  const visit = await store.verifications.create({
+    lotId: lot.id,
+    inspectorUserId: ownerId,
+    inspectedAt: new Date('2026-10-09T10:00:00Z'),
+    capacityCounted: 10,
+    gps: null,
+    notes: null,
+    validUntil: '2027-10-09',
+    items: [{ item: 'LASPA_PERMIT', result: 'PASS', comment: null }],
+  });
+  await store.verifications.approve(visit.id, reviewer);
+  const plan = await store.ratePlans.submit({
+    lotId: lot.id,
+    product: 'HOURLY',
+    hourlyRateKobo: 50_000,
+    minMinutes: 60,
+    dailyCapKobo: null,
+    dailyRateKobo: null,
+    monthlyRateKobo: null,
+    submittedBy: ownerId,
+  });
+  await store.ratePlans.approve(plan.id, reviewer);
+  await store.lots.setOpeningHours(
+    lot.id,
+    [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      is24h: true,
+      opensAt: null,
+      closesAt: null,
+    })),
+  );
+  await store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
+  await store.lots.setStatus(op.id, lot.id, 'PENDING_VERIFICATION', 'LIVE', null);
+  return { lot, operatorId: op.id, ownerId };
+}

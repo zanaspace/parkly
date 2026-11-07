@@ -17,6 +17,7 @@ import { adminKybRoutes } from './modules/admin/kyb.js';
 import { adminLotRoutes } from './modules/admin/lots.js';
 import { adminReconciliationRoutes } from './modules/admin/reconciliation.js';
 import { adminRoutes } from './modules/admin/routes.js';
+import { adminSupportRoutes } from './modules/admin/support.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
 import { sendEmailHook } from './modules/hooks/send-email.js';
@@ -140,6 +141,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminKybRoutes(deps));
   app.route('/v1', adminLotRoutes(deps));
   app.route('/v1', adminReconciliationRoutes(deps));
+  app.route('/v1', adminSupportRoutes(deps));
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', operatorBookingRoutes(deps));
   app.route('/v1', reportRoutes(deps));

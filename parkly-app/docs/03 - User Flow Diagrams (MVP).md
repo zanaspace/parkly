@@ -661,7 +661,7 @@ Events: `lot_suspended` (prop `reason`, `bulk_refund`), `lot_reinstated`.
 
 | Step | Rule |
 |---|---|
-| X-07 Booking / payment detail | Shows the full payment timeline from the ledger |
+| X-07 Booking / payment detail | As built (S8 story 1): **Bookings** opens with one search box that answers as you type (booking code, phone, plate or payment reference) and says how it read the query. Each booking has its own page: status, amount, plate, overstay (with the waiver for ops and finance), the driver as first name and masked phone, a **Reveal** button for the full phone or email that asks for a reason (logged), and a timeline of every status change, payment, refund and gate event. Recent bookings by tab stay below the search |
 | Refund | Full or partial (in kobo, ≤ the refundable remainder). Reason code required. Free text optional. |
 | Limits | `ADMIN_SUPPORT` can refund ≤ ₦10,000 per booking. Above that needs `ADMIN_FINANCE`. Over ₦50,000/day per agent triggers a finance alert. (Config.) |
 | Execution | `POST /v1/admin/payments/:id/refunds` with an `Idempotency-Key`. Provider refund. Ledger reversal entries. Operator share clawed back per Paystack split refund rules. |

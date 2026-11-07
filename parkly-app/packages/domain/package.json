@@ -68,6 +68,10 @@
     "./reconciliation": {
       "types": "./dist/reconciliation/index.d.ts",
       "default": "./dist/reconciliation/index.js"
+    },
+    "./support": {
+      "types": "./dist/support/index.d.ts",
+      "default": "./dist/support/index.js"
     }
   },
   "scripts": {

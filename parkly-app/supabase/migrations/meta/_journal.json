@@ -148,6 +148,13 @@
       "when": 1794001273676,
       "tag": "20261106211220_reconciliation_ledger_results",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794084486678,
+      "tag": "20261107204806_support_search_plate_index",
+      "breakpoints": true
     }
   ]
 }

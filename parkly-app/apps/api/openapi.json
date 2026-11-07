@@ -10540,6 +10540,440 @@
         }
       }
     },
+    "/v1/admin/support/search": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 100
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching bookings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "CODE",
+                        "REFERENCE",
+                        "PHONE",
+                        "PLATE",
+                        "INVALID"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_PAYMENT",
+                              "CONFIRMED",
+                              "CHECKED_IN",
+                              "COMPLETED",
+                              "CANCELLED",
+                              "EXPIRED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "operatorName": {
+                            "type": "string"
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plate": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "totalKobo": {
+                            "type": "integer"
+                          },
+                          "driver": {
+                            "type": "object",
+                            "properties": {
+                              "firstName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "phoneMasked": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "hasEmail": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "firstName",
+                              "phoneMasked",
+                              "hasEmail"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "status",
+                          "lotName",
+                          "operatorName",
+                          "startAt",
+                          "endAt",
+                          "plate",
+                          "totalKobo",
+                          "driver",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/support": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking with its timeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_PAYMENT",
+                            "CONFIRMED",
+                            "CHECKED_IN",
+                            "COMPLETED",
+                            "CANCELLED",
+                            "EXPIRED",
+                            "NO_SHOW"
+                          ]
+                        },
+                        "lotName": {
+                          "type": "string"
+                        },
+                        "operatorName": {
+                          "type": "string"
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "plate": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalKobo": {
+                          "type": "integer"
+                        },
+                        "driver": {
+                          "type": "object",
+                          "properties": {
+                            "firstName": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "phoneMasked": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "hasEmail": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "phoneMasked",
+                            "hasEmail"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "lotName",
+                        "operatorName",
+                        "startAt",
+                        "endAt",
+                        "plate",
+                        "totalKobo",
+                        "driver",
+                        "createdAt"
+                      ]
+                    },
+                    "overstay": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DUE",
+                            "PAID",
+                            "UNPAID",
+                            "WAIVED"
+                          ]
+                        },
+                        "minutes": {
+                          "type": "integer"
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "minutes",
+                        "amountKobo"
+                      ]
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "STATUS",
+                              "PAYMENT",
+                              "REFUND",
+                              "CHECK_IN",
+                              "CHECK_OUT",
+                              "OVERSTAY"
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "amountKobo": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "detail": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "type",
+                          "label",
+                          "amountKobo",
+                          "detail"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "booking",
+                    "overstay",
+                    "timeline"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/reveal": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "email"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "field",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The driver's phone or email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "enum": [
+                        "phone",
+                        "email"
+                      ]
+                    },
+                    "value": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "value"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operators/{operatorId}/members": {
       "get": {
         "tags": [

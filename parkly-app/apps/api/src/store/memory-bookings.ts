@@ -31,6 +31,8 @@ type History = {
   to: string;
   actor: string;
   reason: string | null;
+  /** When it changed (the support timeline orders by this). */
+  at?: Date;
 };
 type Refund = {
   id: string;
@@ -180,6 +182,7 @@ export class MemoryBookings {
         to: plan.booking.to,
         actor: 'SYSTEM',
         reason: plan.booking.reason,
+        at,
       });
     }
     if (plan.payment) Object.assign(p, plan.payment);
@@ -247,6 +250,7 @@ export class MemoryBookings {
         to: 'PENDING_PAYMENT',
         actor: input.source === 'ADMIN' ? 'ADMIN' : 'DRIVER',
         reason: null,
+        at,
       });
       const row = {
         ...payment,
@@ -311,7 +315,7 @@ export class MemoryBookings {
       ).length;
     },
 
-    releaseHold: async (id, reason) => {
+    releaseHold: async (id, reason, at) => {
       const b = this.bookingRows.find((r) => r.id === id);
       if (!b || b.status !== 'PENDING_PAYMENT') return;
       this.move(b, -1, 0);
@@ -323,6 +327,7 @@ export class MemoryBookings {
         to: 'EXPIRED',
         actor: 'SYSTEM',
         reason,
+        at,
       });
       for (const p of this.paymentRows)
         if (p.bookingId === id && p.status === 'INITIATED') {
@@ -494,6 +499,7 @@ export class MemoryBookings {
         to: 'CANCELLED',
         actor,
         reason,
+        at,
       });
 
       const created: { id: string; paymentId: string; amountKobo: number }[] = [];
