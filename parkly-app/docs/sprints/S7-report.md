@@ -147,7 +147,15 @@ Each payout is a "settlement". Until now we recorded the money coming in, but no
 ## Task 5: revenue report and monthly statements, in plain words
 
 **The API** (owners and managers; another operator gets 404):
-- `GET /v1/operators/{id}/reports/earnings`: daily rows per operator, filterable by car park. It shows what drivers paid (bookings, extensions and overstay together), commission, service fee, the operator's share, refunds and settlements. It is built from the `payments`, `refunds` and `settlements` tables, not from the ledger. Overstay isn't shown on its own line.
+- `GET /v1/operators/{id}/reports/earnings`: daily rows per operator, filterable by car park. It shows what drivers paid less refunds, commission, service fee, the operator's share, extension and overstay paid, refunds, and settled payouts.
+
+**Review fix** (branch `fix/s7-revenue-report`). As first built, the report summed raw payments and got four things wrong:
+- the service fee was taken off every payment on a booking;
+- a refund counted only on its payment's day;
+- refunds came off the operator's share alone;
+- any refunded payment dropped out completely.
+
+It also counted pending and failed payouts as settled. It now reads the ledger, so its totals equal the ledger's sums.
 - `GET /v1/operators/{id}/reports/export`: the same report as a watermarked CSV, audited as `operator.earnings_exported`.
 - `GET /v1/operators/{id}/reports/statements/{month}`: a monthly statement as JSON, or as a PDF with `?format=pdf`. PDF downloads are audited.
 
