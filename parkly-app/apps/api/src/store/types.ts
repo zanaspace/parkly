@@ -1,4 +1,8 @@
-import type { MonthlyStatement, OperatorEarningsReport } from '@parkly/contracts';
+import type {
+  MonthlyStatement,
+  OperatorEarningsReport,
+  PlatformEarningsReport,
+} from '@parkly/contracts';
 import type { RoleGrant } from '@parkly/domain/authz';
 import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
 import type { Bucket, VerifiedCharge } from '../providers/index.js';
@@ -1358,6 +1362,8 @@ export type Store = {
     ): Promise<OperatorRow>;
     find(id: string): Promise<OperatorRow | null>;
     update(id: string, patch: Partial<OperatorDetails>): Promise<OperatorRow>;
+    /** New commission rate; bookings already made keep theirs. Null when there's no such operator. */
+    setCommission(id: string, commissionBps: number): Promise<OperatorRow | null>;
     /** KYB → SUBMITTED (callers check the gaps first). */
     submitKyb(id: string, at: Date): Promise<OperatorRow>;
     /** KYB review queue: oldest submission first. */
@@ -1400,6 +1406,8 @@ export type Store = {
     operatorsForMonthlyStatement(
       month: string,
     ): Promise<{ id: string; name: string; contactEmail: string }[]>;
+    /** Admin: Parkly's revenue across every operator, from the ledger, per Lagos day and operator. */
+    platformEarnings(filter: { from: string; to: string }): Promise<PlatformEarningsReport>;
   };
 };
 

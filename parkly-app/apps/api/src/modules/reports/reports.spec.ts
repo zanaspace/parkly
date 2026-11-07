@@ -231,3 +231,41 @@ describe('reports endpoints (FR-OPS-003, FR-OPS-006)', () => {
     expect(resOther.status).toBe(404);
   });
 });
+
+describe('platform revenue for admins (FR-ADM-007)', () => {
+  it('lets finance and super admins read it, and no one else', async () => {
+    const { w, asOwner } = setup();
+    const finance = {
+      as: w.user([{ role: 'ADMIN_FINANCE', operatorId: null }]),
+      aal: 'aal2' as const,
+    };
+    const support = {
+      as: w.user([{ role: 'ADMIN_SUPPORT', operatorId: null }]),
+      aal: 'aal2' as const,
+    };
+    const path = '/v1/admin/reports/platform-earnings?from=2026-11-01&to=2026-11-07';
+
+    const ok = await w.call('GET', path, finance);
+    expect(ok.status).toBe(200);
+    expect(ok.body?.daily).toHaveLength(7);
+    expect(ok.body?.totals).toMatchObject({ netRevenueKobo: 0, paymentFeesKobo: 0 });
+
+    expect((await w.call('GET', path, support)).status).toBe(403);
+    expect((await w.call('GET', path, asOwner)).status).toBe(403);
+  });
+
+  it('refuses a range over 93 days', async () => {
+    const { w } = setup();
+    const finance = {
+      as: w.user([{ role: 'ADMIN_FINANCE', operatorId: null }]),
+      aal: 'aal2' as const,
+    };
+    const res = await w.call(
+      'GET',
+      '/v1/admin/reports/platform-earnings?from=2026-01-01&to=2026-11-07',
+      finance,
+    );
+    expect(res.status).toBe(400);
+    expect(res.body?.code).toBe('REPORT_RANGE_INVALID');
+  });
+});

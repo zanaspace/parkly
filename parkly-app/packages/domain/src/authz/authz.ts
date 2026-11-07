@@ -95,6 +95,10 @@ const RULES = {
   /** Daily payment reconciliation runs and exception items (doc 02 §2.7). */
   'reconciliation:read': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   'reconciliation:resolve': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
+  /** Parkly's own revenue across operators: commission, service fees, Paystack fees. */
+  'platform:revenue:read': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
+  /** Change an operator's commission rate (applies to new bookings only). */
+  'operator:commission:set': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;
 
 export type Action = keyof typeof RULES;

@@ -2020,6 +2020,29 @@ export function storeContract(
           refundKobo: 60_000,
           closingBalanceKobo: 88_000,
         });
+
+        // A new rate applies to the operator; this booking keeps the 12% it was made at.
+        expect((await store.operators.setCommission(lot.operatorId, 1000))?.commissionBps).toBe(
+          1000,
+        );
+        expect(await store.operators.setCommission(randomUUID(), 1000)).toBeNull();
+        expect((await store.bookings.find(booking.id))?.commissionBps).toBe(1200);
+
+        // Admin view of the same money: Parkly's side, less Paystack's ₦15 per payment.
+        const platform = await store.reports.platformEarnings({
+          from: '2027-01-04',
+          to: '2027-01-05',
+        });
+        expect(platform.operators.find((o) => o.operatorId === lot.operatorId)).toMatchObject({
+          operatorName: 'Hold',
+          commissionBps: 1000,
+          grossBookingKobo: 100_000,
+          commissionKobo: 12_000,
+          serviceFeeKobo: 0,
+          netOperatorKobo: 88_000,
+          paymentFeesKobo: 3_000,
+          netRevenueKobo: 9_000,
+        });
       });
 
       it('extends a paid booking: holds, confirms on payment, releases, and checks the payment', async () => {

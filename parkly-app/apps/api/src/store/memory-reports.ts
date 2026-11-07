@@ -1,10 +1,13 @@
-import type { EarningsLedgerLine } from '@parkly/domain/operator';
+import type { EarningsLedgerLine, PlatformLedgerLine } from '@parkly/domain/operator';
 import {
   buildEarningsReport,
+  buildPlatformReport,
   buildStatement,
   earningsAccounts,
   lagosWindow,
   monthWindow,
+  OPERATOR_PAYABLE_PREFIX,
+  PLATFORM_ACCOUNTS,
   type PayoutRow,
 } from './earnings-report.js';
 import type { MemoryBookings } from './memory-bookings.js';
@@ -111,6 +114,40 @@ export class MemoryReports {
         payouts: this.payouts(operatorId, startUtc, endUtc),
         generatedAt: new Date(),
       });
+    },
+
+    platformEarnings: async ({ from, to }) => {
+      const { startUtc, endUtc } = lagosWindow(from, to);
+      const payments = new Map(this.deps.bookings.paymentRows.map((p) => [p.id, p]));
+      const bookingLots = new Map(this.deps.bookings.bookingRows.map((b) => [b.id, b.lotId]));
+      const lines: PlatformLedgerLine[] = [];
+      for (const l of this.deps.bookings.ledgerRows) {
+        const p = payments.get(l.paymentId);
+        if (!p) continue;
+        if (
+          !PLATFORM_ACCOUNTS.includes(l.account as (typeof PLATFORM_ACCOUNTS)[number]) &&
+          !l.account.startsWith(OPERATOR_PAYABLE_PREFIX)
+        )
+          continue;
+        if (l.createdAt < startUtc || l.createdAt >= endUtc) continue;
+        lines.push({
+          account: l.account,
+          direction: l.direction,
+          amountKobo: l.amountKobo,
+          postedAt: l.createdAt,
+          paymentKind: p.kind ?? 'BOOKING',
+          bookingId: p.bookingId ?? null,
+          lotId: p.bookingId ? (bookingLots.get(p.bookingId) ?? null) : null,
+          operatorId: p.operatorId,
+        });
+      }
+      const operators = new Map(
+        [...this.deps.operatorRows.values()].map((o) => [
+          o.id,
+          { name: o.tradingName || o.legalName, commissionBps: o.commissionBps },
+        ]),
+      );
+      return buildPlatformReport({ from, to, lines, operators });
     },
 
     operatorsForMonthlyStatement: async (month) => {

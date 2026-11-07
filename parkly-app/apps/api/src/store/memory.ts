@@ -923,6 +923,12 @@ export class MemoryStore implements Store {
       Object.assign(payout, { status: 'ACTIVE', pendingAccountNumberEnc: null });
       return { ...row };
     },
+    setCommission: async (id, commissionBps) => {
+      const row = this.operatorRows.get(id);
+      if (!row) return null;
+      row.commissionBps = commissionBps;
+      return { ...row };
+    },
     rejectKyb: async (id, { reason }) => {
       const row = this.operatorRows.get(id);
       if (!row || row.kybStatus !== 'SUBMITTED') throw new StaleVersionError();

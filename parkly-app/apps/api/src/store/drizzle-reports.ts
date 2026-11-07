@@ -1,13 +1,16 @@
 import type { Db } from '@parkly/db';
 import { schema } from '@parkly/db';
 import type { EarningsLedgerLine } from '@parkly/domain/operator';
-import { and, eq, gte, inArray, lt, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, like, lt, or, type SQL } from 'drizzle-orm';
 import {
   buildEarningsReport,
+  buildPlatformReport,
   buildStatement,
   earningsAccounts,
   lagosWindow,
   monthWindow,
+  OPERATOR_PAYABLE_PREFIX,
+  PLATFORM_ACCOUNTS,
   type PayoutRow,
 } from './earnings-report.js';
 import type { Store } from './types.js';
@@ -122,6 +125,59 @@ export function drizzleReports(db: Db): Store['reports'] {
         lotNames: new Map(lotRows.map((l) => [l.id, l.name])),
         payouts: rows,
         generatedAt: new Date(),
+      });
+    },
+
+    async platformEarnings({ from, to }) {
+      const { startUtc, endUtc } = lagosWindow(from, to);
+      const lines = await db
+        .select({
+          account: ledgerAccounts.code,
+          direction: ledgerEntries.direction,
+          amountKobo: ledgerEntries.amountKobo,
+          postedAt: ledgerEntries.createdAt,
+          paymentKind: payments.kind,
+          bookingId: payments.bookingId,
+          lotId: bookings.lotId,
+          operatorId: payments.operatorId,
+        })
+        .from(ledgerEntries)
+        .innerJoin(ledgerAccounts, eq(ledgerEntries.accountId, ledgerAccounts.id))
+        .innerJoin(payments, eq(ledgerEntries.paymentId, payments.id))
+        .leftJoin(bookings, eq(payments.bookingId, bookings.id))
+        .where(
+          and(
+            or(
+              inArray(ledgerAccounts.code, PLATFORM_ACCOUNTS),
+              like(ledgerAccounts.code, `${OPERATOR_PAYABLE_PREFIX}%`),
+            ),
+            gte(ledgerEntries.createdAt, startUtc),
+            lt(ledgerEntries.createdAt, endUtc),
+          ),
+        );
+      const ids = [...new Set(lines.map((l) => l.operatorId))];
+      const ops =
+        ids.length === 0
+          ? []
+          : await db
+              .select({
+                id: operators.id,
+                legalName: operators.legalName,
+                tradingName: operators.tradingName,
+                commissionBps: operators.commissionBps,
+              })
+              .from(operators)
+              .where(inArray(operators.id, ids));
+      return buildPlatformReport({
+        from,
+        to,
+        lines,
+        operators: new Map(
+          ops.map((o) => [
+            o.id,
+            { name: o.tradingName || o.legalName, commissionBps: o.commissionBps },
+          ]),
+        ),
       });
     },
 

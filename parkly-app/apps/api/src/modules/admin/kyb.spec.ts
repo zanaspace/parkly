@@ -223,3 +223,61 @@ describe('who may review KYB', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('changing an operator’s commission (doc 00 §3.9)', () => {
+  it('lets finance set 10–15% with a reason, audited; new bookings use it', async () => {
+    const ctx = await submittedOperator();
+    const finance = ctx.w.user([{ role: 'ADMIN_FINANCE', operatorId: null }], 'Fin');
+    const path = `/v1/admin/operators/${ctx.operatorId}/commission`;
+
+    const res = await ctx.w.call('PUT', path, {
+      ...ctx.as(finance),
+      body: { commissionBps: 1000, reason: 'Pilot partner rate, agreed 6 Nov' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body?.commissionBps).toBe(1000);
+    expect((await ctx.w.store.operators.find(ctx.operatorId))?.commissionBps).toBe(1000);
+    const rates = await ctx.w.call('GET', '/v1/admin/commission-rates', ctx.as(finance));
+    expect(rates.body?.items).toEqual([
+      {
+        operatorId: ctx.operatorId,
+        tradingName: 'Eko Parking',
+        legalName: 'Eko Parking Services Ltd',
+        kybStatus: 'SUBMITTED',
+        commissionBps: 1000,
+      },
+    ]);
+    expect(ctx.w.store.auditRows.at(-1)).toMatchObject({
+      action: 'operator.commission_changed',
+      entityId: ctx.operatorId,
+      before: { commissionBps: 1200 },
+      after: { commissionBps: 1000, reason: 'Pilot partner rate, agreed 6 Nov' },
+    });
+  });
+
+  it('refuses rates outside 10–15%, the same rate, no reason, and other roles', async () => {
+    const ctx = await submittedOperator();
+    const finance = ctx.as(ctx.w.user([{ role: 'ADMIN_FINANCE', operatorId: null }]));
+    const path = `/v1/admin/operators/${ctx.operatorId}/commission`;
+    const put = (as: { as: string; aal: 'aal2' }, body: object) =>
+      ctx.w.call('PUT', path, { ...as, body });
+
+    expect((await put(finance, { commissionBps: 999, reason: 'too low rate' })).status).toBe(400);
+    expect((await put(finance, { commissionBps: 1501, reason: 'too high rate' })).status).toBe(400);
+    expect((await put(finance, { commissionBps: 1100, reason: 'no' })).status).toBe(400);
+    expect((await put(finance, { commissionBps: 1200, reason: 'same as now' })).body?.code).toBe(
+      'VALIDATION_FAILED',
+    );
+    expect((await put(ctx.as(ctx.ops), { commissionBps: 1100, reason: 'ops cannot' })).status).toBe(
+      403,
+    );
+    expect(
+      (await put(ctx.as(ctx.owner), { commissionBps: 1100, reason: 'owner cannot' })).status,
+    ).toBe(403);
+    const missing = await ctx.w.call('PUT', `/v1/admin/operators/${randomUUID()}/commission`, {
+      ...finance,
+      body: { commissionBps: 1100, reason: 'nobody there' },
+    });
+    expect(missing.status).toBe(404);
+  });
+});

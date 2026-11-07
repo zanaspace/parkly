@@ -45,3 +45,15 @@ describe('Paystack split (doc 01 §5.2, ADR 0004)', () => {
     );
   });
 });
+
+describe('commission rates an admin may set (doc 00 §3.9)', () => {
+  it('allows whole basis points from 10% to 15%', async () => {
+    const { isAllowedCommission } = await import('./split.js');
+    expect(isAllowedCommission(1000)).toBe(true);
+    expect(isAllowedCommission(1250)).toBe(true);
+    expect(isAllowedCommission(1500)).toBe(true);
+    expect(isAllowedCommission(999)).toBe(false);
+    expect(isAllowedCommission(1501)).toBe(false);
+    expect(isAllowedCommission(1250.5)).toBe(false);
+  });
+});

@@ -37,3 +37,27 @@ export const SignedUrlSchema = z.object({ url: z.url(), expiresInSec: z.number()
 export type AdminOperatorSummary = z.infer<typeof AdminOperatorSummarySchema>;
 export type AdminOperatorDetail = z.infer<typeof AdminOperatorDetailSchema>;
 export type KybReviewRequest = z.infer<typeof KybReviewRequestSchema>;
+
+/**
+ * Change an operator's commission (admin finance or super admin). 10–15% in
+ * basis points; applies to bookings made from now on. The reason is audited.
+ */
+export const SetCommissionRequestSchema = z.object({
+  commissionBps: z.number().int().min(1_000).max(1_500),
+  reason: z.string().trim().min(5).max(500),
+});
+export type SetCommissionRequest = z.infer<typeof SetCommissionRequestSchema>;
+
+/** Every operator's current rate, for the finance view (no personal data). */
+export const CommissionRateListSchema = z.object({
+  items: z.array(
+    z.object({
+      operatorId: z.uuid(),
+      tradingName: z.string(),
+      legalName: z.string(),
+      kybStatus: KybStatusSchema,
+      commissionBps: z.number().int(),
+    }),
+  ),
+});
+export type CommissionRateList = z.infer<typeof CommissionRateListSchema>;

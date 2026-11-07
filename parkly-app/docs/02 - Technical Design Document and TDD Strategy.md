@@ -600,6 +600,9 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET | `/admin/payments/:id` · POST `/admin/payments/:id/refunds` | FIN (SUP can request) | ✅ | four-eyes above threshold |
 | POST | `/admin/refunds/:id/approve` | FIN | ✅ | approver ≠ requester |
 | GET | `/admin/reconciliation/runs` · `/runs/:id/items` · POST `/items/:id/resolve` | FIN | ✅ | |
+| GET | `/admin/reports/platform-earnings` | FIN, SA | — | `from,to` (≤ 93 days) → Parkly revenue from the ledger: commission, service fees, Paystack fees (`PAYMENT_FEES_EXPENSE`), net revenue, plus driver payments, operator share and refunds; per Lagos day and per operator (with the operator's current rate). Permission `platform:revenue:read` | |
+| GET | `/admin/commission-rates` | FIN, SA | — | Every operator's current rate (trading and legal name, KYB status, `commissionBps`); no personal data | |
+| PUT | `/admin/operators/:operatorId/commission` | FIN, SA | — | `{ commissionBps (1000–1500), reason (5–500) }` → operator. Applies to bookings made from then on (each booking keeps the rate it was made at). Same rate → 400. Audited `operator.commission_changed` with before, after and reason. The Paystack subaccount's `percentage_charge` isn't updated: every payment sends its own `transaction_charge`, which Paystack uses instead | |
 | GET/PATCH | `/admin/incidents` · `/admin/incidents/:id` | SUP, OPS | — | |
 | GET/PATCH | `/admin/claims/...` | OPS, FIN | ✅ | flag `claims_enabled` |
 | GET/PUT | `/admin/settings/:key` · `/admin/feature-flags/:key` | SA | ✅ | audited |
