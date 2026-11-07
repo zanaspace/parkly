@@ -5,7 +5,7 @@ import { FinanceTabs } from '../../../../components/finance-tabs';
 import { apiFetch } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
 import { publicEnv } from '../../../../lib/env';
-import { filterRates, readQuery } from '../../../../lib/finance/rates';
+import { readQuery } from '../../../../lib/finance/rates';
 
 export const metadata = { title: 'Commission rates · Parkly Admin' };
 
@@ -52,11 +52,7 @@ export default async function CommissionRatesPage({
       ) : (
         <>
           <FinanceTabs active="rates" />
-          <CommissionRates
-            rates={all ? filterRates(all, query) : null}
-            total={all?.length ?? 0}
-            query={query}
-          />
+          <CommissionRates rates={all} query={query} />
         </>
       )}
     </main>
