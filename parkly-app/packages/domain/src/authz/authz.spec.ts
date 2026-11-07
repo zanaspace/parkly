@@ -68,7 +68,8 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
   });
 
   it('lets support, ops and finance reveal a driver contact, not compliance or operators', () => {
-    for (const a of [support, ops, finance]) expect(can(a, 'booking:contact:reveal', {})).toBe(true);
+    for (const a of [support, ops, finance])
+      expect(can(a, 'booking:contact:reveal', {})).toBe(true);
     expect(can(compliance, 'booking:contact:reveal', {})).toBe(false);
     expect(can(ownerA, 'booking:contact:reveal', {})).toBe(false);
     expect(can({ ...support, aal: 'aal1' }, 'booking:contact:reveal', {})).toBe(false);
