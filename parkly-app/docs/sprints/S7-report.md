@@ -1,10 +1,11 @@
 # Sprint 7 — Operator dashboard, ledger, settlement and reconciliation: report
 
-- **Status:** **In progress.** Task 1 (live occupancy) and the occupancy drift fix (gap review G-9) are merged. Task 2 (operator bookings list and CSV export) and task 3 (settlement import) are built (branches `feat/s7-operator-bookings`, `feat/s7-settlements`). Before S7 work started, all auth email moved to Resend in the Parkly design (ADR 0022). Tasks 4 to 7 are open. Staging still doesn't exist, so the exit criteria can't be met yet.
-- **Updated:** 2026-11-06
+- **Status:** **Code complete.** Tasks 1 to 6 and the occupancy drift fix (G-9) are merged on `main`. Still open: P-9 (late bank transfers), task 7 (pen-test vendor, owner), and the operator portal's finance pages, which the revenue API was built for but nothing in the portal shows yet. Staging still doesn't exist, so the exit criterion can't be met.
+- **Updated:** 2026-11-07
 - **Entry check:**
   - S6 is code complete: every Wave 3 item of the [gap review](S0-S6-gap-review.md) is merged (S6 report, "Still open").
   - The gap review asked S7 to also take G-9 (occupancy drift) and P-9 (late bank transfers). G-9 is done; P-9 is open.
+- **Built alongside S7:** flexible arrival, ADR 0023 stages 1 and 2 (#80, #86) and ADR 0024 "Park now" holds (#84, #85). See [Flexible arrival](#flexible-arrival-built-alongside-s7).
 
 ## Goal (doc 20)
 
@@ -15,14 +16,14 @@ Operators trust the numbers: live occupancy, bookings, revenue and settlements t
 | # | Task | Status |
 |---|---|---|
 | 1 | Occupancy read model (expected, in, available); portal live dashboard polling every 15 s | **Done** (PRs #70, #73) |
-| 2 | Bookings list with filters + CSV export (owner/manager; exports audited, watermarked with the user id) | **Done** (branch `feat/s7-operator-bookings`). The admin list shipped earlier in #70. |
-| 3 | Settlement ingestion from Paystack → `settlements` table → ledger | **Done** (branch `feat/s7-settlements`); Paystack's settlement fields still to confirm against the first live payout |
-| 4 | Daily reconciliation job (07:00 WAT, chunked per operator) | Open |
-| 5 | Revenue report per operator/lot/day; monthly statement PDF (P1) | Open |
-| 6 | Admin finance views | Open |
+| 2 | Bookings list with filters + CSV export (owner/manager; exports audited, watermarked with the user id) | **Done** (#74). The admin list shipped earlier in #70. |
+| 3 | Settlement ingestion from Paystack → `settlements` table → ledger | **Done** (#77); Paystack's settlement fields still to confirm against the first live payout |
+| 4 | Daily reconciliation job (07:00 WAT): provider vs payments vs ledger vs settlements | **Done** (#81, review fixes #87, #88). Runs as one paged job, not per operator through `pgmq`; see task 4 below |
+| 5 | Revenue report per operator/lot/day; monthly statement PDF (P1) | **Done** in the API (#82). **No portal screen yet**: see "Operator finance pages" under Still open |
+| 6 | Admin finance views | **Done** (#83) |
 | 7 | Book the pen-test vendor for S10 | Open (owner) |
 | G-9 | Occupancy drift (from the gap review) | **Done** |
-| P-9 | Late bank transfers and `NEEDS_REVIEW` charges (from the gap review) | Open |
+| P-9 | Late bank transfers and `NEEDS_REVIEW` charges (from the gap review) | Open. Money landing after the hold is already refunded by `settle-payments`; the gap-review item hasn't been checked and closed |
 
 ## Before S7: every email goes through Resend (ADR 0022)
 
@@ -125,6 +126,60 @@ Each payout is a "settlement". Until now we recorded the money coming in, but no
 
 **What's still unconfirmed.** Paystack's docs block automated reading, and **test mode never pays out**, so the real settlement list is always empty there. We confirmed the endpoint and its filters work with the test key, and recorded that empty response as a test fixture. The settlement fields themselves (`effective_amount`, `total_amount`, `total_fees`, `settlement_date`, `status`, `subaccount`) follow Paystack's documented shape, but **must be checked against the first live payout**. The strict reading means a mismatch shows up as NEEDS_REVIEW rows and a warning, not as wrong ledger entries.
 
+## Task 4: daily reconciliation, in plain words
+
+**What it does.** Every morning at 07:00 Lagos (`reconcile-payments`, `pg_cron` at 06:00 UTC) it checks the day before from four sides:
+- **Paystack against our payments.** It reads every page of Paystack's transactions and matches each one to our payment by reference. A record missing on one side is looked up on the other before it's flagged, so a checkout that crosses midnight isn't flagged twice.
+- **Payments against the ledger.** Every settled payment must have a journal that took in exactly its amount from Paystack.
+- **Held payouts.** Settlements still marked NEEDS_REVIEW (task 3) are listed until someone sorts them.
+
+**What it finds.** Each exception is one item on the run: `MISSING_INTERNAL`, `MISSING_PROVIDER`, `AMOUNT_MISMATCH`, `STATUS_MISMATCH`, `LEDGER_MISSING`, `LEDGER_MISMATCH`, `SETTLEMENT_REVIEW`.
+- **Charges we never recorded are fixed automatically** (`AUTO_FIXED`). They go through the normal `verifyAndSettle` path, so the receipt, the notice and any late-money refund all happen as usual.
+- **Re-runs are safe.** A run and its items save in one transaction. A re-run replaces the open items and keeps the resolved ones.
+- **Finance gets an email** when a run has exceptions, if `FINANCE_ALERT_EMAIL` is set. A failed email never fails the run.
+
+**Resolving.** Admins resolve an item with a note (`/v1/admin/reconciliation/...`). Each resolution is audited. Resolving an item twice, or losing a race to resolve it, returns 409.
+
+**Different from doc 20.** Doc 20 planned one job per operator through a `pgmq` queue. Paystack lists transactions per account, not per operator, so the job reads one paged list instead. At pilot volume that easily finishes inside the function time limit.
+
+**Not yet.** The check that the Paystack clearing balance equals what hasn't been paid out yet. It waits until real payout timing is known (doc 02).
+
+## Task 5: revenue report and monthly statements, in plain words
+
+**The API** (owners and managers; another operator gets 404):
+- `GET /v1/operators/{id}/reports/earnings`: daily rows per operator, filterable by car park. It shows what drivers paid less refunds, commission, service fee, the operator's share, extension and overstay paid, refunds, and settled payouts.
+
+**Review fix** (branch `fix/s7-revenue-report`). As first built, the report summed raw payments and got four things wrong:
+- the service fee was taken off every payment on a booking;
+- a refund counted only on its payment's day;
+- refunds came off the operator's share alone;
+- any refunded payment dropped out completely.
+
+It also counted pending and failed payouts as settled. It now reads the ledger, so its totals equal the ledger's sums.
+- `GET /v1/operators/{id}/reports/export`: the same report as a watermarked CSV, audited as `operator.earnings_exported`.
+- `GET /v1/operators/{id}/reports/statements/{month}`: a monthly statement as JSON, or as a PDF with `?format=pdf`. PDF downloads are audited.
+
+**The job.** `monthly-statements` runs on the 1st of each month at 07:00 Lagos and emails each operator owner last month's statement PDF.
+
+**Gap.** Nothing in the operator portal calls these endpoints yet. Operators only get the emailed PDF. See "Operator finance pages" under Still open.
+
+## Task 6: admin finance views, in plain words
+
+The admin console has a **Finance** page with the reconciliation runs, their exception counts and finance totals. Each run opens to its items, and an admin can resolve an item with a note there. The admin home shows a finance summary.
+
+## Flexible arrival (built alongside S7)
+
+- **ADR 0023, stage 1** (#80): drivers who come too early are told when check-in opens, instead of being refused.
+- **ADR 0023, stage 2** (#80, #86): when there is space, an early driver can pay to start now, on mobile and on the web.
+- **ADR 0024, "Park now"** (#84, #85):
+  - **Holds.** The driver prepays a stay and the space is held at once. The clock starts at check-in.
+  - **Holding fee.** The first 60 minutes held are free. After that, 25% of the hourly rate per started 15 minutes, at least ₦150 per block.
+  - **Limits.** A hold is released as a no-show after 3 hours. Each car park caps holds at 30% of its spaces by default (`HOLD_CAP_REACHED`).
+  - **Check-in.** Park-now bookings skip the 15-minute grid check and can check in straight away.
+  - **Tab label.** My bookings calls the tab "Active" once the car is checked in.
+
+**To confirm.** The holding fee is worked out at check-in and shown as due at checkout, along with any overstay. Before the pilot, check that the checkout payment actually collects it, and that it reaches the ledger and the revenue report.
+
 ## G-9: occupancy no longer drifts, in plain words
 
 **The problem.** A car whose check-out was never scanned counted as "in" forever, and the walk-in count never went back to zero. Over days, "free now" would get worse and worse.
@@ -181,17 +236,16 @@ Each payout is a "settlement". Until now we recorded the money coming in, but no
 
 | Criterion | State |
 |---|---|
-| 7 days of staging test transactions reconcile with zero unexplained mismatches | **Not met.** Reconciliation isn't built, and staging doesn't exist. |
+| 7 days of staging test transactions reconcile with zero unexplained mismatches | **Not met.** Reconciliation is built and runs on dev, but staging doesn't exist. |
 
 ## Still open
 
 ### S7 tasks
 
-- 3: settlement ingestion.
-- 4: reconciliation.
-- 5: the revenue report.
-- 6: admin finance views.
-- P-9: late bank transfers.
+- **P-9: late bank transfers.** Check the gap-review scenarios against `settle-payments` and reconciliation, then close the item or build what's missing.
+- **Operator finance pages (portal).** Scheduled next, before S8 (`product doc/nextsteps.md` §5, `product doc/revenue.md`). The portal home shows no money, and operators can't download their statement. The API from task 5 is ready, so this is portal work only.
+- **Park-now holding fee at checkout.** Confirm it's collected and reaches the ledger (see Flexible arrival).
+- **Paystack clearing-balance check.** Waits for real payout timing.
 
 ### Owner actions
 
@@ -200,5 +254,7 @@ Each payout is a "settlement". Until now we recorded the money coming in, but no
 - [ ] Delete the Google app password used for the old Gmail SMTP.
 - [ ] Book the pen-test vendor for S10 (task 7).
 - [ ] Apply `20261106091452_settlements.sql` and `20261106091500_settlements_grants_cron.sql` to dev.
+- [ ] Apply the reconciliation, statement and flexible-booking migrations to dev: `20261106115202_reconciliation_tables.sql`, `20261106120000_reconciliation_grants_cron.sql`, `20261106140000_monthly_statements_cron.sql`, `20261106150000_flexible_bookings.sql`, `20261106211220_reconciliation_ledger_results.sql`.
+- [ ] Set `FINANCE_ALERT_EMAIL` on the API's Vercel env so reconciliation exceptions reach finance.
 - [ ] When the first **live** Paystack payout happens: check the `settlements` rows (no NEEDS_REVIEW), and replace `test/fixtures/paystack/settlements-assumed.json` with a sanitised copy of the real list.
 - [ ] Create staging (Supabase and Vercel), and repeat doc 22 §2.3a for its email hook and Resend settings.
