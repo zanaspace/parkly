@@ -25,6 +25,7 @@ export default defineConfig({
         'src/store/drizzle-reconciliation.ts',
         'src/store/drizzle-reports.ts',
         'src/store/drizzle-support.ts',
+        'src/store/drizzle-refund-requests.ts',
         // Test doubles and helpers.
         'src/store/memory.ts',
         'src/store/memory-bookings.ts',

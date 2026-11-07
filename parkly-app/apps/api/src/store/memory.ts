@@ -23,6 +23,7 @@ import {
   type ConsentType,
   type LotKeyRow,
   type BookingRow,
+  type RefundRequestRow,
   type Store,
   type SupportBookingRow,
   type UserRow,
@@ -139,6 +140,48 @@ export class MemoryStore implements Store {
     payoutRows: this.payoutRows,
   });
   readonly reports: Store['reports'] = this.reportsStore.reports;
+
+  /** FR-ADM-003: mirrors drizzle-refund-requests. */
+  readonly refundRequestRows: RefundRequestRow[] = [];
+  readonly refundRequests: Store['refundRequests'] = {
+    create: async (input, at) => {
+      const row: RefundRequestRow = {
+        id: randomUUID(),
+        ...input,
+        status: 'PENDING_APPROVAL',
+        decidedBy: null,
+        decidedAt: null,
+        decisionNote: null,
+        createdAt: at,
+      };
+      this.refundRequestRows.push(row);
+      return { ...row };
+    },
+    find: async (id) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      return r ? { ...r } : null;
+    },
+    list: async ({ status, bookingId, limit }) =>
+      this.refundRequestRows
+        .filter(
+          (r) => (!status || r.status === status) && (!bookingId || r.bookingId === bookingId),
+        )
+        .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({ ...r })),
+    decide: async (id, { status, decidedBy, note }, at) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      if (!r || r.status !== 'PENDING_APPROVAL') return null;
+      // As the database check: the approver is never the person who asked.
+      if (decidedBy === r.requestedBy) throw new Error('refund_requests_four_eyes_check');
+      Object.assign(r, { status, decidedBy, decidedAt: at, decisionNote: note });
+      return { ...r };
+    },
+    fail: async (id) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      if (r?.status === 'APPROVED') r.status = 'FAILED';
+    },
+  };
 
   /** FR-ADM-002: mirrors drizzle-support. */
   readonly support: Store['support'] = {

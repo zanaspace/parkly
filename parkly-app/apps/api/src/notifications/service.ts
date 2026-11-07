@@ -41,6 +41,7 @@ const NON_CRITICAL = new Set<NotificationEvent['key']>(['session.checked_out']);
 const SMS_ALWAYS = new Set<NotificationEvent['key']>([
   'booking.confirmed',
   'booking.cancelled',
+  'booking.refunded',
   'booking.extended',
   'session.overstay_due',
 ]);
@@ -48,7 +49,11 @@ const SMS_IF_NO_PUSH = new Set<NotificationEvent['key']>([
   'booking.reminder_start',
   'booking.reminder_end',
 ]);
-const EMAIL_EVENTS = new Set<NotificationEvent['key']>(['booking.confirmed', 'booking.cancelled']);
+const EMAIL_EVENTS = new Set<NotificationEvent['key']>([
+  'booking.confirmed',
+  'booking.cancelled',
+  'booking.refunded',
+]);
 
 /** 22:00–07:00 in Lagos (UTC+1, no daylight saving): the next 07:00, else null. */
 export function quietHoursEnd(now: Date): Date | null {

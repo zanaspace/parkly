@@ -77,6 +77,12 @@ export function renderSms(
       );
       break;
     }
+    case 'booking.refunded': {
+      body = sms(
+        `Parkly: A refund of ${formatNaira(event.refundKobo)} for booking ${event.bookingCode} has been sent to your original payment method.`,
+      );
+      break;
+    }
     case 'session.overstay_due': {
       body = sms(
         `Parkly: Unpaid overstay of ${event.overstayMinutes}m (${formatNaira(event.amountKobo)}) at ${event.lotName}. Pay:`,
@@ -125,6 +131,11 @@ export function renderPush(event: NotificationEvent, tokens: string[]): PushMess
     case 'booking.cancelled':
       title = 'Booking Cancelled';
       body = `Booking ${event.bookingCode} at ${event.lotName} was cancelled.${event.refundKobo > 0 ? ` Refund: ${formatNaira(event.refundKobo)}.` : ''}`;
+      data.url = `parkly://bookings/${event.bookingId}`;
+      break;
+    case 'booking.refunded':
+      title = 'Refund on its way';
+      body = `${formatNaira(event.refundKobo)} is being refunded for ${event.bookingCode}.`;
       data.url = `parkly://bookings/${event.bookingId}`;
       break;
     case 'booking.no_show':
@@ -203,6 +214,20 @@ export function renderEmail(
               'In accordance with our cancellation policy, no refund is due for late cancellation.',
             ),
         button('View receipt', `${link}/receipt`),
+      ].join('');
+      break;
+
+    case 'booking.refunded':
+      subject = `Refund for booking ${event.bookingCode}`;
+      heading = 'Your refund is on its way';
+      body = [
+        paragraph(
+          `We have refunded <strong>${esc(formatNaira(event.refundKobo))}</strong> for booking <strong>${code}</strong> at <strong>${lot}</strong>.`,
+        ),
+        paragraph(
+          'It goes back to the card or account you paid with. Banks usually take 5 to 10 working days to show it.',
+        ),
+        button('View booking', link),
       ].join('');
       break;
 

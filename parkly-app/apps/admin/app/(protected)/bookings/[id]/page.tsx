@@ -2,11 +2,18 @@ import type { SupportBookingDetail } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { randomUUID } from 'node:crypto';
+import {
+  CancelBookingForm,
+  RefundForm,
+  ResendTicketButton,
+} from '../../../../components/booking-actions';
 import { RevealContact } from '../../../../components/reveal-contact';
 import { WaiveOverstayForm } from '../../../../components/waive-overstay';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
 import { canWaive, overstayOwed } from '../../../../lib/bookings/code';
+import { canCancel, canRefund, canSupportRefund } from '../../../../lib/bookings/money';
 import { lagosShort } from '../../../../lib/bookings/support';
 import { publicEnv } from '../../../../lib/env';
 import { formatKobo } from '../../../../lib/lots/copy';
@@ -41,6 +48,15 @@ export default async function SupportBookingPage({ params }: { params: Promise<{
     throw err;
   }
   const { booking: b, overstay, timeline } = detail;
+  const live = b.status === 'CONFIRMED' || b.status === 'CHECKED_IN';
+  const cancellable = b.status === 'CONFIRMED' || b.status === 'PENDING_PAYMENT';
+  const isFinance = canRefund(me.roles);
+  const supportCanRefund =
+    !isFinance && canSupportRefund(me.roles) && detail.supportRefundLeftKobo > 0;
+  const showActions =
+    (canCancel(me.roles) && (cancellable || live)) ||
+    (isFinance && detail.refundableKobo > 0) ||
+    supportCanRefund;
 
   return (
     <main className="pk-page pk-page--wide pk-stack">
@@ -113,6 +129,40 @@ export default async function SupportBookingPage({ params }: { params: Promise<{
           </Text>
         </section>
       </div>
+
+      {showActions && (
+        <section className="pk-card pk-stack" aria-labelledby="actions-heading">
+          <Text variant="label-lg" as="h2" id="actions-heading">
+            Actions
+          </Text>
+          <div className="pk-support-grid">
+            {canCancel(me.roles) && live && <ResendTicketButton bookingId={b.id} />}
+            {canCancel(me.roles) && cancellable && (
+              <CancelBookingForm bookingId={b.id} idempotencyKey={randomUUID()} />
+            )}
+            {isFinance && detail.refundableKobo > 0 && (
+              <RefundForm
+                bookingId={b.id}
+                idempotencyKey={randomUUID()}
+                refundable={formatKobo(detail.refundableKobo)}
+                threshold={formatKobo(detail.refundApprovalThresholdKobo)}
+              />
+            )}
+            {supportCanRefund && (
+              <RefundForm
+                bookingId={b.id}
+                idempotencyKey={randomUUID()}
+                refundable={formatKobo(detail.supportRefundLeftKobo)}
+                threshold={formatKobo(detail.supportRefundLeftKobo)}
+                helperText={`Support may refund up to ${formatKobo(detail.supportRefundLeftKobo)} on this booking; larger amounts need finance.`}
+              />
+            )}
+          </div>
+          <Text variant="caption" tone="tertiary">
+            Every action is recorded in the audit log with your reason.
+          </Text>
+        </section>
+      )}
 
       <section aria-labelledby="timeline-heading" className="pk-stack">
         <Text variant="heading-md" as="h2" id="timeline-heading">

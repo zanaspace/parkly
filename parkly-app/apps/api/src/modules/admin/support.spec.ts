@@ -107,6 +107,7 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body?.booking).toMatchObject({ id: t.booking.id, status: 'CONFIRMED' });
+    expect(res.body?.supportRefundLeftKobo).toBe(110_000);
     const labels = (res.body?.timeline as { label: string }[]).map((e) => e.label);
     expect(labels).toEqual(
       expect.arrayContaining([
@@ -127,15 +128,19 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
     ).toBe(404);
 
     // Timeline includes refunds and overstay session when present
-    t.w.store.booking.refundRows.push({
-      id: randomUUID(),
-      paymentId: t.reference,
-      providerRefundId: 'ref_1',
-      status: 'SUCCEEDED',
-      amountKobo: 20_000,
-      reason: 'OPS_GOODWILL',
-      createdAt: new Date(),
-    });
+    await t.w.store.payments.refundBooking(
+      t.booking.id,
+      {
+        amountKobo: 20_000,
+        refundPriceKobo: 20_000,
+        refundServiceFeeKobo: 0,
+        reason: 'OPS_GOODWILL',
+        note: 'Partial refund',
+        approvedBy: null,
+      },
+      'system',
+      new Date(),
+    );
     t.w.store.attending.sessionRows.push({
       id: randomUUID(),
       bookingId: t.booking.id,
@@ -159,6 +164,8 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
       minutes: 15,
       amountKobo: 50_000,
     });
+    expect(withDetails.body?.refundableKobo).toBe(90_000);
+    expect(withDetails.body?.supportRefundLeftKobo).toBe(90_000);
   });
 });
 

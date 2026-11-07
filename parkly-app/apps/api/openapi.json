@@ -10878,12 +10878,26 @@
                           "detail"
                         ]
                       }
+                    },
+                    "refundableKobo": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "refundApprovalThresholdKobo": {
+                      "type": "integer"
+                    },
+                    "supportRefundLeftKobo": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
                     "booking",
                     "overstay",
-                    "timeline"
+                    "timeline",
+                    "refundableKobo",
+                    "refundApprovalThresholdKobo",
+                    "supportRefundLeftKobo"
                   ]
                 }
               }
@@ -10970,6 +10984,728 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "CHECKED_IN",
+                        "COMPLETED",
+                        "CANCELLED",
+                        "EXPIRED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "refundKobo": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "refundKobo"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/refunds": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amountKobo": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "OPS_GOODWILL",
+                      "LOT_UNAVAILABLE",
+                      "DUPLICATE",
+                      "OTHER"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "amountKobo",
+                  "reason",
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Issued, or waiting for approval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "ISSUED"
+                          ]
+                        },
+                        "amountKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "amountKobo"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_APPROVAL"
+                          ]
+                        },
+                        "request": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "bookingId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "bookingCode": {
+                              "type": "string"
+                            },
+                            "amountKobo": {
+                              "type": "integer"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING_APPROVAL",
+                                "APPROVED",
+                                "REJECTED",
+                                "FAILED"
+                              ]
+                            },
+                            "requestedBy": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "requestedByName": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "decidedBy": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "uuid"
+                            },
+                            "decidedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "decisionNote": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "bookingId",
+                            "bookingCode",
+                            "amountKobo",
+                            "reason",
+                            "note",
+                            "status",
+                            "requestedBy",
+                            "requestedByName",
+                            "decidedBy",
+                            "decidedAt",
+                            "decisionNote",
+                            "createdAt"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "request"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/refund-requests": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING_APPROVAL",
+                "APPROVED",
+                "REJECTED",
+                "FAILED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "bookingId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "bookingCode": {
+                            "type": "string"
+                          },
+                          "amountKobo": {
+                            "type": "integer"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_APPROVAL",
+                              "APPROVED",
+                              "REJECTED",
+                              "FAILED"
+                            ]
+                          },
+                          "requestedBy": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "requestedByName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "decidedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "decidedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "decisionNote": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "bookingId",
+                          "bookingCode",
+                          "amountKobo",
+                          "reason",
+                          "note",
+                          "status",
+                          "requestedBy",
+                          "requestedByName",
+                          "decidedBy",
+                          "decidedAt",
+                          "decisionNote",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/refund-requests/{id}/approve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved and issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "bookingId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "bookingCode": {
+                      "type": "string"
+                    },
+                    "amountKobo": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_APPROVAL",
+                        "APPROVED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "requestedBy": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "requestedByName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "decidedBy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "decidedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "decisionNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "bookingId",
+                    "bookingCode",
+                    "amountKobo",
+                    "reason",
+                    "note",
+                    "status",
+                    "requestedBy",
+                    "requestedByName",
+                    "decidedBy",
+                    "decidedAt",
+                    "decisionNote",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/refund-requests/{id}/reject": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "bookingId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "bookingCode": {
+                      "type": "string"
+                    },
+                    "amountKobo": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_APPROVAL",
+                        "APPROVED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "requestedBy": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "requestedByName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "decidedBy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "decidedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "decisionNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "bookingId",
+                    "bookingCode",
+                    "amountKobo",
+                    "reason",
+                    "note",
+                    "status",
+                    "requestedBy",
+                    "requestedByName",
+                    "decidedBy",
+                    "decidedAt",
+                    "decisionNote",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/bookings/{id}/resend-ticket": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Queued"
           }
         }
       }

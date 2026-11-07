@@ -3,6 +3,7 @@ import Link from 'next/link';
 const TABS = [
   { key: 'overview', href: '/finance', label: 'Revenue & reconciliation' },
   { key: 'rates', href: '/finance/rates', label: 'Commission rates' },
+  { key: 'refunds', href: '/finance/refunds', label: 'Refund approvals' },
 ] as const;
 
 /** Sections of the finance area, so each has its own page instead of one long scroll. */
