@@ -40,3 +40,67 @@ export function money(kobo: number): string {
   const whole = Math.trunc(abs / 100).toLocaleString('en-NG');
   return `${kobo < 0 ? '−' : ''}₦${whole}.${String(abs % 100).padStart(2, '0')}`;
 }
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type FinanceFilters = { from: string; to: string; lotId: string };
+
+/**
+ * The finance page's search params. Missing or malformed dates fall back to
+ * this month so far; the API checks the range (at most 93 days).
+ */
+export function readFinanceFilters(
+  params: Record<string, string | string[] | undefined>,
+  now: number,
+): FinanceFilters {
+  const one = (k: string) => {
+    const v = params[k];
+    return typeof v === 'string' ? v : '';
+  };
+  const month = periodRange('month', now);
+  return {
+    from: DATE.test(one('from')) ? one('from') : month.from,
+    to: DATE.test(one('to')) ? one('to') : month.to,
+    lotId: UUID.test(one('lotId')) ? one('lotId') : '',
+  };
+}
+
+/** Query string for the API and links, without an empty car park. */
+export function financeQuery(f: FinanceFilters): string {
+  const q = new URLSearchParams({ from: f.from, to: f.to });
+  if (f.lotId) q.set('lotId', f.lotId);
+  return q.toString();
+}
+
+/**
+ * Months with a statement to download, newest first: this month (so far) back
+ * to the month the operator joined, at most `max`.
+ */
+export function statementMonths(joinedIso: string | null, now: number, max = 12): string[] {
+  const current = lagosKey(now).slice(0, 7);
+  const joined = joinedIso ? lagosKey(Date.parse(joinedIso)).slice(0, 7) : null;
+  const months: string[] = [];
+  let [y = 0, m = 1] = current.split('-').map(Number);
+  while (months.length < max) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    if (joined && key < joined) break;
+    months.push(key);
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+  }
+  return months;
+}
+
+/** "November 2026" for "2026-11". */
+export function monthLabel(month: string): string {
+  const [y = 0, m = 1] = month.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}

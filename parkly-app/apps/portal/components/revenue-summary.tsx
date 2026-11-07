@@ -103,6 +103,9 @@ export function RevenueSummary({
               time. Refunds count on the day they were made.
             </Text>
           )}
+          <Link className="pk-nav-link pk-nav-link--active" href="/finance">
+            Day by day, payouts and statements →
+          </Link>
         </>
       )}
     </section>

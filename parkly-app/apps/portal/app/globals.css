@@ -1437,3 +1437,57 @@ a.pk-button {
 .pk-money-card--strong .pk-money-value {
   color: var(--pk-color-text-brand);
 }
+
+/* FR-OPS-003 / FR-OPS-006: the finance page (app/(protected)/finance). */
+.pk-finance-payout,
+.pk-finance-form {
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-finance-fields {
+  display: grid;
+  gap: var(--pk-space-stack-md);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+.pk-finance-alert {
+  border-color: var(--pk-color-status-danger-fg);
+}
+.pk-finance-empty {
+  text-align: center;
+}
+.pk-finance-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-table--numeric td:not(:first-child),
+.pk-table--numeric th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pk-table--numeric tfoot th,
+.pk-table--numeric tfoot td {
+  border-top: 2px solid var(--pk-color-border-default);
+  font-weight: var(--pk-type-label-md-font-weight);
+}
+.pk-finance-statements {
+  list-style: none;
+  margin: 0;
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-finance-statements li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--pk-space-stack-sm);
+  padding-bottom: var(--pk-space-stack-sm);
+  border-bottom: 1px solid var(--pk-color-border-default);
+}
+.pk-finance-statements li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
