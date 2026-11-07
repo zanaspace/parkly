@@ -1,4 +1,11 @@
-import type { LotSummary, Occupancy, Operator, Outlook, TeamMember } from '@parkly/contracts';
+import type {
+  LotSummary,
+  Occupancy,
+  Operator,
+  OperatorEarningsReport,
+  Outlook,
+  TeamMember,
+} from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { GateIcon, LotsIcon, ShieldCheckIcon, TeamIcon } from '../../components/icons';
@@ -7,9 +14,11 @@ import {
   LiveOccupancyProvider,
   LiveOccupancyTable,
 } from '../../components/live-occupancy';
+import { RevenueSummary } from '../../components/revenue-summary';
 import { WeekOutlook } from '../../components/week-outlook';
 import { apiFetch } from '../../lib/api';
 import { requireAccess } from '../../lib/auth/session';
+import { periodRange, readPeriod } from '../../lib/finance/period';
 import { publicEnv } from '../../lib/env';
 
 export const metadata = { title: 'Dashboard · Parkly for Operators' };
@@ -21,14 +30,20 @@ const KYB_BADGE: Record<Operator['kybStatus'], { label: string; class: string }>
   REJECTED: { label: 'Action Needed', class: 'pk-badge--rejected' },
 };
 
-export default async function PortalHome() {
+export default async function PortalHome({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { me, accessToken } = await requireAccess();
   const grant = me.roles.find((r) => r.role === 'OPERATOR_OWNER' || r.role === 'OPERATOR_MANAGER');
   const operatorId = grant?.operatorId ?? null;
   const isOwner = grant?.role === 'OPERATOR_OWNER';
   const api = publicEnv().apiUrl;
+  const period = readPeriod(await searchParams);
+  const range = periodRange(period, Date.now());
 
-  const [operator, members, occupancy, lotsRes, outlook] = operatorId
+  const [operator, members, occupancy, lotsRes, outlook, earnings] = operatorId
     ? await Promise.all([
         apiFetch<Operator>(api, `/v1/operators/${operatorId}`, accessToken).catch(() => null),
         apiFetch<{ items: TeamMember[] }>(api, `/v1/operators/${operatorId}/members`, accessToken)
@@ -43,8 +58,13 @@ export default async function PortalHome() {
         apiFetch<Outlook>(api, `/v1/operators/${operatorId}/outlook`, accessToken)
           .then((r) => r.items)
           .catch(() => []),
+        apiFetch<OperatorEarningsReport>(
+          api,
+          `/v1/operators/${operatorId}/reports/earnings?${new URLSearchParams(range)}`,
+          accessToken,
+        ).catch(() => null),
       ])
-    : [null, [], null, [], []];
+    : [null, [], null, [], [], null];
 
   const lots = lotsRes ?? [];
   const liveLotsCount = lots.filter((l) => l.status === 'LIVE').length;
@@ -97,6 +117,8 @@ export default async function PortalHome() {
             </div>
           )}
         </div>
+
+        {operatorId && <RevenueSummary report={earnings} period={period} />}
 
         <Text variant="heading-md" as="h2">
           Operations Overview
