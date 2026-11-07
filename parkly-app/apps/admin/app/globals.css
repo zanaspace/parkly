@@ -322,3 +322,14 @@ body {
   gap: var(--pk-space-stack-sm);
   cursor: pointer;
 }
+.pk-finance-tabs {
+  flex-wrap: wrap;
+}
+.pk-rates-search {
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-rates-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+}

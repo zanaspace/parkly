@@ -1,11 +1,7 @@
-import type {
-  CommissionRateList,
-  PlatformEarningsReport,
-  ReconciliationRun,
-} from '@parkly/contracts';
+import type { PlatformEarningsReport, ReconciliationRun } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
-import { CommissionRates } from '../../../components/commission-rates';
+import { FinanceTabs } from '../../../components/finance-tabs';
 import { PlatformRevenue } from '../../../components/platform-revenue';
 import { apiFetch } from '../../../lib/api';
 import { requireAccess } from '../../../lib/auth/session';
@@ -58,15 +54,6 @@ export default async function FinancePage({
         `/v1/admin/reports/platform-earnings?${new URLSearchParams(periodRange(period, Date.now()))}`,
         accessToken,
       ).catch(() => null)
-    : null;
-  const rates = canReadFinance
-    ? await apiFetch<CommissionRateList>(
-        publicEnv().apiUrl,
-        '/v1/admin/commission-rates',
-        accessToken,
-      )
-        .then((r) => r.items)
-        .catch(() => null)
     : null;
 
   let runs: ReconciliationRun[] = [];
@@ -127,9 +114,9 @@ export default async function FinancePage({
 
       {canReadFinance && (
         <>
-          <PlatformRevenue report={revenue} period={period} basePath="/finance" byOperator />
+          <FinanceTabs active="overview" />
 
-          <CommissionRates rates={rates} />
+          <PlatformRevenue report={revenue} period={period} basePath="/finance" byOperator />
 
           <Text variant="heading-md" as="h2">
             Daily reconciliation
