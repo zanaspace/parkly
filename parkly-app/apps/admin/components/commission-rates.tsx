@@ -1,28 +1,44 @@
+'use client';
+
 import type { CommissionRateList } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
+import { useDeferredValue, useState } from 'react';
 import { percent } from '../lib/finance/period';
+import { filterRates } from '../lib/finance/rates';
 import { CommissionForm } from './commission-form';
 
 type Rate = CommissionRateList['items'][number];
 
+const pageFor = (q: string) =>
+  q.trim() ? `/finance/rates?q=${encodeURIComponent(q.trim())}` : '/finance/rates';
+
 /**
  * Search, then every matching operator's rate, each opening to a form to
- * change it. A plain GET form, so the search works without JavaScript and
- * the filtered page can be shared.
+ * change it. The list filters as you type; the address bar follows, so a
+ * filtered page can be shared. Without JavaScript it's a plain GET form.
  */
-export function CommissionRates({
-  rates,
-  total,
-  query,
-}: {
-  rates: Rate[] | null;
-  total: number;
-  query: string;
-}) {
+export function CommissionRates({ rates, query }: { rates: Rate[] | null; query: string }) {
+  const [q, setQ] = useState(query);
+  const deferred = useDeferredValue(q);
+  const shown = rates ? filterRates(rates, deferred) : null;
+  const total = rates?.length ?? 0;
+  const term = deferred.trim();
+
+  function change(next: string) {
+    setQ(next);
+    window.history.replaceState(null, '', pageFor(next));
+  }
+
   return (
     <section aria-labelledby="rates-heading" className="pk-money">
-      <form method="get" action="/finance/rates" role="search" className="pk-rates-search">
+      <form
+        method="get"
+        action="/finance/rates"
+        role="search"
+        className="pk-rates-search"
+        onSubmit={(e) => e.preventDefault()}
+      >
         <label className="pk-field__label" htmlFor="rates-q">
           Find an operator
         </label>
@@ -32,40 +48,46 @@ export function CommissionRates({
             name="q"
             type="search"
             className="pk-input pk-rates-input"
-            placeholder="Trading or registered name"
-            defaultValue={query}
+            placeholder="Start typing a trading or registered name"
+            value={q}
+            onChange={(e) => change(e.target.value)}
             maxLength={100}
             autoComplete="off"
+            aria-controls="rates-list"
           />
-          <button type="submit" className="pk-button pk-button--primary">
-            Search
-          </button>
-          {query && (
-            <Link className="pk-nav-link" href="/finance/rates">
+          {q && (
+            <Link
+              className="pk-nav-link"
+              href="/finance/rates"
+              onClick={(e) => {
+                e.preventDefault();
+                change('');
+              }}
+            >
               Clear
             </Link>
           )}
         </div>
       </form>
 
-      {rates === null ? (
+      {shown === null ? (
         <Text variant="body-sm" tone="secondary" role="status">
           We couldn’t load rates just now. Please refresh to try again.
         </Text>
       ) : (
         <>
           <Text as="p" id="rates-heading" variant="body-sm" tone="secondary" role="status">
-            {query
-              ? `${rates.length} of ${total} ${total === 1 ? 'operator' : 'operators'} match “${query}”`
+            {term
+              ? `${shown.length} of ${total} ${total === 1 ? 'operator' : 'operators'} match “${term}”`
               : `${total} ${total === 1 ? 'operator' : 'operators'}`}
           </Text>
-          {rates.length === 0 ? (
+          {shown.length === 0 ? (
             <div className="pk-card">
-              <Text>{query ? 'No operator matches that name.' : 'No operators yet.'}</Text>
+              <Text>{term ? 'No operator matches that name.' : 'No operators yet.'}</Text>
             </div>
           ) : (
-            <ul className="pk-list pk-rates">
-              {rates.map((r) => (
+            <ul className="pk-list pk-rates" id="rates-list">
+              {shown.map((r) => (
                 <li key={r.operatorId} className="pk-card">
                   <details>
                     <summary className="pk-rates-summary">
