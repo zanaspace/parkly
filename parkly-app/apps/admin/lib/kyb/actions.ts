@@ -91,6 +91,6 @@ export async function setCommission(
     }
     return { error: 'Something went wrong. Please try again.' };
   }
-  revalidatePath(`/kyb/${operatorId}`);
+  revalidatePath('/finance/rates');
   return { saved: commissionBps };
 }
