@@ -2,6 +2,7 @@ import type {
   DailyEarningsItem,
   MonthlyStatement,
   OperatorEarningsReport,
+  PlatformEarningsReport,
   SettlementSummary,
 } from '@parkly/contracts';
 import { LEDGER_ACCOUNTS, operatorPayable } from '@parkly/domain/booking';
@@ -13,6 +14,8 @@ import {
   type EarningsLedgerLine,
   ledgerEarnings,
   lotLedgerEarnings,
+  type PlatformLedgerLine,
+  platformLedgerEarnings,
 } from '@parkly/domain/operator';
 import { lagosDateKey, lagosDayStart } from '@parkly/domain/time';
 
@@ -142,5 +145,47 @@ export function buildStatement(input: {
     lots: lotLedgerEarnings(input.lines, operatorId, input.lotNames),
     settlements,
     generatedAt: input.generatedAt.toISOString(),
+  };
+}
+
+/** Ledger accounts for Parkly's revenue across all operators (payables matched by prefix). */
+export const PLATFORM_ACCOUNTS = [
+  LEDGER_ACCOUNTS.COMMISSION,
+  LEDGER_ACCOUNTS.SERVICE_FEE,
+  LEDGER_ACCOUNTS.PAYMENT_FEES,
+];
+export const OPERATOR_PAYABLE_PREFIX = 'OPERATOR_PAYABLE:';
+
+export function buildPlatformReport(input: {
+  from: string;
+  to: string;
+  lines: readonly PlatformLedgerLine[];
+  operators: ReadonlyMap<string, { name: string; commissionBps: number }>;
+}): PlatformEarningsReport {
+  const days = enumerateDays(input.from, input.to);
+  const byDay = new Map<string, PlatformLedgerLine[]>();
+  for (const l of input.lines) {
+    const key = lagosDateKey(l.postedAt);
+    const list = byDay.get(key);
+    if (list) list.push(l);
+    else byDay.set(key, [l]);
+  }
+  const { totals, byOperator } = platformLedgerEarnings(input.lines);
+  return {
+    from: input.from,
+    to: input.to,
+    totals,
+    daily: days.map((date) => ({
+      date,
+      ...platformLedgerEarnings(byDay.get(date) ?? []).totals,
+    })),
+    operators: [...byOperator.entries()]
+      .map(([operatorId, amounts]) => ({
+        operatorId,
+        operatorName: input.operators.get(operatorId)?.name ?? 'Unknown operator',
+        commissionBps: input.operators.get(operatorId)?.commissionBps ?? 0,
+        ...amounts,
+      }))
+      .sort((a, b) => b.netRevenueKobo - a.netRevenueKobo),
   };
 }

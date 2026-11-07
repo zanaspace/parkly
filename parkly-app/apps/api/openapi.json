@@ -11736,6 +11736,244 @@
         }
       }
     },
+    "/v1/admin/reports/platform-earnings": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform revenue: commission, service fees and Paystack fees, by day and operator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "to": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "bookingsCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "grossBookingKobo": {
+                          "type": "integer"
+                        },
+                        "commissionKobo": {
+                          "type": "integer"
+                        },
+                        "serviceFeeKobo": {
+                          "type": "integer"
+                        },
+                        "netOperatorKobo": {
+                          "type": "integer"
+                        },
+                        "extensionKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "overstayKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "refundKobo": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "paymentFeesKobo": {
+                          "type": "integer"
+                        },
+                        "netRevenueKobo": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "bookingsCount",
+                        "grossBookingKobo",
+                        "commissionKobo",
+                        "serviceFeeKobo",
+                        "netOperatorKobo",
+                        "extensionKobo",
+                        "overstayKobo",
+                        "refundKobo",
+                        "paymentFeesKobo",
+                        "netRevenueKobo"
+                      ]
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "bookingsCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "grossBookingKobo": {
+                            "type": "integer"
+                          },
+                          "commissionKobo": {
+                            "type": "integer"
+                          },
+                          "serviceFeeKobo": {
+                            "type": "integer"
+                          },
+                          "netOperatorKobo": {
+                            "type": "integer"
+                          },
+                          "extensionKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "overstayKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "refundKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "paymentFeesKobo": {
+                            "type": "integer"
+                          },
+                          "netRevenueKobo": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "bookingsCount",
+                          "grossBookingKobo",
+                          "commissionKobo",
+                          "serviceFeeKobo",
+                          "netOperatorKobo",
+                          "extensionKobo",
+                          "overstayKobo",
+                          "refundKobo",
+                          "paymentFeesKobo",
+                          "netRevenueKobo"
+                        ]
+                      }
+                    },
+                    "operators": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "operatorId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "operatorName": {
+                            "type": "string"
+                          },
+                          "commissionBps": {
+                            "type": "integer"
+                          },
+                          "bookingsCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "grossBookingKobo": {
+                            "type": "integer"
+                          },
+                          "commissionKobo": {
+                            "type": "integer"
+                          },
+                          "serviceFeeKobo": {
+                            "type": "integer"
+                          },
+                          "netOperatorKobo": {
+                            "type": "integer"
+                          },
+                          "extensionKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "overstayKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "refundKobo": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "paymentFeesKobo": {
+                            "type": "integer"
+                          },
+                          "netRevenueKobo": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "operatorId",
+                          "operatorName",
+                          "commissionBps",
+                          "bookingsCount",
+                          "grossBookingKobo",
+                          "commissionKobo",
+                          "serviceFeeKobo",
+                          "netOperatorKobo",
+                          "extensionKobo",
+                          "overstayKobo",
+                          "refundKobo",
+                          "paymentFeesKobo",
+                          "netRevenueKobo"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "totals",
+                    "daily",
+                    "operators"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/lots/search": {
       "get": {
         "tags": [

@@ -131,7 +131,8 @@ export default async function ReconciliationRunDetailsPage({
     nextCursor = null;
   }
 
-  const varianceKobo = Math.abs(run.totalInternal - run.totalProvider);
+  // The run stores how many records each side had, not amounts (amounts are per item below).
+  const countGap = Math.abs(run.totalInternal - run.totalProvider);
   const isBalanced = run.mismatchedCount === 0 && run.status === 'COMPLETED';
 
   return (
@@ -193,22 +194,22 @@ export default async function ReconciliationRunDetailsPage({
         >
           <div>
             <Text variant="caption" tone="secondary">
-              Internal Ledger Total
+              Our payments checked
             </Text>
-            <Text variant="heading-md">{formatKobo(run.totalInternal)}</Text>
+            <Text variant="heading-md">{run.totalInternal.toLocaleString()}</Text>
           </div>
           <div>
             <Text variant="caption" tone="secondary">
-              Provider (Paystack) Total
+              Paystack transactions checked
             </Text>
-            <Text variant="heading-md">{formatKobo(run.totalProvider)}</Text>
+            <Text variant="heading-md">{run.totalProvider.toLocaleString()}</Text>
           </div>
           <div>
             <Text variant="caption" tone="secondary">
-              Net Variance
+              Difference in count
             </Text>
-            <Text variant="heading-md" style={{ color: varianceKobo > 0 ? '#dc2626' : 'inherit' }}>
-              {formatKobo(varianceKobo)}
+            <Text variant="heading-md" style={{ color: countGap > 0 ? '#dc2626' : 'inherit' }}>
+              {countGap.toLocaleString()}
             </Text>
           </div>
           <div>

@@ -303,3 +303,60 @@ export function earningsToCsv(
 
   return toCsv([...watermark, ...rows, totals]);
 }
+
+/** Parkly's side of the same money: what it kept, less what Paystack charged. */
+export type PlatformAmounts = EarningsAmounts & {
+  /** Paystack's fees on these payments, borne by Parkly (`fees.fee_bearer = PLATFORM`). */
+  paymentFeesKobo: number;
+  /** Commission plus service fees, less Paystack's fees. */
+  netRevenueKobo: number;
+};
+
+/** A ledger line of any operator's payment, with that operator. */
+export type PlatformLedgerLine = EarningsLedgerLine & { operatorId: string };
+
+const PLATFORM_ZERO: PlatformAmounts = { ...ZERO, paymentFeesKobo: 0, netRevenueKobo: 0 };
+
+function addAmounts(into: PlatformAmounts, a: EarningsAmounts): void {
+  into.bookingsCount += a.bookingsCount;
+  into.grossBookingKobo += a.grossBookingKobo;
+  into.commissionKobo += a.commissionKobo;
+  into.serviceFeeKobo += a.serviceFeeKobo;
+  into.netOperatorKobo += a.netOperatorKobo;
+  into.extensionKobo += a.extensionKobo;
+  into.overstayKobo += a.overstayKobo;
+  into.refundKobo += a.refundKobo;
+}
+
+/**
+ * Platform revenue from the ledger, for the admin console. Each operator's
+ * lines go through `ledgerEarnings` (so the split is exactly what was posted);
+ * Paystack's fee lines on `PAYMENT_FEES_EXPENSE` are added on Parkly's side.
+ */
+export function platformLedgerEarnings(lines: readonly PlatformLedgerLine[]): {
+  totals: PlatformAmounts;
+  byOperator: Map<string, PlatformAmounts>;
+} {
+  const grouped = new Map<string, PlatformLedgerLine[]>();
+  for (const l of lines) {
+    const list = grouped.get(l.operatorId);
+    if (list) list.push(l);
+    else grouped.set(l.operatorId, [l]);
+  }
+  const totals = { ...PLATFORM_ZERO };
+  const byOperator = new Map<string, PlatformAmounts>();
+  for (const [operatorId, ls] of grouped) {
+    const one = { ...PLATFORM_ZERO };
+    addAmounts(one, ledgerEarnings(ls, operatorId));
+    for (const l of ls) {
+      if (l.account !== LEDGER_ACCOUNTS.PAYMENT_FEES) continue;
+      one.paymentFeesKobo += l.direction === 'DEBIT' ? l.amountKobo : -l.amountKobo;
+    }
+    one.netRevenueKobo = one.commissionKobo + one.serviceFeeKobo - one.paymentFeesKobo;
+    byOperator.set(operatorId, one);
+    addAmounts(totals, one);
+    totals.paymentFeesKobo += one.paymentFeesKobo;
+  }
+  totals.netRevenueKobo = totals.commissionKobo + totals.serviceFeeKobo - totals.paymentFeesKobo;
+  return { totals, byOperator };
+}

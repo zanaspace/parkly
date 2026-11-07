@@ -1,4 +1,8 @@
-import type { MonthlyStatement, OperatorEarningsReport } from '@parkly/contracts';
+import type {
+  MonthlyStatement,
+  OperatorEarningsReport,
+  PlatformEarningsReport,
+} from '@parkly/contracts';
 import type { RoleGrant } from '@parkly/domain/authz';
 import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
 import type { Bucket, VerifiedCharge } from '../providers/index.js';
@@ -1400,6 +1404,8 @@ export type Store = {
     operatorsForMonthlyStatement(
       month: string,
     ): Promise<{ id: string; name: string; contactEmail: string }[]>;
+    /** Admin: Parkly's revenue across every operator, from the ledger, per Lagos day and operator. */
+    platformEarnings(filter: { from: string; to: string }): Promise<PlatformEarningsReport>;
   };
 };
 

@@ -179,10 +179,14 @@ describe('KYB and payout account (FR-LOT-001)', () => {
     expect(can(attendantA, 'bank:list', {})).toBe(false);
   });
 
-  it('allows reconciliation read and resolve only to finance and super admin at aal2', () => {
+  it('allows reconciliation and platform revenue only to finance and super admin at aal2', () => {
     const fin = actor([{ role: 'ADMIN_FINANCE', operatorId: null }], { aal: 'aal2' });
     const sa = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
-    for (const a of ['reconciliation:read', 'reconciliation:resolve'] as const) {
+    for (const a of [
+      'reconciliation:read',
+      'reconciliation:resolve',
+      'platform:revenue:read',
+    ] as const) {
       expect(can(fin, a, {})).toBe(true);
       expect(can(sa, a, {})).toBe(true);
       expect(can(support, a, {})).toBe(false);

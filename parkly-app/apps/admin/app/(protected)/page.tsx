@@ -1,24 +1,36 @@
-import type { AdminLotSummary, AdminOperatorSummary, ReconciliationRun } from '@parkly/contracts';
+import type {
+  AdminLotSummary,
+  AdminOperatorSummary,
+  PlatformEarningsReport,
+  ReconciliationRun,
+} from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { AuditIcon, FinanceIcon, KybIcon, LotsIcon } from '../../components/icons';
+import { PlatformRevenue } from '../../components/platform-revenue';
 import { apiFetch } from '../../lib/api';
 import { requireAccess } from '../../lib/auth/session';
 import { publicEnv } from '../../lib/env';
+import { periodRange, readPeriod } from '../../lib/finance/period';
 
 export const metadata = { title: 'Dashboard · Parkly Admin' };
 
 const AUDIT_READERS = new Set(['ADMIN_COMPLIANCE', 'SUPER_ADMIN']);
 const FINANCE_READERS = new Set(['ADMIN_FINANCE', 'SUPER_ADMIN']);
 
-export default async function AdminHome() {
+export default async function AdminHome({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { me, accessToken } = await requireAccess();
   const canReadAudit = me.roles.some((r) => AUDIT_READERS.has(r.role));
   const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
   const primaryRole = me.roles[0]?.role ?? 'ADMIN';
+  const period = readPeriod(await searchParams);
 
   // Load operational queues in parallel
-  const [kybRes, lotsRes, reconRes] = await Promise.all([
+  const [kybRes, lotsRes, reconRes, revenue] = await Promise.all([
     apiFetch<{ items: AdminOperatorSummary[] }>(
       publicEnv().apiUrl,
       '/v1/admin/operators?kybStatus=SUBMITTED',
@@ -36,6 +48,13 @@ export default async function AdminHome() {
           accessToken,
         ).catch(() => ({ runs: [] }))
       : Promise.resolve({ runs: [] }),
+    canReadFinance
+      ? apiFetch<PlatformEarningsReport>(
+          publicEnv().apiUrl,
+          `/v1/admin/reports/platform-earnings?${new URLSearchParams(periodRange(period, Date.now()))}`,
+          accessToken,
+        ).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const pendingKybCount = kybRes.items.length;
@@ -62,6 +81,8 @@ export default async function AdminHome() {
           </Text>
         </div>
       </div>
+
+      {canReadFinance && <PlatformRevenue report={revenue} period={period} basePath="/" />}
 
       <Text variant="heading-md" as="h2">
         Operational Queues & Reviews

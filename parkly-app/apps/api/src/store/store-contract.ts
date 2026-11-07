@@ -2020,6 +2020,22 @@ export function storeContract(
           refundKobo: 60_000,
           closingBalanceKobo: 88_000,
         });
+
+        // Admin view of the same money: Parkly's side, less Paystack's ₦15 per payment.
+        const platform = await store.reports.platformEarnings({
+          from: '2027-01-04',
+          to: '2027-01-05',
+        });
+        expect(platform.operators.find((o) => o.operatorId === lot.operatorId)).toMatchObject({
+          operatorName: 'Hold',
+          commissionBps: 1200,
+          grossBookingKobo: 100_000,
+          commissionKobo: 12_000,
+          serviceFeeKobo: 0,
+          netOperatorKobo: 88_000,
+          paymentFeesKobo: 3_000,
+          netRevenueKobo: 9_000,
+        });
       });
 
       it('extends a paid booking: holds, confirms on payment, releases, and checks the payment', async () => {

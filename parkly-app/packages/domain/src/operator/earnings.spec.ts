@@ -19,6 +19,7 @@ import {
   ledgerEarnings,
   lotLedgerEarnings,
   naira,
+  platformLedgerEarnings,
 } from './earnings.js';
 
 const OP = '0192e220-0000-7000-8000-0000000000aa';
@@ -413,5 +414,63 @@ describe('earnings domain logic (FR-OPS-003, FR-OPS-006)', () => {
     // Notice formula injection defusing with single quote
     expect(csv).toContain("'=SETTLE_MALICIOUS; SETTLE_OK");
     expect(csv).toContain('Total,5,5000.00,500.00,100.00,4400.00,200.00,150.00,30.00,4400.00');
+  });
+});
+
+describe('platformLedgerEarnings', () => {
+  const OTHER = '0192e220-0000-7000-8000-0000000000bb';
+  const fee = (op: string, at: string) =>
+    posted(providerFeeJournal({ provider: 'FAKE', feesKobo: k(1_500) }), at, {
+      operatorId: op,
+    } as Partial<EarningsLedgerLine>);
+  const withOp = (lines: EarningsLedgerLine[], operatorId: string) =>
+    lines.map((l) => ({ ...l, operatorId }));
+
+  it("adds every operator's split and takes Paystack's fees off Parkly's side", () => {
+    const otherBooking = posted(
+      bookingPaymentJournal({
+        provider: 'FAKE',
+        operatorId: OTHER,
+        priceKobo: k(200_000),
+        serviceFeeKobo: k(10_000),
+        commissionBps: 1000,
+      }),
+      '2026-11-03T10:00:00Z',
+      { bookingId: 'b-2' },
+    );
+    const lines = [
+      ...withOp(booking('b-1', '2026-11-03T10:00:00Z'), OP),
+      ...withOp(fee(OP, '2026-11-03T10:00:00Z'), OP),
+      ...withOp(otherBooking, OTHER),
+      ...withOp(fee(OTHER, '2026-11-03T10:00:00Z'), OTHER),
+    ];
+    const { totals, byOperator } = platformLedgerEarnings(lines);
+    expect(byOperator.get(OP)).toMatchObject({
+      commissionKobo: 12_000,
+      serviceFeeKobo: 10_000,
+      paymentFeesKobo: 1_500,
+      netRevenueKobo: 20_500,
+      netOperatorKobo: 88_000,
+    });
+    expect(byOperator.get(OTHER)).toMatchObject({
+      commissionKobo: 20_000,
+      netOperatorKobo: 180_000,
+      netRevenueKobo: 28_500,
+    });
+    expect(totals).toMatchObject({
+      bookingsCount: 2,
+      grossBookingKobo: 320_000,
+      commissionKobo: 32_000,
+      serviceFeeKobo: 20_000,
+      netOperatorKobo: 268_000,
+      paymentFeesKobo: 3_000,
+      netRevenueKobo: 49_000,
+    });
+  });
+
+  it('is zero with no lines', () => {
+    const { totals, byOperator } = platformLedgerEarnings([]);
+    expect(totals.netRevenueKobo).toBe(0);
+    expect(byOperator.size).toBe(0);
   });
 });

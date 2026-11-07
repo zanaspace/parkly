@@ -1,10 +1,11 @@
-import type { ReconciliationRun } from '@parkly/contracts';
+import type { PlatformEarningsReport, ReconciliationRun } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
+import { PlatformRevenue } from '../../../components/platform-revenue';
 import { apiFetch } from '../../../lib/api';
 import { requireAccess } from '../../../lib/auth/session';
 import { publicEnv } from '../../../lib/env';
-import { formatKobo } from '../../../lib/lots/copy';
+import { periodRange, readPeriod } from '../../../lib/finance/period';
 
 export const metadata = { title: 'Finance & Reconciliation · Parkly Admin' };
 
@@ -39,12 +40,20 @@ function runStatusBadge(status: ReconciliationRun['status'], mismatchedCount: nu
 export default async function FinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; tab?: string }>;
+  searchParams: Promise<{ cursor?: string; tab?: string; period?: string }>;
 }) {
   const { me, accessToken } = await requireAccess();
   const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
   const params = await searchParams;
   const currentTab = params.tab ?? 'all';
+  const period = readPeriod(params);
+  const revenue = canReadFinance
+    ? await apiFetch<PlatformEarningsReport>(
+        publicEnv().apiUrl,
+        `/v1/admin/reports/platform-earnings?${new URLSearchParams(periodRange(period, Date.now()))}`,
+        accessToken,
+      ).catch(() => null)
+    : null;
 
   let runs: ReconciliationRun[] = [];
   let nextCursor: string | null = null;
@@ -74,7 +83,8 @@ export default async function FinancePage({
   }
 
   // Compute aggregate stats across loaded runs
-  const totalInternalKobo = runs.reduce((acc, r) => acc + r.totalInternal, 0);
+  // Runs store how many records each side had, not amounts.
+  const totalChecked = runs.reduce((acc, r) => acc + r.totalInternal, 0);
   const totalExceptions = runs.reduce((acc, r) => acc + r.mismatchedCount, 0);
   const totalMatched = runs.reduce((acc, r) => acc + r.matchedCount, 0);
   const latestRun = runs[0];
@@ -103,6 +113,12 @@ export default async function FinancePage({
 
       {canReadFinance && (
         <>
+          <PlatformRevenue report={revenue} period={period} basePath="/finance" byOperator />
+
+          <Text variant="heading-md" as="h2">
+            Daily reconciliation
+          </Text>
+
           {/* Top Overview Cards */}
           <div className="pk-stat-grid">
             <div className="pk-stat-card">
@@ -127,12 +143,12 @@ export default async function FinancePage({
 
             <div className="pk-stat-card">
               <Text variant="label-md" tone="secondary">
-                Total Reconciled Volume
+                Payments Checked
               </Text>
               <div>
-                <div className="pk-stat-count">{formatKobo(totalInternalKobo)}</div>
+                <div className="pk-stat-count">{totalChecked.toLocaleString()}</div>
                 <Text variant="caption" tone="tertiary">
-                  Across {runs.length} recorded daily runs
+                  Our payment records across {runs.length} daily runs
                 </Text>
               </div>
             </div>
@@ -219,9 +235,9 @@ export default async function FinancePage({
                     <th scope="col">Provider</th>
                     <th scope="col">Status</th>
                     <th scope="col">Matched / Exceptions</th>
-                    <th scope="col">Internal (Ledger)</th>
-                    <th scope="col">Provider (Paystack)</th>
-                    <th scope="col">Variance</th>
+                    <th scope="col">Our records</th>
+                    <th scope="col">Paystack records</th>
+                    <th scope="col">Difference</th>
                     <th scope="col">Finished (Lagos)</th>
                     <th scope="col" style={{ textAlign: 'right' }}>
                       Actions
@@ -230,7 +246,7 @@ export default async function FinancePage({
                 </thead>
                 <tbody>
                   {displayedRuns.map((r) => {
-                    const varianceKobo = Math.abs(r.totalInternal - r.totalProvider);
+                    const countGap = Math.abs(r.totalInternal - r.totalProvider);
                     return (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{r.businessDate}</td>
@@ -258,21 +274,20 @@ export default async function FinancePage({
                           </Text>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <Text variant="body-sm">{formatKobo(r.totalInternal)}</Text>
+                          <Text variant="body-sm">{r.totalInternal.toLocaleString()}</Text>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <Text variant="body-sm">{formatKobo(r.totalProvider)}</Text>
+                          <Text variant="body-sm">{r.totalProvider.toLocaleString()}</Text>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <Text
                             variant="body-sm"
                             style={{
-                              fontWeight: varianceKobo > 0 ? 600 : 400,
-                              color:
-                                varianceKobo > 0 ? '#dc2626' : 'var(--pk-color-text-secondary)',
+                              fontWeight: countGap > 0 ? 600 : 400,
+                              color: countGap > 0 ? '#dc2626' : 'var(--pk-color-text-secondary)',
                             }}
                           >
-                            {formatKobo(varianceKobo)}
+                            {countGap.toLocaleString()}
                           </Text>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>

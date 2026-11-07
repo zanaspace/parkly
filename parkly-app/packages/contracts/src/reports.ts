@@ -114,3 +114,37 @@ export type MonthlyStatementQuery = z.infer<typeof MonthlyStatementQuerySchema>;
 export type MonthlyStatementLotSummary = z.infer<typeof MonthlyStatementLotSummarySchema>;
 export type MonthlyStatementTotals = z.infer<typeof MonthlyStatementTotalsSchema>;
 export type MonthlyStatement = z.infer<typeof MonthlyStatementSchema>;
+
+/** Admin: Parkly's revenue across operators for a window (at most 93 days). */
+export const PlatformEarningsQuerySchema = z.object({
+  from: LagosDateSchema,
+  to: LagosDateSchema,
+});
+
+const PlatformAmountsShape = {
+  ...EarningsAmountsShape,
+  /** Paystack's fees on these payments, which Parkly bears. */
+  paymentFeesKobo: z.number().int(),
+  /** Commission plus service fees, less Paystack's fees. */
+  netRevenueKobo: z.number().int(),
+};
+
+export const PlatformEarningsReportSchema = z.object({
+  from: LagosDateSchema,
+  to: LagosDateSchema,
+  totals: z.object(PlatformAmountsShape),
+  daily: z.array(z.object({ date: LagosDateSchema, ...PlatformAmountsShape })),
+  /** Operators with money in the window, highest net revenue first. */
+  operators: z.array(
+    z.object({
+      operatorId: z.uuid(),
+      operatorName: z.string(),
+      /** The operator's current rate; past bookings keep the rate they were made at. */
+      commissionBps: z.number().int(),
+      ...PlatformAmountsShape,
+    }),
+  ),
+});
+
+export type PlatformEarningsQuery = z.infer<typeof PlatformEarningsQuerySchema>;
+export type PlatformEarningsReport = z.infer<typeof PlatformEarningsReportSchema>;

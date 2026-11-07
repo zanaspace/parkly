@@ -6,6 +6,8 @@ import {
   OPERATOR_REPORT_MAX_DAYS,
   OperatorEarningsQuerySchema,
   OperatorEarningsReportSchema,
+  PlatformEarningsQuerySchema,
+  PlatformEarningsReportSchema,
 } from '@parkly/contracts';
 import { earningsToCsv } from '@parkly/domain/operator';
 import { lagosDateKey, lagosDayStart } from '@parkly/domain/time';
@@ -189,6 +191,30 @@ export function reportRoutes(deps: AppDeps) {
       }
 
       return c.json(statement, 200);
+    },
+  );
+
+  // 4. GET /admin/reports/platform-earnings: Parkly's own revenue across operators.
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/admin/reports/platform-earnings',
+      tags: ['admin'],
+      ...secured,
+      request: { query: PlatformEarningsQuerySchema },
+      responses: {
+        200: {
+          description:
+            'Platform revenue: commission, service fees and Paystack fees, by day and operator',
+          ...json(PlatformEarningsReportSchema),
+        },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'platform:revenue:read', {});
+      const q = c.req.valid('query');
+      validateWindow(q);
+      return c.json(await deps.store.reports.platformEarnings(q), 200);
     },
   );
 

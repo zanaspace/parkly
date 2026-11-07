@@ -270,3 +270,43 @@ body {
   color: #771a14;
   border: 1px solid #fbc4c0;
 }
+
+/* FR-ADM-007: Parkly revenue (components/platform-revenue.tsx). */
+.pk-money {
+  display: grid;
+  gap: var(--pk-space-stack-md);
+}
+.pk-money-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-tab-nav--wrap {
+  flex-wrap: wrap;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.pk-money-value {
+  margin: var(--pk-space-stack-sm) 0;
+  font-size: var(--pk-type-heading-xl-font-size);
+  font-weight: var(--pk-type-label-md-font-weight);
+  line-height: 1.1;
+  color: var(--pk-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.pk-money-card--strong {
+  border-color: var(--pk-color-border-brand);
+  background: var(--pk-color-bg-brand-subtle);
+}
+.pk-money-card--strong .pk-money-value {
+  color: var(--pk-color-text-brand);
+}
+.pk-table--numeric td:not(:first-child),
+.pk-table--numeric th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
