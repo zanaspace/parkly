@@ -17,6 +17,7 @@ import {
   type LotRow,
   type NewPayment,
   type PaymentRow,
+  RefundExceedsError,
   type RefundRow,
   type SlotRow,
   type Store,
@@ -31,6 +32,8 @@ type History = {
   to: string;
   actor: string;
   reason: string | null;
+  /** When it changed (the support timeline orders by this). */
+  at?: Date;
 };
 type Refund = {
   id: string;
@@ -40,6 +43,10 @@ type Refund = {
   providerRefundId: string | null;
   status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   createdAt?: Date;
+  requestedBy?: string | null;
+  approvedBy?: string | null;
+  /** Only refunds staff chose carry a note (FR-ADM-003). */
+  note?: string | null;
 };
 type Webhook = {
   id: string;
@@ -180,6 +187,7 @@ export class MemoryBookings {
         to: plan.booking.to,
         actor: 'SYSTEM',
         reason: plan.booking.reason,
+        at,
       });
     }
     if (plan.payment) Object.assign(p, plan.payment);
@@ -247,6 +255,7 @@ export class MemoryBookings {
         to: 'PENDING_PAYMENT',
         actor: input.source === 'ADMIN' ? 'ADMIN' : 'DRIVER',
         reason: null,
+        at,
       });
       const row = {
         ...payment,
@@ -311,7 +320,7 @@ export class MemoryBookings {
       ).length;
     },
 
-    releaseHold: async (id, reason) => {
+    releaseHold: async (id, reason, at) => {
       const b = this.bookingRows.find((r) => r.id === id);
       if (!b || b.status !== 'PENDING_PAYMENT') return;
       this.move(b, -1, 0);
@@ -323,6 +332,7 @@ export class MemoryBookings {
         to: 'EXPIRED',
         actor: 'SYSTEM',
         reason,
+        at,
       });
       for (const p of this.paymentRows)
         if (p.bookingId === id && p.status === 'INITIATED') {
@@ -494,67 +504,88 @@ export class MemoryBookings {
         to: 'CANCELLED',
         actor,
         reason,
+        at,
       });
 
-      const created: { id: string; paymentId: string; amountKobo: number }[] = [];
-      if (refund && refund.amountKobo > 0) {
-        const paid = this.paymentRows
-          .filter(
-            (p) =>
-              p.bookingId === bookingId &&
-              (p.kind ?? 'BOOKING') !== 'OVERSTAY' &&
-              (p.status === 'SUCCEEDED' || p.status === 'PARTIALLY_REFUNDED'),
-          )
-          .reverse();
-        if (paid.length === 0) throw new Error(`no successful payment for booking ${bookingId}`);
-        const split = allocateRefund(
-          refund.amountKobo,
-          paid.map((p) => ({
-            id: p.id,
-            amountKobo: p.amountKobo,
-            refundedKobo: this.refundRows
-              .filter((r) => r.paymentId === p.id && r.status !== 'FAILED')
-              .reduce((n, r) => n + r.amountKobo, 0),
-          })),
-        );
-        if (!split) throw new Error(`refund exceeds what booking ${bookingId} paid`);
-        for (const part of split) {
-          const id = randomUUID();
-          this.refundRows.push({
-            id,
-            paymentId: part.paymentId,
-            amountKobo: part.amountKobo,
-            reason: refund.reason,
-            providerRefundId: null,
-            status: 'PENDING',
-            createdAt: at,
-          });
-          created.push({ id, ...part });
-        }
-        // As DrizzleStore: one journal against the latest payment, split like the refund.
-        const latest = paid[0];
-        const lines = latest
-          ? cancellationRefundJournal({
-              payment: {
-                provider: latest.provider,
-                operatorId: latest.operatorId,
-                priceKobo: b.priceKobo,
-                serviceFeeKobo: b.serviceFeeKobo,
-                commissionBps: b.commissionBps,
-              },
-              refundPriceKobo: refund.refundPriceKobo,
-              refundServiceFeeKobo: refund.refundServiceFeeKobo,
-            })
+      const created =
+        refund && refund.amountKobo > 0
+          ? this.insertRefunds(b, { ...refund, note: null, approvedBy: null }, at)
           : [];
-        if (latest && lines.length > 0) {
-          const journalId = randomUUID();
-          for (const l of lines)
-            this.ledgerRows.push({ ...l, journalId, paymentId: latest.id, createdAt: at });
-        }
-      }
       return { booking: { ...b }, refunds: created };
     },
   };
+
+  /** As drizzle-bookings insertRefunds: newest charge first, one reversal journal. */
+  private insertRefunds(
+    b: BookingRow,
+    refund: {
+      amountKobo: number;
+      reason: Refund['reason'];
+      refundPriceKobo: number;
+      refundServiceFeeKobo: number;
+      note: string | null;
+      approvedBy: string | null;
+    },
+    at: Date,
+  ): { id: string; paymentId: string; amountKobo: number }[] {
+    const paid = this.paymentRows
+      .filter(
+        (p) =>
+          p.bookingId === b.id &&
+          (p.kind ?? 'BOOKING') !== 'OVERSTAY' &&
+          (p.status === 'SUCCEEDED' || p.status === 'PARTIALLY_REFUNDED'),
+      )
+      .reverse();
+    if (paid.length === 0)
+      throw new RefundExceedsError(`no successful payment for booking ${b.id}`);
+    const split = allocateRefund(
+      refund.amountKobo,
+      paid.map((p) => ({
+        id: p.id,
+        amountKobo: p.amountKobo,
+        refundedKobo: this.refundRows
+          .filter((r) => r.paymentId === p.id && r.status !== 'FAILED')
+          .reduce((n, r) => n + r.amountKobo, 0),
+      })),
+    );
+    if (!split) throw new RefundExceedsError(`refund exceeds what booking ${b.id} paid`);
+    const created: { id: string; paymentId: string; amountKobo: number }[] = [];
+    for (const part of split) {
+      const id = randomUUID();
+      this.refundRows.push({
+        id,
+        paymentId: part.paymentId,
+        amountKobo: part.amountKobo,
+        reason: refund.reason,
+        providerRefundId: null,
+        status: 'PENDING',
+        createdAt: at,
+        approvedBy: refund.approvedBy,
+        note: refund.note,
+      });
+      created.push({ id, ...part });
+    }
+    const latest = paid[0];
+    const lines = latest
+      ? cancellationRefundJournal({
+          payment: {
+            provider: latest.provider,
+            operatorId: latest.operatorId,
+            priceKobo: b.priceKobo,
+            serviceFeeKobo: b.serviceFeeKobo,
+            commissionBps: b.commissionBps,
+          },
+          refundPriceKobo: refund.refundPriceKobo,
+          refundServiceFeeKobo: refund.refundServiceFeeKobo,
+        })
+      : [];
+    if (latest && lines.length > 0) {
+      const journalId = randomUUID();
+      for (const l of lines)
+        this.ledgerRows.push({ ...l, journalId, paymentId: latest.id, createdAt: at });
+    }
+    return created;
+  }
 
   readonly payments: Store['payments'] = {
     find: async (id) => {
@@ -587,9 +618,9 @@ export class MemoryBookings {
           reason: r.reason as RefundRow['reason'],
           status: r.status ?? ('SUCCEEDED' as const),
           providerRefundId: r.providerRefundId,
-          requestedBy: null,
-          approvedBy: null,
-          note: null,
+          requestedBy: r.requestedBy ?? null,
+          approvedBy: r.approvedBy ?? null,
+          note: r.note ?? null,
           createdAt: r.createdAt ?? new Date(0),
         }));
     },
@@ -689,6 +720,11 @@ export class MemoryBookings {
         })
         .map((p) => ({ ...p })),
 
+    refundBooking: async (bookingId, refund, _actorId, at) => {
+      const b = this.bookingRows.find((r) => r.id === bookingId);
+      if (!b) throw new RefundExceedsError(`booking ${bookingId} not found`);
+      return this.insertRefunds(b, refund, at);
+    },
     refundRequested: async (refundId, providerRefundId) => {
       const r = this.refundRows.find((x) => x.id === refundId);
       if (r) r.providerRefundId = providerRefundId;

@@ -22,7 +22,10 @@ import {
   type OperatorRow,
   type ConsentType,
   type LotKeyRow,
+  type BookingRow,
+  type RefundRequestRow,
   type Store,
+  type SupportBookingRow,
   type UserRow,
   type VehicleRow,
   type VerificationRow,
@@ -137,6 +140,111 @@ export class MemoryStore implements Store {
     payoutRows: this.payoutRows,
   });
   readonly reports: Store['reports'] = this.reportsStore.reports;
+
+  /** FR-ADM-003: mirrors drizzle-refund-requests. */
+  readonly refundRequestRows: RefundRequestRow[] = [];
+  readonly refundRequests: Store['refundRequests'] = {
+    create: async (input, at) => {
+      const row: RefundRequestRow = {
+        id: randomUUID(),
+        ...input,
+        status: 'PENDING_APPROVAL',
+        decidedBy: null,
+        decidedAt: null,
+        decisionNote: null,
+        createdAt: at,
+      };
+      this.refundRequestRows.push(row);
+      return { ...row };
+    },
+    find: async (id) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      return r ? { ...r } : null;
+    },
+    list: async ({ status, bookingId, limit }) =>
+      this.refundRequestRows
+        .filter(
+          (r) => (!status || r.status === status) && (!bookingId || r.bookingId === bookingId),
+        )
+        .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({ ...r })),
+    decide: async (id, { status, decidedBy, note }, at) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      if (!r || r.status !== 'PENDING_APPROVAL') return null;
+      // As the database check: the approver is never the person who asked.
+      if (decidedBy === r.requestedBy) throw new Error('refund_requests_four_eyes_check');
+      Object.assign(r, { status, decidedBy, decidedAt: at, decisionNote: note });
+      return { ...r };
+    },
+    fail: async (id) => {
+      const r = this.refundRequestRows.find((x) => x.id === id);
+      if (r?.status === 'APPROVED') r.status = 'FAILED';
+    },
+  };
+
+  /** FR-ADM-002: mirrors drizzle-support. */
+  readonly support: Store['support'] = {
+    search: async (filter, limit) => {
+      const paidFor = filter.paymentId
+        ? this.booking.paymentRows.find((p) => p.id === filter.paymentId)?.bookingId
+        : undefined;
+      const driverIds = filter.phoneHash
+        ? new Set(
+            [...this.userRows.values()]
+              .filter((u) => u.phoneHash && u.phoneHash.equals(filter.phoneHash as Buffer))
+              .map((u) => u.id),
+          )
+        : new Set<string>();
+      return this.booking.bookingRows
+        .filter(
+          (b) =>
+            (filter.code !== undefined && b.code === filter.code) ||
+            (filter.plateNorm !== undefined && b.plateNorm === filter.plateNorm) ||
+            driverIds.has(b.driverId) ||
+            (paidFor !== undefined && b.id === paidFor),
+        )
+        .sort((x, y) => y.startAt.getTime() - x.startAt.getTime())
+        .slice(0, limit)
+        .map((b) => this.supportRow(b));
+    },
+    find: async (bookingId) => {
+      const b = this.booking.bookingRows.find((r) => r.id === bookingId);
+      return b ? this.supportRow(b) : null;
+    },
+    history: async (bookingId) =>
+      this.booking.historyRows
+        .filter((h) => h.bookingId === bookingId)
+        .map((h) => ({
+          from: h.from,
+          to: h.to,
+          actor: h.actor,
+          reason: h.reason,
+          at: h.at ?? null,
+        })),
+  };
+
+  private supportRow(b: BookingRow): SupportBookingRow {
+    const lot = this.lotRows.get(b.lotId);
+    const op = lot ? this.operatorRows.get(lot.operatorId) : undefined;
+    const u = this.userRows.get(b.driverId);
+    return {
+      id: b.id,
+      code: b.code,
+      status: b.status,
+      lotName: lot?.name ?? 'Car park',
+      operatorName: op?.tradingName ?? 'Operator',
+      startAt: b.startAt,
+      endAt: b.endAt,
+      plateNorm: b.plateNorm,
+      totalKobo: b.totalKobo,
+      driverId: b.driverId,
+      driverFirstName: u?.firstName ?? null,
+      driverPhoneLast4: u?.phoneLast4 ?? null,
+      driverHasEmail: Boolean(u?.emailEnc),
+      createdAt: b.createdAt,
+    };
+  }
 
   constructor() {
     this.booking.onOverstayPaid = async (bookingId) => {

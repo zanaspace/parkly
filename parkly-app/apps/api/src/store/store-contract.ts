@@ -10,6 +10,7 @@ import {
   SlugTakenError,
   StaleVersionError,
   type Store,
+  RefundExceedsError,
 } from './types.js';
 import type { VerifiedCharge } from '../providers/index.js';
 
@@ -1837,6 +1838,121 @@ export function storeContract(
         await store.idempotency.begin(other);
         await store.idempotency.release(actorId, other.key);
         expect(await store.idempotency.begin(other)).toEqual({ state: 'new' });
+      });
+
+      it('finds a booking for support by code, plate, phone or payment, with its history (FR-ADM-002)', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const phoneHash = Buffer.from(randomUUID().replace(/-/g, ''), 'hex');
+        await store.users.setContact(d.id, {
+          phoneHash,
+          emailHash: null,
+          phoneEnc: 'enc-phone',
+          emailEnc: null,
+        });
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+
+        const ids = async (filter: Parameters<typeof store.support.search>[0]) =>
+          (await store.support.search(filter, 20)).map((b) => b.id);
+        expect(await ids({ code: booking.code })).toEqual([booking.id]);
+        expect(await ids({ phoneHash })).toEqual([booking.id]);
+        expect(await ids({ paymentId: payment.id })).toEqual([booking.id]);
+        expect(await ids({ plateNorm: 'LND123AB' })).toContain(booking.id);
+        expect(await ids({ code: 'PK-ZZZZZZ' })).toEqual([]);
+        expect(await ids({})).toEqual([]);
+
+        expect(await store.support.find(booking.id)).toMatchObject({
+          id: booking.id,
+          code: booking.code,
+          status: 'CONFIRMED',
+          lotName: 'Hold lot',
+          operatorName: 'Hold',
+          plateNorm: 'LND123AB',
+          totalKobo: 110_000,
+          driverId: d.id,
+          driverHasEmail: false,
+        });
+        expect(await store.support.find(randomUUID())).toBeNull();
+        expect((await store.support.history(booking.id)).map((h) => [h.from, h.to])).toEqual([
+          [null, 'PENDING_PAYMENT'],
+          ['PENDING_PAYMENT', 'CONFIRMED'],
+        ]);
+      });
+
+      it('refunds part of a booking for staff and keeps a refund request for a second approver (FR-ADM-003)', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        const finance = await newUser([{ role: 'ADMIN_FINANCE', operatorId: null }]);
+        const checker = await newUser([{ role: 'ADMIN_FINANCE', operatorId: null }]);
+
+        const refund = {
+          amountKobo: 30_000,
+          reason: 'OPS_GOODWILL' as const,
+          refundPriceKobo: 30_000,
+          refundServiceFeeKobo: 0,
+          note: 'Barrier stuck',
+          approvedBy: null,
+        };
+        const parts = await store.payments.refundBooking(booking.id, refund, finance, AT);
+        expect(parts).toEqual([
+          { id: expect.any(String), paymentId: payment.id, amountKobo: 30_000 },
+        ]);
+        expect((await store.bookings.find(booking.id))?.status).toBe('CONFIRMED');
+        await expect(
+          store.payments.refundBooking(booking.id, { ...refund, amountKobo: 100_000 }, finance, AT),
+        ).rejects.toBeInstanceOf(RefundExceedsError);
+
+        const request = await store.refundRequests.create(
+          {
+            bookingId: booking.id,
+            amountKobo: 60_000,
+            reason: 'LOT_UNAVAILABLE',
+            note: 'Car park flooded',
+            requestedBy: finance,
+          },
+          AT,
+        );
+        expect(request).toMatchObject({ status: 'PENDING_APPROVAL', decidedBy: null });
+        expect(
+          (
+            await store.refundRequests.list({
+              status: 'PENDING_APPROVAL',
+              bookingId: booking.id,
+              limit: 10,
+            })
+          ).map((r) => r.id),
+        ).toEqual([request.id]);
+        // The person who asked can never approve it (database check).
+        await expect(
+          store.refundRequests.decide(
+            request.id,
+            { status: 'APPROVED', decidedBy: finance, note: null },
+            AT,
+          ),
+        ).rejects.toThrow();
+        const approved = await store.refundRequests.decide(
+          request.id,
+          { status: 'APPROVED', decidedBy: checker, note: 'Checked' },
+          AT,
+        );
+        expect(approved).toMatchObject({
+          status: 'APPROVED',
+          decidedBy: checker,
+          decisionNote: 'Checked',
+        });
+        expect(
+          await store.refundRequests.decide(
+            request.id,
+            { status: 'REJECTED', decidedBy: checker, note: 'x' },
+            AT,
+          ),
+        ).toBeNull();
+        await store.refundRequests.fail(request.id, AT);
+        expect((await store.refundRequests.find(request.id))?.status).toBe('FAILED');
+        expect(await store.refundRequests.find(randomUUID())).toBeNull();
       });
 
       it('finds a booking by code, cancels it with a refund, and tracks the refund to the end', async () => {

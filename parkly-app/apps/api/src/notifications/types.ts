@@ -46,6 +46,15 @@ export type NotificationEvent =
       refundKobo: number;
     }
   | {
+      /** FR-ADM-003: a refund staff issued without cancelling. */
+      key: 'booking.refunded';
+      driverId: string;
+      bookingId: string;
+      bookingCode: string;
+      lotName: string;
+      refundKobo: number;
+    }
+  | {
       key: 'booking.no_show';
       driverId: string;
       bookingId: string;

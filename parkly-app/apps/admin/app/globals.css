@@ -333,3 +333,91 @@ body {
   flex: 1 1 16rem;
   min-width: 0;
 }
+
+/* FR-ADM-002: support search, booking page, reveal and timeline. */
+.pk-support-search {
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-support-hits {
+  display: grid;
+  gap: var(--pk-space-stack-sm);
+  margin-top: var(--pk-space-stack-sm);
+}
+.pk-support-hit {
+  display: grid;
+  gap: var(--pk-space-stack-xs, var(--pk-space-stack-sm));
+  color: inherit;
+  text-decoration: none;
+}
+.pk-support-hit:hover,
+.pk-support-hit:focus-visible {
+  border-color: var(--pk-color-border-brand);
+}
+.pk-support-hit__main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-support-hit__code {
+  font-family: var(--pk-font-family-mono, monospace);
+}
+.pk-support-grid {
+  display: grid;
+  gap: var(--pk-space-stack-md);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+.pk-support-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--pk-space-stack-sm) var(--pk-space-stack-md);
+  margin: 0;
+}
+.pk-support-facts dt {
+  color: var(--pk-color-text-secondary);
+}
+.pk-support-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.pk-reveal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pk-space-stack-sm);
+}
+.pk-reveal__note {
+  color: var(--pk-color-text-secondary);
+  font-size: var(--pk-type-caption-font-size);
+}
+.pk-reveal__form {
+  flex-basis: 100%;
+}
+.pk-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--pk-color-border-default);
+}
+.pk-timeline__item {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: var(--pk-space-stack-md);
+  padding: var(--pk-space-stack-sm) var(--pk-space-stack-md);
+}
+.pk-timeline__time {
+  color: var(--pk-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.pk-timeline__item--REFUND .pk-timeline__what,
+.pk-timeline__item--OVERSTAY .pk-timeline__what {
+  color: var(--pk-color-text-brand);
+}
+@media (max-width: 40rem) {
+  .pk-timeline__item {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

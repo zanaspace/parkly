@@ -47,6 +47,8 @@ type Row = {
   path: string;
   route: string;
   body?: unknown;
+  /** E.g. an Idempotency-Key, so allowed roles reach the 404. */
+  headers?: Record<string, string>;
   expect: Record<Who, number>;
 };
 
@@ -312,6 +314,70 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/admin/support/search?q=PK-AAAAAA',
+    route: 'GET /v1/admin/support/search',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    // No such booking: allowed roles get past the permission check to a 404.
+    method: 'GET',
+    path: `/v1/admin/bookings/${TARGET_USER}/support`,
+    route: 'GET /v1/admin/bookings/{id}/support',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/bookings/${TARGET_USER}/reveal`,
+    route: 'POST /v1/admin/bookings/{id}/reveal',
+    body: { field: 'phone', reason: 'Driver called support' },
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    // FR-ADM-003. No such booking: allowed roles get past the permission check to a 404.
+    method: 'POST',
+    path: `/v1/admin/bookings/${TARGET_USER}/cancel`,
+    route: 'POST /v1/admin/bookings/{id}/cancel',
+    headers: { 'idempotency-key': 'rbac-cancel' },
+    body: { reason: 'Driver asked us to' },
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/bookings/${TARGET_USER}/refunds`,
+    route: 'POST /v1/admin/bookings/{id}/refunds',
+    headers: { 'idempotency-key': 'rbac-refund' },
+    body: { amountKobo: 1_000, reason: 'OPS_GOODWILL', note: 'Goodwill refund' },
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
+    path: '/v1/admin/refund-requests',
+    route: 'GET /v1/admin/refund-requests',
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/refund-requests/${TARGET_USER}/approve`,
+    route: 'POST /v1/admin/refund-requests/{id}/approve',
+    headers: { 'idempotency-key': 'rbac-approve' },
+    body: {},
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/refund-requests/${TARGET_USER}/reject`,
+    route: 'POST /v1/admin/refund-requests/{id}/reject',
+    body: { note: 'Not justified' },
+    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/bookings/${TARGET_USER}/resend-ticket`,
+    route: 'POST /v1/admin/bookings/{id}/resend-ticket',
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/reconciliation/runs',
     route: 'GET /v1/admin/reconciliation/runs',
     expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
@@ -571,7 +637,9 @@ describe('RBAC matrix', () => {
         const res = await w.call(
           row.method,
           row.path,
-          who === 'anon' ? { body: row.body } : { as: ids[who], aal: 'aal2', body: row.body },
+          who === 'anon'
+            ? { body: row.body, headers: row.headers }
+            : { as: ids[who], aal: 'aal2', body: row.body, headers: row.headers },
         );
         expect(res.status).toBe(row.expect[who]);
       });

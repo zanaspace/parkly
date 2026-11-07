@@ -661,10 +661,11 @@ Events: `lot_suspended` (prop `reason`, `bulk_refund`), `lot_reinstated`.
 
 | Step | Rule |
 |---|---|
-| X-07 Booking / payment detail | Shows the full payment timeline from the ledger |
-| Refund | Full or partial (in kobo, ≤ the refundable remainder). Reason code required. Free text optional. |
-| Limits | `ADMIN_SUPPORT` can refund ≤ ₦10,000 per booking. Above that needs `ADMIN_FINANCE`. Over ₦50,000/day per agent triggers a finance alert. (Config.) |
-| Execution | `POST /v1/admin/payments/:id/refunds` with an `Idempotency-Key`. Provider refund. Ledger reversal entries. Operator share clawed back per Paystack split refund rules. |
+| X-07 Booking / payment detail | As built (S8 story 1): **Bookings** opens with one search box that answers as you type (booking code, phone, plate or payment reference) and says how it read the query. Each booking has its own page: status, amount, plate, overstay (with the waiver for ops and finance), the driver as first name and masked phone, a **Reveal** button for the full phone or email that asks for a reason (logged), and a timeline of every status change, payment, refund and gate event. Recent bookings by tab stay below the search |
+| Cancel | As built (S8 story 2): support, ops and finance cancel from the booking page with a reason. The refund follows the driver's cancellation policy; anything more is a separate refund. |
+| Refund | As built: finance only. Full or partial (in naira, ≤ the refundable remainder: paid for the booking and extensions, less refunds and pending requests; overstay is waived, not refunded). Reason (goodwill, car park couldn't take the car, charged twice, other) and a note, both audited. Comes off the parking price first, then the service fee, with a reversal journal. |
+| Limits | As built: over `refund.approval_threshold_kobo` (₦50,000) a refund waits under **Finance → Refund approvals** for a second finance admin, who can't be the one who asked (database check). Approving issues it; rejecting needs a reason. The ₦10,000 support limit and the daily per-agent alert are not built: support can cancel but not refund (doc 05 §5.1). |
+| Execution | `POST /v1/admin/bookings/:id/refunds` with an `Idempotency-Key`. Provider refund. Ledger reversal entries. Operator share clawed back per Paystack split refund rules. |
 | Driver comms | Push + SMS + email: amount and expected timeline |
 | Events | `refund_issued` (props `amount_kobo`, `reason`, `partial`) |
 

@@ -1,94 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { verifyQrToken, fromBase64Url } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
-import type { MemoryStore } from '../../store/memory.js';
 import { attendantGateCodeFor, gateCodePayload, gateMinute } from '@parkly/domain/checkin';
 import { gateCodes, signGatePayload } from '../../lib/gate-codes.js';
-import { TEST_NOW, world } from '../../test-helpers.js';
+import { addLiveLot as addLot, TEST_NOW, world } from '../../test-helpers.js';
 
 // TEST_NOW is Monday 2026-10-19 09:00 Lagos; bookings 10:00–12:00 Lagos today.
 const START = '2026-10-19T09:00:00.000Z';
 const END = '2026-10-19T11:00:00.000Z';
 const min = (n: number) => new Date(TEST_NOW.getTime() + n * 60_000).toISOString();
-
-async function addLot(store: MemoryStore, capacity = 5) {
-  const ownerId = randomUUID();
-  store.seedUser(ownerId, { roles: [] });
-  const op = await store.operators.create({
-    legalName: 'Eko Parking Ltd',
-    tradingName: 'Eko Parking',
-    type: 'HOTEL',
-    cacNumberEnc: null,
-    tinEnc: null,
-    addressLine: null,
-    contactEmail: null,
-    contactPhoneEnc: null,
-    ownerUserId: ownerId,
-    commissionBps: 1200,
-  });
-  Object.assign(store.operatorRows.get(op.id) ?? {}, { status: 'ACTIVE', kybStatus: 'APPROVED' });
-  const lot = await store.lots.create({
-    operatorId: op.id,
-    type: 'HOTEL',
-    name: 'Eko Hotel Car Park',
-    slug: `eko-${randomUUID().slice(0, 8)}`,
-    description: null,
-    addressLine: 'VI',
-    area: null,
-    lga: null,
-    location: { lat: 6.43, lng: 3.42 },
-    entranceNotes: null,
-    capacityTotal: capacity + 5,
-    capacityBookable: capacity,
-    amenities: [],
-    vehicleTypes: ['CAR'],
-    createdBy: ownerId,
-  });
-  const reviewer = { reviewerId: ownerId, at: new Date('2026-10-10T10:00:00Z') };
-  const permit = await store.permits.create({
-    lotId: lot.id,
-    permitNumber: 'LASPA/1',
-    issuedAt: '2026-01-10',
-    expiresAt: '2027-01-09',
-    documentFileId: randomUUID(),
-    submittedBy: ownerId,
-  });
-  await store.permits.approve(permit.id, { ...reviewer, note: 'ok' });
-  const visit = await store.verifications.create({
-    lotId: lot.id,
-    inspectorUserId: ownerId,
-    inspectedAt: new Date('2026-10-09T10:00:00Z'),
-    capacityCounted: 10,
-    gps: null,
-    notes: null,
-    validUntil: '2027-10-09',
-    items: [{ item: 'LASPA_PERMIT', result: 'PASS', comment: null }],
-  });
-  await store.verifications.approve(visit.id, reviewer);
-  const plan = await store.ratePlans.submit({
-    lotId: lot.id,
-    product: 'HOURLY',
-    hourlyRateKobo: 50_000,
-    minMinutes: 60,
-    dailyCapKobo: null,
-    dailyRateKobo: null,
-    monthlyRateKobo: null,
-    submittedBy: ownerId,
-  });
-  await store.ratePlans.approve(plan.id, reviewer);
-  await store.lots.setOpeningHours(
-    lot.id,
-    [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
-      weekday,
-      is24h: true,
-      opensAt: null,
-      closesAt: null,
-    })),
-  );
-  await store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
-  await store.lots.setStatus(op.id, lot.id, 'PENDING_VERIFICATION', 'LIVE', null);
-  return { lot, operatorId: op.id, ownerId };
-}
 
 async function setup() {
   const w = world();

@@ -275,6 +275,7 @@ export class MemoryAttend {
                 to: plan.booking.to,
                 actor: 'ATTENDANT',
                 reason: plan.booking.reason,
+                at: batch.receivedAt,
               });
             }
           }

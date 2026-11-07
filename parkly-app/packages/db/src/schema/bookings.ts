@@ -58,6 +58,13 @@ export const refundReasonEnum = pgEnum('refund_reason', [
   'OTHER',
 ]);
 export const refundStatusEnum = pgEnum('refund_status', ['PENDING', 'SUCCEEDED', 'FAILED']);
+/** FR-ADM-003: a staff refund over the threshold waits for a second finance admin. */
+export const refundRequestStatusEnum = pgEnum('refund_request_status', [
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'REJECTED',
+  'FAILED',
+]);
 export const webhookProcessingEnum = pgEnum('webhook_processing_status', [
   'PENDING',
   'PROCESSED',
@@ -131,6 +138,8 @@ export const bookings = pgTable(
     index('bookings_status_hold_idx').on(t.status, t.holdExpiresAt),
     index('bookings_status_start_idx').on(t.status, t.startAt),
     index('bookings_vehicle_idx').on(t.vehicleId),
+    // FR-ADM-002: support finds bookings by plate, newest first.
+    index('bookings_plate_start_idx').on(t.plateNormSnapshot, t.startAt.desc()),
     index('bookings_rate_plan_idx').on(t.ratePlanId),
     index('bookings_cancelled_by_idx').on(t.cancelledBy),
     index('bookings_lot_active_holds_idx')
@@ -257,6 +266,45 @@ export const refunds = pgTable(
     index('refunds_approved_by_idx').on(t.approvedBy),
     check('refunds_amount_check', sql`${t.amountKobo} > 0`),
     apiAccess('refunds'),
+  ],
+).enableRLS();
+
+/**
+ * FR-ADM-003, maker-checker: a staff refund above `refund.approval_threshold_kobo`
+ * waits here until a different finance admin approves (then it is issued) or
+ * rejects it. FAILED: approved, but there was no longer enough to refund.
+ */
+export const refundRequests = pgTable(
+  'refund_requests',
+  {
+    id: id(),
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'restrict' }),
+    amountKobo: bigint('amount_kobo', { mode: 'number' }).notNull(),
+    reason: refundReasonEnum('reason').notNull(),
+    note: text('note').notNull(), // C2: staff explanation
+    status: refundRequestStatusEnum('status').notNull().default('PENDING_APPROVAL'),
+    requestedBy: uuid('requested_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'restrict' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note'), // C2
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('refund_requests_booking_idx').on(t.bookingId),
+    index('refund_requests_status_created_idx').on(t.status, t.createdAt),
+    index('refund_requests_requested_by_idx').on(t.requestedBy),
+    index('refund_requests_decided_by_idx').on(t.decidedBy),
+    check('refund_requests_amount_check', sql`${t.amountKobo} > 0`),
+    check(
+      'refund_requests_four_eyes_check',
+      sql`${t.decidedBy} is null or ${t.decidedBy} <> ${t.requestedBy}`,
+    ),
+    apiAccess('refund_requests'),
   ],
 ).enableRLS();
 

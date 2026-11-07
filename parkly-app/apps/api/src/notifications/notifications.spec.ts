@@ -565,3 +565,27 @@ describe('quietHoursEnd', () => {
     expect(quietHoursEnd(new Date('2026-10-21T06:00:00Z'))).toBeNull();
   });
 });
+
+describe('refund notice (FR-ADM-003)', () => {
+  const event = {
+    key: 'booking.refunded' as const,
+    driverId: 'd-1',
+    bookingId: 'b-1',
+    bookingCode: 'PK-AB23CD',
+    lotName: 'Eko <Hotel>',
+    refundKobo: 20_000,
+  };
+
+  it('tells the driver the amount by SMS, push and email, with the lot name escaped', () => {
+    expect(renderSms(event, '+2348031234567')?.body).toContain(
+      'A refund of ₦200 for booking PK-AB23CD',
+    );
+    expect(renderPush(event, ['ExponentPushToken[x]'])).toMatchObject({
+      title: 'Refund on its way',
+    });
+    const email = renderEmail(event, 'ada@example.com');
+    expect(email?.subject).toBe('Refund for booking PK-AB23CD');
+    expect(email?.html).toContain('Eko &lt;Hotel&gt;');
+    expect(email?.html).not.toContain('Eko <Hotel>');
+  });
+});

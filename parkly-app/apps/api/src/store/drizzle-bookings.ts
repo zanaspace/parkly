@@ -34,6 +34,8 @@ import {
   type BookingHoldCode,
   type BookingRow,
   type PaymentRow,
+  RefundExceedsError,
+  type RefundRow,
   type Store,
 } from './types.js';
 
@@ -275,6 +277,99 @@ async function applyPlan(
     createdAt: at,
   });
   return { id: refundId, amountKobo: plan.refund.amountKobo };
+}
+
+/**
+ * Refunds a booking's booking and extension charges, newest first, with one
+ * reversal journal against the latest charge (cancellation, FR-ADM-003). The
+ * charges are locked first, so two refunds can't both take the same money.
+ */
+async function insertRefunds(
+  tx: Tx,
+  bookingId: string,
+  refund: {
+    amountKobo: number;
+    reason: RefundRow['reason'];
+    refundPriceKobo: number;
+    refundServiceFeeKobo: number;
+    note: string | null;
+    approvedBy: string | null;
+  },
+  actorId: string,
+  at: Date,
+): Promise<{ id: string; paymentId: string; amountKobo: number }[]> {
+  const paid = await tx
+    .select(paymentColumns)
+    .from(payments)
+    .where(
+      and(
+        eq(payments.bookingId, bookingId),
+        inArray(payments.kind, ['BOOKING', 'EXTENSION']),
+        inArray(payments.status, ['SUCCEEDED', 'PARTIALLY_REFUNDED']),
+      ),
+    )
+    .orderBy(desc(payments.createdAt))
+    .for('update');
+  const payment = paid[0];
+  if (!payment) throw new RefundExceedsError(`no successful payment for booking ${bookingId}`);
+  const already = await tx
+    .select({ paymentId: refunds.paymentId, amountKobo: refunds.amountKobo })
+    .from(refunds)
+    .where(
+      and(
+        inArray(
+          refunds.paymentId,
+          paid.map((p) => p.id),
+        ),
+        notInArray(refunds.status, ['FAILED']),
+      ),
+    );
+  const split = allocateRefund(
+    refund.amountKobo,
+    paid.map((p) => ({
+      id: p.id,
+      amountKobo: p.amountKobo,
+      refundedKobo: already
+        .filter((r) => r.paymentId === p.id)
+        .reduce((n, r) => n + r.amountKobo, 0),
+    })),
+  );
+  if (!split) throw new RefundExceedsError(`refund exceeds what booking ${bookingId} paid`);
+
+  const [b] = await tx.select(bookingColumns).from(bookings).where(eq(bookings.id, bookingId));
+  if (!b) throw new Error(`booking ${bookingId} not found`);
+
+  const created: { id: string; paymentId: string; amountKobo: number }[] = [];
+  for (const part of split) {
+    const id = uuidv7();
+    await tx.insert(refunds).values({
+      id,
+      paymentId: part.paymentId,
+      amountKobo: part.amountKobo,
+      reason: refund.reason,
+      status: 'PENDING',
+      requestedBy: actorId,
+      approvedBy: refund.approvedBy,
+      note: refund.note,
+      createdAt: at,
+      updatedAt: at,
+    });
+    created.push({ id, ...part });
+  }
+
+  const lines = cancellationRefundJournal({
+    payment: {
+      provider: payment.provider,
+      operatorId: payment.operatorId,
+      priceKobo: b.priceKobo,
+      serviceFeeKobo: b.serviceFeeKobo,
+      commissionBps: b.commissionBps,
+    },
+    refundPriceKobo: refund.refundPriceKobo,
+    refundServiceFeeKobo: refund.refundServiceFeeKobo,
+  });
+  if (lines.length > 0) await postJournal(tx, lines, payment.id, at);
+  return created;
 }
 
 /** Sprint 4 parts of DrizzleStore: bookings, payments, webhooks, idempotency keys. */
@@ -560,82 +655,16 @@ export function drizzleBookings(
               ${bookingId}::uuid, ${actor}::public.booking_actor, ${actorId}::uuid, ${reason}
             )`);
 
-            const created: { id: string; paymentId: string; amountKobo: number }[] = [];
-            if (refund && refund.amountKobo > 0) {
-              const paid = await tx
-                .select(paymentColumns)
-                .from(payments)
-                .where(
-                  and(
-                    eq(payments.bookingId, bookingId),
-                    inArray(payments.kind, ['BOOKING', 'EXTENSION']),
-                    inArray(payments.status, ['SUCCEEDED', 'PARTIALLY_REFUNDED']),
-                  ),
-                )
-                .orderBy(desc(payments.createdAt))
-                .for('update');
-              const payment = paid[0];
-              if (!payment) throw new Error(`no successful payment for booking ${bookingId}`);
-              const already = await tx
-                .select({ paymentId: refunds.paymentId, amountKobo: refunds.amountKobo })
-                .from(refunds)
-                .where(
-                  and(
-                    inArray(
-                      refunds.paymentId,
-                      paid.map((p) => p.id),
-                    ),
-                    notInArray(refunds.status, ['FAILED']),
-                  ),
-                );
-              const split = allocateRefund(
-                refund.amountKobo,
-                paid.map((p) => ({
-                  id: p.id,
-                  amountKobo: p.amountKobo,
-                  refundedKobo: already
-                    .filter((r) => r.paymentId === p.id)
-                    .reduce((n, r) => n + r.amountKobo, 0),
-                })),
-              );
-              if (!split) throw new Error(`refund exceeds what booking ${bookingId} paid`);
-
-              const [b] = await tx
-                .select(bookingColumns)
-                .from(bookings)
-                .where(eq(bookings.id, bookingId));
-              if (!b) throw new Error(`booking ${bookingId} not found`);
-
-              for (const part of split) {
-                const id = uuidv7();
-                await tx.insert(refunds).values({
-                  id,
-                  paymentId: part.paymentId,
-                  amountKobo: part.amountKobo,
-                  reason: refund.reason,
-                  status: 'PENDING',
-                  requestedBy: actorId,
-                  createdAt: at,
-                  updatedAt: at,
-                });
-                created.push({ id, ...part });
-              }
-
-              const lines = cancellationRefundJournal({
-                payment: {
-                  provider: payment.provider,
-                  operatorId: payment.operatorId,
-                  priceKobo: b.priceKobo,
-                  serviceFeeKobo: b.serviceFeeKobo,
-                  commissionBps: b.commissionBps,
-                },
-                refundPriceKobo: refund.refundPriceKobo,
-                refundServiceFeeKobo: refund.refundServiceFeeKobo,
-              });
-              if (lines.length > 0) {
-                await postJournal(tx, lines, payment.id, at);
-              }
-            }
+            const created =
+              refund && refund.amountKobo > 0
+                ? await insertRefunds(
+                    tx,
+                    bookingId,
+                    { ...refund, note: null, approvedBy: null },
+                    actorId,
+                    at,
+                  )
+                : [];
 
             const [b] = await tx
               .select(bookingColumns)
@@ -828,6 +857,10 @@ export function drizzleBookings(
           )
           .orderBy(asc(payments.createdAt));
         return rows.map(asPayment);
+      },
+
+      async refundBooking(bookingId, refund, actorId, at) {
+        return db.transaction((tx) => insertRefunds(tx, bookingId, refund, actorId, at));
       },
 
       async refundRequested(refundId, providerRefundId) {
