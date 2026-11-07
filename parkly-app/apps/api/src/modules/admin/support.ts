@@ -6,6 +6,7 @@ import {
   SupportSearchQuerySchema,
   SupportSearchResponseSchema,
 } from '@parkly/contracts';
+import { DEFAULT_REFUND_APPROVAL_THRESHOLD_KOBO, refundableKobo } from '@parkly/domain/booking';
 import { buildTimeline, classifySupportQuery, maskedPhoneFromLast4 } from '@parkly/domain/support';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
@@ -102,11 +103,13 @@ export function adminSupportRoutes(deps: AppDeps) {
       const { id } = c.req.valid('param');
       const booking = await deps.store.support.find(id);
       if (!booking) throw new ApiError('NOT_FOUND');
-      const [history, payments, refunds, session] = await Promise.all([
+      const [history, payments, refunds, session, pending, threshold] = await Promise.all([
         deps.store.support.history(id),
         deps.store.payments.listForBooking(id),
         deps.store.payments.refundsForBooking(id),
         deps.store.attend.sessionByBooking(id),
+        deps.store.refundRequests.list({ bookingId: id, status: 'PENDING_APPROVAL', limit: 50 }),
+        deps.store.settings.get<number>('refund.approval_threshold_kobo'),
       ]);
       const timeline = buildTimeline({
         history,
@@ -137,6 +140,12 @@ export function adminSupportRoutes(deps: AppDeps) {
               }
             : null,
           timeline: timeline.map((e) => ({ ...e, at: e.at ? e.at.toISOString() : null })),
+          refundableKobo: refundableKobo({
+            payments,
+            refunds,
+            pendingRequestsKobo: pending.reduce((n, r) => n + r.amountKobo, 0),
+          }),
+          refundApprovalThresholdKobo: threshold ?? DEFAULT_REFUND_APPROVAL_THRESHOLD_KOBO,
         },
         200,
       );

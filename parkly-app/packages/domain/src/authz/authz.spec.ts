@@ -67,6 +67,17 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
     expect(can(compliance, 'overstay:waive', {})).toBe(false);
   });
 
+  it('lets support cancel and resend, and only finance refund (FR-ADM-003)', () => {
+    for (const a of [support, ops, finance]) {
+      expect(can(a, 'booking:admin:cancel', {})).toBe(true);
+      expect(can(a, 'booking:ticket:resend', {})).toBe(true);
+    }
+    expect(can(finance, 'booking:refund', {})).toBe(true);
+    for (const a of [support, ops, compliance, ownerA])
+      expect(can(a, 'booking:refund', {})).toBe(false);
+    expect(can(compliance, 'booking:admin:cancel', {})).toBe(false);
+  });
+
   it('lets support, ops and finance reveal a driver contact, not compliance or operators', () => {
     for (const a of [support, ops, finance]) expect(can(a, 'booking:contact:reveal', {})).toBe(true);
     expect(can(compliance, 'booking:contact:reveal', {})).toBe(false);

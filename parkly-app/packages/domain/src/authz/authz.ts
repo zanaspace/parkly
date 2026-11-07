@@ -92,6 +92,17 @@ const RULES = {
     roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
   },
   'overstay:waive': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'] },
+  /** FR-ADM-003: cancel under the normal policy, or send the ticket again. */
+  'booking:admin:cancel': {
+    scope: 'platform',
+    roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
+  'booking:ticket:resend': {
+    scope: 'platform',
+    roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
+  /** FR-ADM-003: refunds staff choose, and approving them over the threshold (doc 05 §5.1). */
+  'booking:refund': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   /** FR-ADM-002: show a driver's full phone or email to support, with a reason (audited). */
   'booking:contact:reveal': {
     scope: 'platform',

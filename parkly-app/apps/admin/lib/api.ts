@@ -41,13 +41,14 @@ export async function apiFetch<T>(
   apiUrl: string,
   path: string,
   accessToken: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${apiUrl}${path}`, {
       method: init.method ?? 'GET',
       headers: {
+        ...init.headers,
         authorization: `Bearer ${accessToken}`,
         ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
       },

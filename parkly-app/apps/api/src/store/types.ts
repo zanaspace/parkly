@@ -1061,6 +1061,24 @@ export type Store = {
     latestForBooking(bookingId: string): Promise<PaymentRow | null>;
     listForBooking(bookingId: string): Promise<PaymentRow[]>;
     refundsForBooking(bookingId: string): Promise<RefundRow[]>;
+    /**
+     * FR-ADM-003: a staff refund without cancelling, split across the booking's
+     * booking and extension charges (newest first) with its reversal journal,
+     * like a cancellation refund. Throws RefundExceedsError past what's left.
+     */
+    refundBooking(
+      bookingId: string,
+      refund: {
+        amountKobo: number;
+        reason: RefundRow['reason'];
+        refundPriceKobo: number;
+        refundServiceFeeKobo: number;
+        note: string | null;
+        approvedBy: string | null;
+      },
+      actorId: string,
+      at: Date,
+    ): Promise<{ id: string; paymentId: string; amountKobo: number }[]>;
     create(
       payment: NewPayment & {
         bookingId: string;
@@ -1415,6 +1433,36 @@ export type Store = {
   settings: {
     get<T>(key: string): Promise<T | undefined>;
   };
+  /** FR-ADM-003: staff refunds waiting for a second finance admin. */
+  refundRequests: {
+    create(
+      input: {
+        bookingId: string;
+        amountKobo: number;
+        reason: RefundRow['reason'];
+        note: string;
+        requestedBy: string;
+      },
+      at: Date,
+    ): Promise<RefundRequestRow>;
+    find(id: string): Promise<RefundRequestRow | null>;
+    list(filter: {
+      status?: RefundRequestRow['status'];
+      bookingId?: string;
+      limit: number;
+    }): Promise<RefundRequestRow[]>;
+    /**
+     * PENDING_APPROVAL → APPROVED or REJECTED, once: null when it was already
+     * decided (someone else got there first).
+     */
+    decide(
+      id: string,
+      decision: { status: 'APPROVED' | 'REJECTED'; decidedBy: string; note: string | null },
+      at: Date,
+    ): Promise<RefundRequestRow | null>;
+    /** APPROVED → FAILED when there was no longer enough left to refund. */
+    fail(id: string, at: Date): Promise<void>;
+  };
   /** FR-ADM-002: support finds bookings and reads their history. */
   support: {
     /**
@@ -1467,6 +1515,24 @@ export type BookingHoldCode =
   | 'BOOKING_NOT_EXTENDABLE'
   | 'BOOKING_NOT_CANCELLABLE'
   | 'EXTENSION_UNAVAILABLE';
+
+/** A refund for more than is left on the booking's charges (FR-ADM-003). */
+export class RefundExceedsError extends Error {}
+
+/** FR-ADM-003 maker-checker: a staff refund over the threshold, waiting for a second finance admin. */
+export type RefundRequestRow = {
+  id: string;
+  bookingId: string;
+  amountKobo: number;
+  reason: RefundRow['reason'];
+  note: string;
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  requestedBy: string;
+  decidedBy: string | null;
+  decidedAt: Date | null;
+  decisionNote: string | null;
+  createdAt: Date;
+};
 
 /** `fn_hold_booking` refused; `code` is the problem+json code. */
 export class BookingHoldError extends Error {
