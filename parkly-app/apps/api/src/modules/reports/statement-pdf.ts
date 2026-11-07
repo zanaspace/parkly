@@ -127,7 +127,10 @@ export async function renderStatementPdf(statement: MonthlyStatement): Promise<U
   // Financial Summary
   line('Financial Summary', { font: bold, size: 11, gap: 6 });
   row('Total Bookings Paid', String(statement.totals.bookingsCount));
-  row('Gross Booking Value', money(statement.totals.grossBookingKobo));
+  row('Paid by Drivers (after refunds)', money(statement.totals.grossBookingKobo));
+  row('  of which Extensions', money(statement.totals.extensionKobo));
+  row('  of which Overstay', money(statement.totals.overstayKobo));
+  row('Refunded to Drivers', money(statement.totals.refundKobo));
   row('Platform Commission', money(statement.totals.commissionKobo));
   row('Driver Service Fees', money(statement.totals.serviceFeeKobo));
   row('Net Operator Earnings', money(statement.totals.netOperatorKobo), bold);

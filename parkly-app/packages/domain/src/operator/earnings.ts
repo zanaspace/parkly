@@ -1,12 +1,31 @@
+import { LEDGER_ACCOUNTS, operatorPayable } from '../booking/ledger.js';
+import { lagosDateKey } from '../time/slots.js';
 import { toCsv } from './csv.js';
 
-export type DailyEarningsItem = {
-  date: string;
+/** What drivers paid, split by who keeps it, net of refunds. Shared by days, lots and totals. */
+export type EarningsAmounts = {
+  /** Bookings first paid for in the period (extensions and overstay don't add one). */
   bookingsCount: number;
+  /** Everything drivers paid (bookings, extensions, overstay, service fee) less refunds. */
   grossBookingKobo: number;
   commissionKobo: number;
   serviceFeeKobo: number;
   netOperatorKobo: number;
+  /**
+   * Paid for extensions, before refunds. Refunds aren't split by kind: a
+   * cancellation's journal is linked to the booking's latest payment, which may
+   * be an extension, so they're only in `refundKobo`.
+   */
+  extensionKobo: number;
+  /** Paid for overstay, before refunds (including any Park-now holding fee charged with it). */
+  overstayKobo: number;
+  /** Money handed back to drivers in the period (already taken off gross). */
+  refundKobo: number;
+};
+
+export type DailyEarningsItem = EarningsAmounts & {
+  date: string;
+  /** Payouts that reached the operator's bank this day (SETTLED only). */
   settlementKobo: number;
   settlementStatus: 'NONE' | 'PENDING' | 'PROCESSING' | 'SETTLED' | 'PARTIAL' | 'FAILED';
   settlementReferences: string[];
@@ -20,12 +39,7 @@ export type SettlementSummary = {
   settledAt: string | null;
 };
 
-export type OperatorEarningsTotals = {
-  bookingsCount: number;
-  grossBookingKobo: number;
-  commissionKobo: number;
-  serviceFeeKobo: number;
-  netOperatorKobo: number;
+export type OperatorEarningsTotals = EarningsAmounts & {
   settlementKobo: number;
 };
 
@@ -48,15 +62,123 @@ export type MonthlyStatementLotSummary = {
   netOperatorKobo: number;
 };
 
-export type MonthlyStatementTotals = {
-  bookingsCount: number;
-  grossBookingKobo: number;
-  commissionKobo: number;
-  serviceFeeKobo: number;
-  netOperatorKobo: number;
+export type MonthlyStatementTotals = EarningsAmounts & {
   settlementKobo: number;
   closingBalanceKobo: number;
 };
+
+/**
+ * One ledger line of an operator's payment, with what the report groups by.
+ * The store passes only lines on the commission, service fee and this
+ * operator's payable accounts, for payments to this operator.
+ */
+export type EarningsLedgerLine = {
+  account: string;
+  direction: 'DEBIT' | 'CREDIT';
+  amountKobo: number;
+  postedAt: Date;
+  paymentKind: 'BOOKING' | 'EXTENSION' | 'OVERSTAY' | 'PASS';
+  bookingId: string | null;
+  lotId: string | null;
+};
+
+const ZERO: EarningsAmounts = {
+  bookingsCount: 0,
+  grossBookingKobo: 0,
+  commissionKobo: 0,
+  serviceFeeKobo: 0,
+  netOperatorKobo: 0,
+  extensionKobo: 0,
+  overstayKobo: 0,
+  refundKobo: 0,
+};
+
+/**
+ * Earnings from the ledger (doc 20 S7: report totals equal ledger sums).
+ * A payment's journal credits commission, service fee and the operator's
+ * payable; a refund's journal debits them back in the same proportions
+ * (`cancellationRefundJournal`, `refundJournal`). So the split of a partial
+ * refund, an extension or an overstay is exactly what was posted, and a
+ * refund lands on the day it was posted, whenever the payment was.
+ */
+export function ledgerEarnings(
+  lines: readonly EarningsLedgerLine[],
+  operatorId: string,
+): EarningsAmounts {
+  const payable = operatorPayable(operatorId);
+  const out = { ...ZERO };
+  const paidBookings = new Set<string>();
+  for (const l of lines) {
+    const signed = l.direction === 'CREDIT' ? l.amountKobo : -l.amountKobo;
+    if (l.account === LEDGER_ACCOUNTS.COMMISSION) out.commissionKobo += signed;
+    else if (l.account === LEDGER_ACCOUNTS.SERVICE_FEE) out.serviceFeeKobo += signed;
+    else if (l.account === payable) out.netOperatorKobo += signed;
+    else continue;
+    out.grossBookingKobo += signed;
+    if (l.direction === 'DEBIT') {
+      out.refundKobo += l.amountKobo;
+      continue;
+    }
+    if (l.paymentKind === 'EXTENSION') out.extensionKobo += l.amountKobo;
+    if (l.paymentKind === 'OVERSTAY') out.overstayKobo += l.amountKobo;
+    if (l.paymentKind === 'BOOKING' && l.bookingId) paidBookings.add(l.bookingId);
+  }
+  out.bookingsCount = paidBookings.size;
+  return out;
+}
+
+/** Ledger lines grouped by the Lagos day they were posted. */
+export function dailyLedgerEarnings(
+  lines: readonly EarningsLedgerLine[],
+  operatorId: string,
+  days: readonly string[],
+): Map<string, EarningsAmounts> {
+  const byDay = new Map<string, EarningsLedgerLine[]>();
+  for (const l of lines) {
+    const key = lagosDateKey(l.postedAt);
+    const list = byDay.get(key);
+    if (list) list.push(l);
+    else byDay.set(key, [l]);
+  }
+  return new Map(days.map((d) => [d, ledgerEarnings(byDay.get(d) ?? [], operatorId)]));
+}
+
+/** Ledger lines grouped by car park, for the monthly statement. */
+export function lotLedgerEarnings(
+  lines: readonly EarningsLedgerLine[],
+  operatorId: string,
+  lotNames: ReadonlyMap<string, string>,
+): MonthlyStatementLotSummary[] {
+  const byLot = new Map<string, EarningsLedgerLine[]>();
+  for (const l of lines) {
+    if (!l.lotId) continue;
+    const list = byLot.get(l.lotId);
+    if (list) list.push(l);
+    else byLot.set(l.lotId, [l]);
+  }
+  return [...byLot.entries()].map(([lotId, ls]) => {
+    const a = ledgerEarnings(ls, operatorId);
+    return {
+      lotId,
+      lotName: lotNames.get(lotId) ?? 'Car park',
+      bookingsCount: a.bookingsCount,
+      grossBookingKobo: a.grossBookingKobo,
+      commissionKobo: a.commissionKobo,
+      netOperatorKobo: a.netOperatorKobo,
+    };
+  });
+}
+
+/** How a day's payouts read: settled wins, then in flight, then failed. */
+export function daySettlementStatus(
+  statuses: readonly SettlementSummary['status'][],
+): DailyEarningsItem['settlementStatus'] {
+  if (statuses.includes('SETTLED')) return 'SETTLED';
+  if (statuses.includes('PROCESSING')) return 'PROCESSING';
+  if (statuses.includes('PENDING')) return 'PENDING';
+  if (statuses.includes('FAILED')) return 'FAILED';
+  return 'NONE';
+}
 
 /** Kobo as naira with two decimals, without floating point (Never-do #10). */
 export function naira(kobo: number): string {
@@ -77,50 +199,29 @@ export function lagosTime(d: Date | null): string | null {
 export function calculateEarningsTotals(
   items: readonly DailyEarningsItem[],
 ): OperatorEarningsTotals {
-  let bookingsCount = 0;
-  let grossBookingKobo = 0;
-  let commissionKobo = 0;
-  let serviceFeeKobo = 0;
-  let netOperatorKobo = 0;
-  let settlementKobo = 0;
-
+  const totals: OperatorEarningsTotals = { ...ZERO, settlementKobo: 0 };
   for (const item of items) {
-    bookingsCount += item.bookingsCount;
-    grossBookingKobo += item.grossBookingKobo;
-    commissionKobo += item.commissionKobo;
-    serviceFeeKobo += item.serviceFeeKobo;
-    netOperatorKobo += item.netOperatorKobo;
-    settlementKobo += item.settlementKobo;
+    totals.bookingsCount += item.bookingsCount;
+    totals.grossBookingKobo += item.grossBookingKobo;
+    totals.commissionKobo += item.commissionKobo;
+    totals.serviceFeeKobo += item.serviceFeeKobo;
+    totals.netOperatorKobo += item.netOperatorKobo;
+    totals.extensionKobo += item.extensionKobo;
+    totals.overstayKobo += item.overstayKobo;
+    totals.refundKobo += item.refundKobo;
+    totals.settlementKobo += item.settlementKobo;
   }
-
-  return {
-    bookingsCount,
-    grossBookingKobo,
-    commissionKobo,
-    serviceFeeKobo,
-    netOperatorKobo,
-    settlementKobo,
-  };
+  return totals;
 }
 
-/** Computes statement totals across lots and settlements for a monthly period. */
+/**
+ * Statement totals: the month's earnings (from `ledgerEarnings` over every
+ * line, so lines without a car park still count) and what was settled.
+ */
 export function calculateStatementTotals(
-  lots: readonly MonthlyStatementLotSummary[],
+  earnings: EarningsAmounts,
   settlements: readonly SettlementSummary[],
-  serviceFeeKobo = 0,
 ): MonthlyStatementTotals {
-  let bookingsCount = 0;
-  let grossBookingKobo = 0;
-  let commissionKobo = 0;
-  let netOperatorKobo = 0;
-
-  for (const lot of lots) {
-    bookingsCount += lot.bookingsCount;
-    grossBookingKobo += lot.grossBookingKobo;
-    commissionKobo += lot.commissionKobo;
-    netOperatorKobo += lot.netOperatorKobo;
-  }
-
   let settlementKobo = 0;
   for (const s of settlements) {
     if (s.status === 'SETTLED') {
@@ -129,13 +230,9 @@ export function calculateStatementTotals(
   }
 
   return {
-    bookingsCount,
-    grossBookingKobo,
-    commissionKobo,
-    serviceFeeKobo,
-    netOperatorKobo,
+    ...earnings,
     settlementKobo,
-    closingBalanceKobo: netOperatorKobo - settlementKobo,
+    closingBalanceKobo: earnings.netOperatorKobo - settlementKobo,
   };
 }
 
@@ -146,6 +243,9 @@ const CSV_HEADER = [
   'commission_ngn',
   'service_fee_ngn',
   'net_operator_ngn',
+  'extension_ngn',
+  'overstay_ngn',
+  'refunds_ngn',
   'settlement_ngn',
   'settlement_status',
   'settlement_references',
@@ -178,6 +278,9 @@ export function earningsToCsv(
     naira(r.commissionKobo),
     naira(r.serviceFeeKobo),
     naira(r.netOperatorKobo),
+    naira(r.extensionKobo),
+    naira(r.overstayKobo),
+    naira(r.refundKobo),
     naira(r.settlementKobo),
     r.settlementStatus,
     r.settlementReferences.join('; '),
@@ -190,6 +293,9 @@ export function earningsToCsv(
     naira(report.totals.commissionKobo),
     naira(report.totals.serviceFeeKobo),
     naira(report.totals.netOperatorKobo),
+    naira(report.totals.extensionKobo),
+    naira(report.totals.overstayKobo),
+    naira(report.totals.refundKobo),
     naira(report.totals.settlementKobo),
     '',
     '',

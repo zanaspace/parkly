@@ -63,6 +63,7 @@ function addPayment(
       amountKobo: (payment.ledgerAmountKobo ?? row.amountKobo) as never,
       journalId: randomUUID(),
       paymentId: row.id,
+      createdAt: row.createdAt ?? new Date(),
     });
   return row;
 }

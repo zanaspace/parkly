@@ -158,7 +158,8 @@ export async function accountIds(tx: Tx, codes: string[]): Promise<Map<string, s
   return new Map(rows.map((r) => [r.code, r.id]));
 }
 
-async function postJournal(tx: Tx, lines: JournalLine[], paymentId: string) {
+/** Posts one journal, dated `at` so reports put it on the day it happened. */
+async function postJournal(tx: Tx, lines: JournalLine[], paymentId: string, at: Date) {
   if (!isBalanced(lines)) throw new Error('ledger journal is unbalanced');
   const ids = await accountIds(
     tx,
@@ -173,6 +174,7 @@ async function postJournal(tx: Tx, lines: JournalLine[], paymentId: string) {
       direction: l.direction,
       amountKobo: l.amountKobo,
       paymentId,
+      createdAt: at,
     })),
   );
 }
@@ -262,7 +264,7 @@ async function applyPlan(
       .update(payments)
       .set({ ...plan.payment, version: sql`${payments.version} + 1`, updatedAt: at })
       .where(eq(payments.id, paymentId));
-  for (const lines of plan.journals) await postJournal(tx, lines, paymentId);
+  for (const lines of plan.journals) await postJournal(tx, lines, paymentId, at);
   if (!plan.refund) return null;
   const refundId = uuidv7();
   await tx.insert(refunds).values({
@@ -631,7 +633,7 @@ export function drizzleBookings(
                 refundServiceFeeKobo: refund.refundServiceFeeKobo,
               });
               if (lines.length > 0) {
-                await postJournal(tx, lines, payment.id);
+                await postJournal(tx, lines, payment.id, at);
               }
             }
 

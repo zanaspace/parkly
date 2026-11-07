@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   addOnDecision,
   allocateRefund,
+  cancellationRefundJournal,
   confirmDecision,
   extensionApplies,
   isBalanced,
@@ -77,7 +78,9 @@ export class MemoryBookings {
   readonly historyRows: History[] = [];
   readonly extensionRows: (BookingExtensionRow & { paymentId: string | null })[] = [];
   readonly refundRows: Refund[] = [];
-  readonly ledgerRows: (JournalLine & { journalId: string; paymentId: string })[] = [];
+  /** Ledger lines, dated when posted (reports group by that day). */
+  readonly ledgerRows: (JournalLine & { journalId: string; paymentId: string; createdAt: Date })[] =
+    [];
   readonly webhookRows: Webhook[] = [];
   readonly idempotencyRows = new Map<string, IdemKey>();
   onOverstayPaid?: (bookingId: string) => Promise<void> | void;
@@ -183,7 +186,8 @@ export class MemoryBookings {
     for (const lines of plan.journals) {
       if (!isBalanced(lines)) throw new Error('ledger journal is unbalanced');
       const journalId = randomUUID();
-      for (const l of lines) this.ledgerRows.push({ ...l, journalId, paymentId: p.id });
+      for (const l of lines)
+        this.ledgerRows.push({ ...l, journalId, paymentId: p.id, createdAt: at });
     }
     let refund: Refund | null = null;
     if (plan.refund) {
@@ -526,6 +530,26 @@ export class MemoryBookings {
             createdAt: at,
           });
           created.push({ id, ...part });
+        }
+        // As DrizzleStore: one journal against the latest payment, split like the refund.
+        const latest = paid[0];
+        const lines = latest
+          ? cancellationRefundJournal({
+              payment: {
+                provider: latest.provider,
+                operatorId: latest.operatorId,
+                priceKobo: b.priceKobo,
+                serviceFeeKobo: b.serviceFeeKobo,
+                commissionBps: b.commissionBps,
+              },
+              refundPriceKobo: refund.refundPriceKobo,
+              refundServiceFeeKobo: refund.refundServiceFeeKobo,
+            })
+          : [];
+        if (latest && lines.length > 0) {
+          const journalId = randomUUID();
+          for (const l of lines)
+            this.ledgerRows.push({ ...l, journalId, paymentId: latest.id, createdAt: at });
         }
       }
       return { booking: { ...b }, refunds: created };
