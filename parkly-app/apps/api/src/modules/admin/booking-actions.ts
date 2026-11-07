@@ -16,7 +16,11 @@ import {
   needsSecondApproval,
   refundableKobo,
   splitAdminRefund,
+  DEFAULT_SUPPORT_REFUND_LIMIT_KOBO,
+  staffRefundedKobo,
+  supportRefundLeftKobo,
 } from '@parkly/domain/booking';
+import { can } from '@parkly/domain/authz';
 import type { Kobo } from '@parkly/domain/money';
 import type { Context } from 'hono';
 import type { AppDeps } from '../../app.js';
@@ -40,7 +44,7 @@ const IdempotencyHeader = z.object({ 'idempotency-key': z.string().optional() })
  * FR-ADM-003: what support and finance can do to a booking, each with a
  * reason in the audit log.
  * - Cancel (support, ops, finance): the same policy as the driver's own cancel.
- * - Refund (finance): an amount staff choose, up to what's left. Over
+ * - Refund (finance; support up to ₦10,000 per booking): an amount staff choose, up to what's left. Over
  *   `refund.approval_threshold_kobo` (₦50,000) it waits for a second finance
  *   admin, who can't be the one who asked (maker-checker, doc 05 §5.1).
  * - Resend the ticket (support, ops, finance).
@@ -93,6 +97,13 @@ export function adminBookingActionRoutes(deps: AppDeps) {
         deps.logger.error({ err, bookingId, refundId: r.id }, 'staff refund request failed');
       }
     }
+  }
+
+  async function supportLimit(): Promise<number> {
+    return (
+      (await deps.store.settings.get<number>('refund.support_limit_kobo')) ??
+      DEFAULT_SUPPORT_REFUND_LIMIT_KOBO
+    );
   }
 
   async function threshold(): Promise<number> {
@@ -260,7 +271,10 @@ export function adminBookingActionRoutes(deps: AppDeps) {
       },
     }),
     async (c) => {
-      authorize(c, deps.logger, 'booking:refund', {});
+      // Finance refunds any amount (a second approver over the threshold);
+      // support up to refund.support_limit_kobo per booking (doc 03 §4.4).
+      const finance = can(c.get('actor'), 'booking:refund', {});
+      if (!finance) authorize(c, deps.logger, 'booking:refund:support', {});
       const { id } = c.req.valid('param');
       return once(c, `/v1/admin/bookings/${id}/refunds`, async () => {
         const { amountKobo, reason, note } = c.req.valid('json');
@@ -282,6 +296,20 @@ export function adminBookingActionRoutes(deps: AppDeps) {
             `At most ₦${(left / 100).toFixed(2)} is left to refund on this booking`,
           );
         const actorId = c.get('actor').userId;
+        if (!finance) {
+          const supportLeft = supportRefundLeftKobo({
+            limitKobo: await supportLimit(),
+            staffRefundedKobo: staffRefundedKobo(refunds),
+            refundableKobo: left,
+          });
+          if (amountKobo > supportLeft)
+            throw new ApiError(
+              'REFUND_NEEDS_FINANCE',
+              supportLeft > 0
+                ? `Support can refund up to ₦${(supportLeft / 100).toFixed(2)} more on this booking; ask finance for more`
+                : 'Support has refunded as much as it can on this booking; ask finance',
+            );
+        }
 
         if (needsSecondApproval(amountKobo, await threshold())) {
           const request = await deps.store.refundRequests.create(
@@ -305,7 +333,7 @@ export function adminBookingActionRoutes(deps: AppDeps) {
           action: 'refund.issued',
           entityType: 'booking',
           entityId: id,
-          after: { amountKobo, reason, note },
+          after: { amountKobo, reason, note, by: finance ? 'finance' : 'support' },
         });
         return c.json({ outcome: 'ISSUED' as const, amountKobo }, 200);
       });

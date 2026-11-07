@@ -577,7 +577,9 @@ describe('refund notice (FR-ADM-003)', () => {
   };
 
   it('tells the driver the amount by SMS, push and email, with the lot name escaped', () => {
-    expect(renderSms(event, '+2348031234567')?.body).toContain('A refund of ₦200 for booking PK-AB23CD');
+    expect(renderSms(event, '+2348031234567')?.body).toContain(
+      'A refund of ₦200 for booking PK-AB23CD',
+    );
     expect(renderPush(event, ['ExponentPushToken[x]'])).toMatchObject({
       title: 'Refund on its way',
     });

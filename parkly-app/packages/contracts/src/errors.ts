@@ -25,6 +25,8 @@ export const ERROR_STATUS = {
   FORBIDDEN_ROLE_GRANT: 403,
   AUTH_MFA_REQUIRED: 403,
   FOUR_EYES_REQUIRED: 403,
+  /** FR-ADM-003: more than support may refund on this booking; finance can. */
+  REFUND_NEEDS_FINANCE: 403,
   AUTH_ACCOUNT_LOCKED: 403,
   APP_VERSION_UNSUPPORTED: 403,
 

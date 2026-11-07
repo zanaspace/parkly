@@ -13,7 +13,7 @@ import { WaiveOverstayForm } from '../../../../components/waive-overstay';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
 import { canWaive, overstayOwed } from '../../../../lib/bookings/code';
-import { canCancel, canRefund } from '../../../../lib/bookings/money';
+import { canCancel, canRefund, canSupportRefund } from '../../../../lib/bookings/money';
 import { lagosShort } from '../../../../lib/bookings/support';
 import { publicEnv } from '../../../../lib/env';
 import { formatKobo } from '../../../../lib/lots/copy';
@@ -50,9 +50,13 @@ export default async function SupportBookingPage({ params }: { params: Promise<{
   const { booking: b, overstay, timeline } = detail;
   const live = b.status === 'CONFIRMED' || b.status === 'CHECKED_IN';
   const cancellable = b.status === 'CONFIRMED' || b.status === 'PENDING_PAYMENT';
+  const isFinance = canRefund(me.roles);
+  const supportCanRefund =
+    !isFinance && canSupportRefund(me.roles) && detail.supportRefundLeftKobo > 0;
   const showActions =
     (canCancel(me.roles) && (cancellable || live)) ||
-    (canRefund(me.roles) && detail.refundableKobo > 0);
+    (isFinance && detail.refundableKobo > 0) ||
+    supportCanRefund;
 
   return (
     <main className="pk-page pk-page--wide pk-stack">
@@ -136,12 +140,21 @@ export default async function SupportBookingPage({ params }: { params: Promise<{
             {canCancel(me.roles) && cancellable && (
               <CancelBookingForm bookingId={b.id} idempotencyKey={randomUUID()} />
             )}
-            {canRefund(me.roles) && detail.refundableKobo > 0 && (
+            {isFinance && detail.refundableKobo > 0 && (
               <RefundForm
                 bookingId={b.id}
                 idempotencyKey={randomUUID()}
                 refundable={formatKobo(detail.refundableKobo)}
                 threshold={formatKobo(detail.refundApprovalThresholdKobo)}
+              />
+            )}
+            {supportCanRefund && (
+              <RefundForm
+                bookingId={b.id}
+                idempotencyKey={randomUUID()}
+                refundable={formatKobo(detail.supportRefundLeftKobo)}
+                threshold={formatKobo(detail.supportRefundLeftKobo)}
+                helperText={`Support may refund up to ${formatKobo(detail.supportRefundLeftKobo)} on this booking; larger amounts need finance.`}
               />
             )}
           </div>

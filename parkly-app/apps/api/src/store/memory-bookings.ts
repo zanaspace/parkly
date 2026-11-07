@@ -43,6 +43,10 @@ type Refund = {
   providerRefundId: string | null;
   status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   createdAt?: Date;
+  requestedBy?: string | null;
+  approvedBy?: string | null;
+  /** Only refunds staff chose carry a note (FR-ADM-003). */
+  note?: string | null;
 };
 type Webhook = {
   id: string;
@@ -556,6 +560,8 @@ export class MemoryBookings {
         providerRefundId: null,
         status: 'PENDING',
         createdAt: at,
+        approvedBy: refund.approvedBy,
+        note: refund.note,
       });
       created.push({ id, ...part });
     }
@@ -612,9 +618,9 @@ export class MemoryBookings {
           reason: r.reason as RefundRow['reason'],
           status: r.status ?? ('SUCCEEDED' as const),
           providerRefundId: r.providerRefundId,
-          requestedBy: null,
-          approvedBy: null,
-          note: null,
+          requestedBy: r.requestedBy ?? null,
+          approvedBy: r.approvedBy ?? null,
+          note: r.note ?? null,
           createdAt: r.createdAt ?? new Date(0),
         }));
     },

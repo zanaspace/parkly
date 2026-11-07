@@ -107,6 +107,7 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body?.booking).toMatchObject({ id: t.booking.id, status: 'CONFIRMED' });
+    expect(res.body?.supportRefundLeftKobo).toBe(110_000);
     const labels = (res.body?.timeline as { label: string }[]).map((e) => e.label);
     expect(labels).toEqual(
       expect.arrayContaining([
@@ -125,6 +126,46 @@ describe('booking detail and timeline (FR-ADM-002)', () => {
         )
       ).status,
     ).toBe(404);
+
+    // Timeline includes refunds and overstay session when present
+    await t.w.store.payments.refundBooking(
+      t.booking.id,
+      {
+        amountKobo: 20_000,
+        refundPriceKobo: 20_000,
+        refundServiceFeeKobo: 0,
+        reason: 'OPS_GOODWILL',
+        note: 'Partial refund',
+        approvedBy: null,
+      },
+      'system',
+      new Date(),
+    );
+    t.w.store.attending.sessionRows.push({
+      id: randomUUID(),
+      bookingId: t.booking.id,
+      lotId: 'lot-1',
+      checkInAt: new Date(),
+      checkOutAt: null,
+      flags: [],
+      plateNorm: 'LND123AB',
+      overstayMinutes: 15,
+      overstayAmountKobo: 50_000,
+      overstayStatus: 'DUE',
+    });
+    const withDetails = await t.w.call(
+      'GET',
+      `/v1/admin/bookings/${t.booking.id}/support`,
+      t.staff('ADMIN_SUPPORT'),
+    );
+    expect(withDetails.status).toBe(200);
+    expect(withDetails.body?.overstay).toEqual({
+      status: 'DUE',
+      minutes: 15,
+      amountKobo: 50_000,
+    });
+    expect(withDetails.body?.refundableKobo).toBe(90_000);
+    expect(withDetails.body?.supportRefundLeftKobo).toBe(90_000);
   });
 });
 
@@ -154,5 +195,30 @@ describe('revealing a driver’s contact (FR-ADM-002)', () => {
     expect((await reveal('phone', 'compliance wants it', t.staff('ADMIN_COMPLIANCE'))).status).toBe(
       403,
     );
+  });
+});
+
+describe('admin booking list (FR-BOOK-008)', () => {
+  it('lists recent bookings or filters by code', async () => {
+    const t = await setup();
+    const support = t.staff('ADMIN_SUPPORT');
+    const recent = await t.w.call('GET', '/v1/admin/bookings', support);
+    expect(recent.status).toBe(200);
+    expect(recent.body?.items).toHaveLength(1);
+
+    const byCode = (await t.w.call(
+      'GET',
+      `/v1/admin/bookings?code=${t.booking.code}`,
+      support,
+    )) as { body?: { items?: { code: string }[] }; status: number };
+    expect(byCode.status).toBe(200);
+    expect(byCode.body?.items?.[0]?.code).toBe(t.booking.code);
+
+    const notFound = (await t.w.call('GET', '/v1/admin/bookings?code=PK-UNKNOWN', support)) as {
+      body?: { items?: unknown[] };
+      status: number;
+    };
+    expect(notFound.status).toBe(200);
+    expect(notFound.body?.items).toEqual([]);
   });
 });

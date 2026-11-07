@@ -87,25 +87,69 @@ describe('staff cancel (FR-ADM-003)', () => {
 });
 
 describe('staff refunds and maker-checker (FR-ADM-003)', () => {
-  it('lets finance refund part of a booking now, up to what is left, and not support', async () => {
+  it('lets finance refund part of a booking now, up to what is left, and support up to their limit', async () => {
     const t = await setup();
     const finance = t.staff('ADMIN_FINANCE');
+    const support = t.staff('ADMIN_SUPPORT');
+    const ops = t.staff('ADMIN_OPS');
     const path = `/v1/admin/bookings/${t.booking.id}/refunds`;
     const body = { amountKobo: 20_000, reason: 'OPS_GOODWILL', note: 'Barrier stuck for 20 min' };
 
-    expect((await t.post(path, t.staff('ADMIN_SUPPORT'), body)).status).toBe(403);
-    const res = await t.post(path, finance, body);
-    expect(res.body).toEqual({ outcome: 'ISSUED', amountKobo: 20_000 });
+    // Ops cannot refund
+    expect((await t.post(path, ops, body)).status).toBe(403);
+
+    // Support can refund up to the support limit (default ₦10,000 = 1,000,000 kobo)
+    const refundKey = randomUUID();
+    const supRes = await t.post(path, support, body, refundKey);
+    expect(supRes.body).toEqual({ outcome: 'ISSUED', amountKobo: 20_000 });
+    const supResRetry = await t.post(path, support, body, refundKey);
+    expect(supResRetry.body).toEqual(supRes.body);
+    expect(t.w.payments.refunds).toHaveLength(1);
     expect(t.w.payments.refunds).toEqual([{ reference: t.reference, amountKobo: 20_000 }]);
     expect(t.w.store.booking.refundRows.at(-1)).toMatchObject({
       amountKobo: 20_000,
       reason: 'OPS_GOODWILL',
+      note: 'Barrier stuck for 20 min',
     });
     expect(t.w.store.auditRows.at(-1)).toMatchObject({
       action: 'refund.issued',
-      after: { amountKobo: 20_000, reason: 'OPS_GOODWILL', note: 'Barrier stuck for 20 min' },
+      after: {
+        amountKobo: 20_000,
+        reason: 'OPS_GOODWILL',
+        note: 'Barrier stuck for 20 min',
+        by: 'support',
+      },
     });
     expect(t.notices('booking.refunded')).toHaveLength(1);
+
+    // Support asking for more than the remaining support limit gets 403 REFUND_NEEDS_FINANCE
+    t.w.store.settingRows.set('refund.support_limit_kobo', 25_000);
+    const overLimit = await t.post(path, support, { ...body, amountKobo: 10_000 });
+    expect(overLimit.status).toBe(403);
+    expect(overLimit.body?.code).toBe('REFUND_NEEDS_FINANCE');
+
+    // When support has exhausted their full allowance (supportLeft === 0)
+    t.w.store.settingRows.set('refund.support_limit_kobo', 20_000);
+    const exhausted = await t.post(path, support, { ...body, amountKobo: 1_000 });
+    expect(exhausted.status).toBe(403);
+    expect(exhausted.body?.code).toBe('REFUND_NEEDS_FINANCE');
+    expect((exhausted.body as { detail?: string })?.detail).toContain(
+      'Support has refunded as much as it can',
+    );
+
+    // Finance can refund past the support limit
+    const res = await t.post(path, finance, { ...body, amountKobo: 30_000 });
+    expect(res.body).toEqual({ outcome: 'ISSUED', amountKobo: 30_000 });
+    expect(t.w.store.auditRows.at(-1)).toMatchObject({
+      action: 'refund.issued',
+      after: {
+        amountKobo: 30_000,
+        reason: 'OPS_GOODWILL',
+        note: 'Barrier stuck for 20 min',
+        by: 'finance',
+      },
+    });
+
     // The booking itself stays as it was.
     expect((await t.w.store.bookings.find(t.booking.id))?.status).toBe('CONFIRMED');
 
@@ -132,6 +176,14 @@ describe('staff refunds and maker-checker (FR-ADM-003)', () => {
     const id = (res.body?.request as { id: string }).id;
 
     // The pending amount is set aside: a second request can't take the same money.
+    const greedy = await t.post(`/v1/admin/bookings/${t.booking.id}/refunds`, maker, {
+      amountKobo: 60_000,
+      reason: 'OTHER',
+      note: 'Trying to take what was set aside',
+    });
+    expect(greedy.status).toBe(409);
+    expect(greedy.body?.code).toBe('REFUND_EXCEEDS_REFUNDABLE');
+
     const detail = await t.w.call('GET', `/v1/admin/bookings/${t.booking.id}/support`, maker);
     expect(detail.body?.refundableKobo).toBe(t.booking.totalKobo - 60_000);
 
@@ -141,6 +193,20 @@ describe('staff refunds and maker-checker (FR-ADM-003)', () => {
       checker,
     );
     expect((queue.body?.items as { id: string }[]).map((r) => r.id)).toEqual([id]);
+
+    const byBooking = await t.w.call(
+      'GET',
+      `/v1/admin/refund-requests?bookingId=${t.booking.id}`,
+      checker,
+    );
+    expect((byBooking.body?.items as { id: string }[]).map((r) => r.id)).toEqual([id]);
+
+    const unknownApprove = await t.post(
+      `/v1/admin/refund-requests/${randomUUID()}/approve`,
+      checker,
+      {},
+    );
+    expect(unknownApprove.status).toBe(404);
 
     const own = await t.post(`/v1/admin/refund-requests/${id}/approve`, maker, {});
     expect(own.status).toBe(403);
@@ -186,6 +252,70 @@ describe('staff refunds and maker-checker (FR-ADM-003)', () => {
     });
     expect(t.w.payments.refunds).toEqual([]);
     expect(t.w.store.auditRows.at(-1)).toMatchObject({ action: 'refund.rejected' });
+
+    // Approving a request that is already REJECTED fails
+    const approveRejected = await t.post(`/v1/admin/refund-requests/${id}/approve`, checker, {});
+    expect(approveRejected.status).toBe(409);
+    expect(approveRejected.body?.code).toBe('INVALID_STATE_TRANSITION');
+
+    // Maker cannot reject their own request
+    const makerReject = await t.w.call('POST', `/v1/admin/refund-requests/${id}/reject`, {
+      ...maker,
+      body: { note: 'Self rejection not allowed' },
+    });
+    expect(makerReject.status).toBe(403);
+    expect(makerReject.body?.code).toBe('FOUR_EYES_REQUIRED');
+
+    // Unknown request ID returns 404
+    const unknownReject = await t.w.call(
+      'POST',
+      `/v1/admin/refund-requests/${randomUUID()}/reject`,
+      { ...checker, body: { note: 'Not found test' } },
+    );
+    expect(unknownReject.status).toBe(404);
+
+    // Rejecting an already decided request fails
+    const alreadyDecided = await reject('Another rejection');
+    expect(alreadyDecided.status).toBe(409);
+  });
+
+  it('marks request failed when approved request exceeds refundable amount', async () => {
+    const t = await setup();
+    t.w.store.settingRows.set('refund.approval_threshold_kobo', 50_000);
+    const maker = t.staff('ADMIN_FINANCE');
+    const checker = t.staff('ADMIN_FINANCE');
+    const res = await t.post(`/v1/admin/bookings/${t.booking.id}/refunds`, maker, {
+      amountKobo: 60_000,
+      reason: 'OPS_GOODWILL',
+      note: 'Needs approval',
+    });
+    const id = (res.body?.request as { id: string }).id;
+
+    // Simulate another refund issued in the background exhausting the balance
+    await t.w.store.payments.refundBooking(
+      t.booking.id,
+      {
+        amountKobo: 80_000,
+        refundPriceKobo: 70_000,
+        refundServiceFeeKobo: 10_000,
+        reason: 'OPS_GOODWILL',
+        note: 'Direct refund',
+        approvedBy: null,
+      },
+      'system',
+      new Date(),
+    );
+
+    // Approval now exceeds available refundable amount
+    const approveRes = await t.post(`/v1/admin/refund-requests/${id}/approve`, checker, {});
+    expect(approveRes.status).toBe(409);
+    expect(approveRes.body?.code).toBe('REFUND_EXCEEDS_REFUNDABLE');
+    expect(t.w.store.auditRows.at(-1)).toMatchObject({
+      action: 'refund.approval_failed',
+      entityId: t.booking.id,
+    });
+    const failedReq = await t.w.store.refundRequests.find(id);
+    expect(failedReq?.status).toBe('FAILED');
   });
 });
 
@@ -205,5 +335,10 @@ describe('resending the ticket (FR-ADM-003)', () => {
 
     await t.post(`/v1/admin/bookings/${t.booking.id}/cancel`, support, { reason: 'Driver asked' });
     expect((await t.w.call('POST', path, support)).status).toBe(409);
+
+    // Ticket can also be resent when CHECKED_IN
+    const b = t.w.store.booking.bookingRows.find((r) => r.id === t.booking.id);
+    if (b) b.status = 'CHECKED_IN';
+    expect((await t.w.call('POST', path, support)).status).toBe(204);
   });
 });

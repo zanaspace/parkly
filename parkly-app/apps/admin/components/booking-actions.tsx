@@ -64,17 +64,19 @@ export function CancelBookingForm({
   );
 }
 
-/** Finance only: an amount up to what's left; over the limit it waits for a second finance admin. */
+/** An amount staff choose up to what's left; over the limit it waits for approval. */
 export function RefundForm({
   bookingId,
   idempotencyKey,
   refundable,
   threshold,
+  helperText,
 }: {
   bookingId: string;
   idempotencyKey: string;
   refundable: string;
   threshold: string;
+  helperText?: string;
 }) {
   const [state, action, pending] = useActionState(refundBookingAction, undefined);
   if (state?.done) return <Outcome state={state} />;
@@ -108,7 +110,7 @@ export function RefundForm({
         />
       </label>
       <Text variant="body-sm" tone="tertiary">
-        Refunds over {threshold} need a second finance admin to approve them.
+        {helperText ?? `Refunds over ${threshold} need a second finance admin to approve them.`}
       </Text>
       <Button type="submit" variant="secondary" loading={pending}>
         Refund

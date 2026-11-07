@@ -347,7 +347,7 @@ const MATRIX: Row[] = [
     route: 'POST /v1/admin/bookings/{id}/refunds',
     headers: { 'idempotency-key': 'rbac-refund' },
     body: { amountKobo: 1_000, reason: 'OPS_GOODWILL', note: 'Goodwill refund' },
-    expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+    expect: only(['ADMIN_SUPPORT', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
   },
   {
     method: 'GET',

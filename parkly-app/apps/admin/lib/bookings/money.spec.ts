@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canCancel, canRefund, nairaToKobo } from './money';
+import { canCancel, canRefund, canSupportRefund, nairaToKobo } from './money';
 
 describe('refund amount input', () => {
   it('reads naira to kobo without floating point', () => {
@@ -13,10 +13,12 @@ describe('refund amount input', () => {
     for (const bad of ['0', '-5', '1.234', 'abc', '', '1e5']) expect(nairaToKobo(bad)).toBeNull();
   });
 
-  it('shows cancel to support and refund to finance only', () => {
+  it('shows cancel to support and refund to finance or support with limit', () => {
     expect(canCancel([{ role: 'ADMIN_SUPPORT' }])).toBe(true);
     expect(canRefund([{ role: 'ADMIN_SUPPORT' }])).toBe(false);
+    expect(canSupportRefund([{ role: 'ADMIN_SUPPORT' }])).toBe(true);
     expect(canRefund([{ role: 'ADMIN_FINANCE' }])).toBe(true);
     expect(canCancel([{ role: 'ADMIN_COMPLIANCE' }])).toBe(false);
+    expect(canSupportRefund([{ role: 'ADMIN_COMPLIANCE' }])).toBe(false);
   });
 });

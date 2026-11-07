@@ -13,5 +13,8 @@ export function nairaToKobo(input: string): number | null {
 // Mirror the API rules so the page only shows what the role can do; the API enforces them.
 const CANCELLERS = new Set(['ADMIN_SUPPORT', 'ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN']);
 const REFUNDERS = new Set(['ADMIN_FINANCE', 'SUPER_ADMIN']);
+const SUPPORT_REFUNDERS = new Set(['ADMIN_SUPPORT']);
 export const canCancel = (roles: { role: string }[]) => roles.some((r) => CANCELLERS.has(r.role));
 export const canRefund = (roles: { role: string }[]) => roles.some((r) => REFUNDERS.has(r.role));
+export const canSupportRefund = (roles: { role: string }[]) =>
+  roles.some((r) => SUPPORT_REFUNDERS.has(r.role));

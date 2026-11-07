@@ -54,6 +54,8 @@ export const SupportBookingDetailSchema = z.object({
   refundableKobo: z.number().int().nonnegative(),
   /** Over this, a staff refund needs a second finance admin. */
   refundApprovalThresholdKobo: z.number().int(),
+  /** What support may still refund here (their per-booking limit less staff refunds so far). */
+  supportRefundLeftKobo: z.number().int().nonnegative(),
 });
 
 /** Show the driver's full phone or email; the reason goes to the audit log. */
