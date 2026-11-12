@@ -17,6 +17,12 @@ export const CATEGORY: Record<IncidentView['category'], string> = {
   OTHER: 'Other',
 };
 
+/** For the category dropdown, in the order of the list above. */
+export const CATEGORY_OPTIONS = Object.entries(CATEGORY).map(([value, label]) => ({
+  value,
+  label,
+}));
+
 export const STATUS: Record<IncidentView['status'], string> = {
   OPEN: 'Open',
   TRIAGED: 'Triaged',
