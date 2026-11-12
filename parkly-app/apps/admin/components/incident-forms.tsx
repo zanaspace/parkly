@@ -1,13 +1,13 @@
 'use client';
 
-import { ActionForm, Button } from '@parkly/ui';
+import { ActionForm, Button, Select } from '@parkly/ui';
 import { useActionState } from 'react';
 import {
   addIncidentNoteAction,
   createIncidentAction,
   incidentStepAction,
 } from '../lib/incidents/actions';
-import { CATEGORY, SEVERITY_OPTIONS } from '../lib/incidents/copy';
+import { CATEGORY_OPTIONS, SEVERITY_OPTIONS } from '../lib/incidents/copy';
 
 /** FR-INC-001: log an incident against a car park, optionally about one booking. */
 export function NewIncidentForm({
@@ -22,19 +22,14 @@ export function NewIncidentForm({
   const [state, action, pending] = useActionState(createIncidentAction, undefined);
   return (
     <ActionForm action={action} className="pk-form">
-      <label className="pk-field">
-        <span className="pk-field__label">Car park</span>
-        <select className="pk-input" name="lotId" defaultValue={defaultLotId ?? ''} required>
-          <option value="" disabled>
-            Choose a car park
-          </option>
-          {lots.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name} · {l.operatorName}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="Car park"
+        name="lotId"
+        placeholder="Choose a car park"
+        defaultValue={defaultLotId ?? ''}
+        options={lots.map((l) => ({ value: l.id, label: `${l.name} · ${l.operatorName}` }))}
+        required
+      />
       {bookingId && (
         <>
           <input type="hidden" name="bookingId" value={bookingId} />
@@ -43,26 +38,18 @@ export function NewIncidentForm({
           </p>
         </>
       )}
-      <label className="pk-field">
-        <span className="pk-field__label">What kind</span>
-        <select className="pk-input" name="category" defaultValue="ACCESS_DENIED">
-          {Object.entries(CATEGORY).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="pk-field">
-        <span className="pk-field__label">How serious</span>
-        <select className="pk-input" name="severity" defaultValue="MEDIUM">
-          {SEVERITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="What kind"
+        name="category"
+        defaultValue="ACCESS_DENIED"
+        options={CATEGORY_OPTIONS}
+      />
+      <Select
+        label="How serious"
+        name="severity"
+        defaultValue="MEDIUM"
+        options={SEVERITY_OPTIONS}
+      />
       <label className="pk-field">
         <span className="pk-field__label">What happened</span>
         <textarea
