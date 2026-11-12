@@ -60,6 +60,30 @@ const MATRIX: Row[] = [
     expect: { ...EVERYONE_SIGNED_IN, anon: 401 },
   },
   {
+    method: 'POST',
+    path: '/v1/me/data-export',
+    route: 'POST /v1/me/data-export',
+    expect: only(['DRIVER'], 201, 403),
+  },
+  {
+    method: 'GET',
+    path: `/v1/me/data-export/${TARGET_USER}`,
+    route: 'GET /v1/me/data-export/{id}',
+    expect: only(['DRIVER'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: '/v1/me/deletion/cancel',
+    route: 'POST /v1/me/deletion/cancel',
+    expect: only(['DRIVER'], 409, 403),
+  },
+  {
+    method: 'GET',
+    path: '/v1/admin/data-requests',
+    route: 'GET /v1/admin/data-requests',
+    expect: only(['ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 200, 403),
+  },
+  {
     method: 'GET',
     path: '/v1/me/vehicles',
     route: 'GET /v1/me/vehicles',

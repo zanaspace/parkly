@@ -19,7 +19,10 @@ import { adminReconciliationRoutes } from './modules/admin/reconciliation.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { adminBookingActionRoutes } from './modules/admin/booking-actions.js';
 import { adminSupportRoutes } from './modules/admin/support.js';
+import type { AuthAdmin } from './providers/auth-admin.js';
+import { adminDataRequestRoutes } from './modules/admin/data-requests.js';
 import { adminIncidentRoutes } from './modules/admin/incidents.js';
+import { privacyRoutes } from './modules/me/privacy-routes.js';
 import { adminLotSuspensionRoutes } from './modules/admin/lot-suspension.js';
 import { adminPlatformSettingsRoutes } from './modules/admin/platform-settings.js';
 import { authRoutes } from './modules/auth/routes.js';
@@ -70,6 +73,8 @@ export type AppDeps = {
   /** Queues booking and session notifications (ADR 0020). */
   notifications: NotificationService;
   sessions: SessionRevoker;
+  /** Supabase Auth admin calls with the secret key (account erasure, doc 06 section 6.1). */
+  authAdmin: AuthAdmin;
   settlement: SettlementProvider;
   /** Paystack checkout, verify and refunds (same key as settlement). */
   payments: PaymentProvider;
@@ -150,6 +155,8 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminSupportRoutes(deps));
   app.route('/v1', adminBookingActionRoutes(deps));
   app.route('/v1', adminIncidentRoutes(deps));
+  app.route('/v1', adminDataRequestRoutes(deps));
+  app.route('/v1', privacyRoutes(deps));
   app.route('/v1', adminLotSuspensionRoutes(deps));
   app.route('/v1', adminPlatformSettingsRoutes(deps));
   app.route('/v1', teamRoutes(deps));

@@ -124,6 +124,10 @@ const RULES = {
   'operator:commission:set': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   /** FR-INC-001: log, triage, note and resolve incidents (doc 05 §5.1: support opens them). */
   'incident:manage': { scope: 'platform', roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'SUPER_ADMIN'] },
+  /** NFR-PRIV-001: a driver asks for a copy of their own data (doc 06 section 11). */
+  'account:export:own': { scope: 'own', roles: ['DRIVER'] },
+  /** NFR-PRIV-001: compliance sees every data request and its due date. */
+  'dsar:read': { scope: 'platform', roles: ['ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   /** FR-ADM-005: change platform settings and feature flags (always audited with a reason). */
   'platform:settings:manage': { scope: 'platform', roles: ['SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;

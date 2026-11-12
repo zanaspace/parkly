@@ -1,8 +1,16 @@
 import type { Logger } from '../lib/logger.js';
 import type { NotificationService } from '../notifications/service.js';
-import type { EmailProvider, PaymentProvider, SettlementProvider } from '../providers/index.js';
+import type { AuthAdmin } from '../providers/auth-admin.js';
+import type {
+  EmailProvider,
+  PaymentProvider,
+  SettlementProvider,
+  StorageProvider,
+} from '../providers/index.js';
 import type { Store } from '../store/types.js';
+import { accountErasureJob } from './account-erasure.js';
 import { permitExpiryJob } from './permit-expiry.js';
+import { retentionPurgeJob } from './retention-purge.js';
 import { reminderSweepJob } from './reminder-sweep.js';
 import { settlePaymentsJob } from './settle-payments.js';
 import { settlementsSyncJob } from './settlements-sync.js';
@@ -23,6 +31,8 @@ export function createJobs(deps: {
   now: () => Date;
   appEnv: 'local' | 'dev' | 'staging' | 'prod';
   notifications: NotificationService;
+  authAdmin: AuthAdmin;
+  storage: StorageProvider;
   /** Reconciliation exceptions summary (review item 8); omitted or null = no email. */
   financeAlertEmail?: string | null;
 }): Record<string, JobHandler> {
@@ -37,6 +47,10 @@ export function createJobs(deps: {
     'reconcile-payments': reconcilePaymentsJob(deps),
     // Monthly statement generation and email dispatch (S7 task 5).
     'monthly-statements': monthlyStatementsJob(deps),
+    // Closes accounts after the 30-day grace (doc 06 section 6.1), daily.
+    'account-erasure': accountErasureJob(deps),
+    // Purges data kept past its time (doc 06 section 4), nightly.
+    'retention-purge': retentionPurgeJob(deps),
     // Sends queued notifications and retries failed channels (ADR 0020).
     'deliver-notifications': ({ deadline }) => deps.notifications.deliverDue({ deadline }),
   };

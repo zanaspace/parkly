@@ -2,7 +2,7 @@ import type { Vehicle } from '@parkly/contracts';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
@@ -97,7 +97,7 @@ export default function Account() {
   const router = useRouter();
   const auth = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | null>(null);
   const { me, vehicles } = auth;
 
   async function signOut(scope: 'device' | 'all') {
@@ -128,6 +128,33 @@ export default function Account() {
       await auth.signOut('all');
     } catch (err) {
       setError(errorText(err));
+      setBusy(null);
+    }
+  }
+
+  async function downloadMyData() {
+    setBusy('export');
+    setError(null);
+    try {
+      const made = await api.requestDataExport();
+      const link = await api.dataExportLink(made.requestId);
+      await Linking.openURL(link.url);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function keepAccount() {
+    setBusy('keep');
+    setError(null);
+    try {
+      await api.cancelDeletion();
+      if (me) auth.setMe({ ...me, status: 'ACTIVE' });
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
       setBusy(null);
     }
   }
@@ -182,15 +209,46 @@ export default function Account() {
         onPress={() => void signOut('all')}
       />
 
-      <Text variant="heading.sm">Delete account</Text>
-      <Text tone="secondary">Deleting your account can’t be undone.</Text>
+      <Text variant="heading.sm">Your data</Text>
+      <Text tone="secondary">
+        Get a copy of the personal data Parkly holds about you. The link works for 15 minutes.
+      </Text>
       <Button
-        label="Delete my account"
-        variant="danger"
+        label="Download my data"
+        variant="secondary"
         fullWidth
-        loading={busy === 'delete'}
-        onPress={() => void requestDeletion()}
+        loading={busy === 'export'}
+        onPress={() => void downloadMyData()}
       />
+
+      <Text variant="heading.sm">Delete account</Text>
+      {me?.status === 'PENDING_DELETION' ? (
+        <>
+          <Text tone="secondary">
+            Your account is set to be erased. You can still change your mind for 30 days after you
+            asked.
+          </Text>
+          <Button
+            label="Keep my account"
+            fullWidth
+            loading={busy === 'keep'}
+            onPress={() => void keepAccount()}
+          />
+        </>
+      ) : (
+        <>
+          <Text tone="secondary">
+            Your details are erased after 30 days. Until then you can change your mind.
+          </Text>
+          <Button
+            label="Delete my account"
+            variant="danger"
+            fullWidth
+            loading={busy === 'delete'}
+            onPress={() => void requestDeletion()}
+          />
+        </>
+      )}
     </Screen>
   );
 }

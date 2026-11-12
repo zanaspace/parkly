@@ -11,7 +11,6 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { authUsers } from 'drizzle-orm/supabase';
 import { apiAccess, bytea, createdAt, id, updatedAt } from './common.js';
 // Circular with operators.ts (operators.created_by → users); safe because references are lazy.
 import { operators } from './operators.js';
@@ -37,13 +36,16 @@ export const userStatusEnum = pgEnum('user_status', [
   'DELETED',
 ]);
 
-/** Profile, 1:1 with auth.users (doc 02 §2.2). Phone/email stay in auth.users (C3). */
+/**
+ * Profile, 1:1 with auth.users while the account is open (doc 02 §2.2). Phone/email stay in
+ * auth.users (C3). There is no foreign key to auth.users on purpose: when an account is erased
+ * (doc 06 §6.1) the Auth user is deleted and this row stays as an anonymised stand-in, so the
+ * bookings and payments that point at it (kept for the statutory period) remain valid.
+ */
 export const users = pgTable(
   'users',
   {
-    id: uuid('id')
-      .primaryKey()
-      .references(() => authUsers.id, { onDelete: 'restrict' }),
+    id: uuid('id').primaryKey(),
     phoneHash: bytea('phone_hash'), // C3: HMAC of E.164 phone
     phoneLast4: text('phone_last4'), // C3
     emailHash: bytea('email_hash'), // C3

@@ -109,6 +109,10 @@ Cloudflare Turnstile stops scripts from requesting codes or trying passwords. Th
 
 To turn it off, reverse the order: disable it in Supabase first, then remove the keys.
 
+### 2.3d Privacy jobs (S8 task 6)
+
+Two more `pg_cron` jobs call the API like the others and need the same Vault secrets: **`account-erasure`** (daily 02:00 Lagos) closes accounts after their 30-day grace, and **`retention-purge`** (nightly 03:00 Lagos) removes expired idempotency keys, notifications older than 90 days and data export files older than 7 days. Account erasure needs `SUPABASE_SECRET_KEY` on `parkly-api` (it deletes the Auth user), the same key Storage already uses. Apply `20261112095010_dsar_erasure.sql` and then `20261112095020_erasure_log_grants_cron.sql`.
+
 ### 2.3c Notification email and push (ADR 0020)
 
 The API sends booking notices and team invites itself (Supabase only sends sign-in emails). Until these are switched on, dev logs emails and fakes push, and invites are shared by copying the link.

@@ -274,3 +274,22 @@ export function SettingsIcon({
     </svg>
   );
 }
+
+/** Privacy and data requests: shield */
+export function ShieldIcon({ size = 18, strokeWidth = 2, className, style, ...props }: IconProps) {
+  return (
+    <svg
+      {...defaultProps}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      strokeWidth={strokeWidth}
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      {...props}
+    >
+      <path d="M12 3 4 6v6c0 4.5 3.2 8.2 8 9 4.8-.8 8-4.5 8-9V6l-8-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}

@@ -89,6 +89,16 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
       expect(can(a, 'lot:suspension:cancel-bookings', {})).toBe(false);
   });
 
+  it('lets drivers export their own data, and compliance and super admin see the requests', () => {
+    const driver = actor([{ role: 'DRIVER', operatorId: null }], { aal: 'aal1' });
+    const superAdmin = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
+    expect(can(driver, 'account:export:own', { ownerUserId: driver.userId })).toBe(true);
+    expect(can(ownerA, 'account:export:own', { ownerUserId: ownerA.userId })).toBe(false);
+    for (const a of [compliance, superAdmin]) expect(can(a, 'dsar:read', {})).toBe(true);
+    for (const a of [support, ops, finance, driver, ownerA])
+      expect(can(a, 'dsar:read', {})).toBe(false);
+  });
+
   it('lets only a super admin change platform settings and flags (FR-ADM-005)', () => {
     const superAdmin = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
     expect(can(superAdmin, 'platform:settings:manage', {})).toBe(true);

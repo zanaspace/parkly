@@ -6,6 +6,7 @@ import { SignOutButtons } from '../../components/sign-out';
 import { requireAccess } from '../../lib/auth/session';
 import { canManageIncidents } from '../../lib/incidents/copy';
 import { canManageSettings } from '../../lib/platform/copy';
+import { canReadDataRequests } from '../../lib/privacy/copy';
 
 const AUDIT_READERS = new Set(['ADMIN_COMPLIANCE', 'SUPER_ADMIN']);
 // Mirrors the API's `booking:support:read` rule.
@@ -21,6 +22,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
   const canWorkIncidents = canManageIncidents(me.roles);
   const canWorkSettings = canManageSettings(me.roles);
+  const canWorkPrivacy = canReadDataRequests(me.roles);
   const primaryRole = me.roles[0]?.role ?? 'ADMIN';
 
   return (
@@ -43,6 +45,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
             canReadFinance={canReadFinance}
             canManageIncidents={canWorkIncidents}
             canManageSettings={canWorkSettings}
+            canReadPrivacy={canWorkPrivacy}
           />
         </div>
         <div className="pk-row" style={{ gap: '1rem' }}>

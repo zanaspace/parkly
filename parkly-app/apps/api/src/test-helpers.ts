@@ -18,6 +18,7 @@ import {
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
+import { FakeAuthAdmin } from './providers/auth-admin.js';
 import { FakeSessionRevoker } from './providers/supabase-sessions.js';
 import { MemoryStore } from './store/memory.js';
 
@@ -101,6 +102,7 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     }),
     sms: { primary: new FakeSmsProvider() },
     sessions: new FakeSessionRevoker(),
+    authAdmin: new FakeAuthAdmin(),
     settlement: new FakeSettlementProvider(),
     payments: new FakePaymentProvider(),
     storage: new FakeStorageProvider(),
@@ -130,6 +132,7 @@ export function world(overrides: Partial<AppDeps> = {}) {
   const store = new MemoryStore();
   const sms = new FakeSmsProvider();
   const sessions = new FakeSessionRevoker();
+  const authAdmin = new FakeAuthAdmin();
   const rateLimiter = new MemoryRateLimiter(() => TEST_NOW.getTime());
   const settlement = new FakeSettlementProvider();
   const payments = new FakePaymentProvider();
@@ -234,6 +237,7 @@ export function world(overrides: Partial<AppDeps> = {}) {
     store,
     sms,
     sessions,
+    authAdmin,
     settlement,
     payments,
     storage,

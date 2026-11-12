@@ -1988,6 +1988,132 @@ export function storeContract(
         await store.flags.put('claims_enabled', false, by, at);
       });
 
+      it('runs data requests, erases an account and purges what is kept too long', async () => {
+        const lot = await liveLot(1);
+        const d = await driver();
+        await store.users.updateProfile(d.id, { firstName: 'Ada', lastName: 'Okafor' });
+        const staff = await newUser([{ role: 'ADMIN_COMPLIANCE', operatorId: null }]);
+        const unused = await store.vehicles.create({
+          userId: d.id,
+          plateRaw: 'ABC 999 XY',
+          plateNorm: 'ABC999XY',
+          make: null,
+          model: null,
+          colour: null,
+          isDefault: false,
+        });
+        const { booking, payment } = await hold(lot, d);
+        await store.payments.settle(payment.id, charge(), AT);
+        const due = new Date(AT.getTime() + 30 * 86_400_000);
+
+        // What stops an account closing: a paid booking that has not finished.
+        expect(await store.dataRequests.obligations(d.id, AT)).toEqual({
+          activeBookings: 1,
+          unpaidOverstays: 0,
+        });
+        expect(
+          await store.dataRequests.obligations(d.id, new Date('2027-03-01T00:00:00Z')),
+        ).toEqual({
+          activeBookings: 0,
+          unpaidOverstays: 0,
+        });
+
+        // An access request: one open at a time, completed with a file, then the file expires.
+        const access = await store.dataRequests.createAccess(d.id, due);
+        await expect(store.dataRequests.createAccess(d.id, due)).rejects.toBeInstanceOf(
+          DsrAlreadyOpenError,
+        );
+        expect(await store.dataRequests.find(access.id)).toMatchObject({
+          type: 'ACCESS',
+          status: 'OPEN',
+          exportStoragePath: null,
+        });
+        expect(await store.dataRequests.complete(access.id, AT, `${d.id}/${access.id}.json`)).toBe(
+          true,
+        );
+        expect(await store.dataRequests.complete(access.id, AT)).toBe(false);
+        expect(await store.dataRequests.find(access.id)).toMatchObject({
+          status: 'COMPLETED',
+          exportStoragePath: `${d.id}/${access.id}.json`,
+        });
+        expect(await store.dataRequests.find(randomUUID())).toBeNull();
+        expect(await store.dataRequests.expiredExports(AT, 10)).toEqual([]);
+        expect(
+          await store.dataRequests.expiredExports(new Date(AT.getTime() + 1000), 10),
+        ).toContainEqual({ id: access.id, path: `${d.id}/${access.id}.json` });
+        await store.dataRequests.clearExport(access.id);
+        expect((await store.dataRequests.find(access.id))?.exportStoragePath).toBeNull();
+
+        // A deletion request: cancel inside the grace, ask again, then it falls due.
+        const first = await store.dataRequests.createDeletion(d.id, due);
+        await expect(store.dataRequests.createDeletion(d.id, due)).rejects.toBeInstanceOf(
+          DsrAlreadyOpenError,
+        );
+        expect(await store.dataRequests.cancelDeletion(d.id, AT)).toBe(true);
+        expect(await store.dataRequests.cancelDeletion(d.id, AT)).toBe(false);
+        expect((await store.dataRequests.find(first.id))?.status).toBe('CANCELLED');
+        const second = await store.dataRequests.createDeletion(d.id, due);
+        expect((await store.dataRequests.dueDeletions(AT, 10)).map((r) => r.id)).not.toContain(
+          second.id,
+        );
+        expect((await store.dataRequests.dueDeletions(due, 10)).map((r) => r.id)).toContain(
+          second.id,
+        );
+        expect((await store.dataRequests.listForUser(d.id)).map((r) => r.id)).toEqual(
+          expect.arrayContaining([access.id, first.id, second.id]),
+        );
+        const queue = await store.dataRequests.listAdmin({ type: 'DELETION', limit: 50 });
+        expect(queue.find((r) => r.id === second.id)).toMatchObject({
+          userFirstName: 'Ada',
+          status: 'OPEN',
+        });
+        expect(
+          (await store.dataRequests.listAdmin({ status: 'CANCELLED', limit: 50 })).map((r) => r.id),
+        ).toContain(first.id);
+        expect(staff).toBeTruthy();
+
+        // Erasure: the user is anonymised, the plate on the booking becomes a one-way stand-in,
+        // the used vehicle is scrubbed and the unused one is removed. Repeating it changes nothing.
+        const done = await store.erasure.eraseUser(d.id, second.id, due);
+        expect(done).toEqual({ vehicles: 2, bookings: 1, notifications: expect.any(Number) });
+        expect(await store.users.find(d.id)).toMatchObject({
+          status: 'DELETED',
+          firstName: null,
+          lastName: null,
+          phoneLast4: null,
+        });
+        const kept = await store.bookings.find(booking.id);
+        expect(kept?.plateNorm).toMatch(/^~[0-9a-f]{10}$/);
+        const left = await store.vehicles.list(d.id);
+        expect(left.map((v) => v.id)).toEqual([d.vehicleId]);
+        expect(left[0]).toMatchObject({ make: null, model: null, colour: null });
+        expect(left[0]?.plateNorm).toBe(kept?.plateNorm);
+        expect(left.some((v) => v.id === unused.id)).toBe(false);
+        expect((await store.dataRequests.find(second.id))?.status).toBe('COMPLETED');
+        expect(await store.erasure.eraseUser(d.id, second.id, due)).toBeNull();
+
+        // Retention: only rows past their time are removed, and a repeat removes nothing more.
+        const queued = await store.notifications.enqueue({
+          userId: await newUser(),
+          bookingId: null,
+          eventKey: 'booking.confirmed',
+          dedupeKey: `retention:${randomUUID()}`,
+          payload: {},
+          notBefore: AT,
+        });
+        expect(queued).toBe(true);
+        expect(
+          await store.retention.purgeNotifications(new Date('2000-01-01T00:00:00Z'), 100),
+        ).toBe(0);
+        expect(
+          await store.retention.purgeIdempotencyKeys(new Date('2000-01-01T00:00:00Z'), 100),
+        ).toBe(0);
+        const far = new Date('2100-01-01T00:00:00Z');
+        const gone = await store.retention.purgeIdempotencyKeys(far, 100000);
+        expect(gone).toBeGreaterThanOrEqual(0);
+        expect(await store.retention.purgeIdempotencyKeys(far, 100000)).toBe(0);
+      });
+
       it('logs incidents, works them through the statuses, and finds lots with 3 in 30 days', async () => {
         const lot = await liveLot(1);
         const other = await liveLot(1);

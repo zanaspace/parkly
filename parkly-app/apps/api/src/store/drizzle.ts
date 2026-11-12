@@ -49,6 +49,7 @@ import { drizzleSettlements } from './drizzle-settlements.js';
 import { drizzleReconciliation } from './drizzle-reconciliation.js';
 import { drizzleReports } from './drizzle-reports.js';
 import { drizzleRefundRequests } from './drizzle-refund-requests.js';
+import { drizzleDsar } from './drizzle-dsar.js';
 import { drizzleIncidents } from './drizzle-incidents.js';
 import { drizzleSupport } from './drizzle-support.js';
 import { drizzleBookings } from './drizzle-bookings.js';
@@ -309,6 +310,7 @@ const activeVehicle = (userId: string, id: string) =>
 
 export function drizzleStore(db: Db): Store {
   const attending = drizzleAttend(db);
+  const dsar = drizzleDsar(db);
   async function withItems(record: Omit<VerificationRow, 'items'>): Promise<VerificationRow> {
     const items = await db
       .select({
@@ -534,7 +536,12 @@ export function drizzleStore(db: Db): Store {
       },
     },
 
+    erasure: dsar.erasure,
+
+    retention: dsar.retention,
+
     dataRequests: {
+      ...dsar.dataRequests,
       async createDeletion(userId, dueAt) {
         try {
           const [row] = await db
