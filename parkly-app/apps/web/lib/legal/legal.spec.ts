@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { entity, fill, LEGAL_ENTITY, missingEntityFields } from './entity';
+import { OPERATORS } from './operators';
 import { PRIVACY } from './privacy';
 import { TERMS } from './terms';
 import type { Block, LegalDoc } from './types';
 
-const DOCS: LegalDoc[] = [PRIVACY, TERMS];
+const DOCS: LegalDoc[] = [PRIVACY, TERMS, OPERATORS];
 
 function textOf(doc: LegalDoc): string {
   const parts: string[] = [doc.title, doc.summary];
@@ -173,6 +174,36 @@ describe('Driver Terms describe the rules the product enforces', () => {
   });
 
   it('marks the parts that need a lawyer instead of guessing', () => {
+    expect(text.match(/DRAFT FOR COUNSEL/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('Operator Terms say how data about the business and about drivers is handled', () => {
+  const text = textOf(OPERATORS);
+
+  it('is for operators, and has a data section the portal footer can link to', () => {
+    expect(OPERATORS.audience).toBe('operators');
+    expect(OPERATORS.sections.map((x) => x.id)).toContain('data');
+    for (const doc of [PRIVACY, TERMS]) expect(doc.audience).toBe('drivers');
+  });
+
+  it('says what is collected about the business and team, why, and who sees it', () => {
+    for (const what of ['CAC', 'ID', 'LASPA permit', 'Bank details', 'email address', 'Paystack'])
+      expect(text, what).toContain(what);
+    expect(text).toContain('What we collect about your business and team, and why');
+    expect(text).toContain('What you see about drivers');
+  });
+
+  it('limits what operators may do with drivers’ data', () => {
+    expect(text).toContain('only to run the booking');
+    expect(text).toContain('Do not use it for marketing, sell it');
+    expect(text).toContain('Tell us at once if data about a driver is lost');
+  });
+
+  it('describes commission, payouts and the no-wallet rule as the platform works', () => {
+    expect(text).toContain('between 10% and 15%');
+    expect(text).toContain('We do not hold your money in a Parkly wallet');
+    expect(text).toContain('Do not take cash');
     expect(text.match(/DRAFT FOR COUNSEL/g)?.length).toBeGreaterThanOrEqual(3);
   });
 });

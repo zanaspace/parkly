@@ -12,8 +12,10 @@ export type Block =
 export type Section = { id: string; title: string; blocks: Block[] };
 
 export type LegalDoc = {
-  slug: 'privacy' | 'terms';
+  slug: 'privacy' | 'terms' | 'operators';
   title: string;
+  /** Who the document is for, shown on the index. */
+  audience?: 'drivers' | 'operators';
   /** What the person is told in one line, under the title. */
   summary: string;
   /** The version people accept. Bump it, and the matching `legal.*_version` platform setting, on a material change. */

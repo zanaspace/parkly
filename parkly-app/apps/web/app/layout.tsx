@@ -49,6 +49,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 Privacy
               </Link>
               <span className="pk-footer-dot">·</span>
+              <Link href="/legal/operators" className="pk-footer-link">
+                For car parks
+              </Link>
+              <span className="pk-footer-dot">·</span>
               <a
                 href="https://laspa.lg.gov.ng"
                 target="_blank"

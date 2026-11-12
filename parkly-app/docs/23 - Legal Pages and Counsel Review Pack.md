@@ -2,25 +2,27 @@
 
 **Status:** draft for counsel (S8 task 8). **Owner:** product owner. **Reviewer:** Nigerian counsel and the DPO.
 
-This is what to hand to counsel with the two documents. The text itself lives in `apps/web/lib/legal/` (`privacy.ts`, `terms.ts`) and is shown at `/legal/privacy` and `/legal/terms` on the driver website, linked from its footer and from the app's sign-up consent screen. It is written in plain English for drivers, and from what Parkly does **today**, checked against the code, not from the plan.
+This is what to hand to counsel with the two documents. The text itself lives in `apps/web/lib/legal/` (`privacy.ts`, `terms.ts`, `operators.ts`) and is shown at `/legal/privacy`, `/legal/terms` and `/legal/operators` on the driver website. Each audience finds its own documents in its own app: **drivers** from the website footer (Terms, Privacy) and the app's sign-up consent screen; **operators** from the foot of every operator-portal page (Operator Terms, and "How we handle your data", which jumps to the data section) and from the sign-up checkbox. The website footer also has a "For car parks" link. `/legal` lists all of them, grouped by who they are for. It is written in plain English for drivers, and from what Parkly does **today**, checked against the code, not from the plan.
 
 ## 1. What is in the pages
 
 | Page | Covers |
 |---|---|
 | **Privacy Notice** (`/legal/privacy`) | Who we are and the DPO; **what we collect and how** (given by the driver, created by use, where they are, from other services); what we do not collect; **what we use it for, with the lawful basis**; who sees it (car parks, staff, 11 processors, with what each receives and where); data leaving Nigeria; retention; the driver's rights and exactly how to use each; security; children; cookies; changes; contact |
+| **Operator Terms** (`/legal/operators`) | The marketplace role; joining and the KYB checks (CAC, director ID, proof of address); the LASPA permit and the Parkly site visit; listing, price review and the overstay price limit; commission (10–15%), the driver service fee, the Paystack split and payouts; what the operator must do (honour bookings, no cash, the attendant app); the team and attendant devices; suspension and ending; **a data section**: what Parkly collects about the business and its team and why, what operators see about drivers, and what operators may and may not do with it; responsibility; disputes |
 | **Driver Terms** (`/legal/terms`) | What Parkly is (a marketplace); the account; booking (Reserve for later, Park now), paying; arriving, no-shows; extending and overstay; cancelling and refunds; using a car park; conduct; suspension; liability; disputes and governing law; changes |
 
-Not covered here (separate documents, doc 05 section 18.6): the Operator Agreement and operator data processing terms, the Claims Terms (Sprint 12), the Attendant Code of Conduct, Acceptable Use for ratings (Sprint 11), the responsible-disclosure policy.
+Not covered here (separate documents, doc 05 section 18.6): a stand-alone operator data processing agreement (the Operator Terms have a data section; counsel decides whether more is needed), the Claims Terms (Sprint 12), the Attendant Code of Conduct, Acceptable Use for ratings (Sprint 11), the responsible-disclosure policy.
 
 ## 2. Before launch
 
 1. **Counsel reviews and edits** the text. Every place that needs them is marked `DRAFT FOR COUNSEL` in the Terms, and listed in section 4 below.
 2. **Fill in who we are.** `apps/web/lib/legal/entity.ts` holds the company name, CAC number, address, privacy and support emails and the DPO. While a value is missing the page shows `[… : to be completed]` in its place, so nothing can go out with an invented name. `missingEntityFields()` lists what is left.
 3. **Mark them approved:** set `draft: false` on each document. That removes the "not yet reviewed" banner.
-4. **Bump the version people accept.** The pages say version `2026-11-12`. The sign-up consent screen shows the versions in the platform settings `legal.terms_version` and `legal.privacy_version` (today `2026-10-01`). When the text is approved, set both to the same date as the pages. Everyone who accepted an older version is then asked to accept again.
+4. **Bump the version people accept.** The pages say version `2026-11-12`. The sign-up screens show the versions in the platform settings `legal.terms_version`, `legal.privacy_version` and `legal.operator_agreement_version` (today `2026-10-01`). When the text is approved, set all three to the same date as the pages. Everyone who accepted an older version is then asked to accept again.
 5. **Confirm the sub-processors** (section 3) and keep the list in the Privacy Notice, doc 05 section 18.1.1 and `privacy.ts` the same.
-6. **Operational promises:** turn on `ADMIN_IP_ALLOWLIST` (the notice says admin access is limited to approved networks) and confirm the retention jobs run (doc 22 section 2.3d).
+6. **Set where the apps read the documents:** `EXPO_PUBLIC_WEB_URL` (mobile) and `NEXT_PUBLIC_WEB_URL` (operator portal) to the live driver website address. Both default to the dev site.
+7. **Operational promises:** turn on `ADMIN_IP_ALLOWLIST` (the notice says admin access is limited to approved networks) and confirm the retention jobs run (doc 22 section 2.3d).
 
 ## 3. Every factual statement and where it comes from
 
@@ -101,7 +103,8 @@ Numbered to match doc 05 section 18.7 where one exists.
 8. **Response and breach timing** (item 5): the 30-day response period for rights requests, and the breach promise "within the time the law sets".
 9. **Age**: the 18-or-over rule and the sentence about children.
 10. **Automated decisions**: the sentence that nothing significant is decided automatically. Prices and refund limits are rules, and staff can review them.
-11. **Refund and cancellation wording** against consumer protection law (FCCPC): the 30-minute free cancellation, no refund for unused time, no refund for no-shows, the Park now holding fee, and the overstay rules.
+11. **Operator Terms, commercial points**: the commission range and the rule that the rate at booking time applies; that operators must not take cash for Parkly bookings; the suspension and termination terms; the first-payout hold (item 9).
+12. **Refund and cancellation wording** against consumer protection law (FCCPC): the 30-minute free cancellation, no refund for unused time, no refund for no-shows, the Park now holding fee, and the overstay rules.
 
 ## 5. How the text is kept true
 

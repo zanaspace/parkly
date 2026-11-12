@@ -8,6 +8,7 @@ import type { LegalDoc } from './types';
  */
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
+  audience: 'drivers',
   title: 'Privacy Notice',
   summary:
     'What Parkly collects about you, how we collect it, what we use it for, who sees it, how long we keep it, and what you can do about it.',

@@ -9,6 +9,7 @@ import type { LegalDoc } from './types';
  */
 export const TERMS: LegalDoc = {
   slug: 'terms',
+  audience: 'drivers',
   title: 'Driver Terms',
   summary:
     'The rules for booking and using parking through Parkly: what you pay, what happens if you are late or cancel, and what we are and are not responsible for.',

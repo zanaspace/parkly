@@ -3,6 +3,7 @@ import '@parkly/ui/styles.css';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { LegalFooter } from '../components/legal-footer';
 
 export const metadata: Metadata = {
   title: 'Parkly for Operators',
@@ -15,7 +16,10 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en-NG">
-      <body>{children}</body>
+      <body>
+        {children}
+        <LegalFooter />
+      </body>
     </html>
   );
 }

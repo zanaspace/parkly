@@ -648,7 +648,7 @@ Identity verification for DSARs: OTP to registered phone (+ email confirmation i
 | Document | Notes | Sprint |
 |---|---|---|
 | **Driver Terms of Service** | Booking, cancellation, no-show, overstay, liability, licence vs bailment, acceptable use, dispute resolution, governing law (Lagos/Nigeria) ⚖️ | 9 · **draft written (S8 task 8), awaiting counsel**: `/legal/terms`, doc 23 |
-| **Operator Agreement** | Commission, settlement (T+1 via provider), permit obligations, verification consent, service levels, data processing roles (who is controller for which data), termination, non-circumvention ⚖️ | 2 (draft for pilot signing) |
+| **Operator Agreement** | Commission, settlement (T+1 via provider), permit obligations, verification consent, service levels, data processing roles (who is controller for which data), termination, non-circumvention ⚖️ | 2 (draft for pilot signing) · **draft written as the Operator Terms (S8 task 8), awaiting counsel**: `/legal/operators`, doc 23 |
 | **Privacy Policy** | NDPA-compliant; purposes, bases, recipients, transfers, retention, rights, DPO contact | 9 · **draft written (S8 task 8), awaiting counsel**: `/legal/privacy`, doc 23 |
 | **Cookie / tracking notice** | Web apps; consent banner for non-essential analytics | 9 · covered by a section of the Privacy Notice; no banner needed while there are no non-essential cookies (none today) |
 | **Claims Terms** | What is covered, caps, evidence, timeline, insurer role — only when claims launch (Sprint 12) ⚖️ | 12 |
