@@ -1,6 +1,6 @@
 'use client';
 
-import { ActionForm, Button, Text } from '@parkly/ui';
+import { ActionForm, Button, Select, Text } from '@parkly/ui';
 import { useActionState } from 'react';
 import {
   type ActionState,
@@ -8,6 +8,13 @@ import {
   refundBookingAction,
   resendTicketAction,
 } from '../lib/bookings/actions';
+
+const REFUND_REASONS = [
+  { value: 'OPS_GOODWILL', label: 'Goodwill' },
+  { value: 'LOT_UNAVAILABLE', label: 'Car park couldn’t take the car' },
+  { value: 'DUPLICATE', label: 'Charged twice' },
+  { value: 'OTHER', label: 'Other' },
+];
 
 function Outcome({ state }: { state: ActionState }) {
   if (state?.error)
@@ -88,15 +95,7 @@ export function RefundForm({
         <span className="pk-field__label">Amount (₦), up to {refundable}</span>
         <input className="pk-input" name="amount" inputMode="decimal" required placeholder="1500" />
       </label>
-      <label className="pk-field">
-        <span className="pk-field__label">Reason</span>
-        <select className="pk-input" name="reason" defaultValue="OPS_GOODWILL">
-          <option value="OPS_GOODWILL">Goodwill</option>
-          <option value="LOT_UNAVAILABLE">Car park couldn’t take the car</option>
-          <option value="DUPLICATE">Charged twice</option>
-          <option value="OTHER">Other</option>
-        </select>
-      </label>
+      <Select label="Reason" name="reason" defaultValue="OPS_GOODWILL" options={REFUND_REASONS} />
       <label className="pk-field">
         <span className="pk-field__label">What happened (kept in the audit log)</span>
         <textarea
