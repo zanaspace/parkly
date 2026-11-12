@@ -5,11 +5,13 @@ import {
   asc,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
   lt,
   lte,
   notInArray,
+  or,
   sql,
   type SQL,
 } from 'drizzle-orm';
@@ -184,7 +186,10 @@ export function drizzleDsar(db: Db): Pick<Store, 'erasure' | 'retention'> & {
           .where(
             and(
               eq(bookings.driverId, userId),
-              sql`(${bookings.status} = 'CHECKED_IN' or (${bookings.status} = 'CONFIRMED' and ${bookings.endAt} > ${now}))`,
+              or(
+                eq(bookings.status, 'CHECKED_IN'),
+                and(eq(bookings.status, 'CONFIRMED'), gt(bookings.endAt, now)),
+              ),
             ),
           );
         const [owed] = await db
@@ -325,7 +330,8 @@ export function drizzleDsar(db: Db): Pick<Store, 'erasure' | 'retention'> & {
           .delete(idempotencyKeys)
           .where(
             sql`(${idempotencyKeys.actorId}, ${idempotencyKeys.key}) in (
-              select actor_id, key from idempotency_keys where expires_at < ${before} limit ${limit}
+              select actor_id, key from idempotency_keys
+              where expires_at < ${before.toISOString()}::timestamptz limit ${limit}
             )`,
           )
           .returning({ key: idempotencyKeys.key });

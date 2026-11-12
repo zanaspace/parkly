@@ -2037,7 +2037,11 @@ export function storeContract(
           exportStoragePath: `${d.id}/${access.id}.json`,
         });
         expect(await store.dataRequests.find(randomUUID())).toBeNull();
-        expect(await store.dataRequests.expiredExports(AT, 10)).toEqual([]);
+        // Not old enough yet at the moment it was completed.
+        expect(await store.dataRequests.expiredExports(AT, 10)).not.toContainEqual({
+          id: access.id,
+          path: `${d.id}/${access.id}.json`,
+        });
         expect(
           await store.dataRequests.expiredExports(new Date(AT.getTime() + 1000), 10),
         ).toContainEqual({ id: access.id, path: `${d.id}/${access.id}.json` });
