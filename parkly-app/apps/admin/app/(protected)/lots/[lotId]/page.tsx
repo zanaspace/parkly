@@ -1,4 +1,4 @@
-import type { AdminLotDetail, RatePlan } from '@parkly/contracts';
+import type { AdminLotDetail, LotSuspensionImpact, RatePlan } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -11,10 +11,12 @@ import {
   VisitDecision,
   VisitForm,
 } from '../../../../components/lot-review';
+import { CancelUpcomingForm } from '../../../../components/suspension-panel';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
 import { publicEnv } from '../../../../lib/env';
 import { CHECK_LABEL, describePrice, PROBLEM_TEXT } from '../../../../lib/lots/copy';
+import { canCancelUpcoming, impactSummary } from '../../../../lib/lots/suspension';
 
 export const metadata = { title: 'Review lot · Parkly Admin' };
 
@@ -66,6 +68,15 @@ export default async function LotReviewPage({ params }: { params: Promise<{ lotI
     throw err;
   }
   const { lot, operator, photos, verification: visit, listability } = detail;
+  // Who is booked there matters before a suspension and after it (doc 03 §4.3).
+  const impact =
+    lot.status === 'LIVE' || lot.status === 'PAUSED' || lot.status === 'SUSPENDED'
+      ? await apiFetch<LotSuspensionImpact>(
+          publicEnv().apiUrl,
+          `/v1/admin/lots/${encodeURIComponent(lotId)}/suspension-impact`,
+          accessToken,
+        ).catch(() => null)
+      : null;
   const roles = new Set(me.roles.map((r) => r.role));
   const canVerify = [...roles].some((r) => VERIFIERS.has(r));
   const canPrice = [...roles].some((r) => PRICE_REVIEWERS.has(r));
@@ -291,10 +302,31 @@ export default async function LotReviewPage({ params }: { params: Promise<{ lotI
           <details>
             <summary className="pk-link">Suspend this lot</summary>
             <Text variant="body-sm" tone="tertiary">
-              The lot disappears from search at once. Existing bookings are honoured.
+              The lot disappears from search at once. Existing bookings are honoured until you
+              cancel them after suspending.
             </Text>
+            {impact && (
+              <Text variant="body-sm" role="status">
+                {impactSummary(impact)}
+              </Text>
+            )}
             <StatusAction lotId={lot.id} status="SUSPENDED" label="Suspend" needsReason />
           </details>
+        )}
+        {lot.status === 'SUSPENDED' && impact && (
+          <div className="pk-stack">
+            <Text variant="body-sm">{impactSummary(impact)}</Text>
+            {canCancelUpcoming(me.roles) && impact.upcoming.length > 0 && (
+              <details>
+                <summary className="pk-link">Cancel the paid bookings and refund in full</summary>
+                <Text variant="body-sm" tone="tertiary">
+                  Each driver is told and refunded in full. Cars parked there now and unpaid holds
+                  are left alone.
+                </Text>
+                <CancelUpcomingForm lotId={lot.id} count={impact.upcoming.length} />
+              </details>
+            )}
+          </div>
         )}
         {lot.status === 'SUSPENDED' && canReinstate && (
           <StatusAction

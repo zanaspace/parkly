@@ -12741,6 +12741,193 @@
         }
       }
     },
+    "/v1/admin/lots/{lotId}/suspension-impact": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Impact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotName": {
+                      "type": "string"
+                    },
+                    "upcoming": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "totalKobo": {
+                            "type": "integer"
+                          },
+                          "driverFirstName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "startAt",
+                          "endAt",
+                          "totalKobo",
+                          "driverFirstName"
+                        ]
+                      }
+                    },
+                    "activeCount": {
+                      "type": "integer"
+                    },
+                    "holdCount": {
+                      "type": "integer"
+                    },
+                    "totalRefundKobo": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "lotId",
+                    "lotName",
+                    "upcoming",
+                    "activeCount",
+                    "holdCount",
+                    "totalRefundKobo"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/lots/{lotId}/cancel-upcoming-bookings": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lotId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cancelled": {
+                      "type": "integer"
+                    },
+                    "failed": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "message"
+                        ]
+                      }
+                    },
+                    "refundedKobo": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "cancelled",
+                    "failed",
+                    "refundedKobo"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operators/{operatorId}/members": {
       "get": {
         "tags": [

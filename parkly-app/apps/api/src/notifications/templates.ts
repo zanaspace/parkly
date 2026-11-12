@@ -83,6 +83,12 @@ export function renderSms(
       );
       break;
     }
+    case 'booking.lot_unavailable': {
+      body = sms(
+        `Parkly: ${event.lotName} can't take your booking ${event.bookingCode}, so we cancelled it and are refunding ${formatNaira(event.refundKobo)} in full. Sorry for the trouble.`,
+      );
+      break;
+    }
     case 'session.overstay_due': {
       body = sms(
         `Parkly: Unpaid overstay of ${event.overstayMinutes}m (${formatNaira(event.amountKobo)}) at ${event.lotName}. Pay:`,
@@ -136,6 +142,11 @@ export function renderPush(event: NotificationEvent, tokens: string[]): PushMess
     case 'booking.refunded':
       title = 'Refund on its way';
       body = `${formatNaira(event.refundKobo)} is being refunded for ${event.bookingCode}.`;
+      data.url = `parkly://bookings/${event.bookingId}`;
+      break;
+    case 'booking.lot_unavailable':
+      title = 'Booking cancelled, full refund';
+      body = `${event.lotName} can't take booking ${event.bookingCode}. We're refunding ${formatNaira(event.refundKobo)} in full.`;
       data.url = `parkly://bookings/${event.bookingId}`;
       break;
     case 'booking.no_show':
@@ -214,6 +225,20 @@ export function renderEmail(
               'In accordance with our cancellation policy, no refund is due for late cancellation.',
             ),
         button('View receipt', `${link}/receipt`),
+      ].join('');
+      break;
+
+    case 'booking.lot_unavailable':
+      subject = `Booking ${event.bookingCode} cancelled: full refund`;
+      heading = 'We had to cancel your booking';
+      body = [
+        paragraph(
+          `<strong>${lot}</strong> can't take bookings right now, so we cancelled booking <strong>${code}</strong> and are refunding <strong>${esc(formatNaira(event.refundKobo))}</strong> in full.`,
+        ),
+        paragraph(
+          'It goes back to the card or account you paid with. Banks usually take 5 to 10 working days to show it. We are sorry for the trouble; you can book another car park in the app.',
+        ),
+        button('View booking', link),
       ].join('');
       break;
 

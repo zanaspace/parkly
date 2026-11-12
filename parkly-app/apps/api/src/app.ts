@@ -20,6 +20,7 @@ import { adminRoutes } from './modules/admin/routes.js';
 import { adminBookingActionRoutes } from './modules/admin/booking-actions.js';
 import { adminSupportRoutes } from './modules/admin/support.js';
 import { adminIncidentRoutes } from './modules/admin/incidents.js';
+import { adminLotSuspensionRoutes } from './modules/admin/lot-suspension.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
 import { sendEmailHook } from './modules/hooks/send-email.js';
@@ -148,6 +149,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminSupportRoutes(deps));
   app.route('/v1', adminBookingActionRoutes(deps));
   app.route('/v1', adminIncidentRoutes(deps));
+  app.route('/v1', adminLotSuspensionRoutes(deps));
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', operatorBookingRoutes(deps));
   app.route('/v1', reportRoutes(deps));

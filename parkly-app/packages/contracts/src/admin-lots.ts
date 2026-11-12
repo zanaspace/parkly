@@ -138,3 +138,41 @@ export type ListingProblem = z.infer<typeof ListingProblemSchema>;
 export type PermitReviewRequest = z.infer<typeof PermitReviewRequestSchema>;
 export type ReviewRequest = z.infer<typeof ReviewRequestSchema>;
 export type AdminLotStatusRequest = z.infer<typeof AdminLotStatusRequestSchema>;
+
+/** Doc 03 §4.3: what suspending a car park does to drivers who have booked it. */
+export const LotSuspensionImpactSchema = z.object({
+  lotId: z.uuid(),
+  lotName: z.string(),
+  /** Paid and not started: these can be cancelled with a full refund. */
+  upcoming: z.array(
+    z.object({
+      id: z.uuid(),
+      code: z.string(),
+      startAt: z.iso.datetime(),
+      endAt: z.iso.datetime(),
+      totalKobo: z.number().int(),
+      driverFirstName: z.string().nullable(),
+    }),
+  ),
+  /** Cars parked there now (checked in). They are always honoured. */
+  activeCount: z.number().int(),
+  /** Unpaid holds. They lapse by themselves. */
+  holdCount: z.number().int(),
+  totalRefundKobo: z.number().int(),
+});
+
+export const CancelUpcomingRequestSchema = z.object({
+  /** Kept in the audit log with each cancellation. */
+  reason: z.string().trim().min(5).max(500),
+});
+
+export const CancelUpcomingResponseSchema = z.object({
+  cancelled: z.number().int(),
+  /** Bookings left for ops to deal with by hand (the cancel failed). */
+  failed: z.array(z.object({ code: z.string(), message: z.string() })),
+  refundedKobo: z.number().int(),
+});
+
+export type LotSuspensionImpact = z.infer<typeof LotSuspensionImpactSchema>;
+export type CancelUpcomingRequest = z.infer<typeof CancelUpcomingRequestSchema>;
+export type CancelUpcomingResponse = z.infer<typeof CancelUpcomingResponseSchema>;

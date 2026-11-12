@@ -42,6 +42,7 @@ const SMS_ALWAYS = new Set<NotificationEvent['key']>([
   'booking.confirmed',
   'booking.cancelled',
   'booking.refunded',
+  'booking.lot_unavailable',
   'booking.extended',
   'session.overstay_due',
 ]);
@@ -53,6 +54,7 @@ const EMAIL_EVENTS = new Set<NotificationEvent['key']>([
   'booking.confirmed',
   'booking.cancelled',
   'booking.refunded',
+  'booking.lot_unavailable',
 ]);
 
 /** 22:00–07:00 in Lagos (UTC+1, no daylight saving): the next 07:00, else null. */

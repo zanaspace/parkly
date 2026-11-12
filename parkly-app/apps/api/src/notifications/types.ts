@@ -55,6 +55,15 @@ export type NotificationEvent =
       refundKobo: number;
     }
   | {
+      /** Doc 03 §4.3: the car park was suspended and ops cancelled the booking, refunded in full. */
+      key: 'booking.lot_unavailable';
+      driverId: string;
+      bookingId: string;
+      bookingCode: string;
+      lotName: string;
+      refundKobo: number;
+    }
+  | {
       key: 'booking.no_show';
       driverId: string;
       bookingId: string;

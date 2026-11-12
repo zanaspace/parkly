@@ -422,6 +422,19 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: `/v1/admin/lots/${TARGET_USER}/suspension-impact`,
+    route: 'GET /v1/admin/lots/{lotId}/suspension-impact',
+    expect: only(['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'POST',
+    path: `/v1/admin/lots/${TARGET_USER}/cancel-upcoming-bookings`,
+    route: 'POST /v1/admin/lots/{lotId}/cancel-upcoming-bookings',
+    body: { reason: 'Barrier broken for a week' },
+    expect: only(['ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'], 404, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/reconciliation/runs',
     route: 'GET /v1/admin/reconciliation/runs',
     expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
