@@ -17,3 +17,4 @@ export * from './operator-bookings.js';
 export * from './reconciliation.js';
 export * from './reports.js';
 export * from './support.js';
+export * from './incidents.js';

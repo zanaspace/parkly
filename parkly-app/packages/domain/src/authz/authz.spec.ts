@@ -81,6 +81,20 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
       expect(can(a, 'booking:refund:support', {})).toBe(false);
   });
 
+  it('lets ops, finance and super admin cancel a suspended car park’s bookings', () => {
+    const superAdmin = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
+    for (const a of [ops, finance, superAdmin])
+      expect(can(a, 'lot:suspension:cancel-bookings', {})).toBe(true);
+    for (const a of [support, compliance, ownerA])
+      expect(can(a, 'lot:suspension:cancel-bookings', {})).toBe(false);
+  });
+
+  it('lets support, ops and super admin work incidents (FR-INC-001)', () => {
+    for (const a of [support, ops]) expect(can(a, 'incident:manage', {})).toBe(true);
+    for (const a of [finance, compliance, ownerA])
+      expect(can(a, 'incident:manage', {})).toBe(false);
+  });
+
   it('lets support, ops and finance reveal a driver contact, not compliance or operators', () => {
     for (const a of [support, ops, finance])
       expect(can(a, 'booking:contact:reveal', {})).toBe(true);

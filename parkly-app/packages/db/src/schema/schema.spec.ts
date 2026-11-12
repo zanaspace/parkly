@@ -23,6 +23,8 @@ describe('schema conventions (doc 02 §1)', () => {
       'feature_flags',
       'files',
       'idempotency_keys',
+      'incident_notes',
+      'incidents',
       'ledger_accounts',
       'ledger_entries',
       'lot_closures',

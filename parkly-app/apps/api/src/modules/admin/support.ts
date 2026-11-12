@@ -30,6 +30,7 @@ function toSupportBooking(b: SupportBookingRow) {
     id: b.id,
     code: b.code,
     status: b.status,
+    lotId: b.lotId,
     lotName: b.lotName,
     operatorName: b.operatorName,
     startAt: b.startAt.toISOString(),

@@ -4,6 +4,7 @@ import type {
   PlatformEarningsReport,
 } from '@parkly/contracts';
 import type { RoleGrant } from '@parkly/domain/authz';
+import type { IncidentCategory, IncidentSeverity, IncidentStatus } from '@parkly/domain/incident';
 import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
 import type { Bucket, VerifiedCharge } from '../providers/index.js';
 
@@ -647,6 +648,7 @@ export type SupportBookingRow = {
   id: string;
   code: string;
   status: BookingStatus;
+  lotId: string;
   lotName: string;
   operatorName: string;
   startAt: Date;
@@ -1463,6 +1465,56 @@ export type Store = {
     /** APPROVED → FAILED when there was no longer enough left to refund. */
     fail(id: string, at: Date): Promise<void>;
   };
+  /** FR-INC-001, FR-INC-004: incidents staff log and work. */
+  incidents: {
+    create(
+      input: {
+        lotId: string;
+        bookingId: string | null;
+        reporterUserId: string;
+        reporterRole: string;
+        category: IncidentCategory;
+        severity: IncidentSeverity;
+        description: string;
+      },
+      at: Date,
+    ): Promise<IncidentRow>;
+    find(id: string): Promise<IncidentRow | null>;
+    /** Worst severity first, then oldest. */
+    list(filter: {
+      status?: IncidentStatus;
+      lotId?: string;
+      severity?: IncidentSeverity;
+      limit: number;
+    }): Promise<IncidentRow[]>;
+    /**
+     * Moves `from` → `to` once: null when the incident was no longer in `from`
+     * (someone else got there first). Sets the matching time column.
+     */
+    transition(
+      id: string,
+      change: {
+        from: IncidentStatus;
+        to: IncidentStatus;
+        assigneeId?: string;
+        resolution?: string;
+      },
+      at: Date,
+    ): Promise<IncidentRow | null>;
+    addNote(
+      input: { incidentId: string; authorId: string; body: string; internal: boolean },
+      at: Date,
+    ): Promise<IncidentNoteRow>;
+    /** Oldest first. */
+    notes(incidentId: string): Promise<IncidentNoteRow[]>;
+    /** Incidents at the lot created at or after `since`. */
+    countForLot(lotId: string, since: Date): Promise<number>;
+    /** Lots with at least `minCount` incidents since `since`, most first. */
+    lotsOverThreshold(
+      since: Date,
+      minCount: number,
+    ): Promise<{ lotId: string; lotName: string; operatorName: string; incidentCount: number }[]>;
+  };
   /** FR-ADM-002: support finds bookings and reads their history. */
   support: {
     /**
@@ -1531,6 +1583,36 @@ export type RefundRequestRow = {
   decidedBy: string | null;
   decidedAt: Date | null;
   decisionNote: string | null;
+  createdAt: Date;
+};
+
+/** FR-INC-001: an incident with the names staff need; the reporter stays a role. */
+export type IncidentRow = {
+  id: string;
+  lotId: string;
+  lotName: string;
+  bookingId: string | null;
+  bookingCode: string | null;
+  reporterUserId: string;
+  reporterRole: string;
+  category: IncidentCategory;
+  severity: IncidentSeverity;
+  description: string;
+  status: IncidentStatus;
+  assigneeId: string | null;
+  resolution: string | null;
+  triagedAt: Date | null;
+  resolvedAt: Date | null;
+  closedAt: Date | null;
+  createdAt: Date;
+};
+
+export type IncidentNoteRow = {
+  id: string;
+  incidentId: string;
+  authorId: string;
+  body: string;
+  internal: boolean;
   createdAt: Date;
 };
 

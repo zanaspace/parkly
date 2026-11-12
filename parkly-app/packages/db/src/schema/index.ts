@@ -12,3 +12,4 @@ export * from './sessions.js';
 export * from './notifications.js';
 export * from './receipts.js';
 export * from './reconciliation.js';
+export * from './incidents.js';

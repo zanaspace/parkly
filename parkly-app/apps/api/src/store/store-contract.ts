@@ -1955,6 +1955,111 @@ export function storeContract(
         expect(await store.refundRequests.find(randomUUID())).toBeNull();
       });
 
+      it('logs incidents, works them through the statuses, and finds lots with 3 in 30 days', async () => {
+        const lot = await liveLot(1);
+        const other = await liveLot(1);
+        const staff = await newUser([{ role: 'ADMIN_SUPPORT', operatorId: null }]);
+        const d = await driver();
+        const { booking } = await hold(lot, d);
+        const input = {
+          lotId: lot.lotId,
+          bookingId: null,
+          reporterUserId: staff,
+          reporterRole: 'ADMIN_SUPPORT',
+          category: 'ACCESS_DENIED' as const,
+          severity: 'HIGH' as const,
+          description: 'Attendant says the driver is not booked',
+        };
+
+        const first = await store.incidents.create({ ...input, bookingId: booking.id }, AT);
+        expect(first).toMatchObject({
+          status: 'OPEN',
+          bookingCode: booking.code,
+          assigneeId: null,
+          triagedAt: null,
+          lotName: expect.any(String),
+        });
+        const critical = await store.incidents.create(
+          { ...input, severity: 'CRITICAL', category: 'SAFETY' },
+          new Date(AT.getTime() + 1000),
+        );
+        const low = await store.incidents.create(
+          { ...input, severity: 'LOW', category: 'OTHER' },
+          new Date(AT.getTime() - 1000),
+        );
+        // Worst severity first, then oldest.
+        expect(
+          (await store.incidents.list({ limit: 10, lotId: lot.lotId })).map((i) => i.id),
+        ).toEqual([critical.id, first.id, low.id]);
+        expect(
+          (await store.incidents.list({ limit: 10, lotId: lot.lotId, severity: 'LOW' })).map(
+            (i) => i.id,
+          ),
+        ).toEqual([low.id]);
+
+        // Each step moves once, from the status it expects.
+        const later = new Date(AT.getTime() + 60_000);
+        expect(
+          await store.incidents.transition(first.id, { from: 'TRIAGED', to: 'RESOLVED' }, later),
+        ).toBeNull();
+        const triaged = await store.incidents.transition(
+          first.id,
+          { from: 'OPEN', to: 'TRIAGED', assigneeId: staff },
+          later,
+        );
+        expect(triaged).toMatchObject({ status: 'TRIAGED', assigneeId: staff, triagedAt: later });
+        expect(
+          await store.incidents.transition(first.id, { from: 'OPEN', to: 'TRIAGED' }, later),
+        ).toBeNull();
+        const resolved = await store.incidents.transition(
+          first.id,
+          { from: 'TRIAGED', to: 'RESOLVED', resolution: 'Ticket resent' },
+          later,
+        );
+        expect(resolved).toMatchObject({
+          status: 'RESOLVED',
+          resolution: 'Ticket resent',
+          resolvedAt: later,
+        });
+        const reopened = await store.incidents.transition(
+          first.id,
+          { from: 'RESOLVED', to: 'OPEN' },
+          later,
+        );
+        expect(reopened).toMatchObject({ status: 'OPEN', resolvedAt: null });
+        expect(
+          (await store.incidents.list({ limit: 10, status: 'OPEN', lotId: lot.lotId })).length,
+        ).toBe(3);
+
+        await store.incidents.addNote(
+          { incidentId: first.id, authorId: staff, body: 'Called the attendant', internal: true },
+          later,
+        );
+        expect(await store.incidents.notes(first.id)).toEqual([
+          expect.objectContaining({
+            body: 'Called the attendant',
+            authorId: staff,
+            internal: true,
+          }),
+        ]);
+        expect(await store.incidents.find(randomUUID())).toBeNull();
+
+        // FR-INC-004: counted per lot inside the window.
+        const since = new Date(AT.getTime() - 86_400_000);
+        expect(await store.incidents.countForLot(lot.lotId, since)).toBe(3);
+        expect(await store.incidents.countForLot(other.lotId, since)).toBe(0);
+        expect(await store.incidents.countForLot(lot.lotId, new Date(AT.getTime() + 5000))).toBe(0);
+        await store.incidents.create({ ...input, lotId: other.lotId }, AT);
+        const flagged = await store.incidents.lotsOverThreshold(since, 3);
+        expect(flagged.map((f) => f.lotId)).toContain(lot.lotId);
+        expect(flagged.map((f) => f.lotId)).not.toContain(other.lotId);
+        expect(flagged.find((f) => f.lotId === lot.lotId)).toMatchObject({
+          incidentCount: 3,
+          lotName: expect.any(String),
+          operatorName: expect.any(String),
+        });
+      });
+
       it('finds a booking by code, cancels it with a refund, and tracks the refund to the end', async () => {
         const lot = await liveLot(1);
         const d = await driver();

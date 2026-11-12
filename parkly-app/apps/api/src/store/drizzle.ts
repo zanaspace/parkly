@@ -49,6 +49,7 @@ import { drizzleSettlements } from './drizzle-settlements.js';
 import { drizzleReconciliation } from './drizzle-reconciliation.js';
 import { drizzleReports } from './drizzle-reports.js';
 import { drizzleRefundRequests } from './drizzle-refund-requests.js';
+import { drizzleIncidents } from './drizzle-incidents.js';
 import { drizzleSupport } from './drizzle-support.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 
@@ -1613,6 +1614,8 @@ export function drizzleStore(db: Db): Store {
     support: drizzleSupport(db),
 
     refundRequests: drizzleRefundRequests(db),
+
+    incidents: drizzleIncidents(db),
 
     lotKeys: {
       forManifest: attending.forManifest,

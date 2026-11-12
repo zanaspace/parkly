@@ -79,6 +79,11 @@ const RULES = {
   'kyb:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   /** Lot review queue and detail, photo review, lot status changes (go-live, send back, suspend). */
   'lot:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
+  /** Doc 03 §4.3: after a suspension, cancel the upcoming bookings with a full refund. */
+  'lot:suspension:cancel-bookings': {
+    scope: 'platform',
+    roles: ['ADMIN_OPS', 'ADMIN_FINANCE', 'SUPER_ADMIN'],
+  },
   /** LASPA permit review (doc 03 §4.2). */
   'permit:review': { scope: 'platform', roles: ['ADMIN_OPS', 'ADMIN_COMPLIANCE', 'SUPER_ADMIN'] },
   /** Price changes and site verification are ops work (doc 02 §6.8). */
@@ -117,6 +122,8 @@ const RULES = {
   'platform:revenue:read': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   /** Change an operator's commission rate (applies to new bookings only). */
   'operator:commission:set': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
+  /** FR-INC-001: log, triage, note and resolve incidents (doc 05 §5.1: support opens them). */
+  'incident:manage': { scope: 'platform', roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;
 
 export type Action = keyof typeof RULES;

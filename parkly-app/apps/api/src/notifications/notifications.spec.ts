@@ -589,3 +589,27 @@ describe('refund notice (FR-ADM-003)', () => {
     expect(email?.html).not.toContain('Eko <Hotel>');
   });
 });
+
+describe('car park unavailable notice (doc 03 §4.3)', () => {
+  const event = {
+    key: 'booking.lot_unavailable' as const,
+    driverId: 'd-1',
+    bookingId: 'b-1',
+    bookingCode: 'PK-AB23CD',
+    lotName: 'Eko <Hotel>',
+    refundKobo: 20_000,
+  };
+
+  it('says the booking is cancelled and refunded in full, by SMS, push and email', () => {
+    const sms = renderSms(event, '+2348031234567')?.body ?? '';
+    expect(sms).toContain('PK-AB23CD');
+    expect(sms).toContain('refunding ₦200 in full');
+    expect(renderPush(event, ['ExponentPushToken[x]'])).toMatchObject({
+      title: 'Booking cancelled, full refund',
+    });
+    const email = renderEmail(event, 'ada@example.com');
+    expect(email?.subject).toBe('Booking PK-AB23CD cancelled: full refund');
+    expect(email?.html).toContain('Eko &lt;Hotel&gt;');
+    expect(email?.html).not.toContain('Eko <Hotel>');
+  });
+});

@@ -12,6 +12,7 @@ import { RevealContact } from '../../../../components/reveal-contact';
 import { WaiveOverstayForm } from '../../../../components/waive-overstay';
 import { apiFetch, ApiProblem } from '../../../../lib/api';
 import { requireAccess } from '../../../../lib/auth/session';
+import { canManageIncidents } from '../../../../lib/incidents/copy';
 import { canWaive, overstayOwed } from '../../../../lib/bookings/code';
 import { canCancel, canRefund, canSupportRefund } from '../../../../lib/bookings/money';
 import { lagosShort } from '../../../../lib/bookings/support';
@@ -129,6 +130,14 @@ export default async function SupportBookingPage({ params }: { params: Promise<{
           </Text>
         </section>
       </div>
+
+      {canManageIncidents(me.roles) && (
+        <Text variant="body-sm">
+          <Link className="pk-link" href={`/incidents/new?lotId=${b.lotId}&bookingId=${b.id}`}>
+            Log an incident about this booking
+          </Link>
+        </Text>
+      )}
 
       {showActions && (
         <section className="pk-card pk-stack" aria-labelledby="actions-heading">

@@ -182,3 +182,31 @@ export async function changeLotStatus(_prev: ActionState, form: FormData): Promi
     STATUS_DONE[status] ?? 'Done.',
   );
 }
+
+/** Doc 03 §4.3: after suspending, cancel the paid upcoming bookings with a full refund. */
+export async function cancelUpcomingBookings(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const lotId = String(form.get('lotId') ?? '');
+  const reason = String(form.get('reason') ?? '').trim();
+  if (reason.length < 5) return { error: 'Write a reason of at least 5 characters.' };
+  try {
+    const res = await apiFetch<{ cancelled: number; failed: unknown[]; refundedKobo: number }>(
+      publicEnv().apiUrl,
+      `/v1/admin/lots/${enc(lotId)}/cancel-upcoming-bookings`,
+      await token(),
+      { method: 'POST', body: { reason } },
+    );
+    revalidatePath(`/lots/${lotId}`);
+    const naira = (res.refundedKobo / 100).toLocaleString('en-NG');
+    const left = res.failed.length
+      ? ` ${res.failed.length} could not be cancelled; open them from Bookings.`
+      : '';
+    return {
+      done: `Cancelled ${res.cancelled} booking${res.cancelled === 1 ? '' : 's'} and refunding ₦${naira}. Drivers were told.${left}`,
+    };
+  } catch (err) {
+    return { error: problemText(err) };
+  }
+}
