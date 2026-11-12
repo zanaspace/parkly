@@ -1,4 +1,5 @@
 import type { RoleGrant } from '@parkly/domain/authz';
+import { compareForQueue } from '@parkly/domain/incident';
 import { randomUUID } from 'node:crypto';
 import {
   DsrAlreadyOpenError,
@@ -9,6 +10,8 @@ import {
   StaleVersionError,
   type AuditRow,
   type FileRow,
+  type IncidentNoteRow,
+  type IncidentRow,
   type KybDocumentRow,
   type LotPhotoRow,
   type LiveLotRow,
@@ -183,6 +186,90 @@ export class MemoryStore implements Store {
     },
   };
 
+  /** FR-INC-001, FR-INC-004: mirrors drizzle-incidents. */
+  readonly incidentRows: IncidentRow[] = [];
+  readonly incidentNoteRows: IncidentNoteRow[] = [];
+  readonly incidents: Store['incidents'] = {
+    create: async (input, at) => {
+      const row: IncidentRow = {
+        id: randomUUID(),
+        ...input,
+        lotName: this.lotRows.get(input.lotId)?.name ?? 'Car park',
+        bookingCode: this.booking.bookingRows.find((b) => b.id === input.bookingId)?.code ?? null,
+        status: 'OPEN',
+        assigneeId: null,
+        resolution: null,
+        triagedAt: null,
+        resolvedAt: null,
+        closedAt: null,
+        createdAt: at,
+      };
+      this.incidentRows.push(row);
+      return { ...row };
+    },
+    find: async (id) => {
+      const r = this.incidentRows.find((x) => x.id === id);
+      return r ? { ...r } : null;
+    },
+    list: async ({ status, lotId, severity, limit }) =>
+      this.incidentRows
+        .filter(
+          (r) =>
+            (!status || r.status === status) &&
+            (!lotId || r.lotId === lotId) &&
+            (!severity || r.severity === severity),
+        )
+        .sort(compareForQueue)
+        .slice(0, limit)
+        .map((r) => ({ ...r })),
+    transition: async (id, change, at) => {
+      const r = this.incidentRows.find((x) => x.id === id);
+      if (!r || r.status !== change.from) return null;
+      r.status = change.to;
+      if (change.to === 'TRIAGED') {
+        r.triagedAt = at;
+        if (change.assigneeId) r.assigneeId = change.assigneeId;
+      }
+      if (change.to === 'RESOLVED') {
+        r.resolvedAt = at;
+        if (change.resolution !== undefined) r.resolution = change.resolution;
+      }
+      if (change.to === 'CLOSED') r.closedAt = at;
+      if (change.to === 'OPEN') r.resolvedAt = null;
+      return { ...r };
+    },
+    addNote: async (input, at) => {
+      const row: IncidentNoteRow = { id: randomUUID(), ...input, createdAt: at };
+      this.incidentNoteRows.push(row);
+      return { ...row };
+    },
+    notes: async (incidentId) =>
+      this.incidentNoteRows
+        .filter((n) => n.incidentId === incidentId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((n) => ({ ...n })),
+    countForLot: async (lotId, since) =>
+      this.incidentRows.filter((r) => r.lotId === lotId && r.createdAt >= since).length,
+    lotsOverThreshold: async (since, minCount) => {
+      const counts = new Map<string, number>();
+      for (const r of this.incidentRows)
+        if (r.createdAt >= since) counts.set(r.lotId, (counts.get(r.lotId) ?? 0) + 1);
+      return [...counts]
+        .filter(([, n]) => n >= minCount)
+        .map(([lotId, incidentCount]) => {
+          const lot = this.lotRows.get(lotId);
+          const op = lot ? this.operatorRows.get(lot.operatorId) : undefined;
+          return {
+            lotId,
+            lotName: lot?.name ?? 'Car park',
+            operatorName: op?.tradingName ?? 'Operator',
+            incidentCount,
+          };
+        })
+        .sort((a, b) => b.incidentCount - a.incidentCount || a.lotName.localeCompare(b.lotName));
+    },
+  };
+
   /** FR-ADM-002: mirrors drizzle-support. */
   readonly support: Store['support'] = {
     search: async (filter, limit) => {
@@ -232,6 +319,7 @@ export class MemoryStore implements Store {
       id: b.id,
       code: b.code,
       status: b.status,
+      lotId: b.lotId,
       lotName: lot?.name ?? 'Car park',
       operatorName: op?.tradingName ?? 'Operator',
       startAt: b.startAt,

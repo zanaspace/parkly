@@ -9,6 +9,7 @@ const columns = {
   id: bookings.id,
   code: bookings.code,
   status: bookings.status,
+  lotId: bookings.lotId,
   lotName: lots.name,
   operatorName: operators.tradingName,
   startAt: bookings.startAt,

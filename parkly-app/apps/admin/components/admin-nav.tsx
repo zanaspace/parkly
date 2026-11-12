@@ -2,16 +2,26 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AuditIcon, DashboardIcon, FinanceIcon, KybIcon, LotsIcon, TicketIcon } from './icons';
+import {
+  AlertTriangleIcon,
+  AuditIcon,
+  DashboardIcon,
+  FinanceIcon,
+  KybIcon,
+  LotsIcon,
+  TicketIcon,
+} from './icons';
 
 export function AdminNav({
   canReadAudit,
   canReadBookings,
   canReadFinance = false,
+  canManageIncidents = false,
 }: {
   canReadAudit: boolean;
   canReadBookings: boolean;
   canReadFinance?: boolean;
+  canManageIncidents?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -21,6 +31,9 @@ export function AdminNav({
     { href: '/lots', label: 'Lots & Permits', icon: LotsIcon, exact: false },
     ...(canReadBookings
       ? [{ href: '/bookings', label: 'Bookings', icon: TicketIcon, exact: false }]
+      : []),
+    ...(canManageIncidents
+      ? [{ href: '/incidents', label: 'Incidents', icon: AlertTriangleIcon, exact: false }]
       : []),
     ...(canReadFinance
       ? [{ href: '/finance', label: 'Finance & Recon', icon: FinanceIcon, exact: false }]

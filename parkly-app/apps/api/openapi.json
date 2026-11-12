@@ -10604,6 +10604,10 @@
                               "NO_SHOW"
                             ]
                           },
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
                           "lotName": {
                             "type": "string"
                           },
@@ -10661,6 +10665,7 @@
                           "id",
                           "code",
                           "status",
+                          "lotId",
                           "lotName",
                           "operatorName",
                           "startAt",
@@ -10735,6 +10740,10 @@
                             "NO_SHOW"
                           ]
                         },
+                        "lotId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
                         "lotName": {
                           "type": "string"
                         },
@@ -10792,6 +10801,7 @@
                         "id",
                         "code",
                         "status",
+                        "lotId",
                         "lotName",
                         "operatorName",
                         "startAt",
@@ -11706,6 +11716,1027 @@
         "responses": {
           "204": {
             "description": "Queued"
+          }
+        }
+      }
+    },
+    "/v1/admin/incidents": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lotId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "bookingId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "SAFETY",
+                      "DAMAGE",
+                      "THEFT",
+                      "OVERCHARGE",
+                      "TOUT",
+                      "ACCESS_DENIED",
+                      "LOT_FULL",
+                      "APP_ISSUE",
+                      "OTHER"
+                    ]
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH",
+                      "CRITICAL"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "lotId",
+                  "category",
+                  "severity",
+                  "description"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Incident logged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incident": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lotId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lotName": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid"
+                        },
+                        "bookingCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "SAFETY",
+                            "DAMAGE",
+                            "THEFT",
+                            "OVERCHARGE",
+                            "TOUT",
+                            "ACCESS_DENIED",
+                            "LOT_FULL",
+                            "APP_ISSUE",
+                            "OTHER"
+                          ]
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "LOW",
+                            "MEDIUM",
+                            "HIGH",
+                            "CRITICAL"
+                          ]
+                        },
+                        "severityLabel": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "OPEN",
+                            "TRIAGED",
+                            "RESOLVED",
+                            "CLOSED"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "reporterRole": {
+                          "type": "string"
+                        },
+                        "assigneeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid"
+                        },
+                        "resolution": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "triageDueAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "overdue": {
+                          "type": "boolean"
+                        },
+                        "triagedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "resolvedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "closedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "lotId",
+                        "lotName",
+                        "bookingId",
+                        "bookingCode",
+                        "category",
+                        "severity",
+                        "severityLabel",
+                        "status",
+                        "description",
+                        "reporterRole",
+                        "assigneeId",
+                        "resolution",
+                        "createdAt",
+                        "triageDueAt",
+                        "overdue",
+                        "triagedAt",
+                        "resolvedAt",
+                        "closedAt"
+                      ]
+                    },
+                    "lotFlaggedForReview": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "incident",
+                    "lotFlaggedForReview"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "TRIAGED",
+                "RESOLVED",
+                "CLOSED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "lotId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL"
+              ]
+            },
+            "required": false,
+            "name": "severity",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incident queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "bookingId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "bookingCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "SAFETY",
+                              "DAMAGE",
+                              "THEFT",
+                              "OVERCHARGE",
+                              "TOUT",
+                              "ACCESS_DENIED",
+                              "LOT_FULL",
+                              "APP_ISSUE",
+                              "OTHER"
+                            ]
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "LOW",
+                              "MEDIUM",
+                              "HIGH",
+                              "CRITICAL"
+                            ]
+                          },
+                          "severityLabel": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "OPEN",
+                              "TRIAGED",
+                              "RESOLVED",
+                              "CLOSED"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "reporterRole": {
+                            "type": "string"
+                          },
+                          "assigneeId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid"
+                          },
+                          "resolution": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "triageDueAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "overdue": {
+                            "type": "boolean"
+                          },
+                          "triagedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "resolvedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "closedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "lotId",
+                          "lotName",
+                          "bookingId",
+                          "bookingCode",
+                          "category",
+                          "severity",
+                          "severityLabel",
+                          "status",
+                          "description",
+                          "reporterRole",
+                          "assigneeId",
+                          "resolution",
+                          "createdAt",
+                          "triageDueAt",
+                          "overdue",
+                          "triagedAt",
+                          "resolvedAt",
+                          "closedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/incidents/lot-flags": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lots to review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lotId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "lotName": {
+                            "type": "string"
+                          },
+                          "operatorName": {
+                            "type": "string"
+                          },
+                          "incidentCount": {
+                            "type": "integer"
+                          },
+                          "windowDays": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "lotId",
+                          "lotName",
+                          "operatorName",
+                          "incidentCount",
+                          "windowDays"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/incidents/{id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incident with notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incident": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lotId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lotName": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid"
+                        },
+                        "bookingCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "SAFETY",
+                            "DAMAGE",
+                            "THEFT",
+                            "OVERCHARGE",
+                            "TOUT",
+                            "ACCESS_DENIED",
+                            "LOT_FULL",
+                            "APP_ISSUE",
+                            "OTHER"
+                          ]
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "LOW",
+                            "MEDIUM",
+                            "HIGH",
+                            "CRITICAL"
+                          ]
+                        },
+                        "severityLabel": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "OPEN",
+                            "TRIAGED",
+                            "RESOLVED",
+                            "CLOSED"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "reporterRole": {
+                          "type": "string"
+                        },
+                        "assigneeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid"
+                        },
+                        "resolution": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "triageDueAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "overdue": {
+                          "type": "boolean"
+                        },
+                        "triagedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "resolvedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "closedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "lotId",
+                        "lotName",
+                        "bookingId",
+                        "bookingCode",
+                        "category",
+                        "severity",
+                        "severityLabel",
+                        "status",
+                        "description",
+                        "reporterRole",
+                        "assigneeId",
+                        "resolution",
+                        "createdAt",
+                        "triageDueAt",
+                        "overdue",
+                        "triagedAt",
+                        "resolvedAt",
+                        "closedAt"
+                      ]
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "authorId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "authorId",
+                          "body",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "incident",
+                    "notes"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "TRIAGE"
+                        ]
+                      },
+                      "assigneeId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "RESOLVE"
+                        ]
+                      },
+                      "resolution": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "resolution"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "CLOSE"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "REOPEN"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "reason"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Incident updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "lotName": {
+                      "type": "string"
+                    },
+                    "bookingId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "bookingCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "SAFETY",
+                        "DAMAGE",
+                        "THEFT",
+                        "OVERCHARGE",
+                        "TOUT",
+                        "ACCESS_DENIED",
+                        "LOT_FULL",
+                        "APP_ISSUE",
+                        "OTHER"
+                      ]
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "CRITICAL"
+                      ]
+                    },
+                    "severityLabel": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "OPEN",
+                        "TRIAGED",
+                        "RESOLVED",
+                        "CLOSED"
+                      ]
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "reporterRole": {
+                      "type": "string"
+                    },
+                    "assigneeId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "resolution": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "triageDueAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "overdue": {
+                      "type": "boolean"
+                    },
+                    "triagedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "resolvedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "closedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "lotId",
+                    "lotName",
+                    "bookingId",
+                    "bookingCode",
+                    "category",
+                    "severity",
+                    "severityLabel",
+                    "status",
+                    "description",
+                    "reporterRole",
+                    "assigneeId",
+                    "resolution",
+                    "createdAt",
+                    "triageDueAt",
+                    "overdue",
+                    "triagedAt",
+                    "resolvedAt",
+                    "closedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/incidents/{id}/notes": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "authorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "authorId",
+                    "body",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
           }
         }
       }

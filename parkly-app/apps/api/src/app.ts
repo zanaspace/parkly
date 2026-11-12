@@ -19,6 +19,7 @@ import { adminReconciliationRoutes } from './modules/admin/reconciliation.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { adminBookingActionRoutes } from './modules/admin/booking-actions.js';
 import { adminSupportRoutes } from './modules/admin/support.js';
+import { adminIncidentRoutes } from './modules/admin/incidents.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes, type ReadinessCheck } from './modules/health/routes.js';
 import { sendEmailHook } from './modules/hooks/send-email.js';
@@ -73,6 +74,8 @@ export type AppDeps = {
   storage: StorageProvider;
   scanner: MalwareScanner;
   maps: MapsProvider;
+  /** FR-INC-004: pages on-call ops for a critical incident. Unset: an error-level log. */
+  pageOnCall?: (alert: { incidentId: string; lotName: string; category: string }) => Promise<void>;
   /** Sentry in deployed envs; omitted locally and in tests. */
   reportError?: (err: unknown, ctx: { requestId: string | undefined; path: string }) => void;
 };
@@ -144,6 +147,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', adminReconciliationRoutes(deps));
   app.route('/v1', adminSupportRoutes(deps));
   app.route('/v1', adminBookingActionRoutes(deps));
+  app.route('/v1', adminIncidentRoutes(deps));
   app.route('/v1', teamRoutes(deps));
   app.route('/v1', operatorBookingRoutes(deps));
   app.route('/v1', reportRoutes(deps));

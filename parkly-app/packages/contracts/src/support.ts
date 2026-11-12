@@ -11,6 +11,7 @@ export const SupportBookingSchema = z.object({
   id: z.uuid(),
   code: z.string(),
   status: BookingStatusSchema,
+  lotId: z.uuid(),
   lotName: z.string(),
   operatorName: z.string(),
   startAt: z.iso.datetime(),

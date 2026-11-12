@@ -4,6 +4,7 @@ import { AdminNav } from '../../components/admin-nav';
 import { LogoMarkIcon } from '../../components/icons';
 import { SignOutButtons } from '../../components/sign-out';
 import { requireAccess } from '../../lib/auth/session';
+import { canManageIncidents } from '../../lib/incidents/copy';
 
 const AUDIT_READERS = new Set(['ADMIN_COMPLIANCE', 'SUPER_ADMIN']);
 // Mirrors the API's `booking:support:read` rule.
@@ -17,6 +18,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const canReadAudit = me.roles.some((r) => AUDIT_READERS.has(r.role));
   const canReadBookings = me.roles.some((r) => BOOKING_READERS.has(r.role));
   const canReadFinance = me.roles.some((r) => FINANCE_READERS.has(r.role));
+  const canWorkIncidents = canManageIncidents(me.roles);
   const primaryRole = me.roles[0]?.role ?? 'ADMIN';
 
   return (
@@ -37,6 +39,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
             canReadAudit={canReadAudit}
             canReadBookings={canReadBookings}
             canReadFinance={canReadFinance}
+            canManageIncidents={canWorkIncidents}
           />
         </div>
         <div className="pk-row" style={{ gap: '1rem' }}>

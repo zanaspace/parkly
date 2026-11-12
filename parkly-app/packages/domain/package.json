@@ -72,6 +72,10 @@
     "./support": {
       "types": "./dist/support/index.d.ts",
       "default": "./dist/support/index.js"
+    },
+    "./incident": {
+      "types": "./dist/incident/index.d.ts",
+      "default": "./dist/incident/index.js"
     }
   },
   "scripts": {

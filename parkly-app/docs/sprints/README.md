@@ -12,7 +12,7 @@ One report per sprint (AGENTS.md §2): what was built, what carried over, risks 
 | S5 | QR ticket check-in and the offline attendant PWA: offline gate app, 24 h manifest, camera scan, plate/code search, delta sync, lot pause/resume | **Done (code complete)**; physical device field test in S10 | [S5-report.md](S5-report.md) |
 | S6 | Extend, overstay, cancel, refunds, receipts, notifications | **Done (code complete)**: gap-review Waves 1–3 merged; staging demo pending | [S6-report.md](S6-report.md) |
 | S7 | Operator dashboard, ledger, settlement and reconciliation | **Done (code complete)**: tasks 1–6 merged, with flexible arrival (ADR 0023 stages 1–2, ADR 0024 "Park now"). Open: P-9, operator finance pages in the portal, pen-test booking; staging needed for the exit criterion | [S7-report.md](S7-report.md) |
-| S8 | Admin console, support and compliance (NDPA) | **Not started**. Operator finance pages come first | — |
+| S8 | Admin console, support and compliance (NDPA) | **In progress**: support search, booking actions and refund approvals, and incidents (task 3) built; tasks 4–8 open | — |
 
 ## What exists on dev today
 
