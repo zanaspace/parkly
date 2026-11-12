@@ -1387,6 +1387,10 @@ export type Store = {
   flags: {
     /** A missing flag is off. */
     enabled(key: string): Promise<boolean>;
+    /** FR-ADM-005: every saved flag. */
+    list(): Promise<{ key: string; enabled: boolean; updatedAt: Date }[]>;
+    /** Saves (or adds) the flag; returns whether it was on before. */
+    put(key: string, enabled: boolean, by: string, at: Date): Promise<{ before: boolean }>;
   };
   audit: {
     write(entry: AuditEntry): Promise<void>;
@@ -1434,6 +1438,10 @@ export type Store = {
   };
   settings: {
     get<T>(key: string): Promise<T | undefined>;
+    /** The saved value and when it last changed, for each of these keys that has one. */
+    saved(keys: readonly string[]): Promise<{ key: string; value: unknown; updatedAt: Date }[]>;
+    /** Saves (or adds) a value; returns what it was before, undefined if nothing was saved. */
+    put(key: string, value: unknown, by: string, at: Date): Promise<{ before: unknown }>;
   };
   /** FR-ADM-003: staff refunds waiting for a second finance admin. */
   refundRequests: {

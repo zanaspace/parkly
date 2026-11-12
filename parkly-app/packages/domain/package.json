@@ -76,6 +76,10 @@
     "./incident": {
       "types": "./dist/incident/index.d.ts",
       "default": "./dist/incident/index.js"
+    },
+    "./platform": {
+      "types": "./dist/platform/index.d.ts",
+      "default": "./dist/platform/index.js"
     }
   },
   "scripts": {

@@ -1424,6 +1424,29 @@ export function drizzleStore(db: Db): Store {
           .where(eq(featureFlags.key, key));
         return row?.enabled ?? false;
       },
+      async list() {
+        return db
+          .select({
+            key: featureFlags.key,
+            enabled: featureFlags.enabled,
+            updatedAt: featureFlags.updatedAt,
+          })
+          .from(featureFlags);
+      },
+      async put(key, enabled, by, at) {
+        const [old] = await db
+          .select({ enabled: featureFlags.enabled })
+          .from(featureFlags)
+          .where(eq(featureFlags.key, key));
+        await db
+          .insert(featureFlags)
+          .values({ key, enabled, updatedBy: by, updatedAt: at })
+          .onConflictDoUpdate({
+            target: featureFlags.key,
+            set: { enabled, updatedBy: by, updatedAt: at },
+          });
+        return { before: old?.enabled ?? false };
+      },
     },
 
     audit: {
@@ -1650,6 +1673,32 @@ export function drizzleStore(db: Db): Store {
           .from(platformSettings)
           .where(eq(platformSettings.key, key));
         return row?.value as T | undefined;
+      },
+      async saved(keys) {
+        if (keys.length === 0) return [];
+        const rows = await db
+          .select({
+            key: platformSettings.key,
+            value: platformSettings.value,
+            updatedAt: platformSettings.updatedAt,
+          })
+          .from(platformSettings)
+          .where(inArray(platformSettings.key, [...keys]));
+        return rows;
+      },
+      async put(key, value, by, at) {
+        const [old] = await db
+          .select({ value: platformSettings.value })
+          .from(platformSettings)
+          .where(eq(platformSettings.key, key));
+        await db
+          .insert(platformSettings)
+          .values({ key, value, updatedBy: by, updatedAt: at })
+          .onConflictDoUpdate({
+            target: platformSettings.key,
+            set: { value, updatedBy: by, updatedAt: at },
+          });
+        return { before: old?.value };
       },
     },
   };

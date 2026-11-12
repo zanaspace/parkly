@@ -9,6 +9,7 @@ import {
   FinanceIcon,
   KybIcon,
   LotsIcon,
+  SettingsIcon,
   TicketIcon,
 } from './icons';
 
@@ -17,11 +18,13 @@ export function AdminNav({
   canReadBookings,
   canReadFinance = false,
   canManageIncidents = false,
+  canManageSettings = false,
 }: {
   canReadAudit: boolean;
   canReadBookings: boolean;
   canReadFinance?: boolean;
   canManageIncidents?: boolean;
+  canManageSettings?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -37,6 +40,9 @@ export function AdminNav({
       : []),
     ...(canReadFinance
       ? [{ href: '/finance', label: 'Finance & Recon', icon: FinanceIcon, exact: false }]
+      : []),
+    ...(canManageSettings
+      ? [{ href: '/settings', label: 'Settings', icon: SettingsIcon, exact: false }]
       : []),
     ...(canReadAudit
       ? [{ href: '/audit-logs', label: 'Audit Logs', icon: AuditIcon, exact: false }]

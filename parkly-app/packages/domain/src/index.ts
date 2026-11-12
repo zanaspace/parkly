@@ -15,3 +15,4 @@ export * from './checkin/index.js';
 export * from './reconciliation/index.js';
 export * from './support/index.js';
 export * from './incident/index.js';
+export * from './platform/index.js';

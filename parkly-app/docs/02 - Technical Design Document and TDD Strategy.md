@@ -617,7 +617,10 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | GET/PATCH | `/admin/incidents/:id` | SUP, OPS, SA | — | PATCH `{ action: TRIAGE (assigneeId?) | RESOLVE (resolution) | CLOSE | REOPEN (reason) }`; the status follows doc 02 §3.6 (REOPEN within 7 days of resolving, with an internal note). Each step is audited | |
 | POST | `/admin/incidents/:id/notes` | SUP, OPS, SA | — | Internal note; none once CLOSED. Audited `incident.note_added` | |
 | GET/PATCH | `/admin/claims/...` | OPS, FIN | ✅ | flag `claims_enabled` |
-| GET/PUT | `/admin/settings/:key` · `/admin/feature-flags/:key` | SA | ✅ | audited |
+| GET | `/admin/settings` | SA | — | The settings a super admin can change (the ones the API reads today), each with label, limits, default, the value in use and whether it is still the default | |
+| PUT | `/admin/settings/:key` | SA | — | `{ value, reason (5–500) }`. A whole number inside the setting's limits, or true/false for an on/off setting; unknown key 404, out of range 400. Applies from the next action. Audited `platform_setting.changed` with the old value, the new value and the reason. No Idempotency-Key: saving a value is repeatable | `VALIDATION_FAILED`, `NOT_FOUND` |
+| GET | `/admin/feature-flags` | SA | — | The flags in §8 plus `four_eyes_verification`; a flag with no row is off | |
+| PUT | `/admin/feature-flags/:key` | SA | — | `{ enabled, reason (5–500) }`. Audited `feature_flag.changed` (before, after, reason). A flag only does something where the platform reads it (today `four_eyes_verification`) | `VALIDATION_FAILED`, `NOT_FOUND` |
 | GET | `/admin/audit-logs` | CMP, SA | — | |
 | GET/PATCH | `/admin/data-requests` | CMP | ✅ | |
 
@@ -682,7 +685,9 @@ The **Custom Access Token Hook** is a SQL function (`fn_custom_access_token_hook
 | `app.min_supported_version.android` | `1.0.0` | force-update gate |
 | `support.phone` / `support.whatsapp` | — | |
 
-Feature flags: `claims_enabled`, `ratings_enabled`, `passes_enabled`, `events_enabled`, `employer_passes_enabled`, `referrals_enabled`, `operator_pro_tier_enabled`, `saved_cards_enabled`, `payments_flutterwave_enabled`, `driver_web_booking_enabled`.
+Editable in the admin console (S8 task 5): the settings in this table that the API reads today (commission default, overstay multiplier, VAT, hold, early arrival, free cancellation, no-show and overstay grace, the two refund limits). The rest are seeded but not changeable until something reads them.
+
+Feature flags: `four_eyes_verification` (read by lot review), `claims_enabled`, `ratings_enabled`, `passes_enabled`, `events_enabled`, `employer_passes_enabled`, `referrals_enabled`, `operator_pro_tier_enabled`, `saved_cards_enabled`, `payments_flutterwave_enabled`, `driver_web_booking_enabled`.
 
 ---
 
