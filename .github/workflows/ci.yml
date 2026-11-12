@@ -62,7 +62,7 @@ jobs:
           pnpm db:generate
           test -z "$(git status --porcelain supabase/migrations)" || (git status supabase/migrations; echo "Run pnpm db:generate and commit the migration"; exit 1)
       - name: Start local Supabase (applies migrations + seed)
-        run: pnpm exec supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor
+        run: pnpm exec supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
       - run: pnpm exec supabase db lint --level error
       - run: pnpm test:integration
         env:
