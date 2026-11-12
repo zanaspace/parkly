@@ -49,7 +49,27 @@ describe('Supabase JWT verification (doc 05 §4.4)', () => {
       aal: 'aal2',
       phone: '+2348031234567',
       email: null,
+      // An entry with no time can't prove anything, so it is dropped.
+      amr: [],
     });
+  });
+
+  it('keeps how the session was verified, with the time of each check', async () => {
+    const identity = await verify(
+      await token({
+        aal: 'aal2',
+        amr: [
+          { method: 'password', timestamp: 1_800_000_000 },
+          { method: 'totp', timestamp: 1_800_000_100 },
+          { method: 'totp' },
+          'junk',
+        ],
+      }),
+    );
+    expect(identity.amr).toEqual([
+      { method: 'password', timestamp: 1_800_000_000 },
+      { method: 'totp', timestamp: 1_800_000_100 },
+    ]);
   });
 
   it('rejects an expired token', async () => {

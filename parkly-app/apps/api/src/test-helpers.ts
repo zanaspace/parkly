@@ -37,10 +37,31 @@ export const testVerifier = createTokenVerifier({ issuer: ISSUER, jwks });
 /** Signs a Supabase-shaped access token for tests. */
 export async function tokenFor(
   userId: string,
-  opts: { aal?: 'aal1' | 'aal2'; sessionId?: string; phone?: string; email?: string } = {},
+  opts: {
+    aal?: 'aal1' | 'aal2';
+    sessionId?: string;
+    phone?: string;
+    email?: string;
+    /** The authenticator check behind an aal2 token: fresh (default), old, or none (password only). */
+    stepUp?: 'fresh' | 'stale' | 'none';
+    /** The test clock when the token is minted, in ms (default TEST_NOW). */
+    nowMs?: number;
+  } = {},
 ): Promise<string> {
+  const nowSec = Math.floor((opts.nowMs ?? TEST_NOW.getTime()) / 1000);
+  const totpAt = opts.stepUp === 'stale' ? nowSec - 3600 : nowSec - 5;
+  const amr =
+    (opts.aal ?? 'aal1') !== 'aal2'
+      ? []
+      : opts.stepUp === 'none'
+        ? [{ method: 'password', timestamp: totpAt }]
+        : [
+            { method: 'password', timestamp: totpAt - 5 },
+            { method: 'totp', timestamp: totpAt },
+          ];
   return new SignJWT({
     aal: opts.aal ?? 'aal1',
+    amr,
     session_id: opts.sessionId ?? randomUUID(),
     role: 'authenticated',
     ...(opts.phone ? { phone: opts.phone.replace(/^\+/, '') } : {}),
@@ -194,6 +215,8 @@ export function world(overrides: Partial<AppDeps> = {}) {
       /** Identity claims on the token (Supabase phone / email sign-in). */
       phone?: string;
       email?: string;
+      /** How fresh the authenticator check on an aal2 token is. */
+      stepUp?: 'fresh' | 'stale' | 'none';
       headers?: Record<string, string>;
     } = {},
   ) => {
@@ -204,6 +227,9 @@ export function world(overrides: Partial<AppDeps> = {}) {
         ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
         ...(opts.phone ? { phone: opts.phone } : {}),
         ...(opts.email ? { email: opts.email } : {}),
+        ...(opts.stepUp ? { stepUp: opts.stepUp } : {}),
+        // A token is minted when it is used, so it is as fresh as the test clock says.
+        nowMs: deps.now().getTime(),
       });
       headers.authorization = `Bearer ${t}`;
     }

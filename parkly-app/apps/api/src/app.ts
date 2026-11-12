@@ -21,6 +21,7 @@ import { adminBookingActionRoutes } from './modules/admin/booking-actions.js';
 import { adminSupportRoutes } from './modules/admin/support.js';
 import type { AuthAdmin } from './providers/auth-admin.js';
 import { adminDataRequestRoutes } from './modules/admin/data-requests.js';
+import { adminNetwork } from './middleware/admin-network.js';
 import { adminIncidentRoutes } from './modules/admin/incidents.js';
 import { privacyRoutes } from './modules/me/privacy-routes.js';
 import { adminLotSuspensionRoutes } from './modules/admin/lot-suspension.js';
@@ -57,7 +58,7 @@ export type AppDeps = {
   config: Pick<
     AppConfig,
     'appEnv' | 'corsOrigins' | 'jobHmacSecret' | 'smsHookSecret' | 'paystackWebhookIps'
-  > & { logPayloads?: boolean; testShortStays?: boolean };
+  > & { adminIpAllowlist?: string; logPayloads?: boolean; testShortStays?: boolean };
   logger: Logger;
   readinessChecks: Record<string, ReadinessCheck>;
   rateLimiter: RateLimiter;
@@ -142,6 +143,7 @@ export function createApp(deps: AppDeps) {
   app.route('/hooks', sendEmailHook(deps));
 
   app.use('*', rateLimit(deps.rateLimiter, deps.now));
+  app.use('/v1/admin/*', adminNetwork(deps.config.adminIpAllowlist ?? '', deps.logger));
   app.route('/health', healthRoutes(deps.readinessChecks));
   app.route('/v1', authRoutes(deps));
   app.route('/v1', meRoutes(deps));

@@ -5,6 +5,7 @@ import { ActionForm, Button, Select } from '@parkly/ui';
 import { useActionState } from 'react';
 import { saveSettingAction, setFlagAction } from '../lib/platform/actions';
 import { settingLimits } from '../lib/platform/copy';
+import { ActionError } from './action-error';
 
 const ON_OFF = [
   { value: 'true', label: 'On' },
@@ -12,12 +13,7 @@ const ON_OFF = [
 ];
 
 function Result({ state }: { state: { error?: string; done?: string } | undefined }) {
-  if (state?.error)
-    return (
-      <p className="pk-notice pk-notice--error" role="alert">
-        {state.error}
-      </p>
-    );
+  if (state?.error) return <ActionError message={state.error} />;
   if (state?.done)
     return (
       <p className="pk-notice pk-notice--info" role="status">

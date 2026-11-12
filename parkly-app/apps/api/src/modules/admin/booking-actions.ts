@@ -24,7 +24,13 @@ import { can } from '@parkly/domain/authz';
 import type { Kobo } from '@parkly/domain/money';
 import type { Context } from 'hono';
 import type { AppDeps } from '../../app.js';
-import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import {
+  authenticate,
+  authorize,
+  loadActor,
+  requireStepUp,
+  type AuthEnv,
+} from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import { idempotent } from '../../lib/idempotency.js';
@@ -372,6 +378,7 @@ export function adminBookingActionRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'booking:refund', {});
+      requireStepUp(c, deps);
       const { id } = c.req.valid('param');
       return once(c, `/v1/admin/refund-requests/${id}/approve`, async () => {
         const { note } = c.req.valid('json');
@@ -434,6 +441,7 @@ export function adminBookingActionRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'booking:refund', {});
+      requireStepUp(c, deps);
       const { id } = c.req.valid('param');
       const { note } = c.req.valid('json');
       const actorId = c.get('actor').userId;

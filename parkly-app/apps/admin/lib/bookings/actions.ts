@@ -11,6 +11,7 @@ import type {
 } from '@parkly/contracts';
 import { publicEnv } from '../env';
 import { nairaToKobo } from './money';
+import { STEP_UP_MESSAGE } from '../auth/step-up';
 
 export type WaiveState = { error?: string; done?: boolean } | undefined;
 
@@ -95,6 +96,7 @@ export type ActionState = { error?: string; done?: string } | undefined;
 function actionError(err: unknown, fallback: string): string {
   if (err instanceof ApiProblem) {
     if (err.code === 'FORBIDDEN') return 'Your role can’t do this.';
+    if (err.code === 'STEP_UP_REQUIRED') return STEP_UP_MESSAGE;
     if (err.code === 'FOUR_EYES_REQUIRED') return 'Another finance admin has to decide this one.';
     if (err.code === 'REFUND_EXCEEDS_REFUNDABLE')
       return err.detail || 'That is more than is left to refund on this booking.';

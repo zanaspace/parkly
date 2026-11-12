@@ -206,6 +206,7 @@ Set them in Settings → Environment Variables, per environment (Preview = dev, 
 | `APP_ENV` | `dev` | `staging` | `prod` | |
 | `LOG_LEVEL` | `debug` | `info` | `info` | |
 | `CORS_ORIGINS` | preview URLs of web/portal/admin | staging URLs | prod domains | |
+| `ADMIN_IP_ALLOWLIST` | empty (off) | office and VPN addresses | office and VPN addresses | On `parkly-api` **and** `parkly-admin`. Comma-separated addresses or IPv4 ranges, e.g. `203.0.113.7,198.51.100.0/24`. Set it on both, or the console and the API disagree. Test it by opening the console from a phone off the office network: it should say it is only available from the office network. Vercel Hobby has no firewall allowlist, so this is the only network lock until Pro. |
 | `DATABASE_URL` | dev pooler URL as `parkly_api` (6543) | staging pooler | prod pooler | ✅ |
 | `SUPABASE_URL` | dev project URL | staging URL | prod URL | |
 | `SUPABASE_PUBLISHABLE_KEY` | dev publishable | staging | prod | |

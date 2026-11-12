@@ -80,6 +80,10 @@
     "./platform": {
       "types": "./dist/platform/index.d.ts",
       "default": "./dist/platform/index.js"
+    },
+    "./security": {
+      "types": "./dist/security/index.d.ts",
+      "default": "./dist/security/index.js"
     }
   },
   "scripts": {

@@ -8,6 +8,7 @@ import {
   refundBookingAction,
   resendTicketAction,
 } from '../lib/bookings/actions';
+import { ActionError } from './action-error';
 
 const REFUND_REASONS = [
   { value: 'OPS_GOODWILL', label: 'Goodwill' },
@@ -17,12 +18,7 @@ const REFUND_REASONS = [
 ];
 
 function Outcome({ state }: { state: ActionState }) {
-  if (state?.error)
-    return (
-      <p className="pk-notice pk-notice--error" role="alert">
-        {state.error}
-      </p>
-    );
+  if (state?.error) return <ActionError message={state.error} />;
   if (state?.done)
     return (
       <p className="pk-notice pk-notice--info" role="status">

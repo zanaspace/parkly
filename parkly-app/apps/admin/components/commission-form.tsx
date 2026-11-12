@@ -4,6 +4,7 @@ import { ActionForm, Button, Text } from '@parkly/ui';
 import { useActionState } from 'react';
 import { setCommission } from '../lib/kyb/actions';
 import { COMMISSION_MAX_PERCENT, COMMISSION_MIN_PERCENT } from '../lib/kyb/commission';
+import { ActionError } from './action-error';
 
 /**
  * Finance or super admin changes an operator's commission (10–15%). Bookings
@@ -59,11 +60,7 @@ export function CommissionForm({
           Change rate
         </Button>
       </ActionForm>
-      {state?.error && (
-        <p className="pk-notice pk-notice--error" role="alert">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <ActionError message={state.error} />}
       {state?.saved !== undefined && (
         <p className="pk-notice pk-notice--info" role="status">
           Rate changed to {state.saved / 100}%. New bookings use it from now.

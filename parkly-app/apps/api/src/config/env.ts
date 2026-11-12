@@ -22,6 +22,8 @@ const EnvSchema = z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
     CORS_ORIGINS: z.string().default(''),
+    /** Addresses and ranges the admin API answers to (S8 task 7). Empty = off. */
+    ADMIN_IP_ALLOWLIST: z.string().default(''),
     JOB_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
     /** Supavisor transaction-mode URL as parkly_api (port 6543). */
     DATABASE_URL: z.url().optional(),
@@ -144,6 +146,7 @@ export type AppConfig = {
   logLevel: string;
   logPayloads: boolean;
   corsOrigins: string[];
+  adminIpAllowlist: string;
   jobHmacSecret: string;
   databaseUrl: string | undefined;
   supabase: { url: string; publishableKey: string | undefined };
@@ -203,6 +206,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
+    adminIpAllowlist: e.ADMIN_IP_ALLOWLIST,
     jobHmacSecret: e.JOB_HMAC_SECRET ?? LOCAL.jobHmacSecret,
     databaseUrl: e.DATABASE_URL,
     supabase: {

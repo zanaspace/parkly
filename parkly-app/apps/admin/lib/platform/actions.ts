@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
 import { loadSession } from '../auth/session';
+import { STEP_UP_MESSAGE } from '../auth/step-up';
 import { publicEnv } from '../env';
 
 export type PlatformState = { error?: string; done?: string } | undefined;
@@ -11,6 +12,7 @@ export type PlatformState = { error?: string; done?: string } | undefined;
 function failure(err: unknown): string {
   if (err instanceof ApiProblem) {
     if (err.code === 'FORBIDDEN') return 'Only super admins can change this.';
+    if (err.code === 'STEP_UP_REQUIRED') return STEP_UP_MESSAGE;
     if (err.code === 'NOT_FOUND') return 'That setting no longer exists. Reload the page.';
     if (err.code === 'VALIDATION_FAILED')
       return err.errors?.[0]?.message ?? 'Check the value and try again.';

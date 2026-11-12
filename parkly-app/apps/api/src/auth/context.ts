@@ -1,3 +1,4 @@
+import { stepUpFresh } from '@parkly/domain/security';
 import { can, needsAal2, type Action, type Actor, type Resource } from '@parkly/domain/authz';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { RequestIdVariables } from 'hono/request-id';
@@ -5,6 +6,25 @@ import { ApiError } from '../lib/errors.js';
 import type { Logger } from '../lib/logger.js';
 import type { Store, UserRow } from '../store/types.js';
 import type { Identity, TokenVerifier } from './token.js';
+
+/**
+ * S8 task 7, doc 05 section 4.6: an action that moves money or changes rules needs the
+ * admin to have passed the authenticator-app check in the last 5 minutes. The time comes
+ * from the signed token (`amr`), so the client can't claim it. The admin console sends
+ * them to confirm again and then retries.
+ */
+export function requireStepUp(
+  c: Context<AuthEnv>,
+  deps: { logger: Logger; now: () => Date },
+): void {
+  const identity = c.get('identity');
+  if (stepUpFresh(identity.amr, deps.now().getTime())) return;
+  deps.logger.info(
+    { event: 'admin.step_up_required', userId: identity.userId, requestId: c.get('requestId') },
+    'step-up needed',
+  );
+  throw new ApiError('STEP_UP_REQUIRED', 'Confirm with your authenticator app, then try again.');
+}
 
 export type AuthEnv = {
   Variables: RequestIdVariables & {

@@ -3,6 +3,7 @@
 import { ActionForm, Button } from '@parkly/ui';
 import { useActionState } from 'react';
 import { decideRefundAction } from '../lib/bookings/actions';
+import { ActionError } from './action-error';
 
 /** Approve (issues the refund) or reject with a reason. The API refuses the person who asked. */
 export function RefundDecision({
@@ -40,11 +41,7 @@ export function RefundDecision({
           Reject
         </Button>
       </div>
-      {state?.error && (
-        <p className="pk-notice pk-notice--error" role="alert">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <ActionError message={state.error} />}
     </ActionForm>
   );
 }

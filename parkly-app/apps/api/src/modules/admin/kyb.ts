@@ -10,7 +10,13 @@ import {
   CommissionRateListSchema,
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
-import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import {
+  authenticate,
+  authorize,
+  loadActor,
+  requireStepUp,
+  type AuthEnv,
+} from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { isAllowedCommission } from '@parkly/domain/booking';
 import { ApiError } from '../../lib/errors.js';
@@ -265,6 +271,7 @@ export function adminKybRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'operator:commission:set', {});
+      requireStepUp(c, deps);
       const { operatorId } = c.req.valid('param');
       const { commissionBps, reason } = c.req.valid('json');
       if (!isAllowedCommission(commissionBps))
