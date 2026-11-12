@@ -89,6 +89,13 @@ describe('overstay support and waivers (FR-BOOK-008, gap review L-4)', () => {
       expect(can(a, 'lot:suspension:cancel-bookings', {})).toBe(false);
   });
 
+  it('lets only a super admin change platform settings and flags (FR-ADM-005)', () => {
+    const superAdmin = actor([{ role: 'SUPER_ADMIN', operatorId: null }], { aal: 'aal2' });
+    expect(can(superAdmin, 'platform:settings:manage', {})).toBe(true);
+    for (const a of [support, ops, finance, compliance, ownerA])
+      expect(can(a, 'platform:settings:manage', {})).toBe(false);
+  });
+
   it('lets support, ops and super admin work incidents (FR-INC-001)', () => {
     for (const a of [support, ops]) expect(can(a, 'incident:manage', {})).toBe(true);
     for (const a of [finance, compliance, ownerA])

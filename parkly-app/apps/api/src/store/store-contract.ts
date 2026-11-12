@@ -1955,6 +1955,39 @@ export function storeContract(
         expect(await store.refundRequests.find(randomUUID())).toBeNull();
       });
 
+      it('saves platform settings and feature flags, returning the value they replace', async () => {
+        const by = await newUser([{ role: 'SUPER_ADMIN', operatorId: null }]);
+        const key = 'booking.hold_minutes';
+        const at = new Date('2027-01-04T10:00:00Z');
+        const original = await store.settings.get<number>(key);
+        expect((await store.settings.saved(['made.up.key'])).length).toBe(0);
+        expect(await store.settings.saved([])).toEqual([]);
+
+        const first = await store.settings.put(key, 17, by, at);
+        expect(first.before).toBe(original);
+        expect(await store.settings.get<number>(key)).toBe(17);
+        const second = await store.settings.put(key, 12, by, new Date(at.getTime() + 1000));
+        expect(second.before).toBe(17);
+        expect(await store.settings.saved([key, 'made.up.key'])).toEqual([
+          { key, value: 12, updatedAt: expect.any(Date) },
+        ]);
+        // A yes/no value round-trips as a boolean.
+        await store.settings.put('fees.vat_enabled', true, by, at);
+        expect(await store.settings.get<boolean>('fees.vat_enabled')).toBe(true);
+        await store.settings.put('fees.vat_enabled', false, by, at);
+
+        const flag = 'passes_enabled';
+        expect((await store.flags.put(flag, true, by, at)).before).toBe(false);
+        expect(await store.flags.enabled(flag)).toBe(true);
+        expect((await store.flags.put(flag, false, by, at)).before).toBe(true);
+        expect((await store.flags.list()).find((f) => f.key === flag)).toMatchObject({
+          enabled: false,
+        });
+        // A flag nobody has saved is created on first save.
+        expect((await store.flags.put('claims_enabled', true, by, at)).before).toBe(false);
+        await store.flags.put('claims_enabled', false, by, at);
+      });
+
       it('logs incidents, works them through the statuses, and finds lots with 3 in 30 days', async () => {
         const lot = await liveLot(1);
         const other = await liveLot(1);

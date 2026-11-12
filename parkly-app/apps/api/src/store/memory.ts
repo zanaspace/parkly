@@ -74,6 +74,7 @@ export class MemoryStore implements Store {
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
   readonly verificationRows: VerificationRow[] = [];
   readonly flagRows = new Map<string, boolean>();
+  readonly flagUpdatedAt = new Map<string, Date>();
   readonly slotRows: SlotRow[] = [];
   readonly memberRows: (MemberRow & {
     inviteePhoneHash: Buffer | null;
@@ -1028,6 +1029,18 @@ export class MemoryStore implements Store {
 
   flags: Store['flags'] = {
     enabled: async (key) => this.flagRows.get(key) ?? false,
+    list: async () =>
+      [...this.flagRows].map(([key, enabled]) => ({
+        key,
+        enabled,
+        updatedAt: this.flagUpdatedAt.get(key) ?? new Date(0),
+      })),
+    put: async (key, enabled, _by, at) => {
+      const before = this.flagRows.get(key) ?? false;
+      this.flagRows.set(key, enabled);
+      this.flagUpdatedAt.set(key, at);
+      return { before };
+    },
   };
 
   audit: Store['audit'] = {
@@ -1144,8 +1157,23 @@ export class MemoryStore implements Store {
         })),
   };
 
+  readonly settingUpdatedAt = new Map<string, Date>();
   settings: Store['settings'] = {
     get: async <T>(key: string) => this.settingRows.get(key) as T | undefined,
+    saved: async (keys) =>
+      keys
+        .filter((k) => this.settingRows.has(k))
+        .map((key) => ({
+          key,
+          value: this.settingRows.get(key),
+          updatedAt: this.settingUpdatedAt.get(key) ?? new Date(0),
+        })),
+    put: async (key, value, _by, at) => {
+      const before = this.settingRows.get(key);
+      this.settingRows.set(key, value);
+      this.settingUpdatedAt.set(key, at);
+      return { before };
+    },
   };
 
   private mustFile(id: string) {

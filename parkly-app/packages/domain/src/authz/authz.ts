@@ -124,6 +124,8 @@ const RULES = {
   'operator:commission:set': { scope: 'platform', roles: ['ADMIN_FINANCE', 'SUPER_ADMIN'] },
   /** FR-INC-001: log, triage, note and resolve incidents (doc 05 §5.1: support opens them). */
   'incident:manage': { scope: 'platform', roles: ['ADMIN_SUPPORT', 'ADMIN_OPS', 'SUPER_ADMIN'] },
+  /** FR-ADM-005: change platform settings and feature flags (always audited with a reason). */
+  'platform:settings:manage': { scope: 'platform', roles: ['SUPER_ADMIN'] },
 } as const satisfies Record<string, Rule>;
 
 export type Action = keyof typeof RULES;

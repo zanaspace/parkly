@@ -435,6 +435,32 @@ const MATRIX: Row[] = [
   },
   {
     method: 'GET',
+    path: '/v1/admin/settings',
+    route: 'GET /v1/admin/settings',
+    expect: only(['SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'PUT',
+    path: '/v1/admin/settings/booking.hold_minutes',
+    route: 'PUT /v1/admin/settings/{key}',
+    body: { value: 12, reason: 'Slow card checkouts' },
+    expect: only(['SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
+    path: '/v1/admin/feature-flags',
+    route: 'GET /v1/admin/feature-flags',
+    expect: only(['SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'PUT',
+    path: '/v1/admin/feature-flags/claims_enabled',
+    route: 'PUT /v1/admin/feature-flags/{key}',
+    body: { enabled: false, reason: 'Keep it off' },
+    expect: only(['SUPER_ADMIN'], 200, 403),
+  },
+  {
+    method: 'GET',
     path: '/v1/admin/reconciliation/runs',
     route: 'GET /v1/admin/reconciliation/runs',
     expect: only(['ADMIN_FINANCE', 'SUPER_ADMIN'], 200, 403),
