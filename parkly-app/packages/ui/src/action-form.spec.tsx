@@ -30,6 +30,11 @@ function Failing({ onSubmit }: { onSubmit?: (fd: FormData) => void }) {
 }
 
 describe('ActionForm', () => {
+  it('posts if the browser submits it before the script runs, so fields never reach the URL', () => {
+    const { container } = render(<ActionForm action={() => undefined}>x</ActionForm>);
+    expect(container.querySelector('form')?.getAttribute('method')).toBe('post');
+  });
+
   it('keeps what was typed when the action returns an error', async () => {
     render(<Failing />);
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Eko Hotel Car Park' } });
