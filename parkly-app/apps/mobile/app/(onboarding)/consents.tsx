@@ -1,11 +1,13 @@
 import { Button, Text } from '@parkly/ui-native';
 import { useState } from 'react';
+import { Linking, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Checkbox } from '../../src/components/Checkbox';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
+import { legalUrl } from '../../src/lib/legal-links';
 
 /**
  * D-06 Consents (FR-AUTH-002): Terms and Privacy are required; marketing is
@@ -66,6 +68,18 @@ export default function Consents() {
       <Text tone="secondary">
         Please read and accept how Parkly works and how we handle your data.
       </Text>
+      <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+        <Button
+          label="Read the Terms"
+          variant="ghost"
+          onPress={() => void Linking.openURL(legalUrl('terms'))}
+        />
+        <Button
+          label="Read the Privacy Notice"
+          variant="ghost"
+          onPress={() => void Linking.openURL(legalUrl('privacy'))}
+        />
+      </View>
       <Checkbox
         checked={terms}
         onChange={setTerms}
@@ -82,7 +96,7 @@ export default function Consents() {
         checked={marketing}
         onChange={setMarketing}
         label="Send me offers by SMS or WhatsApp (optional)"
-        description="You can change this any time in Account."
+        description="You can change your mind any time by contacting us."
       />
       {error ? <Notice message={error} /> : null}
     </Screen>

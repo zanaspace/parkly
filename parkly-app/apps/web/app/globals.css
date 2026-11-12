@@ -2492,3 +2492,77 @@ a.pk-button {
   font-size: 0.825rem;
   color: #fca5a5;
 }
+
+/* Legal documents (S8 task 8): long reading, so a narrow measure and generous spacing. */
+.pk-legal {
+  max-width: 52rem;
+}
+
+.pk-legal-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-sm);
+  scroll-margin-top: 5rem;
+}
+
+.pk-legal-section p,
+.pk-legal-section li {
+  line-height: 1.65;
+}
+
+.pk-legal-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-stack-xs);
+}
+
+.pk-legal-toc {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--pk-space-stack-xs);
+}
+
+.pk-legal-note {
+  padding: var(--pk-space-inset-sm) var(--pk-space-inset-md);
+  border-left: 3px solid var(--pk-color-border-subtle);
+  background: var(--pk-color-bg-surface);
+  color: var(--pk-color-text-secondary);
+}
+
+.pk-legal .pk-table-wrap {
+  overflow-x: auto;
+}
+
+.pk-legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.pk-legal-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: var(--pk-space-stack-xs);
+}
+
+.pk-legal-table th,
+.pk-legal-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--pk-space-inset-sm);
+  border-bottom: 1px solid var(--pk-color-border-subtle);
+  line-height: 1.5;
+}
+
+.pk-legal-table thead th {
+  color: var(--pk-color-text-secondary);
+  font-weight: 600;
+}
+
+.pk-legal-table tbody th {
+  font-weight: 500;
+  width: 32%;
+}

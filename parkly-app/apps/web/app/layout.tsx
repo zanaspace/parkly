@@ -41,6 +41,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 My bookings
               </Link>
               <span className="pk-footer-dot">·</span>
+              <Link href="/legal/terms" className="pk-footer-link">
+                Terms
+              </Link>
+              <span className="pk-footer-dot">·</span>
+              <Link href="/legal/privacy" className="pk-footer-link">
+                Privacy
+              </Link>
+              <span className="pk-footer-dot">·</span>
               <a
                 href="https://laspa.lg.gov.ng"
                 target="_blank"
