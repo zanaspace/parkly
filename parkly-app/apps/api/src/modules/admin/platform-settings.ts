@@ -15,7 +15,13 @@ import {
   SETTINGS,
 } from '@parkly/domain/platform';
 import type { AppDeps } from '../../app.js';
-import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import {
+  authenticate,
+  authorize,
+  loadActor,
+  requireStepUp,
+  type AuthEnv,
+} from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 
@@ -94,6 +100,7 @@ export function adminPlatformSettingsRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'platform:settings:manage', {});
+      requireStepUp(c, deps);
       const { key } = c.req.valid('param');
       const { value, reason } = c.req.valid('json');
       const def = findSetting(key);
@@ -158,6 +165,7 @@ export function adminPlatformSettingsRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'platform:settings:manage', {});
+      requireStepUp(c, deps);
       const { key } = c.req.valid('param');
       const { enabled, reason } = c.req.valid('json');
       const def = findFlag(key);

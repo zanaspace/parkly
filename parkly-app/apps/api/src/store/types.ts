@@ -747,6 +747,52 @@ export type Store = {
   dataRequests: {
     /** Throws DsrAlreadyOpenError if one is open. */
     createDeletion(userId: string, dueAt: Date): Promise<{ id: string }>;
+    /** Doc 06 section 11: a request to see one's data. Throws DsrAlreadyOpenError if one is open. */
+    createAccess(userId: string, dueAt: Date): Promise<{ id: string }>;
+    find(id: string): Promise<DataRequestRow | null>;
+    /** The person's own requests, newest first. */
+    listForUser(userId: string): Promise<DataRequestRow[]>;
+    /** Inside the grace period: OPEN deletion → CANCELLED. False when there was none open. */
+    cancelDeletion(userId: string, at: Date): Promise<boolean>;
+    /** Open deletions whose 30 days are up, oldest first. */
+    dueDeletions(now: Date, limit: number): Promise<DataRequestRow[]>;
+    /** OPEN → COMPLETED, once. False when it was already closed. */
+    complete(id: string, at: Date, exportStoragePath?: string): Promise<boolean>;
+    /** Compliance queue, newest first, with who asked (first name only). */
+    listAdmin(filter: {
+      status?: DataRequestRow['status'];
+      type?: DataRequestRow['type'];
+      limit: number;
+    }): Promise<(DataRequestRow & { userFirstName: string | null; userStatus: UserStatus })[]>;
+    /** Completed access requests whose export file is older than `before`. */
+    expiredExports(before: Date, limit: number): Promise<{ id: string; path: string }[]>;
+    /** The export file was deleted; keep the request, forget the path. */
+    clearExport(id: string): Promise<void>;
+    /** What stops an account being closed today (doc 06 section 6.1 step 2). */
+    obligations(
+      userId: string,
+      now: Date,
+    ): Promise<{ activeBookings: number; unpaidOverstays: number }>;
+  };
+  /** Doc 06 section 6.1: closing an account for good. */
+  erasure: {
+    /**
+     * In one transaction: anonymises the user, removes their devices, vehicles
+     * (kept scrubbed where a booking points at one), notifications and roles,
+     * replaces plates on bookings and sessions with a one-way pseudonym, completes
+     * the request and appends to erasure_log. Safe to repeat. Null when the user
+     * was already erased.
+     */
+    eraseUser(
+      userId: string,
+      dsrId: string,
+      at: Date,
+    ): Promise<{ vehicles: number; bookings: number; notifications: number } | null>;
+  };
+  /** Doc 06 section 4: purging data kept past its time. Each returns how many rows it removed. */
+  retention: {
+    purgeIdempotencyKeys(before: Date, limit: number): Promise<number>;
+    purgeNotifications(before: Date, limit: number): Promise<number>;
   };
   files: {
     create(row: Omit<FileRow, 'status' | 'rejectionReason' | 'verifiedAt'>): Promise<FileRow>;
@@ -1562,6 +1608,17 @@ export type Store = {
 
 export class DuplicatePlateError extends Error {}
 export class DsrAlreadyOpenError extends Error {}
+
+export type DataRequestRow = {
+  id: string;
+  userId: string;
+  type: 'ACCESS' | 'CORRECTION' | 'DELETION' | 'PORTABILITY' | 'OBJECTION';
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+  dueAt: Date;
+  completedAt: Date | null;
+  exportStoragePath: string | null;
+  createdAt: Date;
+};
 export class OperatorExistsError extends Error {}
 export class SlugTakenError extends Error {}
 export class MemberExistsError extends Error {}

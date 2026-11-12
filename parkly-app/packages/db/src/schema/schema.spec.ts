@@ -20,6 +20,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'consents',
       'data_subject_requests',
       'devices',
+      'erasure_log',
       'feature_flags',
       'files',
       'idempotency_keys',

@@ -19,3 +19,4 @@ export * from './reports.js';
 export * from './support.js';
 export * from './incidents.js';
 export * from './platform.js';
+export * from './privacy.js';

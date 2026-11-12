@@ -28,7 +28,14 @@ export const dsrTypeEnum = pgEnum('dsr_type', [
   'PORTABILITY',
   'OBJECTION',
 ]);
-export const dsrStatusEnum = pgEnum('dsr_status', ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'REJECTED']);
+// CANCELLED: the person changed their mind inside the 30-day grace (doc 06 §6.1).
+export const dsrStatusEnum = pgEnum('dsr_status', [
+  'OPEN',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'REJECTED',
+  'CANCELLED',
+]);
 
 /** Doc 02 §2.2. Max 5 active per driver (app rule); plate_norm used by gate lookups. */
 export const vehicles = pgTable(
@@ -139,4 +146,22 @@ export const dataSubjectRequests = pgTable(
     index('dsr_status_due_idx').on(t.status, t.dueAt),
     apiAccess('data_subject_requests'),
   ],
+).enableRLS();
+
+/**
+ * Doc 06 §6.1 and §7: one row for each erased account, kept longer than the
+ * longest backup. A restore runs `reapply-erasures` over these ids before the
+ * database is used again. The id is not a foreign key on purpose: it has to
+ * outlive anything that points at the user. No personal data is stored here.
+ */
+export const erasureLog = pgTable(
+  'erasure_log',
+  {
+    id: id(),
+    userId: uuid('user_id').notNull(),
+    dsrId: uuid('dsr_id'),
+    /** When the erasure was done. */
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('erasure_log_user_key').on(t.userId), apiAccess('erasure_log')],
 ).enableRLS();

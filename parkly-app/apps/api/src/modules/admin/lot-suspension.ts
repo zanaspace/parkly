@@ -7,7 +7,13 @@ import {
 import { cancellationPolicy } from '@parkly/domain/booking';
 import type { Kobo } from '@parkly/domain/money';
 import type { AppDeps } from '../../app.js';
-import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
+import {
+  authenticate,
+  authorize,
+  loadActor,
+  requireStepUp,
+  type AuthEnv,
+} from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import { bookingNotice } from '../../notifications/events.js';
@@ -94,6 +100,7 @@ export function adminLotSuspensionRoutes(deps: AppDeps) {
     }),
     async (c) => {
       authorize(c, deps.logger, 'lot:suspension:cancel-bookings', {});
+      requireStepUp(c, deps);
       const lot = await mustLot(c.req.valid('param').lotId);
       const { reason } = c.req.valid('json');
       // Only for a car park that is already suspended: this is the second step of doc 03 §4.3.

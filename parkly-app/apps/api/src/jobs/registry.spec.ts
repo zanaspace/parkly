@@ -5,7 +5,9 @@ import {
   FakeEmailProvider,
   FakePaymentProvider,
   FakeSettlementProvider,
+  FakeStorageProvider,
 } from '../providers/fakes.js';
+import { FakeAuthAdmin } from '../providers/auth-admin.js';
 import { logOnlyEmail } from '../providers/log-email.js';
 import { MemoryStore } from '../store/memory.js';
 import { createJobs } from './registry.js';
@@ -22,13 +24,17 @@ describe('job registry', () => {
       now: () => new Date('2026-10-19T05:00:00Z'),
       appEnv: 'prod',
       notifications: testDeps({ store }).notifications,
+      authAdmin: new FakeAuthAdmin(),
+      storage: new FakeStorageProvider(),
     });
     expect(Object.keys(jobs).sort()).toEqual([
+      'account-erasure',
       'deliver-notifications',
       'monthly-statements',
       'permit-expiry-check',
       'ping',
       'reconcile-payments',
+      'retention-purge',
       'settle-payments',
       'settlements-sync',
       'sweep-reminders',

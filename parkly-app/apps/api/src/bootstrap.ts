@@ -35,6 +35,7 @@ import { locationIqMaps } from './providers/locationiq.js';
 import { paystackPaymentProvider } from './providers/paystack-payments.js';
 import { paystackSettlementProvider } from './providers/paystack-settlement.js';
 import { resendEmailProvider } from './providers/resend.js';
+import { FakeAuthAdmin, supabaseAuthAdmin, type AuthAdmin } from './providers/auth-admin.js';
 import { supabaseStorage } from './providers/supabase-storage.js';
 import {
   FakeSessionRevoker,
@@ -149,6 +150,11 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     sessions = new FakeSessionRevoker();
   }
 
+  const authAdmin: AuthAdmin =
+    config.storage.provider === 'supabase'
+      ? supabaseAuthAdmin({ url: config.supabase.url, secretKey: config.storage.secretKey })
+      : new FakeAuthAdmin();
+
   const now = () => new Date();
   const crypto = createCrypto({
     encKeys: config.encKeys,
@@ -184,6 +190,8 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     now,
     appEnv: config.appEnv,
     notifications,
+    authAdmin,
+    storage,
     financeAlertEmail: config.financeAlertEmail,
   });
 
@@ -201,6 +209,7 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     }),
     crypto,
     sms: { primary },
+    authAdmin,
     ...(config.emailHookSecret
       ? {
           authEmail: {

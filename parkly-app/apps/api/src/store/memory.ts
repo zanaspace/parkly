@@ -1,6 +1,7 @@
 import type { RoleGrant } from '@parkly/domain/authz';
 import { compareForQueue } from '@parkly/domain/incident';
 import { randomUUID } from 'node:crypto';
+import { pseudonymise } from '../lib/pseudonym.js';
 import {
   DsrAlreadyOpenError,
   DuplicatePlateError,
@@ -9,6 +10,7 @@ import {
   SlugTakenError,
   StaleVersionError,
   type AuditRow,
+  type DataRequestRow,
   type FileRow,
   type IncidentNoteRow,
   type IncidentRow,
@@ -44,6 +46,9 @@ import { MemoryReports } from './memory-reports.js';
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
 
+const isOpenDsr = (r: { status: DataRequestRow['status'] }) =>
+  r.status === 'OPEN' || r.status === 'IN_PROGRESS';
+
 /** In-memory Store for route tests. Mirrors the DB constraints the API relies on. */
 export class MemoryStore implements Store {
   readonly userRows = new Map<
@@ -59,8 +64,8 @@ export class MemoryStore implements Store {
   readonly consentRows: Consent[] = [];
   readonly vehicleRows: (VehicleRow & { deleted: boolean; seq: number })[] = [];
   readonly deviceRows: Device[] = [];
-  readonly dsrRows: { id: string; userId: string; type: 'DELETION'; open: boolean; dueAt: Date }[] =
-    [];
+  readonly dsrRows: DataRequestRow[] = [];
+  readonly erasureLogRows: { userId: string; dsrId: string | null; erasedAt: Date }[] = [];
   readonly auditRows: AuditRow[] = [];
   readonly revokedSessionUsers: string[] = [];
   readonly fileRows = new Map<string, FileRow>();
@@ -500,12 +505,177 @@ export class MemoryStore implements Store {
     },
   };
 
+  private newDsr(userId: string, type: DataRequestRow['type'], dueAt: Date): { id: string } {
+    if (this.dsrRows.some((r) => r.userId === userId && r.type === type && isOpenDsr(r)))
+      throw new DsrAlreadyOpenError();
+    const row: DataRequestRow = {
+      id: randomUUID(),
+      userId,
+      type,
+      status: 'OPEN',
+      dueAt,
+      completedAt: null,
+      exportStoragePath: null,
+      createdAt: new Date(),
+    };
+    this.dsrRows.push(row);
+    return { id: row.id };
+  }
+
+  /** FR-AUTH-007, NFR-PRIV-001: mirrors drizzle-dsar. */
   dataRequests: Store['dataRequests'] = {
-    createDeletion: async (userId, dueAt) => {
-      if (this.dsrRows.some((r) => r.userId === userId && r.open)) throw new DsrAlreadyOpenError();
-      const row = { id: randomUUID(), userId, type: 'DELETION' as const, open: true, dueAt };
-      this.dsrRows.push(row);
-      return { id: row.id };
+    createDeletion: async (userId, dueAt) => this.newDsr(userId, 'DELETION', dueAt),
+    createAccess: async (userId, dueAt) => this.newDsr(userId, 'ACCESS', dueAt),
+    find: async (id) => {
+      const r = this.dsrRows.find((x) => x.id === id);
+      return r ? { ...r } : null;
+    },
+    listForUser: async (userId) =>
+      this.dsrRows
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((r) => ({ ...r })),
+    cancelDeletion: async (userId, at) => {
+      const r = this.dsrRows.find(
+        (x) => x.userId === userId && x.type === 'DELETION' && isOpenDsr(x),
+      );
+      if (!r) return false;
+      Object.assign(r, { status: 'CANCELLED', completedAt: at });
+      return true;
+    },
+    dueDeletions: async (now, limit) =>
+      this.dsrRows
+        .filter((r) => r.type === 'DELETION' && isOpenDsr(r) && r.dueAt <= now)
+        .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({ ...r })),
+    complete: async (id, at, exportStoragePath) => {
+      const r = this.dsrRows.find((x) => x.id === id);
+      if (!r || !isOpenDsr(r)) return false;
+      Object.assign(r, {
+        status: 'COMPLETED',
+        completedAt: at,
+        ...(exportStoragePath ? { exportStoragePath } : {}),
+      });
+      return true;
+    },
+    listAdmin: async ({ status, type, limit }) =>
+      this.dsrRows
+        .filter((r) => (!status || r.status === status) && (!type || r.type === type))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({
+          ...r,
+          userFirstName: this.userRows.get(r.userId)?.firstName ?? null,
+          userStatus: this.userRows.get(r.userId)?.status ?? 'ACTIVE',
+        })),
+    expiredExports: async (before, limit) =>
+      this.dsrRows
+        .filter((r) => r.exportStoragePath && r.completedAt && r.completedAt < before)
+        .slice(0, limit)
+        .map((r) => ({ id: r.id, path: r.exportStoragePath as string })),
+    clearExport: async (id) => {
+      const r = this.dsrRows.find((x) => x.id === id);
+      if (r) r.exportStoragePath = null;
+    },
+    obligations: async (userId, now) => {
+      const mine = this.booking.bookingRows.filter((b) => b.driverId === userId);
+      const activeBookings = mine.filter(
+        (b) => b.status === 'CHECKED_IN' || (b.status === 'CONFIRMED' && b.endAt > now),
+      ).length;
+      const unpaidOverstays = this.attending.sessionRows.filter(
+        (s) =>
+          mine.some((b) => b.id === s.bookingId) &&
+          (s.overstayStatus === 'DUE' || s.overstayStatus === 'UNPAID'),
+      ).length;
+      return { activeBookings, unpaidOverstays };
+    },
+  };
+
+  erasure: Store['erasure'] = {
+    eraseUser: async (userId, dsrId, at) => {
+      const user = this.userRows.get(userId);
+      if (!user || user.status === 'DELETED') return null;
+      const salt = randomUUID();
+      const mine = this.booking.bookingRows.filter((b) => b.driverId === userId);
+      const own = this.vehicleRows.filter((v) => v.userId === userId);
+      const plates = new Set([...own.map((v) => v.plateNorm), ...mine.map((b) => b.plateNorm)]);
+      for (const plate of plates) {
+        const p = pseudonymise(plate, salt);
+        for (const b of mine) if (b.plateNorm === plate) b.plateNorm = p;
+        for (const s of this.attending.sessionRows)
+          if (mine.some((b) => b.id === s.bookingId) && s.plateNorm === plate) s.plateNorm = p;
+      }
+      const usedVehicles = new Set(mine.map((b) => b.vehicleId));
+      for (const v of own) {
+        if (!usedVehicles.has(v.id)) continue;
+        const p = pseudonymise(v.plateNorm, salt);
+        Object.assign(v, {
+          plateRaw: p,
+          plateNorm: p,
+          make: null,
+          model: null,
+          colour: null,
+          isDefault: false,
+        });
+      }
+      for (let i = this.vehicleRows.length - 1; i >= 0; i--) {
+        const v = this.vehicleRows[i];
+        if (v && v.userId === userId && !usedVehicles.has(v.id)) this.vehicleRows.splice(i, 1);
+      }
+      for (let i = this.deviceRows.length - 1; i >= 0; i--)
+        if (this.deviceRows[i]?.userId === userId) this.deviceRows.splice(i, 1);
+      for (let i = this.roleRows.length - 1; i >= 0; i--)
+        if (this.roleRows[i]?.userId === userId) this.roleRows.splice(i, 1);
+      const before = this.outbox.rows.length;
+      for (let i = this.outbox.rows.length - 1; i >= 0; i--)
+        if (this.outbox.rows[i]?.userId === userId) this.outbox.rows.splice(i, 1);
+      Object.assign(user, {
+        phoneHash: null,
+        phoneLast4: null,
+        emailHash: null,
+        phoneEnc: null,
+        emailEnc: null,
+        firstName: null,
+        lastName: null,
+        marketingOptIn: false,
+        status: 'DELETED',
+      });
+      const dsr = this.dsrRows.find((r) => r.id === dsrId);
+      if (dsr) Object.assign(dsr, { status: 'COMPLETED', completedAt: at });
+      if (!this.erasureLogRows.some((r) => r.userId === userId))
+        this.erasureLogRows.push({ userId, dsrId, erasedAt: at });
+      return {
+        vehicles: own.length,
+        bookings: mine.length,
+        notifications: before - this.outbox.rows.length,
+      };
+    },
+  };
+
+  retention: Store['retention'] = {
+    purgeIdempotencyKeys: async (before, limit) => {
+      let n = 0;
+      for (const [k, row] of this.booking.idempotencyRows) {
+        if (n >= limit) break;
+        if (row.expiresAt < before) {
+          this.booking.idempotencyRows.delete(k);
+          n += 1;
+        }
+      }
+      return n;
+    },
+    purgeNotifications: async (before, limit) => {
+      let n = 0;
+      for (let i = this.outbox.rows.length - 1; i >= 0 && n < limit; i--) {
+        const r = this.outbox.rows[i];
+        const created = r?.sentAt ?? r?.nextAttemptAt ?? new Date(0);
+        if (r && r.status !== 'PENDING' && created < before) {
+          this.outbox.rows.splice(i, 1);
+          n += 1;
+        }
+      }
+      return n;
     },
   };
 

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
 import { loadSession } from '../auth/session';
+import { STEP_UP_MESSAGE } from '../auth/step-up';
 import { publicEnv } from '../env';
 import { CHECKLIST, lagosLocalToIso, PROBLEM_TEXT } from './copy';
 
@@ -28,6 +29,8 @@ function problemText(err: unknown): string {
       return 'This was already decided or the lot has moved on. Reload the page.';
     case 'FORBIDDEN':
       return 'Your role can’t do this.';
+    case 'STEP_UP_REQUIRED':
+      return STEP_UP_MESSAGE;
     case 'FOUR_EYES_REQUIRED':
       return 'Another ops person must review a visit you recorded.';
     case 'PERMIT_EXPIRED':

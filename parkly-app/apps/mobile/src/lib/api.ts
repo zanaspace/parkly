@@ -30,6 +30,9 @@ import {
   type SelfCheckResult,
   VerifyPaymentResponseSchema,
   type VerifyPaymentResponse,
+  CancelDeletionResponseSchema,
+  DataExportDownloadSchema,
+  DataExportResponseSchema,
   DeletionRequestResponseSchema,
   LotAvailabilitySchema,
   LotSearchResponseSchema,
@@ -171,6 +174,19 @@ export function createApiClient(options: ApiClientOptions) {
     revokeSessions: (scope: 'device' | 'all') =>
       request<undefined>('POST', '/v1/auth/sessions/revoke', { scope }),
     requestDeletion: () => request('DELETE', '/v1/me', undefined, DeletionRequestResponseSchema),
+    /** Changes their mind inside the 30 days (doc 06 section 6.1). */
+    cancelDeletion: () =>
+      request('POST', '/v1/me/deletion/cancel', undefined, CancelDeletionResponseSchema),
+    /** A copy of their data (doc 06 section 11): ask, then fetch a short-lived download link. */
+    requestDataExport: () =>
+      request('POST', '/v1/me/data-export', undefined, DataExportResponseSchema),
+    dataExportLink: (id: string) =>
+      request(
+        'GET',
+        `/v1/me/data-export/${encodeURIComponent(id)}`,
+        undefined,
+        DataExportDownloadSchema,
+      ),
 
     // Driver discovery (doc 02 §6.3): public endpoints, prices always from the server.
     searchLots: (q: LotSearchParams) => {

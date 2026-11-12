@@ -3,6 +3,7 @@
 import { ActionForm, Button } from '@parkly/ui';
 import { useActionState } from 'react';
 import { cancelUpcomingBookings } from '../lib/lots/actions';
+import { ActionError } from './action-error';
 
 /** Cancel every paid, not-yet-started booking at a suspended car park, refunding in full. */
 export function CancelUpcomingForm({ lotId, count }: { lotId: string; count: number }) {
@@ -17,11 +18,7 @@ export function CancelUpcomingForm({ lotId, count }: { lotId: string; count: num
       <Button type="submit" variant="secondary" loading={pending} disabled={count === 0}>
         Cancel {count} booking{count === 1 ? '' : 's'} and refund in full
       </Button>
-      {state?.error && (
-        <p className="pk-notice pk-notice--error" role="alert">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <ActionError message={state.error} />}
       {state?.done && (
         <p className="pk-notice pk-notice--info" role="status">
           {state.done}

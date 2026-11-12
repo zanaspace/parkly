@@ -10,6 +10,7 @@ import {
   KybIcon,
   LotsIcon,
   SettingsIcon,
+  ShieldIcon,
   TicketIcon,
 } from './icons';
 
@@ -19,12 +20,14 @@ export function AdminNav({
   canReadFinance = false,
   canManageIncidents = false,
   canManageSettings = false,
+  canReadPrivacy = false,
 }: {
   canReadAudit: boolean;
   canReadBookings: boolean;
   canReadFinance?: boolean;
   canManageIncidents?: boolean;
   canManageSettings?: boolean;
+  canReadPrivacy?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -40,6 +43,9 @@ export function AdminNav({
       : []),
     ...(canReadFinance
       ? [{ href: '/finance', label: 'Finance & Recon', icon: FinanceIcon, exact: false }]
+      : []),
+    ...(canReadPrivacy
+      ? [{ href: '/privacy', label: 'Privacy', icon: ShieldIcon, exact: false }]
       : []),
     ...(canManageSettings
       ? [{ href: '/settings', label: 'Settings', icon: SettingsIcon, exact: false }]

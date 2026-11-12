@@ -7,6 +7,8 @@ export type Identity = {
   /** E.164 with leading "+", from the Supabase token. */
   phone: string | null;
   email: string | null;
+  /** How the session was verified and when (seconds), from the signed token. */
+  amr: { method: string; timestamp: number }[];
 };
 
 export type TokenVerifier = (token: string) => Promise<Identity>;
@@ -37,6 +39,7 @@ export function createTokenVerifier(options: {
         aal: 'aal1',
         phone,
         email: null,
+        amr: [],
       };
     }
     const { payload } = await jwtVerify(token, options.jwks, {
@@ -53,12 +56,21 @@ export function createTokenVerifier(options: {
         : null;
     const email =
       typeof payload.email === 'string' && payload.email ? payload.email.toLowerCase() : null;
+    const amr = Array.isArray(payload.amr)
+      ? payload.amr.flatMap((a: unknown) => {
+          const r = a as { method?: unknown; timestamp?: unknown };
+          return typeof r.method === 'string' && typeof r.timestamp === 'number'
+            ? [{ method: r.method, timestamp: r.timestamp }]
+            : [];
+        })
+      : [];
     return {
       userId: payload.sub,
       sessionId: payload.session_id,
       aal: payload.aal === 'aal2' ? 'aal2' : 'aal1',
       phone,
       email,
+      amr,
     };
   };
 }

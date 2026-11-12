@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
 import { loadSession } from '../auth/session';
+import { STEP_UP_MESSAGE } from '../auth/step-up';
 import { publicEnv } from '../env';
 import { percentToBps } from './commission';
 
@@ -86,6 +87,7 @@ export async function setCommission(
     if (err instanceof ApiProblem) {
       if (err.code === 'FORBIDDEN')
         return { error: 'Only finance and super admins can change rates.' };
+      if (err.code === 'STEP_UP_REQUIRED') return { error: STEP_UP_MESSAGE };
       if (err.code === 'VALIDATION_FAILED')
         return { error: err.detail || 'Check the rate (10–15%) and the reason.' };
     }

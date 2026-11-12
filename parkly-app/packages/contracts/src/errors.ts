@@ -25,6 +25,10 @@ export const ERROR_STATUS = {
   FORBIDDEN_ROLE_GRANT: 403,
   AUTH_MFA_REQUIRED: 403,
   FOUR_EYES_REQUIRED: 403,
+  /** S8 task 7: the admin API only answers to the allowlisted networks. */
+  ADMIN_IP_NOT_ALLOWED: 403,
+  /** S8 task 7: this action needs an authenticator-app check from the last 5 minutes. */
+  STEP_UP_REQUIRED: 403,
   /** FR-ADM-003: more than support may refund on this booking; finance can. */
   REFUND_NEEDS_FINANCE: 403,
   AUTH_ACCOUNT_LOCKED: 403,

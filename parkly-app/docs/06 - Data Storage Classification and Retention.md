@@ -271,6 +271,8 @@ Keys `key_blind` (`HMAC_KEY_V<n>`), `key_psid` (`PSID_KEY_V<n>`) and the field-e
 6. Confirmation SMS/email sent **before** contact data is erased.
 7. Re-registration with the same phone later creates a fresh account (no link to old one).
 
+**As built (S8 task 6).** Asking to delete is `DELETE /v1/me` (blocked with `ACCOUNT_HAS_OBLIGATIONS` while a booking has not finished or an overstay is unpaid); `POST /v1/me/deletion/cancel` changes their mind inside the 30 days. The `account-erasure` job (daily 02:00 Lagos) then, per account: deletes the Supabase Auth user first (so a failure is retried before our data is touched), then in one transaction anonymises `users` (the row stays as a stand-in because bookings and payments point at it; `users` has no foreign key to `auth.users` for this reason), removes devices, roles and notifications, deletes vehicles no booking uses and scrubs the rest, replaces plates on bookings and sessions with a one-way salted stand-in (the salt is discarded), completes the request and appends `erasure_log`. Audited `account.erased` with counts only. **Not yet built:** the confirmation SMS or email before erasure, Storage objects owned by the account, `reapply-erasures` on restore, legal holds, vendor deletions (analytics, push), and `ratings`/`support_notes`/`search_events` (those tables do not exist yet). Consent rows keep their IP hash as proof of consent.
+
 ### 6.2 Operator closure
 
 - Terminate agreement → lots `ARCHIVED` (public profile removed immediately); pending settlements completed; members' operator roles removed.
@@ -340,6 +342,8 @@ The full sub-processor register (DPA and SOC 2 status) is in doc 05 §18.1.1. Da
    - **Erasure:** §6.1.
    - **Restriction/objection:** flag `processing_restricted` on user; excluded from analytics, marketing, non-essential processing.
 4. Close within SLA (doc 05 §18.1), record outcome, notify requester.
+
+**As built (S8 task 6).** A driver asks for a copy in the app: `POST /v1/me/data-export` builds a JSON file at once (profile with the phone as its last four digits only, vehicles, consents, bookings with their payments and refunds), stores it in the private `exports` bucket at `{userId}/{requestId}.json`, and completes the request; `GET /v1/me/data-export/{id}` returns a 15-minute signed link, fresh each time while the file exists. The `retention-purge` job deletes the file after 7 days. The link is short-lived, not one-time. **Not yet built:** a PDF version, the notification log and incidents in the file, rectification and restriction/objection handling, and identity checks beyond being signed in.
 5. Monthly DSAR metrics to DPO.
 
 ---

@@ -128,7 +128,8 @@ export function meRoutes(deps: AppDeps) {
     },
   );
 
-  // FR-AUTH-007: request deletion. Processing (pseudonymisation) is Sprint 8.
+  // FR-AUTH-007: request deletion. The account-erasure job closes it after the 30-day grace
+  // (doc 06 section 6.1); the driver can cancel in that time (privacy-routes.ts).
   app.openapi(
     createRoute({
       method: 'delete',
@@ -142,7 +143,18 @@ export function meRoutes(deps: AppDeps) {
     async (c) => {
       const actor = c.get('actor');
       authorize(c, deps.logger, 'account:delete:own', own(c));
-      // TODO(S4): block with ACCOUNT_HAS_OBLIGATIONS while bookings are active or overstay is unpaid.
+      // Doc 06 section 6.1 step 2: a booking to finish or an overstay to settle comes first.
+      const owed = await deps.store.dataRequests.obligations(actor.userId, deps.now());
+      if (owed.activeBookings > 0)
+        throw new ApiError(
+          'ACCOUNT_HAS_OBLIGATIONS',
+          'You have a booking that has not finished. Finish or cancel it, then ask again.',
+        );
+      if (owed.unpaidOverstays > 0)
+        throw new ApiError(
+          'ACCOUNT_HAS_OBLIGATIONS',
+          'You have an unpaid overstay. Pay it, then ask again.',
+        );
       let request: { id: string };
       try {
         const dueAt = new Date(deps.now().getTime() + DSR_DUE_DAYS * 24 * 60 * 60 * 1000);
