@@ -3,9 +3,17 @@ import type { NextConfig } from 'next';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+// `next dev` only serves its scripts to localhost. To open the app from a phone or
+// another computer, list that address here, e.g. DEV_ORIGINS=192.168.1.20 (doc 22 §3).
+const devOrigins = (process.env.DEV_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  allowedDevOrigins: devOrigins,
   async headers() {
     return securityHeaders({
       isDev,

@@ -798,6 +798,7 @@ function PinScreen({
   const [error, setError] = useState<string | null>(null);
   return (
     <form
+      method="post"
       className="pk-stack"
       onSubmit={(e) => {
         e.preventDefault();

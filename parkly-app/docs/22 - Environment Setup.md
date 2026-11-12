@@ -275,6 +275,8 @@ Every local env file is git-ignored. Copy from the `.env.example` next to each.
 | `apps/mobile/.env` | `EXPO_PUBLIC_SUPABASE_URL`, `…_PUBLISHABLE_KEY`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_DEV_AUTH` | Phone on Wi-Fi: API URL = PC's LAN IP (e.g. `http://192.168.100.120:4000`). With a real DB set `EXPO_PUBLIC_DEV_AUTH=off`, sign in with a test number, and restart Expo with `--clear`. |
 | `apps/portal/.env.local`, `apps/admin/.env.local`, `apps/web/.env.local` | the three `NEXT_PUBLIC_*` values | |
 
+**Opening the portal, admin or web app from another device** (`http://192.168.x.x:3002`): `next dev` serves its scripts only to `localhost`, so on a LAN address the page loads but never becomes interactive (no Turnstile check, buttons do nothing). Set `DEV_ORIGINS=192.168.100.120` (comma-separated for more) in that app's `.env.local` and restart it. Forms post, so even a page that hasn't loaded can't put a password in the address bar.
+
 **Phone on the same Wi-Fi?** Windows must treat the network as **Private** and allow Node.js inbound on Private networks. Otherwise Expo Go shows "Something went wrong".
 
 ---

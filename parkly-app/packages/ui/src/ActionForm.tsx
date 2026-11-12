@@ -14,6 +14,11 @@ export type ActionFormProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'action'
  * same data through a transition instead: fields keep their values, and the
  * pressed button's name/value is still sent. Pending state from
  * `useActionState` works as before.
+ *
+ * It is `method="post"` on purpose. If the page's JavaScript hasn't loaded
+ * (still starting, blocked, or a dev server reached from another device), the
+ * browser submits the form itself. A default GET would put every field, including
+ * a password, in the address bar, history and server logs. POST keeps it out.
  */
 export function ActionForm({ action, children, ...rest }: ActionFormProps) {
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -23,7 +28,7 @@ export function ActionForm({ action, children, ...rest }: ActionFormProps) {
     startTransition(() => action(data));
   }
   return (
-    <form {...rest} onSubmit={submit}>
+    <form method="post" {...rest} onSubmit={submit}>
       {children}
     </form>
   );
