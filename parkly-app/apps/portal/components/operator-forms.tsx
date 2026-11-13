@@ -5,6 +5,7 @@ import { Button, Input, Select, ActionForm, Turnstile } from '@parkly/ui';
 import { useActionState } from 'react';
 import { signUp } from '../lib/auth/actions';
 import { MIN_PASSWORD_LENGTH } from '../lib/auth/messages';
+import { legalUrl } from '../lib/legal-links';
 import { createOperator, updateOperator } from '../lib/operators/actions';
 import { OPERATOR_TYPE_OPTIONS, type BusinessValues } from '../lib/operators/form';
 
@@ -169,8 +170,12 @@ export function BusinessForm(
           <label className="pk-check">
             <input type="checkbox" name="acceptAgreement" required />
             <span>
-              I accept the Parkly Operator Agreement and Privacy Notice (version{' '}
-              {props.agreementVersion}) on behalf of this business.
+              I accept the Parkly{' '}
+              <a className="pk-link" href={legalUrl('operators')} target="_blank" rel="noreferrer">
+                Operator Terms
+              </a>{' '}
+              (version {props.agreementVersion}), which include how Parkly handles data about this
+              business and its team, on behalf of this business.
             </span>
           </label>
         </>

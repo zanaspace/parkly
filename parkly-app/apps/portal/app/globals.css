@@ -1491,3 +1491,18 @@ a.pk-button {
   border-bottom: 0;
   padding-bottom: 0;
 }
+
+/* Legal links at the foot of every page (S8 task 8). */
+.pk-site-footer {
+  padding: var(--pk-space-stack-lg, 2rem) var(--pk-space-layout-gutter, 1.5rem);
+  border-top: 1px solid var(--pk-color-border-subtle);
+  color: var(--pk-color-text-secondary);
+}
+
+.pk-site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pk-space-inline-sm);
+  font-size: 0.875rem;
+}
