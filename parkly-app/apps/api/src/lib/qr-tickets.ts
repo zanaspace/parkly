@@ -1,7 +1,7 @@
 import { fromBase64Url, newLotKeyPair, signQrToken, toBase64Url } from '@parkly/domain/qr';
 import { randomBytes } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
-import type { BookingRow, Store } from '../store/types.js';
+import type { BookingRow, PassRow, Store } from '../store/types.js';
 import type { FieldCrypto } from './crypto.js';
 
 /** Tickets stay checkable for a day after the window, for late exits (doc 01 §7). */
@@ -59,6 +59,56 @@ export function qrTickets(deps: { store: Store; crypto: FieldCrypto; now: () => 
         x: e + EXPIRY_AFTER_END_S,
       },
       await keyFor(b.lotId),
+    );
+  };
+}
+
+/**
+ * Issues offline QR tickets (`t: 'P'`) for active monthly passes (FR-PASS-002).
+ * Re-signed whenever the driver swaps their vehicle so the new plate is embedded.
+ */
+export function passQrTickets(deps: { store: Store; crypto: FieldCrypto; now: () => Date }) {
+  const cache = new Map<string, LotKey>();
+
+  async function keyFor(lotId: string): Promise<LotKey> {
+    const cached = cache.get(lotId);
+    if (cached) return cached;
+    let row = await deps.store.lotKeys.active(lotId);
+    if (!row) {
+      const pair = await newLotKeyPair();
+      row = await deps.store.lotKeys.createActive({
+        id: uuidv7(),
+        lotId,
+        kid: toBase64Url(randomBytes(9)),
+        publicKey: Buffer.from(pair.publicKey),
+        privateKeyCiphertext: deps.crypto.encrypt(toBase64Url(pair.secretKey)),
+        activatedAt: deps.now(),
+      });
+    }
+    const secretKey = fromBase64Url(deps.crypto.decrypt(row.privateKeyCiphertext));
+    if (!secretKey) throw new Error(`lot key ${row.kid} is unreadable`);
+    const key = { kid: row.kid, secretKey };
+    cache.set(lotId, key);
+    return key;
+  }
+
+  return async function passTicketFor(p: PassRow): Promise<string | null> {
+    if (p.status !== 'ACTIVE') return null;
+    const s = Math.floor(new Date(`${p.periodStart}T00:00:00+01:00`).getTime() / 1000);
+    const e = Math.floor(new Date(`${p.periodEnd}T23:59:59+01:00`).getTime() / 1000);
+    return signQrToken(
+      {
+        b: p.id,
+        t: 'P',
+        l: p.lotId,
+        p: p.plateNorm,
+        s,
+        e,
+        c: p.code,
+        i: Math.floor(deps.now().getTime() / 1000),
+        x: e + EXPIRY_AFTER_END_S,
+      },
+      await keyFor(p.lotId),
     );
   };
 }

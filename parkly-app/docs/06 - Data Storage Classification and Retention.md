@@ -84,8 +84,8 @@ Retention clock starts at the "trigger" stated. "Account closure" = driver/opera
 | Play Integrity verdicts | C3 | Fraud/security | Legitimate interest | `security_events` | At rest | Security | 12 months | Hard delete |
 | Consents (type, version, timestamp, channel) | C3 | Demonstrate consent | Legal obligation | `consents` | At rest | DPO, system | Account life + 6 years ⚖️ (proof) | Hard delete after period |
 | Preferences (language, notification settings) | C2 | UX | Contract | `user_settings` | At rest | Driver | Account life | Delete with account |
-| Driver's License number (FRSC) / NIN verification ref | C4 | Identity proofing for monthly passes & gated lots (Tier 2 KYC, FR-AUTH-009) | Consent / Legal obligation | `driver_verifications.id_number_encrypted`, `provider_ref` | App-level AES-256-GCM envelope | Security, Ops (reveal audited) | Account life + 30 days | Hard delete / crypto-shred |
-| Verified Driver status (`is_verified_driver`, badge timestamp) | C1 | Verification badge on ticket, pass & manifest | Legitimate interest / Contract | `users.is_verified_driver`, `driver_verifications.status` | At rest (Supabase) | Driver, attendants, operators, public | Account life | Anonymise |
+| Driver's License number (FRSC) / NIN verification ref | C4 | Identity proofing for monthly passes & gated lots (Tier 2 KYC, FR-AUTH-009) | Consent / Legal obligation | `driver_verifications.id_number_enc` [enc], `id_number_hash` (blind index), `provider_reference` (raw ID images never stored) | App-level AES-256-GCM envelope | Security, Ops (reveal audited) | Account life + 30 days | Hard delete / crypto-shred |
+| Verified Driver status (`is_verified_driver`, badge timestamp) | C1 | Verification badge on ticket, pass & manifest | Legitimate interest / Contract | `users.is_verified_driver`, `users.verified_at`, `driver_verifications.status` | At rest (Supabase) | Driver, attendants, operators, public | Account life | Anonymise |
 
 ### 3.2 Vehicles
 
@@ -109,7 +109,7 @@ Retention clock starts at the "trigger" stated. "Account closure" = driver/opera
 | Data element | Class | Purpose | Lawful basis | Stored | Encryption | Access | Retention | Deletion |
 |---|---|---|---|---|---|---|---|---|
 | Booking (lot, window, status, price snapshot, booking code, vehicle snapshot) | C3 | Service delivery, disputes, accounting | Contract + legal obligation | `bookings` | At rest | Driver; operator (scoped); support; finance | **6 years** from booking end ⚖️ (tax/CAMA) — PII fields pseudonymised after **24 months** | After 24 m: unlink `user_id` → `pseudonymous_id`, plate → hash; after 6 y: hard delete |
-| Pass (monthly) | C3 | Recurring access | Contract | `passes` | At rest | As booking | As booking | As booking |
+| Pass (monthly) & Pass waitlist | C3 | Recurring access & waitlist notification (`FR-PASS-001..004`) | Contract | `passes`, `pass_waitlist` | At rest | As booking | Passes: 6 years ⚖️ (pseudonymised at 24 m); waitlist: 90 days | As booking / hard delete |
 | Session events (check-in/out time, method QR/CODE/MANUAL, attendant ID, device ID, override reason) | C3 | Proof of service, fraud, disputes | Contract + legitimate interest | `session_events` | At rest | Operator (scoped), ops, finance | 6 years ⚖️ (financially linked); pseudonymise at 24 m | As booking |
 | Override photos (attendant manual check-in) | C3 | Fraud control, disputes | Legitimate interest | Storage (`files` row) | At rest (Storage) | Ops, operator manager | **90 days** unless linked to incident/claim (then as incident) | `retention:files` job |
 | Payment record (provider, reference, amount, status, channel, card brand + last4 if returned, split snapshot) | C3 | Payment processing, reconciliation, refunds | Contract + legal obligation | `payments` | At rest | Driver (own); finance; support (masked) | **6 years** ⚖️ | Hard delete after period; PII pseudonymised at 24 m |

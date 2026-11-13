@@ -1,9 +1,10 @@
 import type { Vehicle } from '@parkly/contracts';
-import { Button, Text, useTheme } from '@parkly/ui-native';
+import { Button, Input, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
@@ -97,8 +98,29 @@ export default function Account() {
   const router = useRouter();
   const auth = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | null>(null);
+  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | 'verify' | null>(null);
+  const [method, setMethod] = useState<'FRSC_LICENSE' | 'NIN_PHONE'>('FRSC_LICENSE');
+  const [idNumber, setIdNumber] = useState('');
+  const [dob, setDob] = useState('1990-01-01');
   const { me, vehicles } = auth;
+
+  async function verifyIdentity() {
+    setBusy('verify');
+    setError(null);
+    try {
+      await api.submitVerification(
+        method === 'FRSC_LICENSE'
+          ? { method: 'FRSC_LICENSE', idNumber: idNumber.trim(), dateOfBirth: dob.trim() }
+          : { method: 'NIN_PHONE', idNumber: idNumber.trim() },
+      );
+      const updated = await api.me();
+      auth.setMe(updated);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function signOut(scope: 'device' | 'all') {
     if (scope === 'all') {
@@ -174,7 +196,61 @@ export default function Account() {
           {[me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Your profile'}
         </Text>
         {me?.phoneLast4 ? <Text tone="secondary">{`Phone ending ${me.phoneLast4}`}</Text> : null}
+        {me?.isVerifiedDriver ? (
+          <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
+            ✓ Verified Driver (Tier 2 KYC)
+          </Text>
+        ) : null}
       </View>
+
+      {!me?.isVerifiedDriver ? (
+        <View
+          style={{
+            backgroundColor: theme.card.bg,
+            borderColor: theme.card.border,
+            borderWidth: 1,
+            borderRadius: theme.card.radius,
+            padding: theme.card.padding,
+            gap: theme.space.stack.sm,
+          }}
+        >
+          <Text variant="heading.sm">Verified Driver (60-second check)</Text>
+          <Text variant="body.sm" tone="secondary">
+            Required for 30-day monthly passes and gated car parks. Verified against FRSC or NIMC;
+            we only store a masked reference.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
+            <Chip
+              label="FRSC Driver’s License"
+              selected={method === 'FRSC_LICENSE'}
+              onPress={() => setMethod('FRSC_LICENSE')}
+            />
+            <Chip label="11-digit NIN" selected={method === 'NIN_PHONE'} onPress={() => setMethod('NIN_PHONE')} />
+          </View>
+          <Input
+            label={method === 'FRSC_LICENSE' ? 'License number' : '11-digit NIN'}
+            value={idNumber}
+            onChangeText={setIdNumber}
+            autoCapitalize="characters"
+            placeholder={method === 'FRSC_LICENSE' ? 'ABC12345AA12' : '12345678901'}
+          />
+          {method === 'FRSC_LICENSE' ? (
+            <Input
+              label="Date of birth (YYYY-MM-DD)"
+              value={dob}
+              onChangeText={setDob}
+              placeholder="1990-01-01"
+            />
+          ) : null}
+          <Button
+            label="Verify my driver identity"
+            fullWidth
+            loading={busy === 'verify'}
+            disabled={!idNumber.trim()}
+            onPress={() => void verifyIdentity()}
+          />
+        </View>
+      ) : null}
 
       <Text variant="heading.sm">Vehicles</Text>
       {error ? <Notice message={error} /> : null}

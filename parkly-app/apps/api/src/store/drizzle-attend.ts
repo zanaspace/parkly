@@ -153,9 +153,11 @@ export function drizzleAttend(db: Db): {
             status: bookings.status,
             checkedInAt: sessions.checkInAt,
             checkedOutAt: sessions.checkOutAt,
+            driverVerified: users.isVerifiedDriver,
           })
           .from(bookings)
           .leftJoin(sessions, eq(sessions.bookingId, bookings.id))
+          .leftJoin(users, eq(users.id, bookings.driverId))
           .where(
             and(
               eq(bookings.lotId, lotId),
@@ -360,7 +362,8 @@ export function drizzleAttend(db: Db): {
                 clientEventId: event.clientEventId,
                 type: event.type,
                 lotId: batch.lotId,
-                bookingId: 'bookingId' in event ? event.bookingId : null,
+                bookingId: 'bookingId' in event ? (event.bookingId ?? null) : null,
+                passId: 'passId' in event ? (event.passId ?? null) : null,
                 sessionId,
                 method: 'method' in event ? event.method : null,
                 plateSeen: event.type === 'CHECK_IN' ? event.plateSeen : null,
@@ -526,7 +529,11 @@ export function drizzleAttend(db: Db): {
           })
           .from(sessions)
           .where(inArray(sessions.bookingId, ids));
-        return new Map(rows.map(({ bookingId, ...rest }) => [bookingId, rest]));
+        return new Map(
+          rows
+            .filter((r): r is typeof r & { bookingId: string } => r.bookingId !== null)
+            .map(({ bookingId, ...rest }) => [bookingId, rest]),
+        );
       },
 
       async setOverstay(sessionId, minutes, amountKobo) {
@@ -560,7 +567,7 @@ export function drizzleAttend(db: Db): {
           })
           .from(sessions)
           .where(eq(sessions.bookingId, bookingId));
-        return row ?? null;
+        return row ? { ...row, bookingId } : null;
       },
 
       async markOverstayPaid(bookingId) {

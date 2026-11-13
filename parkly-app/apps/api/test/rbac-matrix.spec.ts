@@ -680,6 +680,21 @@ const COVERED_ELSEWHERE = new Set([
   'GET /v1/lots/{lotId}/availability',
   'POST /v1/lots/{lotId}/quote',
   'GET /v1/places/autocomplete', // public, rate limited; places.spec
+  // Sprint 9: passes, driver verification, capacity blackouts: passes.spec
+  'GET /v1/me/verification',
+  'POST /v1/me/verification',
+  'GET /v1/operators/{operatorId}/lots/{lotId}/blocks',
+  'POST /v1/operators/{operatorId}/lots/{lotId}/blocks',
+  'DELETE /v1/operators/{operatorId}/lots/{lotId}/blocks/{blockId}',
+  'POST /v1/passes',
+  'GET /v1/passes',
+  'GET /v1/passes/{id}',
+  'POST /v1/passes/{id}/verify',
+  'POST /v1/passes/{id}/swap-vehicle',
+  'POST /v1/passes/{id}/renew',
+  'POST /v1/passes/waitlist',
+  'POST /v1/passes/{id}/self-check-in',
+  'POST /v1/passes/{id}/self-check-out',
 ]);
 
 describe('RBAC matrix', () => {

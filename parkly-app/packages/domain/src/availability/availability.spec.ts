@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   availableInWindow,
+  checkCapacityBlock,
   checkSearchWindow,
   extensionWindow,
   isOpenDuring,
@@ -224,3 +225,83 @@ describe('extensionWindow (FR-BOOK-005: how far a stay can be extended)', () => 
     expect(w.closesAt).toEqual(lagos('2026-10-28 00:00'));
   });
 });
+
+describe('checkCapacityBlock (FR-LOT-008: capacity blackouts)', () => {
+  it('allows blocking bays when slots have enough uncommitted capacity', () => {
+    const r = checkCapacityBlock({
+      startAt: lagos('2026-10-20 08:00'),
+      endAt: lagos('2026-10-20 09:00'),
+      blockedBays: 4,
+      capacityBookable: 10,
+      rows: [
+        {
+          slotStart: lagos('2026-10-20 08:15'),
+          capacity: 10,
+          booked: 3,
+          held: 1,
+          passReserved: 1,
+          blocked: 1,
+        },
+      ],
+    });
+    expect(r).toEqual({ ok: true, slotCount: 4 });
+  });
+
+  it('rejects with LOT_CAPACITY_BELOW_COMMITTED when any slot would overflow', () => {
+    const conflictSlot = lagos('2026-10-20 08:15');
+    const r = checkCapacityBlock({
+      startAt: lagos('2026-10-20 08:00'),
+      endAt: lagos('2026-10-20 09:00'),
+      blockedBays: 5,
+      capacityBookable: 10,
+      rows: [
+        {
+          slotStart: conflictSlot,
+          capacity: 10,
+          booked: 3,
+          held: 1,
+          passReserved: 1,
+          blocked: 1,
+        },
+      ],
+    });
+    expect(r).toEqual({
+      ok: false,
+      reason: 'LOT_CAPACITY_BELOW_COMMITTED',
+      conflictingSlotStart: conflictSlot,
+    });
+  });
+
+  it('rejects invalid windows, off-grid times, or invalid blockedBays count', () => {
+    expect(
+      checkCapacityBlock({
+        startAt: lagos('2026-10-20 09:00'),
+        endAt: lagos('2026-10-20 08:00'),
+        blockedBays: 2,
+        capacityBookable: 10,
+        rows: [],
+      }),
+    ).toEqual({ ok: false, reason: 'INVALID_WINDOW' });
+
+    expect(
+      checkCapacityBlock({
+        startAt: lagos('2026-10-20 08:05'),
+        endAt: lagos('2026-10-20 09:00'),
+        blockedBays: 2,
+        capacityBookable: 10,
+        rows: [],
+      }),
+    ).toEqual({ ok: false, reason: 'UNALIGNED_SLOT' });
+
+    expect(
+      checkCapacityBlock({
+        startAt: lagos('2026-10-20 08:00'),
+        endAt: lagos('2026-10-20 09:00'),
+        blockedBays: 0,
+        capacityBookable: 10,
+        rows: [],
+      }),
+    ).toEqual({ ok: false, reason: 'INVALID_BLOCKED_BAYS' });
+  });
+});
+

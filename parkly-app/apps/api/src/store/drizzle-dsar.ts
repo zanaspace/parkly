@@ -24,9 +24,12 @@ const {
   bookings,
   dataSubjectRequests,
   devices,
+  driverVerifications,
   erasureLog,
   idempotencyKeys,
   notifications,
+  passes,
+  passWaitlist,
   sessions,
   userRoles,
   users,
@@ -284,6 +287,12 @@ export function drizzleDsar(db: Db): Pick<Store, 'erasure' | 'retention'> & {
 
           await tx.delete(devices).where(eq(devices.userId, userId));
           await tx.delete(userRoles).where(eq(userRoles.userId, userId));
+          await tx.delete(driverVerifications).where(eq(driverVerifications.userId, userId));
+          await tx.delete(passWaitlist).where(eq(passWaitlist.driverId, userId));
+          await tx
+            .update(passes)
+            .set({ plateNormSnapshot: pseudonymise('ERASED', salt), updatedAt: at })
+            .where(eq(passes.driverId, userId));
           const gone = await tx
             .delete(notifications)
             .where(eq(notifications.userId, userId))
@@ -300,6 +309,8 @@ export function drizzleDsar(db: Db): Pick<Store, 'erasure' | 'retention'> & {
               firstName: null,
               lastName: null,
               marketingOptIn: false,
+              isVerifiedDriver: false,
+              verifiedAt: null,
               status: 'DELETED',
               deletedAt: at,
               updatedAt: at,
@@ -321,6 +332,24 @@ export function drizzleDsar(db: Db): Pick<Store, 'erasure' | 'retention'> & {
             notifications: gone.length,
           };
         });
+      },
+
+      async reapplyErasures(at) {
+        const logs = await db
+          .select({ userId: erasureLog.userId, dsrId: erasureLog.dsrId })
+          .from(erasureLog);
+        let reappliedUsers = 0;
+        for (const entry of logs) {
+          const [u] = await db
+            .select({ status: users.status })
+            .from(users)
+            .where(eq(users.id, entry.userId));
+          if (u && u.status !== 'DELETED') {
+            await this.eraseUser(entry.userId, entry.dsrId ?? uuidv7(), at);
+            reappliedUsers += 1;
+          }
+        }
+        return { reappliedUsers };
       },
     },
 

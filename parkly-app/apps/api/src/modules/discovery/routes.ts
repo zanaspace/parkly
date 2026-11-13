@@ -208,6 +208,7 @@ export function discoveryRoutes(deps: AppDeps) {
           isOpen: result.isOpen,
           availableCount: result.availableCount,
           isAvailable: result.availableCount > 0,
+          requiresVerifiedDriver: Boolean(lot.requiresVerifiedDriver),
           quote: toPublicQuote(result.quote),
         });
       }
@@ -261,6 +262,7 @@ export function discoveryRoutes(deps: AppDeps) {
         location: lot.location,
         entranceNotes: lot.entranceNotes,
         capacityBookable: lot.capacityBookable,
+        requiresVerifiedDriver: Boolean(lot.requiresVerifiedDriver),
         amenities: lot.amenities as PublicLot['amenities'],
         vehicleTypes: lot.vehicleTypes as PublicLot['vehicleTypes'],
         openingHours: hours.map(toOpeningDay),

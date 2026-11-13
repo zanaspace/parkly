@@ -3,6 +3,8 @@ import type {
   Bucket,
   Clock,
   EmailProvider,
+  IdentityVerificationOutcome,
+  IdentityVerificationProvider,
   MalwareScanner,
   MapsProvider,
   PaymentProvider,
@@ -68,6 +70,9 @@ export class FakePaymentProvider implements PaymentProvider {
   async refund(input: { reference: string; amountKobo: number }) {
     this.refunds.push(input);
     return { refundId: `rf_${this.refunds.length}`, status: 'PENDING' as const };
+  }
+  signWebhook(_rawBody: string) {
+    return 'valid';
   }
   /** Signature "valid" is accepted; anything else is not. */
   verifyWebhook(_rawBody: string, signature: string | undefined) {
@@ -267,3 +272,39 @@ export class FakeMalwareScanner implements MalwareScanner {
       : { clean: true };
   }
 }
+
+/**
+ * In-memory Nigerian identity verification fake (FR-AUTH-009).
+ * Rejects IDs ending in `0000` or `FAIL`; verifies everything else.
+ */
+export class FakeIdentityVerificationProvider implements IdentityVerificationProvider {
+  readonly name = 'fake' as const;
+  readonly calls: Parameters<IdentityVerificationProvider['verifyDriver']>[0][] = [];
+  failNext = false;
+
+  async verifyDriver(
+    input: Parameters<IdentityVerificationProvider['verifyDriver']>[0],
+  ): Promise<IdentityVerificationOutcome> {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('fake identity provider unavailable');
+    }
+    this.calls.push(input);
+    const ref = `fake_kyc_${this.calls.length}`;
+    if (input.idNumber.endsWith('0000') || input.idNumber.endsWith('FAIL')) {
+      return {
+        verified: false,
+        providerReference: ref,
+        verifiedName: null,
+        rejectionReason: 'Identity record did not match FRSC / NIMC registry',
+      };
+    }
+    return {
+      verified: true,
+      providerReference: ref,
+      verifiedName: 'CHINEDU OKAFOR',
+      rejectionReason: null,
+    };
+  }
+}
+

@@ -3,7 +3,7 @@ import { usePathname, useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export type TabKey = 'search' | 'bookings' | 'account';
+export type TabKey = 'search' | 'bookings' | 'passes' | 'account';
 
 export function BottomNav() {
   const theme = useTheme();
@@ -13,18 +13,21 @@ export function BottomNav() {
 
   const activeTab: TabKey = pathname.startsWith('/bookings')
     ? 'bookings'
-    : pathname.startsWith('/account')
-      ? 'account'
-      : 'search';
+    : pathname.startsWith('/passes') || pathname.startsWith('/pass/')
+      ? 'passes'
+      : pathname.startsWith('/account')
+        ? 'account'
+        : 'search';
 
   const tabs: Array<{
     key: TabKey;
     label: string;
     icon: string;
-    route: '/home' | '/bookings' | '/account';
+    route: '/home' | '/bookings' | '/passes' | '/account';
   }> = [
     { key: 'search', label: 'Search', icon: '🔍', route: '/home' },
-    { key: 'bookings', label: 'My Bookings', icon: '🎟️', route: '/bookings' },
+    { key: 'bookings', label: 'Bookings', icon: '🎟️', route: '/bookings' },
+    { key: 'passes', label: 'Passes', icon: '🪪', route: '/passes' },
     { key: 'account', label: 'Account', icon: '👤', route: '/account' },
   ];
 

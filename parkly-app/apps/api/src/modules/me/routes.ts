@@ -4,20 +4,31 @@ import {
   CreateVehicleRequestSchema,
   DeletionRequestResponseSchema,
   DeviceRequestSchema,
+  DriverVerificationSchema,
   MeSchema,
   UpdateMeRequestSchema,
   UpdateVehicleRequestSchema,
   VehicleListSchema,
   VehicleSchema,
+  VerifyDriverIdentityRequestSchema,
+  type DriverVerificationRecord,
   type Vehicle,
 } from '@parkly/contracts';
 import { isValidPlate, normalisePlate } from '@parkly/domain/plate';
+import { lagosDateKey } from '@parkly/domain/time';
+import { maskIdentityNumber, validateVerificationInput } from '@parkly/domain/verification';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import { clientIp } from '../../middleware/rate-limit.js';
-import { DsrAlreadyOpenError, DuplicatePlateError, type VehicleRow } from '../../store/types.js';
+import {
+  DsrAlreadyOpenError,
+  DuplicatePlateError,
+  VehicleInUseError,
+  type DriverVerificationRow,
+  type VehicleRow,
+} from '../../store/types.js';
 import { buildMe } from './me.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
@@ -150,6 +161,14 @@ export function meRoutes(deps: AppDeps) {
           'ACCOUNT_HAS_OBLIGATIONS',
           'You have a booking that has not finished. Finish or cancel it, then ask again.',
         );
+      const activePasses = (
+        await deps.store.passes.listForDriver(actor.userId, 'active', lagosDateKey(deps.now()), 1)
+      ).length;
+      if (activePasses > 0)
+        throw new ApiError(
+          'ACCOUNT_HAS_OBLIGATIONS',
+          'You have an active monthly pass. Wait for it to end, then ask again.',
+        );
       if (owed.unpaidOverstays > 0)
         throw new ApiError(
           'ACCOUNT_HAS_OBLIGATIONS',
@@ -266,9 +285,139 @@ export function meRoutes(deps: AppDeps) {
       authorize(c, deps.logger, 'vehicle:manage:own', { ownerUserId: userId });
       const { id } = c.req.valid('param');
       if (!(await deps.store.vehicles.find(userId, id))) throw new ApiError('NOT_FOUND');
-      // TODO(S4): VEHICLE_IN_USE while the vehicle has an active booking or pass.
-      await deps.store.vehicles.remove(userId, id);
+      try {
+        await deps.store.vehicles.remove(userId, id);
+      } catch (err) {
+        if (err instanceof VehicleInUseError) throw new ApiError('VEHICLE_IN_USE');
+        throw err;
+      }
       return c.body(null, 204);
+    },
+  );
+
+  // --- driver identity verification (FR-AUTH-009, Tier 2 KYC) ----------------
+
+  const toVerificationDto = (row: DriverVerificationRow): DriverVerificationRecord => ({
+    id: row.id,
+    method: row.method,
+    status: row.status,
+    maskedIdNumber: row.maskedIdNumber,
+    provider: row.provider,
+    providerReference: row.providerReference,
+    verifiedName: row.verifiedName,
+    verifiedAt: row.verifiedAt ? row.verifiedAt.toISOString() : null,
+    createdAt: row.createdAt.toISOString(),
+  });
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/me/verification',
+      tags: ['me'],
+      ...secured,
+      responses: {
+        200: { description: 'Driver verification status', ...json(DriverVerificationSchema) },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'profile:read:own', own(c));
+      const user = c.get('user');
+      const latest = await deps.store.driverVerifications.latest(user.id);
+      return c.json(
+        {
+          isVerifiedDriver: Boolean(user.isVerifiedDriver),
+          verifiedAt: user.verifiedAt ? user.verifiedAt.toISOString() : null,
+          verification: latest ? toVerificationDto(latest) : null,
+        },
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/me/verification',
+      tags: ['me'],
+      ...secured,
+      request: { body: { ...json(VerifyDriverIdentityRequestSchema), required: true } },
+      responses: {
+        200: { description: 'Driver identity verified', ...json(DriverVerificationSchema) },
+      },
+    }),
+    async (c) => {
+      authorize(c, deps.logger, 'profile:update:own', own(c));
+      const actor = c.get('actor');
+      const user = c.get('user');
+      const body = c.req.valid('json');
+      const checked = validateVerificationInput({
+        method: body.method,
+        idNumber: body.idNumber,
+        dateOfBirth: body.dateOfBirth,
+      });
+      if (!checked.ok) throw new ApiError('VALIDATION_FAILED', checked.reason);
+
+      let providerResult: Awaited<ReturnType<typeof deps.identityVerification.verifyDriver>>;
+      try {
+        providerResult = await deps.identityVerification.verifyDriver({
+          method: body.method,
+          idNumber: checked.normalisedId,
+          ...(body.dateOfBirth ? { dateOfBirth: body.dateOfBirth } : {}),
+          ...(user.phoneLast4 ? { phoneLast4: user.phoneLast4 } : {}),
+        });
+      } catch (err) {
+        deps.logger.error({ err, userId: actor.userId }, 'identity verification provider error');
+        throw new ApiError('IDENTITY_PROVIDER_UNAVAILABLE');
+      }
+
+      const now = deps.now();
+      const recorded = await deps.store.driverVerifications.record(
+        {
+          userId: actor.userId,
+          method: body.method,
+          status: providerResult.verified ? 'VERIFIED' : 'FAILED',
+          provider: (deps.identityVerification.name.toUpperCase() as 'DOJAH' | 'FAKE'),
+          providerReference: providerResult.providerReference,
+          idNumberEnc: deps.crypto.encrypt(checked.normalisedId),
+          idNumberHash: deps.crypto.lookupHash(checked.normalisedId),
+          maskedIdNumber: checked.maskedId,
+          verifiedName: user.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : null,
+          dateOfBirthEnc: body.dateOfBirth ? deps.crypto.encrypt(body.dateOfBirth) : null,
+          rejectionReason: providerResult.rejectionReason ?? null,
+          verifiedAt: providerResult.verified ? now : null,
+        },
+        now,
+      );
+
+      await audit(c, deps, {
+        action: providerResult.verified
+          ? 'driver.identity_verified'
+          : 'driver.identity_verification_failed',
+        entityType: 'driver_verification',
+        entityId: recorded.id,
+        after: {
+          method: recorded.method,
+          status: recorded.status,
+          provider: recorded.provider,
+          providerReference: recorded.providerReference,
+        },
+      });
+
+      if (!providerResult.verified) {
+        throw new ApiError(
+          'IDENTITY_VERIFICATION_FAILED',
+          providerResult.rejectionReason ?? 'Identity verification did not match.',
+        );
+      }
+
+      return c.json(
+        {
+          isVerifiedDriver: true,
+          verifiedAt: (recorded.verifiedAt ?? now).toISOString(),
+          verification: toVerificationDto(recorded),
+        },
+        200,
+      );
     },
   );
 

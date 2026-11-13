@@ -16,6 +16,9 @@ import { settlePaymentsJob } from './settle-payments.js';
 import { settlementsSyncJob } from './settlements-sync.js';
 import { reconcilePaymentsJob } from './reconcile-payments.js';
 import { monthlyStatementsJob } from './monthly-statements.js';
+import { passRemindersJob } from './pass-reminders.js';
+import { retryWebhooksJob } from './retry-webhooks.js';
+import { reapplyErasuresJob } from './reapply-erasures.js';
 import type { JobHandler } from './routes.js';
 
 /**
@@ -53,5 +56,11 @@ export function createJobs(deps: {
     'retention-purge': retentionPurgeJob(deps),
     // Sends queued notifications and retries failed channels (ADR 0020).
     'deliver-notifications': ({ deadline }) => deps.notifications.deliverDue({ deadline }),
+    // Monthly pass expiry & 7d/2d renewal reminders (FR-PASS-003).
+    'pass-reminders': passRemindersJob(deps),
+    // Retries pending or failed payment webhooks (S9 task 6 / S4 carry-over).
+    'retry-webhooks': retryWebhooksJob(deps),
+    // Post-restore erasure log enforcement (doc 06 §7).
+    'reapply-erasures': reapplyErasuresJob(deps),
   };
 }

@@ -35,6 +35,20 @@ export const ManifestBookingSchema = z.object({
   status: BookingStatusSchema,
   checkedInAt: z.iso.datetime().nullable(),
   checkedOutAt: z.iso.datetime().nullable(),
+  driverVerified: z.boolean().default(false),
+});
+
+/** One active monthly pass as the gate needs it (FR-PASS-002 / FR-PASS-005). */
+export const ManifestPassSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  plateNorm: z.string(),
+  periodStart: z.iso.date(),
+  periodEnd: z.iso.date(),
+  status: z.enum(['HELD', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'REVOKED']),
+  inLot: z.boolean().default(false),
+  checkedInAt: z.iso.datetime().nullable().default(null),
+  driverVerified: z.boolean().default(false),
 });
 
 /** `GET /v1/attend/lots/{lotId}/manifest`: everything the gate needs for 24 h offline. */
@@ -62,6 +76,7 @@ export const ManifestSchema = z.object({
   ),
   revokedKids: z.array(z.string()),
   bookings: z.array(ManifestBookingSchema),
+  passes: z.array(ManifestPassSchema).default([]),
   walkIns: z.number().int(),
 });
 
@@ -71,7 +86,8 @@ export const AttendEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...base,
     type: z.literal('CHECK_IN'),
-    bookingId: z.uuid(),
+    bookingId: z.uuid().optional(),
+    passId: z.uuid().optional(),
     method: EntryMethodSchema,
     plateSeen: z.string().max(12).optional(),
     /** Required when the gate showed amber (early, late, duplicate, provisional). */
@@ -80,7 +96,8 @@ export const AttendEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...base,
     type: z.literal('CHECK_OUT'),
-    bookingId: z.uuid(),
+    bookingId: z.uuid().optional(),
+    passId: z.uuid().optional(),
     method: EntryMethodSchema,
   }),
   z.object({ ...base, type: z.literal('WALK_IN'), delta: z.union([z.literal(1), z.literal(-1)]) }),
@@ -89,6 +106,7 @@ export const AttendEventSchema = z.discriminatedUnion('type', [
     type: z.literal('ISSUE'),
     note: z.string().trim().min(1).max(500),
     bookingId: z.uuid().optional(),
+    passId: z.uuid().optional(),
   }),
 ]);
 
@@ -194,6 +212,7 @@ export type SelfCheckinSetting = z.infer<typeof SelfCheckinSettingSchema>;
 export type SelfCheckRequest = z.infer<typeof SelfCheckRequestSchema>;
 export type SelfCheckResult = z.infer<typeof SelfCheckResultSchema>;
 export type ManifestBooking = z.infer<typeof ManifestBookingSchema>;
+export type ManifestPass = z.infer<typeof ManifestPassSchema>;
 export type Manifest = z.infer<typeof ManifestSchema>;
 export type AttendEvent = z.infer<typeof AttendEventSchema>;
 export type SyncRequest = z.infer<typeof SyncRequestSchema>;

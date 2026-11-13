@@ -173,6 +173,7 @@ export class MemoryAttend {
         )
         .map((b) => {
           const s = this.sessionRows.find((r) => r.bookingId === b.id);
+          const driver = this.deps.userRows.get(b.driverId);
           return {
             id: b.id,
             code: b.code,
@@ -182,6 +183,7 @@ export class MemoryAttend {
             status: b.status,
             checkedInAt: s?.checkInAt ?? null,
             checkedOutAt: s?.checkOutAt ?? null,
+            driverVerified: Boolean(driver?.isVerifiedDriver),
           };
         }),
 

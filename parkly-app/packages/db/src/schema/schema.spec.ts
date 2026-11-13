@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { ROLES } from '@parkly/domain/authz';
 import { BOOKING_STATUSES, BOOKING_TYPES, PAYMENT_STATUSES } from '@parkly/domain/booking';
 import { LOT_STATUSES, VERIFICATION_ITEMS } from '@parkly/domain/lot';
+import { PASS_STATUSES } from '@parkly/domain/pass';
+import { VERIFICATION_METHODS, VERIFICATION_STATUSES } from '@parkly/domain/verification';
 import * as schema from './index.js';
 
 const tables = (Object.values(schema) as unknown[]).filter((v): v is PgTable => is(v, PgTable));
@@ -20,6 +22,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'consents',
       'data_subject_requests',
       'devices',
+      'driver_verifications',
       'erasure_log',
       'feature_flags',
       'files',
@@ -39,6 +42,8 @@ describe('schema conventions (doc 02 §1)', () => {
       'operator_kyb_documents',
       'operator_members',
       'operators',
+      'pass_waitlist',
+      'passes',
       'payments',
       'payout_accounts',
       'permits',
@@ -92,6 +97,17 @@ describe('enums match the domain (no silent drift)', () => {
     ['booking_status', schema.bookingStatusEnum.enumValues, BOOKING_STATUSES],
     ['booking_type', schema.bookingTypeEnum.enumValues, BOOKING_TYPES],
     ['payment_status', schema.paymentStatusEnum.enumValues, PAYMENT_STATUSES],
+    ['pass_status', schema.passStatusEnum.enumValues, PASS_STATUSES],
+    [
+      'driver_verification_method',
+      schema.driverVerificationMethodEnum.enumValues,
+      VERIFICATION_METHODS,
+    ],
+    [
+      'driver_verification_status',
+      schema.driverVerificationStatusEnum.enumValues,
+      VERIFICATION_STATUSES,
+    ],
   ] as const)('%s', (_name, db, domain) => {
     expect([...db]).toEqual([...domain]);
   });

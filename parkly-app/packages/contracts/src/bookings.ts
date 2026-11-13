@@ -58,8 +58,11 @@ export const BookingSchema = z.object({
     /** The owner allows drivers to check themselves in here (ADR 0016). Defaults to off so an
      * app newer than the live API still reads its bookings. */
     selfCheckIn: z.boolean().default(false),
+    requiresVerifiedDriver: z.boolean().default(false),
   }),
   vehicle: z.object({ id: z.uuid(), plate: z.string() }),
+  /** FR-PASS-005: True when the booking driver holds a Tier 2 verified identity badge. */
+  driverVerified: z.boolean().default(false),
   priceKobo: z.number().int(),
   serviceFeeKobo: z.number().int(),
   totalKobo: z.number().int(),

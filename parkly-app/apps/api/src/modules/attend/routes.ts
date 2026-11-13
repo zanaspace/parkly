@@ -28,6 +28,7 @@ import {
 } from '@parkly/domain/checkin';
 import { outlookWindow, weekOutlook } from '@parkly/domain/operator';
 import { toBase64Url } from '@parkly/domain/qr';
+import { lagosDateKey } from '@parkly/domain/time';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
@@ -120,7 +121,7 @@ export function attendRoutes(deps: AppDeps) {
     for (const r of results) {
       if (r.result !== 'APPLIED') continue;
       const e = events.find((x) => x.clientEventId === r.clientEventId);
-      if (!e || (e.type !== 'CHECK_IN' && e.type !== 'CHECK_OUT')) continue;
+      if (!e || (e.type !== 'CHECK_IN' && e.type !== 'CHECK_OUT') || !e.bookingId) continue;
       const notice = await bookingNotice(deps.store, e.bookingId);
       if (!notice) continue;
       const at = e.deviceTime.toISOString();
@@ -230,13 +231,14 @@ export function attendRoutes(deps: AppDeps) {
       const lot = await gateLot(c, lotId);
       await approvedDevice(c.get('actor').userId, clientDeviceId, lotId);
       const now = deps.now();
-      const [rows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
+      const [rows, passRows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
         await Promise.all([
           deps.store.attend.manifest(
             lotId,
             new Date(now.getTime() - DAY_MS),
             new Date(now.getTime() + DAY_MS),
           ),
+          deps.store.passes.manifestForLot(lotId, now),
           deps.store.lotKeys.forManifest(lotId),
           deps.store.attend.walkIns(lotId),
           settingNumber('booking.early_arrival_min', 30),
@@ -268,6 +270,18 @@ export function attendRoutes(deps: AppDeps) {
             status: b.status,
             checkedInAt: b.checkedInAt?.toISOString() ?? null,
             checkedOutAt: b.checkedOutAt?.toISOString() ?? null,
+            driverVerified: Boolean(b.driverVerified),
+          })),
+          passes: passRows.map((p) => ({
+            id: p.id,
+            code: p.code,
+            plateNorm: p.plateNorm,
+            periodStart: p.periodStart,
+            periodEnd: p.periodEnd,
+            status: p.status,
+            inLot: p.checkedInAt !== null,
+            checkedInAt: p.checkedInAt?.toISOString() ?? null,
+            driverVerified: p.driverVerified,
           })),
           walkIns,
         },
@@ -333,6 +347,41 @@ export function attendRoutes(deps: AppDeps) {
           'blocked phone synced; events kept for review',
         );
         throw new ApiError('DEVICE_REVOKED');
+      }
+
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i]!;
+        const e = events[i]!;
+        if (
+          r.result === 'REJECTED' &&
+          r.reason === 'UNKNOWN_BOOKING' &&
+          (e.type === 'CHECK_IN' || e.type === 'CHECK_OUT') &&
+          !e.bookingId &&
+          e.passId
+        ) {
+          const passRes =
+            e.type === 'CHECK_IN'
+              ? await deps.store.passes.checkIn(
+                  e.passId,
+                  lot.id,
+                  actor.userId,
+                  e.method,
+                  lagosDateKey(e.deviceTime),
+                  e.deviceTime,
+                )
+              : await deps.store.passes.checkOut(
+                  e.passId,
+                  lot.id,
+                  actor.userId,
+                  e.method,
+                  e.deviceTime,
+                );
+          results[i] = {
+            clientEventId: e.clientEventId,
+            result: passRes.result,
+            reason: passRes.reason,
+          };
+        }
       }
 
       await notifyGate(events, results);

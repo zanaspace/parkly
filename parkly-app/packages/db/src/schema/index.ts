@@ -7,6 +7,7 @@ export * from './operators.js';
 export * from './lots.js';
 export * from './availability.js';
 export * from './bookings.js';
+export * from './passes.js';
 export * from './keys.js';
 export * from './sessions.js';
 export * from './notifications.js';

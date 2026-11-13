@@ -10,6 +10,7 @@ import { allowAllRateLimiter, MemoryRateLimiter } from './middleware/rate-limit.
 import { NotificationService } from './notifications/service.js';
 import {
   FakeEmailProvider,
+  FakeIdentityVerificationProvider,
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
@@ -126,6 +127,7 @@ export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     authAdmin: new FakeAuthAdmin(),
     settlement: new FakeSettlementProvider(),
     payments: new FakePaymentProvider(),
+    identityVerification: new FakeIdentityVerificationProvider(),
     storage: new FakeStorageProvider(),
     scanner: new FakeMalwareScanner(),
     maps: new FakeMapsProvider(),
@@ -157,6 +159,7 @@ export function world(overrides: Partial<AppDeps> = {}) {
   const rateLimiter = new MemoryRateLimiter(() => TEST_NOW.getTime());
   const settlement = new FakeSettlementProvider();
   const payments = new FakePaymentProvider();
+  const identityVerification = new FakeIdentityVerificationProvider();
   const storage = new FakeStorageProvider();
   const scanner = new FakeMalwareScanner();
   const deps = testDeps({
@@ -166,6 +169,7 @@ export function world(overrides: Partial<AppDeps> = {}) {
     rateLimiter,
     settlement,
     payments,
+    identityVerification,
     storage,
     scanner,
     ...overrides,
@@ -266,6 +270,7 @@ export function world(overrides: Partial<AppDeps> = {}) {
     authAdmin,
     settlement,
     payments,
+    identityVerification,
     storage,
     scanner,
     email,

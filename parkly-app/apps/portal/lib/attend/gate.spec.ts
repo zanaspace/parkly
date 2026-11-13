@@ -1,7 +1,14 @@
 import type { Manifest } from '@parkly/contracts';
 import { newLotKeyPair, signQrToken, toBase64Url } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
-import { checkCode, checkPlate, checkScan, localStatus, parkedNow } from './gate';
+import {
+  checkCode,
+  checkPlate,
+  checkScan,
+  localStatus,
+  parkedNow,
+  parkedPassesNow,
+} from './gate';
 import type { QueuedEvent } from './queue';
 
 const LOT = '01a162b3-dcae-740c-a25a-e148a6951c2e';
@@ -27,8 +34,10 @@ async function setup() {
         status: 'CONFIRMED',
         checkedInAt: null,
         checkedOutAt: null,
+        driverVerified: false,
       },
     ],
+    passes: [],
     walkIns: 0,
   };
   const s = Date.parse(START) / 1000;
@@ -149,3 +158,89 @@ describe('who is parked (A-05)', () => {
     expect(parkedNow(manifest, queued)).toEqual([]);
   });
 });
+
+describe('monthly pass at the gate (FR-PASS-002, FR-PASS-005)', () => {
+  it('verifies a monthly pass QR, blocks second check-in until check-out, and rejects old plate after swap', async () => {
+    const pair = await newLotKeyPair();
+    const passId = '01a1647d-297b-7248-a1ac-000000009999';
+    const manifest: Manifest = {
+      serverTime: '2026-10-23T06:00:00.000Z',
+      lot: { id: LOT, name: 'Eko', capacityBookable: 10 },
+      rules: { earlyArrivalMin: 30, noShowGraceMin: 30, overstayGraceMin: 10 },
+      keys: [{ kid: 'k1', publicKey: toBase64Url(pair.publicKey), status: 'ACTIVE' }],
+      revokedKids: [],
+      bookings: [],
+      passes: [
+        {
+          id: passId,
+          code: 'MP-8K3XZP',
+          plateNorm: 'EKY999ZZ',
+          periodStart: '2026-10-01',
+          periodEnd: '2026-10-31',
+          status: 'ACTIVE',
+          inLot: false,
+          checkedInAt: null,
+          driverVerified: true,
+        },
+      ],
+      walkIns: 0,
+    };
+    const s = Math.floor(Date.parse('2026-10-01T00:00:00.000Z') / 1000);
+    const e = Math.floor(Date.parse('2026-10-31T00:00:00.000Z') / 1000);
+    const passToken = await signQrToken(
+      {
+        b: passId,
+        t: 'P',
+        l: LOT,
+        p: 'EKY999ZZ',
+        s,
+        e,
+        c: 'MP-8K3XZP',
+        i: s,
+        x: e + 86_400,
+      },
+      { kid: 'k1', secretKey: pair.secretKey },
+    );
+
+    const now = at('2026-10-23T07:05:00Z');
+    const r1 = await checkScan(passToken, manifest, [], now);
+    expect(r1).toMatchObject({
+      colour: 'GREEN',
+      reason: 'OK',
+      passId,
+      isPass: true,
+      driverVerified: true,
+      plate: 'EKY999ZZ',
+    });
+
+    // Check by code and plate
+    expect(checkCode('mp-8k3xzp', manifest, [], now)).toMatchObject({
+      colour: 'GREEN',
+      passId,
+      isPass: true,
+    });
+    expect(checkPlate('EKY 999 ZZ', manifest, [], now)).toHaveLength(1);
+
+    // Local check-in queues passId
+    const queued: QueuedEvent[] = [
+      {
+        type: 'CHECK_IN',
+        clientEventId: 'p1',
+        deviceTime: '2026-10-23T07:06:00.000Z',
+        passId,
+        method: 'QR',
+      },
+    ];
+    expect(parkedPassesNow(manifest, queued).map((p) => p.id)).toEqual([passId]);
+
+    const r2 = await checkScan(passToken, manifest, queued, now);
+    expect(r2).toMatchObject({ colour: 'AMBER', reason: 'ALREADY_IN', passId, isPass: true });
+
+    // Old QR after vehicle swap to a new plate in manifest -> INVALID
+    const firstPass = manifest.passes?.[0];
+    if (firstPass) firstPass.plateNorm = 'LAG777AA';
+    const rSwapped = await checkScan(passToken, manifest, [], now);
+    expect(rSwapped).toMatchObject({ colour: 'RED', reason: 'INVALID' });
+  });
+});
+

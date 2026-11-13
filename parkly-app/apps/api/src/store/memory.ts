@@ -9,6 +9,7 @@ import {
   OperatorExistsError,
   SlugTakenError,
   StaleVersionError,
+  VehicleInUseError,
   type AuditRow,
   type DataRequestRow,
   type FileRow,
@@ -42,6 +43,7 @@ import { MemoryReceipts } from './memory-receipts.js';
 import { MemorySettlements } from './memory-settlements.js';
 import { MemoryReconciliation } from './memory-reconciliation.js';
 import { MemoryReports } from './memory-reports.js';
+import { MemoryPasses } from './memory-passes.js';
 
 type Device = Parameters<Store['devices']['upsert']>[0] & { revokedAt: Date | null };
 type Consent = { userId: string; type: ConsentType; version: string; granted: boolean; at: number };
@@ -149,6 +151,28 @@ export class MemoryStore implements Store {
     payoutRows: this.payoutRows,
   });
   readonly reports: Store['reports'] = this.reportsStore.reports;
+  /** S9: Monthly passes, capacity blackouts, and Tier 2 KYC driver verifications. */
+  readonly passStore = new MemoryPasses({
+    userRows: this.userRows,
+    lotRows: this.lotRows,
+    slotRows: this.slotRows,
+    bookings: this.booking,
+  });
+  readonly driverVerifications: Store['driverVerifications'] = this.passStore.driverVerifications;
+  readonly lotBlocks: Store['lotBlocks'] = this.passStore.lotBlocks;
+  readonly passes: Store['passes'] = this.passStore.passes;
+  get driverVerificationRows() {
+    return this.passStore.driverVerificationRows;
+  }
+  get passRows() {
+    return this.passStore.passRows;
+  }
+  get waitlistRows() {
+    return this.passStore.waitlistRows;
+  }
+  get blockRows() {
+    return this.passStore.blockRows;
+  }
 
   /** FR-ADM-003: mirrors drizzle-refund-requests. */
   readonly refundRequestRows: RefundRequestRow[] = [];
@@ -351,7 +375,12 @@ export class MemoryStore implements Store {
   /** Test helper: what the on_auth_user_created trigger does. */
   seedUser(
     id: string,
-    opts: { roles?: RoleGrant[]; firstName?: string; phoneLast4?: string } = {},
+    opts: {
+      roles?: RoleGrant[];
+      firstName?: string;
+      phoneLast4?: string;
+      isVerifiedDriver?: boolean;
+    } = {},
   ) {
     this.userRows.set(id, {
       id,
@@ -360,6 +389,8 @@ export class MemoryStore implements Store {
       phoneLast4: opts.phoneLast4 ?? null,
       status: 'ACTIVE',
       marketingOptIn: false,
+      isVerifiedDriver: opts.isVerifiedDriver ?? false,
+      verifiedAt: opts.isVerifiedDriver ? new Date() : null,
     });
     for (const g of opts.roles ?? []) this.roleRows.push({ ...g, userId: id });
   }
@@ -460,6 +491,13 @@ export class MemoryStore implements Store {
     remove: async (userId, id) => {
       const v = this.vehicleRows.find((r) => r.id === id && r.userId === userId && !r.deleted);
       if (!v) return;
+      const inUseByPass = this.passStore.passRows.some(
+        (p) => p.vehicleId === id && (p.status === 'ACTIVE' || p.status === 'HELD'),
+      );
+      const inUseByCheckedInBooking = this.booking.bookingRows.some(
+        (b) => b.vehicleId === id && b.status === 'CHECKED_IN',
+      );
+      if (inUseByPass || inUseByCheckedInBooking) throw new VehicleInUseError();
       v.deleted = true;
       if (v.isDefault) {
         v.isDefault = false;
@@ -639,8 +677,25 @@ export class MemoryStore implements Store {
         firstName: null,
         lastName: null,
         marketingOptIn: false,
+        isVerifiedDriver: false,
+        verifiedAt: null,
         status: 'DELETED',
       });
+      for (let i = this.passStore.driverVerificationRows.length - 1; i >= 0; i--) {
+        if (this.passStore.driverVerificationRows[i]?.userId === userId) {
+          this.passStore.driverVerificationRows.splice(i, 1);
+        }
+      }
+      for (let i = this.passStore.waitlistRows.length - 1; i >= 0; i--) {
+        if (this.passStore.waitlistRows[i]?.driverId === userId) {
+          this.passStore.waitlistRows.splice(i, 1);
+        }
+      }
+      for (const p of this.passStore.passRows) {
+        if (p.driverId === userId) {
+          p.plateNorm = pseudonymise(p.plateNorm, salt);
+        }
+      }
       const dsr = this.dsrRows.find((r) => r.id === dsrId);
       if (dsr) Object.assign(dsr, { status: 'COMPLETED', completedAt: at });
       if (!this.erasureLogRows.some((r) => r.userId === userId))
@@ -650,6 +705,17 @@ export class MemoryStore implements Store {
         bookings: mine.length,
         notifications: before - this.outbox.rows.length,
       };
+    },
+    reapplyErasures: async (at) => {
+      let reappliedUsers = 0;
+      for (const entry of this.erasureLogRows) {
+        const u = this.userRows.get(entry.userId);
+        if (u && u.status !== 'DELETED') {
+          await this.erasure.eraseUser(entry.userId, entry.dsrId ?? '', at);
+          reappliedUsers += 1;
+        }
+      }
+      return { reappliedUsers };
     },
   };
 
@@ -764,6 +830,7 @@ export class MemoryStore implements Store {
         holdCapPercent: row.holdCapPercent ?? 30,
         freeHoldMinutes: row.freeHoldMinutes ?? 60,
         maxHoldMinutes: row.maxHoldMinutes ?? 180,
+        requiresVerifiedDriver: row.requiresVerifiedDriver ?? false,
         version: 1,
         createdAt: new Date(Date.UTC(2026, 9, 15) + ++this.seq),
       };

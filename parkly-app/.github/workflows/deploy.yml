@@ -1,3 +1,4 @@
+
 # NOT ACTIVE: GitHub only runs workflows from the repository root (.github/workflows).
 # This stays here until staging exists and the deploy secrets are set (S0 carry-over);
 # then move it next to ci.yml and add `defaults.run.working-directory: parkly-app`.

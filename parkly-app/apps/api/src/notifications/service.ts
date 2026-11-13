@@ -45,6 +45,7 @@ const SMS_ALWAYS = new Set<NotificationEvent['key']>([
   'booking.lot_unavailable',
   'booking.extended',
   'session.overstay_due',
+  'pass.expiring',
 ]);
 const SMS_IF_NO_PUSH = new Set<NotificationEvent['key']>([
   'booking.reminder_start',
@@ -55,6 +56,7 @@ const EMAIL_EVENTS = new Set<NotificationEvent['key']>([
   'booking.cancelled',
   'booking.refunded',
   'booking.lot_unavailable',
+  'pass.expiring',
 ]);
 
 /** 22:00–07:00 in Lagos (UTC+1, no daylight saving): the next 07:00, else null. */
@@ -80,7 +82,7 @@ export class NotificationService {
     try {
       await this.deps.store.notifications.enqueue({
         userId: event.driverId,
-        bookingId: event.bookingId,
+        bookingId: event.key === 'pass.expiring' ? null : event.bookingId,
         eventKey: event.key,
         dedupeKey,
         payload: event,

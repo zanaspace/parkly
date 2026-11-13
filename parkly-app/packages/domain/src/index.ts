@@ -17,3 +17,6 @@ export * from './support/index.js';
 export * from './incident/index.js';
 export * from './platform/index.js';
 export * from './security/index.js';
+export * from './pass/index.js';
+export * from './verification/index.js';
+

@@ -39,6 +39,8 @@ const LotFieldsSchema = z.object({
   capacityBookable: z.number().int(),
   amenities: z.array(AmenitySchema).max(7),
   vehicleTypes: z.array(VehicleTypeSchema).min(1).max(3),
+  /** FR-PASS-005: when true, only Tier 2 verified drivers may book or buy a monthly pass here. */
+  requiresVerifiedDriver: z.boolean().optional(),
 });
 
 /** O-11 steps 1–3. Creates a DRAFT lot. */
@@ -151,6 +153,7 @@ export const LotSchema = LotFieldsSchema.extend({
   holdCapPercent: z.number().int().min(0).max(100).default(30),
   freeHoldMinutes: z.number().int().min(0).default(60),
   maxHoldMinutes: z.number().int().min(0).default(180),
+  requiresVerifiedDriver: z.boolean().default(false),
   version: z.number().int(),
   openingHours: z.array(OpeningDaySchema),
   photos: z.array(LotPhotoSchema),
@@ -186,6 +189,30 @@ export const SetLotVisibilityRequestSchema = z.object({
   visible: z.boolean(),
 });
 
+// --- FR-LOT-008: Capacity blackouts ----------------------------------------
+
+export const CreateCapacityBlockRequestSchema = z.object({
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  blockedBays: z.number().int().min(1).max(10_000).optional(),
+  reason: z.string().trim().min(2).max(200).optional(),
+});
+
+export const CapacityBlockSchema = z.object({
+  id: z.uuid(),
+  lotId: z.uuid(),
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  blockedBays: z.number().int(),
+  reason: z.string(),
+  createdBy: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+export const CapacityBlockListSchema = z.object({
+  items: z.array(CapacityBlockSchema),
+});
+
 export type Amenity = z.infer<typeof AmenitySchema>;
 export type Permit = z.infer<typeof PermitSchema>;
 export type RatePlan = z.infer<typeof RatePlanSchema>;
@@ -199,3 +226,6 @@ export type OpeningDay = z.infer<typeof OpeningDaySchema>;
 export type CreateLotRequest = z.infer<typeof CreateLotRequestSchema>;
 export type UpdateLotRequest = z.infer<typeof UpdateLotRequestSchema>;
 export type SetLotVisibilityRequest = z.infer<typeof SetLotVisibilityRequestSchema>;
+export type CreateCapacityBlockRequest = z.infer<typeof CreateCapacityBlockRequestSchema>;
+export type CapacityBlock = z.infer<typeof CapacityBlockSchema>;
+export type CapacityBlockList = z.infer<typeof CapacityBlockListSchema>;

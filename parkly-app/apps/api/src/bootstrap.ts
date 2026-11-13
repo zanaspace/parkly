@@ -13,6 +13,7 @@ import { createLogger } from './lib/logger.js';
 import { MemoryRateLimiter, type LimitRule, type RateLimiter } from './middleware/rate-limit.js';
 import { NotificationService } from './notifications/service.js';
 import {
+  FakeIdentityVerificationProvider,
   FakeMalwareScanner,
   FakeMapsProvider,
   FakePaymentProvider,
@@ -21,9 +22,12 @@ import {
   FakeSmsProvider,
   FakeStorageProvider,
 } from './providers/fakes.js';
+import { dojahIdentityProvider } from './providers/dojah-identity.js';
+import { flutterwavePaymentProvider } from './providers/flutterwave-payments.js';
 import { expoPushProvider } from './providers/expo-push.js';
 import type {
   EmailProvider,
+  IdentityVerificationProvider,
   PaymentProvider,
   PushProvider,
   SettlementProvider,
@@ -130,6 +134,17 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     config.settlement.provider === 'paystack'
       ? paystackPaymentProvider({ secretKey: config.settlement.secretKey })
       : new FakePaymentProvider();
+  const flutterwavePayments: PaymentProvider | undefined =
+    env.FLUTTERWAVE_SECRET_KEY && env.FLUTTERWAVE_WEBHOOK_HASH
+      ? flutterwavePaymentProvider({
+          secretKey: env.FLUTTERWAVE_SECRET_KEY,
+          webhookSecretHash: env.FLUTTERWAVE_WEBHOOK_HASH,
+        })
+      : undefined;
+  const identityVerification: IdentityVerificationProvider =
+    env.DOJAH_APP_ID && env.DOJAH_SECRET_KEY
+      ? dojahIdentityProvider({ appId: env.DOJAH_APP_ID, secretKey: env.DOJAH_SECRET_KEY })
+      : new FakeIdentityVerificationProvider();
   const storage: StorageProvider =
     config.storage.provider === 'supabase'
       ? supabaseStorage({ url: config.supabase.url, secretKey: config.storage.secretKey })
@@ -223,6 +238,8 @@ export function bootstrap(env: Record<string, string | undefined> = process.env)
     sessions,
     settlement,
     payments,
+    ...(flutterwavePayments ? { flutterwavePayments } : {}),
+    identityVerification,
     storage,
     scanner: new FakeMalwareScanner(),
     maps:

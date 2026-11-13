@@ -137,6 +137,27 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 5_000_000,
     default: DEFAULT_SUPPORT_REFUND_LIMIT_KOBO,
   },
+  {
+    key: 'pass.max_share_percent',
+    label: 'Monthly pass share ceiling',
+    description:
+      'Maximum percentage of a car park’s bookable capacity that can be allocated to monthly passes.',
+    kind: 'int',
+    unit: 'percent',
+    min: 10,
+    max: 100,
+    default: 50,
+  },
+  {
+    key: 'pass.requires_verified_driver',
+    label: 'Require verified driver for passes',
+    description: 'Require Tier 2 driver identity verification before purchasing any monthly pass.',
+    kind: 'boolean',
+    unit: null,
+    min: null,
+    max: null,
+    default: false,
+  },
 ];
 
 export const findSetting = (key: string): SettingDef | undefined =>

@@ -3,10 +3,14 @@
 import type {
   CancelBookingResponse,
   CreateBookingResponse,
+  CreatePassResponse,
+  DriverVerification,
   EarlyStartOption,
   ExtendBookingResponse,
   ExtensionOptions,
   OverstayPayResponse,
+  Pass,
+  PassWaitlistResponse,
   Vehicle,
 } from '@parkly/contracts';
 import { headers } from 'next/headers';
@@ -35,6 +39,13 @@ const MESSAGES: Record<string, string> = {
   BOOKING_NOT_EXTENDABLE: 'This booking cannot be extended right now.',
   NO_OVERSTAY_DUE: 'No overstay payment is due for this booking.',
   OVERSTAY_UNPAID: 'Pay your unpaid overstay (see My bookings) before booking again.',
+  DRIVER_VERIFICATION_REQUIRED:
+    'This car park requires a Verified Driver badge. Complete the 60-second ID check to continue.',
+  IDENTITY_VERIFICATION_FAILED:
+    'We could not verify that ID number and date of birth. Please double-check your details.',
+  PASS_SWAP_LIMIT_REACHED: 'You have already used all 2 vehicle swaps for this monthly pass.',
+  PASS_NOT_ACTIVE: 'Only active monthly passes can swap vehicles.',
+  BOOKING_LOT_FULL: 'Monthly pass capacity for this car park is full. Join the waitlist below.',
 };
 const message = (err: unknown) =>
   err instanceof ApiProblem
@@ -59,7 +70,6 @@ export async function startBooking(_prev: BookState, form: FormData): Promise<Bo
   try {
     created = await apiAs<CreateBookingResponse>(driver.accessToken, '/v1/bookings', {
       method: 'POST',
-      // One key per page and car: a double click is the same booking, a new car is a new one.
       headers: { 'idempotency-key': `${field(form, 'key')}-${vehicleId.slice(0, 8)}` },
       body: {
         lotId: field(form, 'lotId'),
@@ -156,7 +166,6 @@ export async function extendBooking(
       {
         method: 'POST',
         headers: {
-          // Same key for a double submit within the minute; a later retry gets a fresh checkout.
           'idempotency-key': `ext-${bookingId}-${new Date(newEndAt).getTime()}-${minuteBucket()}`,
         },
         body: {
@@ -296,4 +305,113 @@ export async function startEarly(
             : message(err);
     return { ok: false, message: msg };
   }
+}
+
+// --- Sprint 9: Monthly passes & Driver Identity Verification (FR-PASS-001…005, FR-AUTH-009) ---
+
+export async function startPass(_prev: BookState, form: FormData): Promise<BookState> {
+  const back = field(form, 'back') || '/passes';
+  const driver = await requireDriver(back);
+  const vehicleId = field(form, 'vehicleId');
+  const lotId = field(form, 'lotId');
+  const startDate = field(form, 'startDate');
+  if (!vehicleId) return { error: 'Pick the car for your monthly pass.' };
+  let created: CreatePassResponse;
+  try {
+    created = await apiAs<CreatePassResponse>(driver.accessToken, '/v1/passes', {
+      method: 'POST',
+      headers: { 'idempotency-key': `${field(form, 'key')}-${vehicleId.slice(0, 8)}` },
+      body: {
+        lotId,
+        vehicleId,
+        startDate,
+        source: 'WEB',
+        returnTo: `${await siteOrigin()}/passes`,
+      },
+    });
+  } catch (err) {
+    return { error: message(err) };
+  }
+  if (created.payment.authorizationUrl) {
+    redirect(created.payment.authorizationUrl);
+  }
+  redirect(`/passes/${created.pass.id}`);
+}
+
+export async function swapPassVehicle(_prev: BookState, form: FormData): Promise<BookState> {
+  const passId = field(form, 'passId');
+  const vehicleId = field(form, 'vehicleId');
+  const driver = await requireDriver(`/passes/${passId}`);
+  try {
+    await apiAs<Pass>(driver.accessToken, `/v1/passes/${encodeURIComponent(passId)}/swap-vehicle`, {
+      method: 'POST',
+      body: { vehicleId },
+    });
+  } catch (err) {
+    return { error: message(err) };
+  }
+  redirect(`/passes/${passId}`);
+}
+
+export async function renewPass(_prev: BookState, form: FormData): Promise<BookState> {
+  const passId = field(form, 'passId');
+  const driver = await requireDriver(`/passes/${passId}`);
+  let created: CreatePassResponse;
+  try {
+    created = await apiAs<CreatePassResponse>(
+      driver.accessToken,
+      `/v1/passes/${encodeURIComponent(passId)}/renew`,
+      {
+        method: 'POST',
+        headers: { 'idempotency-key': `renew-${passId}-${minuteBucket()}` },
+        body: {
+          source: 'WEB',
+          returnTo: `${await siteOrigin()}/passes`,
+        },
+      },
+    );
+  } catch (err) {
+    return { error: message(err) };
+  }
+  if (created.payment.authorizationUrl) {
+    redirect(created.payment.authorizationUrl);
+  }
+  redirect(`/passes/${created.pass.id}`);
+}
+
+export async function joinPassWaitlist(_prev: BookState, form: FormData): Promise<BookState> {
+  const lotId = field(form, 'lotId');
+  const desiredStart = field(form, 'desiredStart');
+  const back = field(form, 'back') || '/passes';
+  const driver = await requireDriver(back);
+  try {
+    await apiAs<PassWaitlistResponse>(driver.accessToken, '/v1/passes/waitlist', {
+      method: 'POST',
+      body: { lotId, desiredStart },
+    });
+  } catch (err) {
+    return { error: message(err) };
+  }
+  redirect(`${back}${back.includes('?') ? '&' : '?'}waitlisted=1`);
+}
+
+export async function verifyDriverIdentity(_prev: BookState, form: FormData): Promise<BookState> {
+  const back = field(form, 'back') || '/passes';
+  const method = field(form, 'method') === 'NIN' ? 'NIN' : 'DRIVERS_LICENSE';
+  const idNumber = field(form, 'idNumber');
+  const dateOfBirth = field(form, 'dateOfBirth');
+  const driver = await requireDriver(back);
+  try {
+    await apiAs<DriverVerification>(driver.accessToken, '/v1/me/verification', {
+      method: 'POST',
+      body: {
+        method,
+        idNumber,
+        ...(dateOfBirth ? { dateOfBirth } : {}),
+      },
+    });
+  } catch (err) {
+    return { error: message(err) };
+  }
+  redirect(back);
 }

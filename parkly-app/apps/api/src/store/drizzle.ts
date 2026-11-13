@@ -24,6 +24,7 @@ import {
   OperatorExistsError,
   SlugTakenError,
   StaleVersionError,
+  VehicleInUseError,
   type ConsentType,
   type FileRow,
   type KybDocumentRow,
@@ -53,6 +54,7 @@ import { drizzleDsar } from './drizzle-dsar.js';
 import { drizzleIncidents } from './drizzle-incidents.js';
 import { drizzleSupport } from './drizzle-support.js';
 import { drizzleBookings } from './drizzle-bookings.js';
+import { drizzlePasses } from './drizzle-passes.js';
 
 const {
   users,
@@ -78,6 +80,8 @@ const {
   featureFlags,
   lotSlotInventory,
   lotSigningKeys,
+  bookings,
+  passes,
 } = schema;
 
 const lotKeyColumns = {
@@ -109,6 +113,8 @@ const userColumns = {
   phoneLast4: users.phoneLast4,
   status: users.status,
   marketingOptIn: users.marketingOptIn,
+  isVerifiedDriver: users.isVerifiedDriver,
+  verifiedAt: users.verifiedAt,
 };
 
 const vehicleColumns = {
@@ -203,6 +209,7 @@ const lotColumns = {
   holdCapPercent: lots.holdCapPercent,
   freeHoldMinutes: lots.freeHoldMinutes,
   maxHoldMinutes: lots.maxHoldMinutes,
+  requiresVerifiedDriver: lots.requiresVerifiedDriver,
   version: lots.version,
   createdAt: lots.createdAt,
 };
@@ -455,6 +462,18 @@ export function drizzleStore(db: Db): Store {
       },
       async remove(userId, id) {
         await db.transaction(async (tx) => {
+          const [activePass] = await tx
+            .select({ id: passes.id })
+            .from(passes)
+            .where(and(eq(passes.vehicleId, id), inArray(passes.status, ['HELD', 'ACTIVE'])))
+            .limit(1);
+          const [activeBooking] = await tx
+            .select({ id: bookings.id })
+            .from(bookings)
+            .where(and(eq(bookings.vehicleId, id), eq(bookings.status, 'CHECKED_IN')))
+            .limit(1);
+          if (activePass || activeBooking) throw new VehicleInUseError();
+
           const [removed] = await tx
             .update(vehicles)
             .set({ deletedAt: new Date(), isDefault: false })
@@ -1628,6 +1647,7 @@ export function drizzleStore(db: Db): Store {
     },
 
     ...drizzleBookings(db),
+    ...drizzlePasses(db),
 
     attend: attending.attend,
 
