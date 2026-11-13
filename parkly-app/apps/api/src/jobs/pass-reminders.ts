@@ -56,10 +56,7 @@ export function passRemindersJob(deps: {
         await deps.store.passes.markReminded(pass.id, daysLeft);
         reminded += 1;
       } catch (err) {
-        deps.logger.error(
-          { err, passId: pass.id, daysLeft },
-          'pass reminder failed',
-        );
+        deps.logger.error({ err, passId: pass.id, daysLeft }, 'pass reminder failed');
       }
     }
 

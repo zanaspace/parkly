@@ -92,13 +92,22 @@ export default function PassDetailScreen() {
   }
 
   const footer = (
-    <Button label="Back to passes" variant="ghost" fullWidth onPress={() => router.replace('/passes')} />
+    <Button
+      label="Back to passes"
+      variant="ghost"
+      fullWidth
+      onPress={() => router.replace('/passes')}
+    />
   );
 
   if (!pass) {
     return (
       <Screen footer={footer}>
-        {error ? <Notice message={error} /> : <ActivityIndicator accessibilityLabel="Loading pass" />}
+        {error ? (
+          <Notice message={error} />
+        ) : (
+          <ActivityIndicator accessibilityLabel="Loading pass" />
+        )}
       </Screen>
     );
   }
@@ -198,7 +207,7 @@ export default function PassDetailScreen() {
         </View>
       ) : null}
 
-      {(pass.status === 'ACTIVE' || pass.status === 'EXPIRED') ? (
+      {pass.status === 'ACTIVE' || pass.status === 'EXPIRED' ? (
         <Button
           label={`Renew for 30 days (${formatNaira(pass.totalKobo)})`}
           fullWidth

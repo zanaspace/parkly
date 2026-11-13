@@ -269,7 +269,9 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
       type: 'CHECK_IN',
       clientEventId: crypto.randomUUID(),
       deviceTime: deviceTime(),
-      ...(result.isPass ? { passId: result.passId ?? result.bookingId } : { bookingId: result.bookingId }),
+      ...(result.isPass
+        ? { passId: result.passId ?? result.bookingId }
+        : { bookingId: result.bookingId }),
       method,
       ...(result.plate ? { plateSeen: result.plate } : {}),
       ...(overrideReason ? { overrideReason } : {}),

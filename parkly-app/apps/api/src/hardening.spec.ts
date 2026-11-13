@@ -34,19 +34,20 @@ describe('Sprint 9 — Hardening, Security, Low-End Device & Accessibility (docs
       resolve(ROOT, 'supabase/migrations/20261113170000_s9_passes_verification_blackouts.sql'),
       'utf8',
     ).toLowerCase();
-    expect(migration).toContain('alter table public.driver_verifications enable row level security');
-    expect(migration).toContain('alter table public.passes enable row level security');
-    expect(migration).toContain('alter table public.pass_waitlist enable row level security');
+    expect(migration).toMatch(
+      /alter table ("?public"?\.)?"?driver_verifications"? enable row level security/,
+    );
+    expect(migration).toMatch(/alter table ("?public"?\.)?"?passes"? enable row level security/);
+    expect(migration).toMatch(
+      /alter table ("?public"?\.)?"?pass_waitlist"? enable row level security/,
+    );
     expect(migration).toContain('passes_lot_status_period_idx');
     expect(migration).toContain('passes_driver_period_idx');
     expect(migration).toContain('passes_status_hold_idx');
   });
 
   it('verifies nightly off-platform backup workflow and post-restore erasure replay (docs/06 §7)', async () => {
-    const workflow = readFileSync(
-      resolve(ROOT, '.github/workflows/nightly-backup.yml'),
-      'utf8',
-    );
+    const workflow = readFileSync(resolve(ROOT, '.github/workflows/nightly-backup.yml'), 'utf8');
     expect(workflow).toContain('cron:');
     expect(workflow).toContain('pg_dump');
     expect(workflow).toContain('AGE_PUBLIC_KEY');
@@ -86,9 +87,9 @@ describe('Sprint 9 — Hardening, Security, Low-End Device & Accessibility (docs
     expect(depNames).not.toContain('lodash');
     expect(depNames).not.toContain('moment');
 
-    const webPkg = JSON.parse(
-      readFileSync(resolve(ROOT, 'apps/web/package.json'), 'utf8'),
-    ) as { dependencies: Record<string, string> };
+    const webPkg = JSON.parse(readFileSync(resolve(ROOT, 'apps/web/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
     expect(Object.keys(webPkg.dependencies).length).toBeLessThan(20);
   });
 
@@ -100,10 +101,7 @@ describe('Sprint 9 — Hardening, Security, Low-End Device & Accessibility (docs
     expect(buttonStyle).toContain('theme.target.min');
     expect(buttonStyle).toContain('hitSlop');
 
-    const nativeText = readFileSync(
-      resolve(ROOT, 'packages/ui-native/src/Text.tsx'),
-      'utf8',
-    );
+    const nativeText = readFileSync(resolve(ROOT, 'packages/ui-native/src/Text.tsx'), 'utf8');
     expect(nativeText).toContain('allowFontScaling');
     expect(nativeText).toContain('maxFontSizeMultiplier={2}');
   });

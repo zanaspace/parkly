@@ -304,4 +304,3 @@ describe('checkCapacityBlock (FR-LOT-008: capacity blackouts)', () => {
     ).toEqual({ ok: false, reason: 'INVALID_BLOCKED_BAYS' });
   });
 });
-

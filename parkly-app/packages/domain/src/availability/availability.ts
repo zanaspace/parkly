@@ -272,4 +272,3 @@ export function checkCapacityBlock(input: CapacityBlockCheckInput): CapacityBloc
 
   return { ok: true, slotCount };
 }
-

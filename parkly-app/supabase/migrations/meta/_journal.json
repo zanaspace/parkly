@@ -176,6 +176,13 @@
       "when": 1794477010973,
       "tag": "20261112095010_dsar_erasure",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794589200000,
+      "tag": "20261113170000_s9_passes_verification_blackouts",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { gateCodeFor, gateCodePayload } from '@parkly/domain/checkin';
 import { verifyQrToken } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
 import { gateCodes } from '../../lib/gate-codes.js';
@@ -116,7 +115,6 @@ async function addMonthlyLot(
     nameMismatch: false,
     providerSubaccountCode: 'ACCT_vi',
     status: 'ACTIVE',
-    failureReason: null,
     verifiedAt: new Date('2026-10-09T10:00:00Z'),
   });
   await store.lots.setStatus(op.id, lot.id, 'DRAFT', 'PENDING_VERIFICATION', null);
@@ -177,10 +175,11 @@ describe('Monthly passes (FR-PASS-001…004)', () => {
     // Verify the Ed25519 QR signature with the lot's public key
     const keyRow = w.store.lotKeyRows.find((k) => k.lotId === lot.id);
     expect(keyRow).toBeDefined();
+    if (!keyRow) throw new Error('missing keyRow');
     const qrCheck = await verifyQrToken(activePass.qrToken, {
       lotId: lot.id,
       now: new Date('2026-10-20T10:00:00Z'),
-      publicKeys: { [keyRow!.kid]: new Uint8Array(keyRow!.publicKey) },
+      publicKeys: { [keyRow.kid]: new Uint8Array(keyRow.publicKey) },
       earlyArrivalMin: 15,
       overstayAllowanceMin: 15,
     });
@@ -375,7 +374,7 @@ describe('Monthly passes (FR-PASS-001…004)', () => {
     const jobRes = await job({ payload: {}, deadline: new Date('2026-11-10T09:01:00Z') });
     expect(jobRes.processed).toBeGreaterThanOrEqual(1);
     const passRow = await w.store.passes.find(passId);
-    expect(passRow?.reminded7dAt).not.toBeNull();
+    expect(passRow?.lastReminderDays).toBe(7);
   });
 });
 
@@ -432,7 +431,9 @@ describe('Driver Identity Verification (FR-AUTH-009) & Verified Driver Gating (F
     });
 
     // Stored encrypted at rest, never plaintext
-    const storedRow = w.store.driverVerificationRows[0]!;
+    const storedRow = w.store.driverVerificationRows[0];
+    expect(storedRow).toBeDefined();
+    if (!storedRow) throw new Error('missing storedRow');
     expect(storedRow.idNumberEnc).not.toContain('AKW06968AA2');
     expect(w.deps.crypto.decrypt(storedRow.idNumberEnc)).toBe('AKW06968AA2');
 
@@ -601,7 +602,12 @@ describe('Flutterwave webhook (FR-PAY-007), retry-webhooks job & reapply-erasure
       payload: { event: 'charge.success' },
       at: new Date(TEST_NOW.getTime() - 60_000),
     });
-    await w.store.webhooks.finish(rec.id, 'FAILED', 'transient error', new Date(TEST_NOW.getTime() - 60_000));
+    await w.store.webhooks.finish(
+      rec.id,
+      'FAILED',
+      'transient error',
+      new Date(TEST_NOW.getTime() - 60_000),
+    );
     w.payments.pay(reference);
 
     const retryJob = retryWebhooksJob({
@@ -756,9 +762,9 @@ describe('Sprint 9 RBAC Matrix', () => {
     expect((await w.call('GET', '/v1/passes')).status).toBe(401);
     expect((await w.call('POST', '/v1/passes', { body: {} })).status).toBe(401);
     expect((await w.call('GET', '/v1/me/verification')).status).toBe(401);
-    expect(
-      (await w.call('GET', `/v1/operators/${operatorId}/lots/${lot.id}/blocks`)).status,
-    ).toBe(401);
+    expect((await w.call('GET', `/v1/operators/${operatorId}/lots/${lot.id}/blocks`)).status).toBe(
+      401,
+    );
 
     // 2. Non-driver cannot create or read driver passes -> 403
     expect((await w.call('GET', '/v1/passes', { as: attendant })).status).toBe(403);

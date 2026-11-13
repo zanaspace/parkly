@@ -344,7 +344,9 @@ export async function createCapacityBlock(
   }
   const blockedBays = blockedBaysRaw ? Number(blockedBaysRaw) : undefined;
   if (blockedBays !== undefined && (!Number.isInteger(blockedBays) || blockedBays < 1)) {
-    return { error: 'Blocked spaces must be a positive whole number (or leave blank to block all spaces).' };
+    return {
+      error: 'Blocked spaces must be a positive whole number (or leave blank to block all spaces).',
+    };
   }
 
   try {
@@ -427,4 +429,3 @@ export async function setRequiresVerifiedDriver(
   revalidatePath(`/lots/${lotId}`);
   return undefined;
 }
-

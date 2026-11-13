@@ -53,8 +53,7 @@ const COPY: Partial<Record<ErrorCode, string>> = {
     'Monthly passes at this car park are full right now. You can join the waitlist.',
   PASS_OVERLAP: 'This car already has a monthly pass at this car park for those dates.',
   PASS_NOT_OFFERED: 'This car park does not offer a 30-day monthly pass.',
-  PASS_SWAP_LIMIT_REACHED:
-    'You have already swapped the vehicle on this pass twice this month.',
+  PASS_SWAP_LIMIT_REACHED: 'You have already swapped the vehicle on this pass twice this month.',
   PASS_NOT_ACTIVE: 'This monthly pass is not active right now.',
   LOT_CAPACITY_BELOW_COMMITTED:
     'This car park has confirmed bookings that exceed the remaining spaces during that window.',

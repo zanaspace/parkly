@@ -17,14 +17,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import {
-  apiAccess,
-  apiAppendOnly,
-  bookingSourceEnum,
-  createdAt,
-  id,
-  updatedAt,
-} from './common.js';
+import { apiAccess, apiAppendOnly, bookingSourceEnum, createdAt, id, updatedAt } from './common.js';
 import { vehicles } from './account.js';
 import { users } from './identity.js';
 import { lots, productEnum, ratePlans } from './lots.js';

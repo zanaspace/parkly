@@ -350,8 +350,9 @@ export function attendRoutes(deps: AppDeps) {
       }
 
       for (let i = 0; i < results.length; i++) {
-        const r = results[i]!;
-        const e = events[i]!;
+        const r = results[i];
+        const e = events[i];
+        if (!r || !e) continue;
         if (
           r.result === 'REJECTED' &&
           r.reason === 'UNKNOWN_BOOKING' &&

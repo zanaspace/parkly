@@ -146,4 +146,3 @@ export const driverVerifications = pgTable(
     apiAccess('driver_verifications'),
   ],
 ).enableRLS();
-

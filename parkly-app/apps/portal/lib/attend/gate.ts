@@ -163,10 +163,8 @@ function decidePass(
   }
 
   const local = localPassStatus(passId, queue);
-  const inside =
-    local.lastAction === 'IN' || (local.lastAction === null && Boolean(pass?.inLot));
-  const checkedInAt =
-    local.checkedInAt ?? (pass?.checkedInAt ? new Date(pass.checkedInAt) : null);
+  const inside = local.lastAction === 'IN' || (local.lastAction === null && Boolean(pass?.inLot));
+  const checkedInAt = local.checkedInAt ?? (pass?.checkedInAt ? new Date(pass.checkedInAt) : null);
 
   if (inside) {
     return {

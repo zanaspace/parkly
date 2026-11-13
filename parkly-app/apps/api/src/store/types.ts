@@ -1804,10 +1804,7 @@ export class CapacityBlockError extends Error {
   }
 }
 export type PassHoldCode =
-  | 'PASS_CAPACITY_UNAVAILABLE'
-  | 'PASS_OVERLAP'
-  | 'LOT_NOT_BOOKABLE'
-  | 'PASS_NOT_OFFERED';
+  'PASS_CAPACITY_UNAVAILABLE' | 'PASS_OVERLAP' | 'LOT_NOT_BOOKABLE' | 'PASS_NOT_OFFERED';
 export class PassHoldError extends Error {
   constructor(readonly code: PassHoldCode) {
     super(code);
@@ -1816,10 +1813,7 @@ export class PassHoldError extends Error {
 export class PassSwapError extends Error {
   constructor(
     readonly code:
-      | 'PASS_NOT_ACTIVE'
-      | 'PASS_SWAP_LIMIT_REACHED'
-      | 'VEHICLE_IN_USE'
-      | 'SAME_VEHICLE',
+      'PASS_NOT_ACTIVE' | 'PASS_SWAP_LIMIT_REACHED' | 'VEHICLE_IN_USE' | 'SAME_VEHICLE',
   ) {
     super(code);
   }

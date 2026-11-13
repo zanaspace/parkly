@@ -17,7 +17,7 @@ type DojahResponse = {
     last_name?: string;
     middle_name?: string;
     birth_date?: string;
-     date_of_birth?: string;
+    date_of_birth?: string;
     phone_number?: string;
   };
   error?: string;
@@ -53,7 +53,7 @@ export function dojahIdentityProvider(opts: {
           signal: AbortSignal.timeout(10_000),
         });
       } catch (err) {
-        throw new Error(`Dojah network error: ${(err as Error).message}`);
+        throw new Error(`Dojah network error: ${(err as Error).message}`, { cause: err });
       }
 
       if (res.status === 404 || res.status === 422 || res.status === 400) {
@@ -80,8 +80,7 @@ export function dojahIdentityProvider(opts: {
         };
       }
 
-      const providerReference =
-        entity.uuid ?? `dojah_${input.method.toLowerCase()}_${Date.now()}`;
+      const providerReference = entity.uuid ?? `dojah_${input.method.toLowerCase()}_${Date.now()}`;
       const fullName = [entity.first_name, entity.middle_name, entity.last_name]
         .filter(Boolean)
         .join(' ')

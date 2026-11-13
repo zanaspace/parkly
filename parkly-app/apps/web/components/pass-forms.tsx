@@ -163,8 +163,8 @@ export function BuyPassForm({
         Buy 30-Day Monthly Pass · {lotName}
       </Text>
       <Text tone="secondary">
-        {monthlyRateLabel} for 30 consecutive days · 1 vehicle parked in the lot at a time · Up to
-        2 vehicle swaps per month.
+        {monthlyRateLabel} for 30 consecutive days · 1 vehicle parked in the lot at a time · Up to 2
+        vehicle swaps per month.
       </Text>
 
       <ActionForm action={action} className="pk-stack">
@@ -235,13 +235,7 @@ export function BuyPassForm({
 }
 
 /** FR-PASS-003 (One-tap renew) & FR-PASS-004 (Vehicle swap up to 2 times/month). */
-export function PassManageActions({
-  pass,
-  vehicles,
-}: {
-  pass: Pass;
-  vehicles: Vehicle[];
-}) {
+export function PassManageActions({ pass, vehicles }: { pass: Pass; vehicles: Vehicle[] }) {
   const [swapState, swapAction, swapPending] = useActionState<BookState, FormData>(
     swapPassVehicle,
     undefined,

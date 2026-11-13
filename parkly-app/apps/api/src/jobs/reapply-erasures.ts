@@ -30,7 +30,10 @@ export function reapplyErasuresJob(deps: {
         userAgent: null,
         requestId: null,
       });
-      deps.logger.info({ event: 'erasure.reapplied', reapplied: reappliedUsers }, 'reapplied erasures');
+      deps.logger.info(
+        { event: 'erasure.reapplied', reapplied: reappliedUsers },
+        'reapplied erasures',
+      );
     }
     return { processed: reappliedUsers, remaining: 0 };
   };

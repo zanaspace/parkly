@@ -1,4 +1,10 @@
-import type { DriverVerification, PublicLot, Quote, UnpaidOverstay, Vehicle } from '@parkly/contracts';
+import type {
+  DriverVerification,
+  PublicLot,
+  Quote,
+  UnpaidOverstay,
+  Vehicle,
+} from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';

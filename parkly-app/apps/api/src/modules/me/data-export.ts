@@ -62,47 +62,47 @@ export async function buildDataExport(
     generatedAt: now.toISOString(),
     about:
       'A copy of the personal data Parkly holds about you. Money is in naira. Payment card details are held by Paystack, not Parkly.',
-      profile: user
-        ? {
-            firstName: user.firstName,
-            lastName: user.lastName,
-            phoneEndsWith: user.phoneLast4,
-            marketingMessages: user.marketingOptIn,
-            accountStatus: user.status,
-            isVerifiedDriver: Boolean(user.isVerifiedDriver),
-            verifiedAt: iso(user.verifiedAt),
-          }
-        : null,
-      driverVerification: verification
-        ? {
-            method: verification.method,
-            status: verification.status,
-            idNumberMasked: verification.maskedIdNumber,
-            verifiedAt: iso(verification.verifiedAt),
-          }
-        : null,
-      vehicles: vehicles.map((v) => ({
-        plate: v.plateRaw,
-        make: v.make,
-        model: v.model,
-        colour: v.colour,
-        isDefault: v.isDefault,
-      })),
-      consents: Object.entries(consents).map(([type, c]) => ({
-        type,
-        version: c?.version ?? null,
-        granted: c?.granted ?? null,
-      })),
-      bookings,
-      passes: [...activePasses, ...pastPasses].map((p) => ({
-        code: p.code,
-        status: p.status,
-        periodStart: p.periodStart,
-        periodEnd: p.periodEnd,
-        plate: p.plateNorm,
-        totalNaira: p.totalKobo / 100,
-        swapsUsed: p.swapsUsed,
-        createdAt: iso(p.createdAt),
-      })),
-    };
+    profile: user
+      ? {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phoneEndsWith: user.phoneLast4,
+          marketingMessages: user.marketingOptIn,
+          accountStatus: user.status,
+          isVerifiedDriver: Boolean(user.isVerifiedDriver),
+          verifiedAt: iso(user.verifiedAt),
+        }
+      : null,
+    driverVerification: verification
+      ? {
+          method: verification.method,
+          status: verification.status,
+          idNumberMasked: verification.maskedIdNumber,
+          verifiedAt: iso(verification.verifiedAt),
+        }
+      : null,
+    vehicles: vehicles.map((v) => ({
+      plate: v.plateRaw,
+      make: v.make,
+      model: v.model,
+      colour: v.colour,
+      isDefault: v.isDefault,
+    })),
+    consents: Object.entries(consents).map(([type, c]) => ({
+      type,
+      version: c?.version ?? null,
+      granted: c?.granted ?? null,
+    })),
+    bookings,
+    passes: [...activePasses, ...pastPasses].map((p) => ({
+      code: p.code,
+      status: p.status,
+      periodStart: p.periodStart,
+      periodEnd: p.periodEnd,
+      plate: p.plateNorm,
+      totalNaira: p.totalKobo / 100,
+      swapsUsed: p.swapsUsed,
+      createdAt: iso(p.createdAt),
+    })),
+  };
 }

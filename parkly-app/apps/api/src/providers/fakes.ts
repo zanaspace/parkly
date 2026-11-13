@@ -307,4 +307,3 @@ export class FakeIdentityVerificationProvider implements IdentityVerificationPro
     };
   }
 }
-

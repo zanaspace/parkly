@@ -59,14 +59,18 @@ export function flutterwavePaymentProvider(opts: {
         signal: AbortSignal.timeout(10_000),
       });
     } catch (err) {
-      throw new Error(`Flutterwave network error on ${path}: ${(err as Error).message}`);
+      throw new Error(`Flutterwave network error on ${path}: ${(err as Error).message}`, {
+        cause: err,
+      });
     }
     if (res.status === 404) {
       return { status: 'error', message: 'not found' };
     }
     const json = (await res.json().catch(() => null)) as FlwEnvelope<T> | null;
     if (!res.ok || !json) {
-      throw new Error(`Flutterwave HTTP ${res.status} on ${path}: ${json?.message ?? 'bad response'}`);
+      throw new Error(
+        `Flutterwave HTTP ${res.status} on ${path}: ${json?.message ?? 'bad response'}`,
+      );
     }
     return json;
   }

@@ -83,7 +83,12 @@ export function CapacityBlocksSection(props: {
           <input type="hidden" name="lotId" value={props.lot.id} />
           <div className="pk-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ flex: '1 1 200px' }}>
-              <Input label="Starts at (Lagos time)" name="startsAt" type="datetime-local" required />
+              <Input
+                label="Starts at (Lagos time)"
+                name="startsAt"
+                type="datetime-local"
+                required
+              />
             </div>
             <div style={{ flex: '1 1 200px' }}>
               <Input label="Ends at (Lagos time)" name="endsAt" type="datetime-local" required />
@@ -147,11 +152,7 @@ export function VerifiedDriverGateSection(props: {
           <input type="hidden" name="operatorId" value={props.operatorId} />
           <input type="hidden" name="lotId" value={props.lot.id} />
           <input type="hidden" name="version" value={String(props.lot.version)} />
-          <input
-            type="hidden"
-            name="requiresVerifiedDriver"
-            value={enabled ? 'false' : 'true'}
-          />
+          <input type="hidden" name="requiresVerifiedDriver" value={enabled ? 'false' : 'true'} />
           <Button type="submit" variant={enabled ? 'secondary' : 'primary'} loading={pending}>
             {enabled
               ? 'Allow unverified drivers for hourly/daily stays'

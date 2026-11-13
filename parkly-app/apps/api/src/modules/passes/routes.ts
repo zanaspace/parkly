@@ -58,8 +58,11 @@ export const toPassCheckout = (p: PaymentRow, pass: PassRow): Checkout => ({
 });
 
 function nextDayKey(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const next = new Date(Date.UTC(y!, m! - 1, d! + 1));
+  const parts = dateKey.split('-').map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
   return next.toISOString().slice(0, 10);
 }
 
@@ -300,7 +303,10 @@ export function passRoutes(deps: AppDeps) {
       } catch (err) {
         if (err instanceof PassHoldError) {
           if (err.code === 'PASS_CAPACITY_UNAVAILABLE') {
-            throw new ApiError('BOOKING_LOT_FULL', 'This car park has reached its monthly pass capacity limit');
+            throw new ApiError(
+              'BOOKING_LOT_FULL',
+              'This car park has reached its monthly pass capacity limit',
+            );
           }
           throw new ApiError(err.code);
         }
@@ -343,7 +349,10 @@ export function passRoutes(deps: AppDeps) {
         body: { ...json(CreatePassRequestSchema), required: true },
       },
       responses: {
-        201: { description: 'Monthly pass held; pay to activate', ...json(CreatePassResponseSchema) },
+        201: {
+          description: 'Monthly pass held; pay to activate',
+          ...json(CreatePassResponseSchema),
+        },
       },
     }),
     async (c) => {
@@ -522,7 +531,10 @@ export function passRoutes(deps: AppDeps) {
         body: { ...json(RenewPassRequestSchema), required: true },
       },
       responses: {
-        201: { description: 'Renewal pass held; pay to activate', ...json(CreatePassResponseSchema) },
+        201: {
+          description: 'Renewal pass held; pay to activate',
+          ...json(CreatePassResponseSchema),
+        },
       },
     }),
     async (c) => {
@@ -578,7 +590,8 @@ export function passRoutes(deps: AppDeps) {
       const now = deps.now();
       const lot = await deps.store.lots.findLive(body.lotId, lagosDateKey(now));
       if (!lot) throw new ApiError('LOT_NOT_BOOKABLE');
-      const desiredStart = (body as { desiredStart?: string; desiredStartDate?: string }).desiredStart ??
+      const desiredStart =
+        (body as { desiredStart?: string; desiredStartDate?: string }).desiredStart ??
         (body as { desiredStart?: string; desiredStartDate?: string }).desiredStartDate;
       if (!desiredStart) throw new ApiError('VALIDATION_FAILED', 'desiredStartDate is required');
       const today = lagosDateKey(now);
@@ -590,7 +603,6 @@ export function passRoutes(deps: AppDeps) {
           'Pick a desired start date from today up to 30 days ahead',
         );
       }
-      const period = passPeriod(desiredStart);
       const entry = await deps.store.passes.joinWaitlist(
         {
           lotId: lot.id,
@@ -644,13 +656,7 @@ export function passRoutes(deps: AppDeps) {
       );
       return res;
     }
-    return deps.store.passes.checkOut(
-      pass.id,
-      lot.id,
-      actor.userId,
-      'SELF',
-      now,
-    );
+    return deps.store.passes.checkOut(pass.id, lot.id, actor.userId, 'SELF', now);
   }
 
   const passPath = z.object({ id: z.uuid() });
@@ -663,7 +669,10 @@ export function passRoutes(deps: AppDeps) {
       ...secured,
       request: { params: passPath, body: { ...json(SelfCheckRequestSchema), required: true } },
       responses: {
-        200: { description: 'Pass checked in (1 vehicle at a time)', ...json(SelfCheckResultSchema) },
+        200: {
+          description: 'Pass checked in (1 vehicle at a time)',
+          ...json(SelfCheckResultSchema),
+        },
       },
     }),
     async (c) => c.json(await passSelfCheck(c, c.req.valid('param').id, 'CHECK_IN'), 200),

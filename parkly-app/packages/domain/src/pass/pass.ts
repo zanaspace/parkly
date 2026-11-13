@@ -169,11 +169,7 @@ export type PassVehicleSwapDecision =
   | { ok: true; swapsUsedAfter: number; swapsRemainingAfter: number }
   | {
       ok: false;
-      reason:
-        | 'PASS_NOT_ACTIVE'
-        | 'PASS_SWAP_LIMIT_REACHED'
-        | 'VEHICLE_IN_USE'
-        | 'SAME_VEHICLE';
+      reason: 'PASS_NOT_ACTIVE' | 'PASS_SWAP_LIMIT_REACHED' | 'VEHICLE_IN_USE' | 'SAME_VEHICLE';
     };
 
 /**

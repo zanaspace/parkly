@@ -6,6 +6,7 @@ import {
   checkPassCapacity,
   checkPassCheckIn,
   checkPassVehicleSwap,
+  type PassStatus,
 } from '@parkly/domain/pass';
 import { lagosDateKey, slotsInWindow } from '@parkly/domain/time';
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
@@ -87,9 +88,7 @@ const paymentColumns = {
   createdAt: payments.createdAt,
 };
 
-export function drizzlePasses(
-  db: Db,
-): Pick<Store, 'driverVerifications' | 'lotBlocks' | 'passes'> {
+export function drizzlePasses(db: Db): Pick<Store, 'driverVerifications' | 'lotBlocks' | 'passes'> {
   return {
     driverVerifications: {
       async record(row, at) {
@@ -486,13 +485,7 @@ export function drizzlePasses(
             driverVerified: users.isVerifiedDriver,
           })
           .from(passes)
-          .leftJoin(
-            sessions,
-            and(
-              eq(sessions.passId, passes.id),
-              isNull(sessions.checkOutAt),
-            ),
-          )
+          .leftJoin(sessions, and(eq(sessions.passId, passes.id), isNull(sessions.checkOutAt)))
           .leftJoin(users, eq(users.id, passes.driverId))
           .where(
             and(
@@ -508,7 +501,7 @@ export function drizzlePasses(
           plateNorm: r.plateNorm,
           periodStart: r.periodStart,
           periodEnd: r.periodEnd,
-          status: r.status as any,
+          status: r.status as PassStatus,
           checkedInAt: r.checkedInAt ?? null,
           driverVerified: Boolean(r.driverVerified),
         }));
@@ -618,13 +611,19 @@ export function drizzlePasses(
               .from(ledgerAccounts)
               .where(inArray(ledgerAccounts.code, [clearingCode, payableCode, revCode]));
             const byCode = new Map(accounts.map((a) => [a.code, a.id]));
+            const clearingId = byCode.get(clearingCode);
+            const payableId = byCode.get(payableCode);
+            const revId = byCode.get(revCode);
+            if (!clearingId || !payableId) {
+              throw new Error('ledger accounts missing');
+            }
             const journalId = uuidv7();
 
             await tx.insert(ledgerEntries).values([
               {
                 id: uuidv7(),
                 journalId,
-                accountId: byCode.get(clearingCode)!,
+                accountId: clearingId,
                 direction: 'DEBIT',
                 amountKobo: payment.amountKobo,
                 paymentId: payment.id,
@@ -634,19 +633,19 @@ export function drizzlePasses(
               {
                 id: uuidv7(),
                 journalId,
-                accountId: byCode.get(payableCode)!,
+                accountId: payableId,
                 direction: 'CREDIT',
                 amountKobo: payment.operatorAmountKobo,
                 paymentId: payment.id,
                 description: `Pass ${pass.code}`,
                 createdAt: at,
               },
-              ...(payment.platformAmountKobo > 0
+              ...(payment.platformAmountKobo > 0 && revId
                 ? [
                     {
                       id: uuidv7(),
                       journalId,
-                      accountId: byCode.get(revCode)!,
+                      accountId: revId,
                       direction: 'CREDIT' as const,
                       amountKobo: payment.platformAmountKobo,
                       paymentId: payment.id,

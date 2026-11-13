@@ -240,4 +240,3 @@ export interface IdentityVerificationProvider {
     phoneLast4?: string | null;
   }): Promise<IdentityVerificationOutcome>;
 }
-

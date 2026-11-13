@@ -6834,9 +6834,7 @@
                 },
                 "required": [
                   "startsAt",
-                  "endsAt",
-                  "blockedBays",
-                  "reason"
+                  "endsAt"
                 ]
               }
             }
@@ -21510,6 +21508,14 @@
                           "format": "date-time",
                           "default": null
                         },
+                        "renewedFromId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid",
+                          "default": null
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -21890,6 +21896,14 @@
                             "format": "date-time",
                             "default": null
                           },
+                          "renewedFromId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uuid",
+                            "default": null
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -22220,6 +22234,14 @@
                         "null"
                       ],
                       "format": "date-time",
+                      "default": null
+                    },
+                    "renewedFromId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid",
                       "default": null
                     },
                     "createdAt": {
@@ -22592,6 +22614,14 @@
                           "format": "date-time",
                           "default": null
                         },
+                        "renewedFromId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid",
+                          "default": null
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -22941,6 +22971,14 @@
                         "null"
                       ],
                       "format": "date-time",
+                      "default": null
+                    },
+                    "renewedFromId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid",
                       "default": null
                     },
                     "createdAt": {
@@ -23313,6 +23351,14 @@
                           "format": "date-time",
                           "default": null
                         },
+                        "renewedFromId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uuid",
+                          "default": null
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -23416,11 +23462,14 @@
                   "desiredStartDate": {
                     "type": "string",
                     "format": "date"
+                  },
+                  "desiredStart": {
+                    "type": "string",
+                    "format": "date"
                   }
                 },
                 "required": [
-                  "lotId",
-                  "desiredStartDate"
+                  "lotId"
                 ]
               }
             }
@@ -23446,6 +23495,10 @@
                       "type": "string",
                       "format": "date"
                     },
+                    "desiredStart": {
+                      "type": "string",
+                      "format": "date"
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -23463,7 +23516,6 @@
                   "required": [
                     "id",
                     "lotId",
-                    "desiredStartDate",
                     "status",
                     "createdAt"
                   ]

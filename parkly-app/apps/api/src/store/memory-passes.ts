@@ -19,7 +19,6 @@ import {
   type LotRow,
   type PassRow,
   type PassWaitlistRow,
-  type PaymentRow,
   type SlotRow,
   type Store,
   type UserRow,
@@ -105,10 +104,7 @@ export class MemoryPasses {
 
       if (!check.ok) {
         if (check.reason === 'LOT_CAPACITY_BELOW_COMMITTED') {
-          throw new CapacityBlockError(
-            'LOT_CAPACITY_BELOW_COMMITTED',
-            check.conflictingSlotStart,
-          );
+          throw new CapacityBlockError('LOT_CAPACITY_BELOW_COMMITTED', check.conflictingSlotStart);
         }
         throw new CapacityBlockError('BOOKING_WINDOW_INVALID');
       }
@@ -320,9 +316,7 @@ export class MemoryPasses {
     },
 
     settle: async (paymentId, charge, at) => {
-      const payment = this.deps.bookings.paymentRows.find(
-        (p) => p.id === paymentId,
-      );
+      const payment = this.deps.bookings.paymentRows.find((p) => p.id === paymentId);
       if (!payment || !payment.passId) throw new Error(`no pass payment ${paymentId}`);
       const pass = this.passRows.find((p) => p.id === payment.passId);
       if (!pass) throw new Error(`no pass ${payment.passId}`);
@@ -336,7 +330,7 @@ export class MemoryPasses {
               ? 'CANCELLED'
               : 'EXPIRED';
 
-      let decision = confirmDecision({
+      const decision = confirmDecision({
         payment: { status: payment.status, amountKobo: payment.amountKobo },
         verify: charge,
         bookingStatus: mappedBookingStatus,
@@ -398,8 +392,7 @@ export class MemoryPasses {
           paymentId: payment.id,
           amountKobo: charge.amountKobo,
           reason: (decision === 'REFUND_HOLD_EXPIRED' ? 'HOLD_EXPIRED' : 'OTHER') as
-            | 'HOLD_EXPIRED'
-            | 'OTHER',
+            'HOLD_EXPIRED' | 'OTHER',
           status: 'PENDING' as const,
           providerRefundId: null,
           requestedBy: null,

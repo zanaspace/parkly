@@ -16,7 +16,7 @@ import {
 } from '@parkly/contracts';
 import { isValidPlate, normalisePlate } from '@parkly/domain/plate';
 import { lagosDateKey } from '@parkly/domain/time';
-import { maskIdentityNumber, validateVerificationInput } from '@parkly/domain/verification';
+import { validateVerificationInput } from '@parkly/domain/verification';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
 import { audit } from '../../lib/audit.js';
@@ -376,7 +376,7 @@ export function meRoutes(deps: AppDeps) {
           userId: actor.userId,
           method: body.method,
           status: providerResult.verified ? 'VERIFIED' : 'FAILED',
-          provider: (deps.identityVerification.name.toUpperCase() as 'DOJAH' | 'FAKE'),
+          provider: deps.identityVerification.name.toUpperCase() as 'DOJAH' | 'FAKE',
           providerReference: providerResult.providerReference,
           idNumberEnc: deps.crypto.encrypt(checked.normalisedId),
           idNumberHash: deps.crypto.lookupHash(checked.normalisedId),

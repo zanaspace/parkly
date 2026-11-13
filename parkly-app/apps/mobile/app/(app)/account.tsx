@@ -98,7 +98,9 @@ export default function Account() {
   const router = useRouter();
   const auth = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | 'verify' | null>(null);
+  const [busy, setBusy] = useState<
+    'device' | 'all' | 'delete' | 'export' | 'keep' | 'verify' | null
+  >(null);
   const [method, setMethod] = useState<'FRSC_LICENSE' | 'NIN_PHONE'>('FRSC_LICENSE');
   const [idNumber, setIdNumber] = useState('');
   const [dob, setDob] = useState('1990-01-01');
@@ -225,7 +227,11 @@ export default function Account() {
               selected={method === 'FRSC_LICENSE'}
               onPress={() => setMethod('FRSC_LICENSE')}
             />
-            <Chip label="11-digit NIN" selected={method === 'NIN_PHONE'} onPress={() => setMethod('NIN_PHONE')} />
+            <Chip
+              label="11-digit NIN"
+              selected={method === 'NIN_PHONE'}
+              onPress={() => setMethod('NIN_PHONE')}
+            />
           </View>
           <Input
             label={method === 'FRSC_LICENSE' ? 'License number' : '11-digit NIN'}

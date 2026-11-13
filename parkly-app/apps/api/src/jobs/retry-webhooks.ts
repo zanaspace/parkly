@@ -44,7 +44,10 @@ export function retryWebhooksJob(deps: {
         );
         processed += 1;
       } catch (err) {
-        deps.logger.error({ err, webhookId: row.id, reference: row.reference }, 'webhook retry failed');
+        deps.logger.error(
+          { err, webhookId: row.id, reference: row.reference },
+          'webhook retry failed',
+        );
         await deps.store.webhooks.finish(row.id, 'FAILED', 'retry failed', deps.now());
       }
     }

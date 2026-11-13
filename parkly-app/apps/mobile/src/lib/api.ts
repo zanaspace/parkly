@@ -360,7 +360,12 @@ export function createApiClient(options: ApiClientOptions) {
 
     // Driver Identity Verification (FR-AUTH-009 / FR-PASS-005)
     verification: () =>
-      request<DriverVerification>('GET', '/v1/me/verification', undefined, DriverVerificationSchema),
+      request<DriverVerification>(
+        'GET',
+        '/v1/me/verification',
+        undefined,
+        DriverVerificationSchema,
+      ),
     submitVerification: (body: VerifyDriverIdentityRequest) =>
       request<DriverVerification>('POST', '/v1/me/verification', body, DriverVerificationSchema),
 
@@ -381,12 +386,7 @@ export function createApiClient(options: ApiClientOptions) {
         VerifyPassPaymentResponseSchema,
       ),
     swapPassVehicle: (id: string, body: SwapPassVehicleRequest) =>
-      request<Pass>(
-        'POST',
-        `/v1/passes/${encodeURIComponent(id)}/swap-vehicle`,
-        body,
-        PassSchema,
-      ),
+      request<Pass>('POST', `/v1/passes/${encodeURIComponent(id)}/swap-vehicle`, body, PassSchema),
     renewPass: (id: string, body: RenewPassRequest, idempotencyKey: string) =>
       request<CreatePassResponse>(
         'POST',

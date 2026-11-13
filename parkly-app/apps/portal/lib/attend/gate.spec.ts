@@ -1,14 +1,7 @@
 import type { Manifest } from '@parkly/contracts';
 import { newLotKeyPair, signQrToken, toBase64Url } from '@parkly/domain/qr';
 import { describe, expect, it } from 'vitest';
-import {
-  checkCode,
-  checkPlate,
-  checkScan,
-  localStatus,
-  parkedNow,
-  parkedPassesNow,
-} from './gate';
+import { checkCode, checkPlate, checkScan, localStatus, parkedNow, parkedPassesNow } from './gate';
 import type { QueuedEvent } from './queue';
 
 const LOT = '01a162b3-dcae-740c-a25a-e148a6951c2e';
@@ -243,4 +236,3 @@ describe('monthly pass at the gate (FR-PASS-002, FR-PASS-005)', () => {
     expect(rSwapped).toMatchObject({ colour: 'RED', reason: 'INVALID' });
   });
 });
-

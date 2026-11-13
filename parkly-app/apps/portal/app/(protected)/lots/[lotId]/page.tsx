@@ -54,9 +54,9 @@ export default async function LotPage({
       apiFetch<SelfCheckinSetting>(publicEnv().apiUrl, `${base}/self-check-in`, accessToken).catch(
         () => null,
       ),
-      apiFetch<CapacityBlockList>(publicEnv().apiUrl, `${base}/blocks`, accessToken).catch(
-        () => ({ items: [] }),
-      ),
+      apiFetch<CapacityBlockList>(publicEnv().apiUrl, `${base}/blocks`, accessToken).catch(() => ({
+        items: [],
+      })),
     ]);
     lot = fetchedLot;
     selfCheckin = fetchedSelfCheckin;
@@ -133,11 +133,7 @@ export default async function LotPage({
           <Text variant="heading-md" as="h2">
             Verified Driver policy
           </Text>
-          <VerifiedDriverGateSection
-            operatorId={operatorId}
-            lot={lot}
-            canManage={canManage}
-          />
+          <VerifiedDriverGateSection operatorId={operatorId} lot={lot} canManage={canManage} />
         </>
       )}
 

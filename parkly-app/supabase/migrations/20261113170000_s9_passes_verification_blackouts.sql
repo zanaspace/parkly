@@ -1,186 +1,107 @@
--- Sprint 9: Monthly passes (FR-PASS-001..004), Driver Identity Verification Tier 2 KYC (FR-AUTH-009),
--- Verified Driver gating (FR-PASS-005), and Capacity blackouts (FR-LOT-008).
-
--- 1. Enums
-do $$ begin
-  create type public.pass_status as enum ('HELD', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'REVOKED');
-exception when duplicate_object then null; end $$;
-
-do $$ begin
-  create type public.pass_waitlist_status as enum ('WAITING', 'NOTIFIED', 'CONVERTED', 'EXPIRED');
-exception when duplicate_object then null; end $$;
-
-do $$ begin
-  create type public.driver_verification_method as enum ('FRSC_LICENSE', 'NIN_PHONE');
-exception when duplicate_object then null; end $$;
-
-do $$ begin
-  create type public.driver_verification_status as enum ('VERIFIED', 'REJECTED', 'FAILED');
-exception when duplicate_object then null; end $$;
-
-do $$ begin
-  create type public.identity_provider as enum ('DOJAH', 'FAKE');
-exception when duplicate_object then null; end $$;
-
--- 2. Alter users & lots & lot_closures
-alter table public.users
-  add column if not exists is_verified_driver boolean not null default false,
-  add column if not exists verified_at timestamptz;
-
-alter table public.lots
-  add column if not exists requires_verified_driver boolean not null default false;
-
-alter table public.lot_closures
-  add column if not exists blocked_bays integer not null default 1;
-
-do $$ begin
-  alter table public.lot_closures
-    add constraint lot_closures_bays_check check (blocked_bays > 0);
-exception when duplicate_object then null; end $$;
-
--- 3. driver_verifications (Tier 2 KYC, FR-AUTH-009)
-create table if not exists public.driver_verifications (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.users(id) on delete cascade,
-  method public.driver_verification_method not null,
-  status public.driver_verification_status not null,
-  provider public.identity_provider not null,
-  provider_reference varchar(120) not null,
-  id_number_enc text not null,
-  id_number_hash bytea not null,
-  masked_id_number varchar(32) not null,
-  verified_name varchar(120),
-  date_of_birth_enc text,
-  rejection_reason text,
-  verified_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+CREATE TYPE "public"."driver_verification_method" AS ENUM('FRSC_LICENSE', 'NIN_PHONE');--> statement-breakpoint
+CREATE TYPE "public"."driver_verification_status" AS ENUM('VERIFIED', 'REJECTED', 'FAILED');--> statement-breakpoint
+CREATE TYPE "public"."identity_provider" AS ENUM('DOJAH', 'FAKE');--> statement-breakpoint
+CREATE TYPE "public"."pass_status" AS ENUM('HELD', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'REVOKED');--> statement-breakpoint
+CREATE TYPE "public"."pass_waitlist_status" AS ENUM('WAITING', 'NOTIFIED', 'CONVERTED', 'EXPIRED');--> statement-breakpoint
+CREATE TABLE "driver_verifications" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"user_id" uuid NOT NULL,
+	"method" "driver_verification_method" NOT NULL,
+	"status" "driver_verification_status" NOT NULL,
+	"provider" "identity_provider" NOT NULL,
+	"provider_reference" varchar(120) NOT NULL,
+	"id_number_enc" text NOT NULL,
+	"id_number_hash" "bytea" NOT NULL,
+	"masked_id_number" varchar(32) NOT NULL,
+	"verified_name" varchar(120),
+	"date_of_birth_enc" text,
+	"rejection_reason" text,
+	"verified_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-
-create index if not exists driver_verifications_user_idx
-  on public.driver_verifications (user_id, created_at desc);
-create index if not exists driver_verifications_hash_idx
-  on public.driver_verifications (id_number_hash);
-
-alter table public.driver_verifications enable row level security;
-
-drop policy if exists driver_verifications_api_access on public.driver_verifications;
-create policy driver_verifications_api_access
-  on public.driver_verifications
-  as permissive
-  for all
-  to parkly_api
-  using (true)
-  with check (true);
-
--- 4. passes & pass_waitlist (FR-PASS-001..004)
-create table if not exists public.passes (
-  id uuid primary key default gen_random_uuid(),
-  code varchar(9) not null,
-  driver_id uuid not null references public.users(id) on delete restrict,
-  vehicle_id uuid not null references public.vehicles(id) on delete restrict,
-  plate_norm_snapshot varchar(12) not null,
-  lot_id uuid not null references public.lots(id) on delete restrict,
-  period_start date not null,
-  period_end date not null,
-  starts_at timestamptz not null,
-  ends_at timestamptz not null,
-  status public.pass_status not null default 'HELD',
-  hold_expires_at timestamptz,
-  price_kobo bigint not null,
-  service_fee_kobo bigint not null default 0,
-  total_kobo bigint not null,
-  commission_bps integer not null,
-  rate_plan_id uuid not null references public.rate_plans(id) on delete restrict,
-  pricing_breakdown jsonb not null,
-  swaps_used smallint not null default 0,
-  last_reminder_days smallint,
-  renewed_from_pass_id uuid,
-  source public.booking_source not null default 'MOBILE',
-  version integer not null default 1,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint passes_period_check check (period_end >= period_start),
-  constraint passes_window_check check (ends_at > starts_at),
-  constraint passes_amounts_check check (price_kobo > 0 and service_fee_kobo >= 0 and total_kobo = price_kobo + service_fee_kobo),
-  constraint passes_swaps_check check (swaps_used between 0 and 2),
-  constraint passes_hold_check check (status <> 'HELD' or hold_expires_at is not null)
+--> statement-breakpoint
+ALTER TABLE "driver_verifications" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "pass_waitlist" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"lot_id" uuid NOT NULL,
+	"driver_id" uuid NOT NULL,
+	"desired_start_date" date NOT NULL,
+	"status" "pass_waitlist_status" DEFAULT 'WAITING' NOT NULL,
+	"notified_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-
-create unique index if not exists passes_code_key on public.passes (code);
-create index if not exists passes_driver_period_idx on public.passes (driver_id, period_end desc);
-create index if not exists passes_lot_status_period_idx on public.passes (lot_id, status, period_start, period_end);
-create index if not exists passes_status_hold_idx on public.passes (status, hold_expires_at);
-create index if not exists passes_vehicle_idx on public.passes (vehicle_id);
-
-alter table public.passes enable row level security;
-
-drop policy if exists passes_api_access on public.passes;
-create policy passes_api_access
-  on public.passes
-  as permissive
-  for all
-  to parkly_api
-  using (true)
-  with check (true);
-
-create table if not exists public.pass_waitlist (
-  id uuid primary key default gen_random_uuid(),
-  lot_id uuid not null references public.lots(id) on delete cascade,
-  driver_id uuid not null references public.users(id) on delete cascade,
-  desired_start_date date not null,
-  status public.pass_waitlist_status not null default 'WAITING',
-  notified_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+--> statement-breakpoint
+ALTER TABLE "pass_waitlist" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "passes" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"code" varchar(9) NOT NULL,
+	"driver_id" uuid NOT NULL,
+	"vehicle_id" uuid NOT NULL,
+	"plate_norm_snapshot" varchar(12) NOT NULL,
+	"lot_id" uuid NOT NULL,
+	"period_start" date NOT NULL,
+	"period_end" date NOT NULL,
+	"starts_at" timestamp with time zone NOT NULL,
+	"ends_at" timestamp with time zone NOT NULL,
+	"status" "pass_status" DEFAULT 'HELD' NOT NULL,
+	"hold_expires_at" timestamp with time zone,
+	"price_kobo" bigint NOT NULL,
+	"service_fee_kobo" bigint DEFAULT 0 NOT NULL,
+	"total_kobo" bigint NOT NULL,
+	"commission_bps" integer NOT NULL,
+	"rate_plan_id" uuid NOT NULL,
+	"pricing_breakdown" jsonb NOT NULL,
+	"swaps_used" smallint DEFAULT 0 NOT NULL,
+	"last_reminder_days" smallint,
+	"renewed_from_pass_id" uuid,
+	"source" "booking_source" DEFAULT 'MOBILE' NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "passes_period_check" CHECK ("passes"."period_end" >= "passes"."period_start"),
+	CONSTRAINT "passes_window_check" CHECK ("passes"."ends_at" > "passes"."starts_at"),
+	CONSTRAINT "passes_amounts_check" CHECK ("passes"."price_kobo" > 0 and "passes"."service_fee_kobo" >= 0 and "passes"."total_kobo" = "passes"."price_kobo" + "passes"."service_fee_kobo"),
+	CONSTRAINT "passes_swaps_check" CHECK ("passes"."swaps_used" between 0 and 2),
+	CONSTRAINT "passes_hold_check" CHECK ("passes"."status" <> 'HELD' or "passes"."hold_expires_at" is not null)
 );
-
-create index if not exists pass_waitlist_lot_status_idx
-  on public.pass_waitlist (lot_id, status, created_at);
-create index if not exists pass_waitlist_driver_idx
-  on public.pass_waitlist (driver_id);
-
-alter table public.pass_waitlist enable row level security;
-
-drop policy if exists pass_waitlist_api_access on public.pass_waitlist;
-create policy pass_waitlist_api_access
-  on public.pass_waitlist
-  as permissive
-  for all
-  to parkly_api
-  using (true)
-  with check (true);
-
--- 5. Link payments, sessions, checkin_events to passes
-alter table public.payments
-  add column if not exists pass_id uuid references public.passes(id) on delete restrict;
-
-create index if not exists payments_pass_idx on public.payments (pass_id);
-
-do $$ begin
-  alter table public.payments
-    add constraint payments_pass_target_check check (kind <> 'PASS' or pass_id is not null);
-exception when duplicate_object then null; end $$;
-
-alter table public.sessions
-  alter column booking_id drop not null,
-  add column if not exists pass_id uuid references public.passes(id) on delete restrict;
-
-drop index if exists public.sessions_booking_key;
-create unique index if not exists sessions_booking_key
-  on public.sessions (booking_id)
-  where booking_id is not null;
-
-create unique index if not exists sessions_pass_open_key
-  on public.sessions (pass_id)
-  where pass_id is not null and check_out_at is null;
-
-create index if not exists sessions_pass_idx on public.sessions (pass_id);
-
-do $$ begin
-  alter table public.sessions
-    add constraint sessions_source_check check (booking_id is not null or pass_id is not null);
-exception when duplicate_object then null; end $$;
-
-alter table public.checkin_events
-  add column if not exists pass_id uuid;
+--> statement-breakpoint
+ALTER TABLE "passes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+DROP INDEX "sessions_booking_key";--> statement-breakpoint
+ALTER TABLE "sessions" ALTER COLUMN "booking_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN "is_verified_driver" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN "verified_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "lot_closures" ADD COLUMN "blocked_bays" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "lots" ADD COLUMN "requires_verified_driver" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "payments" ADD COLUMN "pass_id" uuid;--> statement-breakpoint
+ALTER TABLE "checkin_events" ADD COLUMN "pass_id" uuid;--> statement-breakpoint
+ALTER TABLE "sessions" ADD COLUMN "pass_id" uuid;--> statement-breakpoint
+ALTER TABLE "driver_verifications" ADD CONSTRAINT "driver_verifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pass_waitlist" ADD CONSTRAINT "pass_waitlist_lot_id_lots_id_fk" FOREIGN KEY ("lot_id") REFERENCES "public"."lots"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pass_waitlist" ADD CONSTRAINT "pass_waitlist_driver_id_users_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "passes" ADD CONSTRAINT "passes_driver_id_users_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "passes" ADD CONSTRAINT "passes_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "passes" ADD CONSTRAINT "passes_lot_id_lots_id_fk" FOREIGN KEY ("lot_id") REFERENCES "public"."lots"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "passes" ADD CONSTRAINT "passes_rate_plan_id_rate_plans_id_fk" FOREIGN KEY ("rate_plan_id") REFERENCES "public"."rate_plans"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "driver_verifications_user_idx" ON "driver_verifications" USING btree ("user_id","created_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "driver_verifications_hash_idx" ON "driver_verifications" USING btree ("id_number_hash");--> statement-breakpoint
+CREATE INDEX "pass_waitlist_lot_status_idx" ON "pass_waitlist" USING btree ("lot_id","status","created_at");--> statement-breakpoint
+CREATE INDEX "pass_waitlist_driver_idx" ON "pass_waitlist" USING btree ("driver_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "passes_code_key" ON "passes" USING btree ("code");--> statement-breakpoint
+CREATE INDEX "passes_driver_period_idx" ON "passes" USING btree ("driver_id","period_end" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "passes_lot_status_period_idx" ON "passes" USING btree ("lot_id","status","period_start","period_end");--> statement-breakpoint
+CREATE INDEX "passes_status_hold_idx" ON "passes" USING btree ("status","hold_expires_at");--> statement-breakpoint
+CREATE INDEX "passes_vehicle_idx" ON "passes" USING btree ("vehicle_id");--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_pass_id_passes_id_fk" FOREIGN KEY ("pass_id") REFERENCES "public"."passes"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_pass_id_passes_id_fk" FOREIGN KEY ("pass_id") REFERENCES "public"."passes"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "payments_pass_idx" ON "payments" USING btree ("pass_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "sessions_pass_open_key" ON "sessions" USING btree ("pass_id") WHERE "sessions"."pass_id" is not null and "sessions"."check_out_at" is null;--> statement-breakpoint
+CREATE INDEX "sessions_pass_idx" ON "sessions" USING btree ("pass_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "sessions_booking_key" ON "sessions" USING btree ("booking_id") WHERE "sessions"."booking_id" is not null;--> statement-breakpoint
+ALTER TABLE "lot_closures" ADD CONSTRAINT "lot_closures_bays_check" CHECK ("lot_closures"."blocked_bays" > 0);--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_pass_target_check" CHECK ("payments"."kind" <> 'PASS' or "payments"."pass_id" is not null);--> statement-breakpoint
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_source_check" CHECK ("sessions"."booking_id" is not null or "sessions"."pass_id" is not null);--> statement-breakpoint
+CREATE POLICY "driver_verifications_api_all" ON "driver_verifications" AS PERMISSIVE FOR ALL TO "parkly_api" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "pass_waitlist_api_all" ON "pass_waitlist" AS PERMISSIVE FOR ALL TO "parkly_api" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "passes_api_all" ON "passes" AS PERMISSIVE FOR ALL TO "parkly_api" USING (true) WITH CHECK (true);
