@@ -11,6 +11,7 @@ import {
   checkScan,
   localStatus,
   parkedNow,
+  parkedPassesNow,
   type GateResult,
 } from '../../lib/attend/gate';
 import { hashPin, IDLE_LOCK_MS, isValidPin, MAX_PIN_TRIES, verifyPin } from '../../lib/attend/pin';
@@ -268,25 +269,34 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
       type: 'CHECK_IN',
       clientEventId: crypto.randomUUID(),
       deviceTime: deviceTime(),
-      bookingId: result.bookingId,
+      ...(result.isPass
+        ? { passId: result.passId ?? result.bookingId }
+        : { bookingId: result.bookingId }),
       method,
       ...(result.plate ? { plateSeen: result.plate } : {}),
       ...(overrideReason ? { overrideReason } : {}),
     });
-    setNotice(`Checked in ${result.plate ?? ''}`);
+    setNotice(`Checked in ${result.plate ?? ''}${result.isPass ? ' (Monthly pass)' : ''}`);
     setScreen({ name: 'home' });
   }
 
-  async function letOut(bookingId: string, method: 'QR' | 'CODE' | 'PLATE', plate: string | null) {
+  async function letOut(
+    id: string,
+    method: 'QR' | 'CODE' | 'PLATE',
+    plate: string | null,
+    isPass = false,
+  ) {
     await record({
       type: 'CHECK_OUT',
       clientEventId: crypto.randomUUID(),
       deviceTime: deviceTime(),
-      bookingId,
+      ...(isPass ? { passId: id } : { bookingId: id }),
       method,
     });
     setNotice(
-      `Checked out ${plate ?? ''}. Any overstay is charged to the driver in the app; do not collect cash.`,
+      isPass
+        ? `Checked out ${plate ?? ''} (Monthly pass).`
+        : `Checked out ${plate ?? ''}. Any overstay is charged to the driver in the app; do not collect cash.`,
     );
     setScreen({ name: 'home' });
   }
@@ -428,6 +438,8 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
     );
 
   const parked = parkedNow(manifest, queue);
+  const parkedPasses = parkedPassesNow(manifest, queue);
+  const totalParked = parked.length + parkedPasses.length;
   const walkIns = Math.max(
     0,
     manifest.walkIns + queue.reduce((n, e) => n + (e.type === 'WALK_IN' ? e.delta : 0), 0),
@@ -520,7 +532,12 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
         onIn={(reason) => void letIn(screen.result, screen.method, reason)}
         onOut={() =>
           screen.result.bookingId &&
-          void letOut(screen.result.bookingId, screen.method, screen.result.plate)
+          void letOut(
+            screen.result.passId ?? screen.result.bookingId,
+            screen.method,
+            screen.result.plate,
+            Boolean(screen.result.isPass),
+          )
         }
         onBack={() => setScreen({ name: 'home' })}
       />
@@ -544,18 +561,29 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
           Code or plate
         </Button>
         <Text variant="heading-md" as="h2">
-          Parked now ({parked.length})
+          Parked now ({totalParked})
         </Text>
-        {parked.length === 0 && <Text tone="secondary">Nobody is checked in.</Text>}
+        {totalParked === 0 && <Text tone="secondary">Nobody is checked in.</Text>}
         {parked.map((b) => (
           <Button
             key={b.id}
             size="lg"
             variant="secondary"
             fullWidth
-            onClick={() => void letOut(b.id, 'PLATE', b.plateNorm)}
+            onClick={() => void letOut(b.id, 'PLATE', b.plateNorm, false)}
           >
             {b.plateNorm} · until {fmtTime(b.endAt)}
+          </Button>
+        ))}
+        {parkedPasses.map((p) => (
+          <Button
+            key={p.id}
+            size="lg"
+            variant="secondary"
+            fullWidth
+            onClick={() => void letOut(p.id, 'PLATE', p.plateNorm, true)}
+          >
+            {p.plateNorm} · PASS ({p.code})
           </Button>
         ))}
         <Button variant="ghost" onClick={() => setScreen({ name: 'home' })}>
@@ -688,7 +716,7 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
       )}
       <div className="pk-attend-counters">
         <span>
-          <strong>{parked.length}</strong> parked
+          <strong>{totalParked}</strong> parked
         </span>
         <span>
           <strong>{expected}</strong> expected
@@ -948,10 +976,20 @@ function Result({
       <div className={`pk-attend-result pk-attend-result--${colour.toLowerCase()}`} role="status">
         <span className="pk-attend-result__label">
           {colour === 'GREEN' ? 'OK' : colour === 'AMBER' ? 'CHECK' : 'STOP'}
+          {result.isPass ? ' · PASS' : ''}
         </span>
         <strong className="pk-attend-result__plate">{result.plate ?? '—'}</strong>
+        {result.driverVerified && (
+          <span className="pk-attend-badge" style={{ marginTop: '0.25rem' }}>
+            ✓ Verified Driver
+          </span>
+        )}
         <span>
-          {mode === 'out' && colour === 'GREEN' ? 'Ready to check out' : REASON_TEXT[result.reason]}
+          {mode === 'out' && colour === 'GREEN'
+            ? 'Ready to check out'
+            : result.isPass && result.reason === 'OK'
+              ? 'Valid 30-day monthly pass'
+              : REASON_TEXT[result.reason]}
         </span>
         {result.checkedInAt && <span>Checked in at {fmtTime(result.checkedInAt)}</span>}
         {booking && (
@@ -959,6 +997,7 @@ function Result({
             {result.code} · {fmtTime(booking.startAt)}–{fmtTime(booking.endAt)}
           </span>
         )}
+        {result.isPass && result.code && <span>Pass {result.code}</span>}
       </div>
       {mode === 'in' && result.colour !== 'RED' && (
         <>

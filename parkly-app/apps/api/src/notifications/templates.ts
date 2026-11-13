@@ -96,6 +96,14 @@ export function renderSms(
       );
       break;
     }
+    case 'pass.expiring': {
+      const passLink = `${links.web.replace(/\/$/, '')}/passes/${encodeURIComponent(event.passId)}`;
+      body = sms(
+        `Parkly: Your monthly pass (${event.bookingCode}) at ${event.lotName} expires in ${event.daysRemaining} days (${event.periodEnd}). Renew:`,
+        passLink,
+      );
+      break;
+    }
     default:
       return null;
   }
@@ -168,6 +176,12 @@ export function renderPush(event: NotificationEvent, tokens: string[]): PushMess
       title = 'Checked Out';
       body = `Thank you for parking at ${event.lotName}. Tap to view your receipt.`;
       data.url = `parkly://bookings/${event.bookingId}/receipt`;
+      break;
+    case 'pass.expiring':
+      title = 'Monthly Pass Expiring Soon';
+      body = `Your monthly pass at ${event.lotName} expires in ${event.daysRemaining} days (${event.periodEnd}). Tap to renew in one tap.`;
+      data.passId = event.passId;
+      data.url = `parkly://passes/${event.passId}`;
       break;
     default:
       return null;
@@ -255,6 +269,20 @@ export function renderEmail(
         button('View booking', link),
       ].join('');
       break;
+
+    case 'pass.expiring': {
+      const passLink = `${links.web.replace(/\/$/, '')}/passes/${encodeURIComponent(event.passId)}`;
+      subject = `Monthly pass ${event.bookingCode} expires in ${event.daysRemaining} days`;
+      heading = `Your monthly pass expires in ${event.daysRemaining} days`;
+      body = [
+        paragraph(
+          `Your monthly pass <strong>${code}</strong> at <strong>${lot}</strong> expires on <strong>${esc(event.periodEnd)}</strong> (${event.daysRemaining} days left).`,
+        ),
+        paragraph('Renew in one tap to keep your guaranteed space for another 30 days.'),
+        button('Renew monthly pass', passLink),
+      ].join('');
+      break;
+    }
 
     default:
       return null;

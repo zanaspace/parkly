@@ -33,6 +33,8 @@ export async function buildMe(store: Store, user: UserRow, roles: RoleGrant[]): 
     status: user.status,
     roles,
     profileComplete: !!user.firstName && (!isDriver || consentsCurrent),
+    isVerifiedDriver: Boolean(user.isVerifiedDriver),
+    verifiedAt: user.verifiedAt ? user.verifiedAt.toISOString() : null,
     consents: { termsVersion: terms, privacyVersion: privacy, marketing: user.marketingOptIn },
     currentLegalVersions: current,
   };

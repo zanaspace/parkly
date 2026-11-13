@@ -8,6 +8,7 @@ import {
   lagosDateKey,
   lagosDayStart,
   slotStartsBetween,
+  slotsInWindow,
 } from './slots.js';
 
 const t = (iso: string) => new Date(iso);
@@ -50,6 +51,8 @@ describe('slotStartsBetween', () => {
   });
   it('returns nothing for an empty window', () => {
     expect(slotStartsBetween(t('2026-10-19T08:00:00Z'), t('2026-10-19T08:00:00Z'))).toEqual([]);
+    expect(slotsInWindow(t('2026-10-19T08:00:00Z'), t('2026-10-19T08:30:00Z'))).toHaveLength(2);
+    expect(slotStartsBetween(t('2026-10-19T08:00:00Z'), t('2026-10-19T08:05:00Z'))).toHaveLength(1);
   });
   it('rejects unaligned or reversed windows', () => {
     expect(() => slotStartsBetween(t('2026-10-19T08:05:00Z'), t('2026-10-19T09:00:00Z'))).toThrow(

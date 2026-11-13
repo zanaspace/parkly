@@ -16,6 +16,7 @@ import { apiAccess, apiAppendOnly, createdAt, id, updatedAt } from './common.js'
 import { bookings } from './bookings.js';
 import { users } from './identity.js';
 import { lots } from './lots.js';
+import { passes } from './passes.js';
 
 // SELF: the driver scanned the entrance QR (ADR 0016). Never reorder; add at the end.
 export const entryMethodEnum = pgEnum('entry_method', ['QR', 'CODE', 'PLATE', 'ADMIN', 'SELF']);
@@ -47,9 +48,8 @@ export const sessions = pgTable(
   'sessions',
   {
     id: id(),
-    bookingId: uuid('booking_id')
-      .notNull()
-      .references(() => bookings.id, { onDelete: 'restrict' }),
+    bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'restrict' }),
+    passId: uuid('pass_id').references(() => passes.id, { onDelete: 'restrict' }),
     lotId: uuid('lot_id')
       .notNull()
       .references(() => lots.id, { onDelete: 'restrict' }),
@@ -72,10 +72,18 @@ export const sessions = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex('sessions_booking_key').on(t.bookingId),
+    uniqueIndex('sessions_booking_key')
+      .on(t.bookingId)
+      .where(sql`${t.bookingId} is not null`),
+    // FR-PASS-002: at most one vehicle on a pass may be checked into the lot at a time.
+    uniqueIndex('sessions_pass_open_key')
+      .on(t.passId)
+      .where(sql`${t.passId} is not null and ${t.checkOutAt} is null`),
+    index('sessions_pass_idx').on(t.passId),
     index('sessions_lot_check_in_idx').on(t.lotId, t.checkInAt),
     index('sessions_check_in_by_idx').on(t.checkInBy),
     index('sessions_check_out_by_idx').on(t.checkOutBy),
+    check('sessions_source_check', sql`${t.bookingId} is not null or ${t.passId} is not null`),
     check(
       'sessions_overstay_check',
       sql`${t.overstayMinutes} >= 0 and ${t.overstayAmountKobo} >= 0`,
@@ -98,6 +106,7 @@ export const checkinEvents = pgTable(
       .notNull()
       .references(() => lots.id, { onDelete: 'restrict' }),
     bookingId: uuid('booking_id'),
+    passId: uuid('pass_id'),
     sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'restrict' }),
     method: entryMethodEnum('method'),
     plateSeen: varchar('plate_seen', { length: 12 }), // C3

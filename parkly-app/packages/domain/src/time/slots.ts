@@ -30,6 +30,11 @@ export function slotStartsBetween(start: Date, end: Date): Date[] {
   return slots;
 }
 
+/** Slot start times covering [start, end), flooring start and ceiling end to 15-minute slots. */
+export function slotsInWindow(start: Date, end: Date): Date[] {
+  return slotStartsBetween(floorToSlot(start), ceilToSlot(end));
+}
+
 /** Rounds a duration up to whole 15-minute blocks (overstay, extensions). */
 export function ceil15Minutes(minutes: number): number {
   if (minutes <= 0) return 0;

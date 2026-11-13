@@ -1,3 +1,4 @@
+import { lagosDateKey } from '@parkly/domain';
 import type { AppDeps } from '../../app.js';
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -15,13 +16,17 @@ export async function buildDataExport(
 ): Promise<Record<string, unknown>> {
   const { store } = deps;
   const now = deps.now();
-  const [user, vehicles, consents, upcoming, past] = await Promise.all([
-    store.users.find(userId),
-    store.vehicles.list(userId),
-    store.consents.latest(userId),
-    store.bookings.listForDriver(userId, 'upcoming', now, 500),
-    store.bookings.listForDriver(userId, 'past', now, 500),
-  ]);
+  const [user, vehicles, consents, upcoming, past, activePasses, pastPasses, verification] =
+    await Promise.all([
+      store.users.find(userId),
+      store.vehicles.list(userId),
+      store.consents.latest(userId),
+      store.bookings.listForDriver(userId, 'upcoming', now, 500),
+      store.bookings.listForDriver(userId, 'past', now, 500),
+      store.passes.listForDriver(userId, 'active', lagosDateKey(now), 100),
+      store.passes.listForDriver(userId, 'past', lagosDateKey(now), 100),
+      store.driverVerifications.latest(userId),
+    ]);
 
   const bookings = [];
   for (const b of [...upcoming, ...past]) {
@@ -64,6 +69,16 @@ export async function buildDataExport(
           phoneEndsWith: user.phoneLast4,
           marketingMessages: user.marketingOptIn,
           accountStatus: user.status,
+          isVerifiedDriver: Boolean(user.isVerifiedDriver),
+          verifiedAt: iso(user.verifiedAt),
+        }
+      : null,
+    driverVerification: verification
+      ? {
+          method: verification.method,
+          status: verification.status,
+          idNumberMasked: verification.maskedIdNumber,
+          verifiedAt: iso(verification.verifiedAt),
         }
       : null,
     vehicles: vehicles.map((v) => ({
@@ -79,5 +94,15 @@ export async function buildDataExport(
       granted: c?.granted ?? null,
     })),
     bookings,
+    passes: [...activePasses, ...pastPasses].map((p) => ({
+      code: p.code,
+      status: p.status,
+      periodStart: p.periodStart,
+      periodEnd: p.periodEnd,
+      plate: p.plateNorm,
+      totalNaira: p.totalKobo / 100,
+      swapsUsed: p.swapsUsed,
+      createdAt: iso(p.createdAt),
+    })),
   };
 }

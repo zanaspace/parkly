@@ -1,7 +1,11 @@
-import type { Lot, SelfCheckinSetting } from '@parkly/contracts';
+import type { CapacityBlockList, Lot, SelfCheckinSetting } from '@parkly/contracts';
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import {
+  CapacityBlocksSection,
+  VerifiedDriverGateSection,
+} from '../../../../components/capacity-blocks';
 import { ArrowLeftIcon, LotsIcon } from '../../../../components/icons';
 import { LotVisibilitySection } from '../../../../components/lot-visibility';
 import {
@@ -43,13 +47,20 @@ export default async function LotPage({
   const base = `/v1/operators/${operatorId}/lots/${encodeURIComponent(lotId)}`;
   let lot: Lot;
   let selfCheckin: SelfCheckinSetting | null;
+  let blocks: CapacityBlockList['items'];
   try {
-    [lot, selfCheckin] = await Promise.all([
+    const [fetchedLot, fetchedSelfCheckin, fetchedBlocks] = await Promise.all([
       apiFetch<Lot>(publicEnv().apiUrl, base, accessToken),
       apiFetch<SelfCheckinSetting>(publicEnv().apiUrl, `${base}/self-check-in`, accessToken).catch(
         () => null,
       ),
+      apiFetch<CapacityBlockList>(publicEnv().apiUrl, `${base}/blocks`, accessToken).catch(() => ({
+        items: [],
+      })),
     ]);
+    lot = fetchedLot;
+    selfCheckin = fetchedSelfCheckin;
+    blocks = fetchedBlocks.items;
   } catch (err) {
     if (err instanceof ApiProblem && (err.status === 404 || err.status === 400)) notFound();
     throw err;
@@ -107,6 +118,24 @@ export default async function LotPage({
         Opening hours
       </Text>
       <HoursEditor operatorId={operatorId} lot={lot} editable={hoursEditable} />
+
+      {['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status) && (
+        <>
+          <Text variant="heading-md" as="h2">
+            Capacity blackouts
+          </Text>
+          <CapacityBlocksSection
+            operatorId={operatorId}
+            lot={lot}
+            blocks={blocks}
+            canManage={canManage}
+          />
+          <Text variant="heading-md" as="h2">
+            Verified Driver policy
+          </Text>
+          <VerifiedDriverGateSection operatorId={operatorId} lot={lot} canManage={canManage} />
+        </>
+      )}
 
       <Text variant="heading-md" as="h2">
         Prices

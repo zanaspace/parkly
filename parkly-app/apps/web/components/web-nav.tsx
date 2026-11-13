@@ -66,6 +66,12 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
       icon: TicketIcon,
       active: pathname.startsWith('/bookings'),
     },
+    {
+      href: '/passes',
+      label: 'Monthly passes',
+      icon: TicketIcon,
+      active: pathname.startsWith('/passes'),
+    },
   ];
 
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'DR';

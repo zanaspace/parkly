@@ -26,6 +26,8 @@ export function Text({ variant = 'body.md', tone = 'primary', style, ...rest }: 
   return (
     <RNText
       accessibilityRole={HEADINGS.has(group) ? 'header' : undefined}
+      allowFontScaling
+      maxFontSizeMultiplier={2}
       {...rest}
       style={[typeStyle, { color: theme.color.text[tone] }, style]}
     />

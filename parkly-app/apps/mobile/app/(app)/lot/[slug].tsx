@@ -196,6 +196,7 @@ export default function LotScreen() {
         <Text variant="heading.xl">{lot.name}</Text>
         <Text variant="body.sm" style={{ color: theme.badge.verified.fg }}>
           ✓ Verified by Parkly
+          {lot.requiresVerifiedDriver ? ' · Verified Driver required' : ''}
         </Text>
         <Text tone="secondary">{lot.addressLine}</Text>
       </View>
@@ -241,6 +242,15 @@ export default function LotScreen() {
         {lot.prices.map((p) => (
           <Text key={p.product}>{priceLine(p)}</Text>
         ))}
+        {lot.prices.some((p) => p.product === 'MONTHLY') ? (
+          <Button
+            label="Buy 30-day monthly pass"
+            variant="secondary"
+            onPress={() =>
+              router.push({ pathname: '/passes', params: { lotId: lot.id, slug: lot.slug } })
+            }
+          />
+        ) : null}
       </Card>
 
       <Card title="Opening hours">

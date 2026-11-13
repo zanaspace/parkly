@@ -34,7 +34,7 @@ export type ProviderTransaction = {
 };
 
 export interface PaymentProvider {
-  readonly name: 'paystack' | 'fake';
+  readonly name: 'paystack' | 'flutterwave' | 'fake';
   initialize(input: {
     reference: string;
     amountKobo: number;
@@ -218,4 +218,25 @@ export interface MalwareScanner {
     bytes: Uint8Array;
     filename: string;
   }): Promise<{ clean: boolean; threat?: string }>;
+}
+
+/**
+ * Tier 2 KYC Driver Identity Verification provider (FR-AUTH-009):
+ * verifies FRSC Driver's License (license number + DOB) or NIN phone-match.
+ */
+export type IdentityVerificationOutcome = {
+  verified: boolean;
+  providerReference: string;
+  verifiedName: string | null;
+  rejectionReason: string | null;
+};
+
+export interface IdentityVerificationProvider {
+  readonly name: 'dojah' | 'fake';
+  verifyDriver(input: {
+    method: 'FRSC_LICENSE' | 'NIN_PHONE';
+    idNumber: string;
+    dateOfBirth?: string;
+    phoneLast4?: string | null;
+  }): Promise<IdentityVerificationOutcome>;
 }

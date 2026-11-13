@@ -1,6 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  CapacityBlockListSchema,
+  CapacityBlockSchema,
+  CreateCapacityBlockRequestSchema,
   CreateLotRequestSchema,
   PermitSchema,
   PresignPermitDocumentRequestSchema,
@@ -15,6 +18,7 @@ import {
   SetLotVisibilityRequestSchema,
   SetOpeningHoursRequestSchema,
   UpdateLotRequestSchema,
+  type CapacityBlock,
   type Lot,
   type OpeningDay,
   type Permit,
@@ -41,8 +45,10 @@ import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/con
 import { audit } from '../../lib/audit.js';
 import { ApiError } from '../../lib/errors.js';
 import {
+  CapacityBlockError,
   SlugTakenError,
   StaleVersionError,
+  type CapacityBlockRow,
   type LotPhotoRow,
   type LotRow,
   type OpeningHourRow,
@@ -180,6 +186,7 @@ export async function toLotResponse(store: Store, row: LotRow): Promise<Lot> {
     holdCapPercent: row.holdCapPercent ?? 30,
     freeHoldMinutes: row.freeHoldMinutes ?? 60,
     maxHoldMinutes: row.maxHoldMinutes ?? 180,
+    requiresVerifiedDriver: Boolean(row.requiresVerifiedDriver),
     version: row.version,
     openingHours: hours.map(toDay),
     photos: photos.map(toPhoto),
@@ -304,6 +311,7 @@ export function lotRoutes(deps: AppDeps) {
         capacityBookable: body.capacityBookable,
         amenities: [...new Set(body.amenities)],
         vehicleTypes: [...new Set(body.vehicleTypes)],
+        requiresVerifiedDriver: body.requiresVerifiedDriver ?? false,
         createdBy: c.get('actor').userId,
       };
       // Slug = readable name + 4 random characters; retry on the rare clash.
@@ -352,8 +360,16 @@ export function lotRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
-      const current = await loadLot(c, operatorId, lotId, 'edit');
       const { version, ...patch } = c.req.valid('json');
+      const policyOnly =
+        Object.keys(patch).length > 0 &&
+        Object.keys(patch).every((k) => k === 'requiresVerifiedDriver');
+      const current = await loadLot(c, operatorId, lotId, policyOnly ? 'read' : 'edit');
+      if (policyOnly) {
+        authorize(c, deps.logger, 'lot:manage', { operatorId });
+        if (!HOURS_EDITABLE.has(current.status))
+          throw new ApiError('INVALID_STATE_TRANSITION', 'Policy cannot be changed in this state');
+      }
       // Validate the lot as it will be after the change, not just the fields sent.
       checkLocationAndCapacity({
         ...(patch.location ? { location: patch.location } : {}),
@@ -863,6 +879,128 @@ export function lotRoutes(deps: AppDeps) {
       });
 
       return c.json(await toLot(row), 200);
+    },
+  );
+
+  // --- capacity blackouts (FR-LOT-008, P1) -----------------------------------------------
+
+  const toCapacityBlock = (b: CapacityBlockRow): CapacityBlock => ({
+    id: b.id,
+    lotId: b.lotId,
+    startsAt: b.startsAt.toISOString(),
+    endsAt: b.endsAt.toISOString(),
+    blockedBays: b.blockedBays,
+    reason: b.reason,
+    createdBy: b.createdBy,
+    createdAt: b.createdAt.toISOString(),
+  });
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/operators/{operatorId}/lots/{lotId}/blocks',
+      tags: ['lots'],
+      ...secured,
+      request: { params: LotParams },
+      responses: {
+        200: { description: 'Capacity blackout windows', ...json(CapacityBlockListSchema) },
+      },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      await loadLot(c, operatorId, lotId, 'read');
+      const items = await deps.store.lotBlocks.list(lotId);
+      return c.json({ items: items.map(toCapacityBlock) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/operators/{operatorId}/lots/{lotId}/blocks',
+      tags: ['lots'],
+      ...secured,
+      request: {
+        params: LotParams,
+        body: { ...json(CreateCapacityBlockRequestSchema), required: true },
+      },
+      responses: {
+        201: { description: 'Capacity blackout created', ...json(CapacityBlockSchema) },
+      },
+    }),
+    async (c) => {
+      const { operatorId, lotId } = c.req.valid('param');
+      const lot = await loadLot(c, operatorId, lotId, 'read');
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      const body = c.req.valid('json');
+      const startsAt = new Date(body.startsAt);
+      const endsAt = new Date(body.endsAt);
+      const blockedBays = body.blockedBays ?? lot.capacityBookable;
+
+      let block: CapacityBlockRow;
+      try {
+        block = await deps.store.lotBlocks.create(
+          {
+            lotId,
+            startsAt,
+            endsAt,
+            blockedBays,
+            reason: body.reason ?? 'Capacity blackout',
+            createdBy: c.get('actor').userId,
+          },
+          deps.now(),
+        );
+      } catch (err) {
+        if (err instanceof CapacityBlockError) {
+          if (err.code === 'LOT_CAPACITY_BELOW_COMMITTED') {
+            throw new ApiError(
+              'LOT_CAPACITY_BELOW_COMMITTED',
+              'Cannot block capacity: active driver bookings or passes already occupy those bays.',
+            );
+          }
+          throw new ApiError('VALIDATION_FAILED', 'Check the blackout window and bay count');
+        }
+        throw err;
+      }
+
+      await audit(c, deps, {
+        action: 'lot.capacity_block_created',
+        entityType: 'lot',
+        entityId: lotId,
+        after: {
+          blockId: block.id,
+          startsAt: block.startsAt.toISOString(),
+          endsAt: block.endsAt.toISOString(),
+          blockedBays: block.blockedBays,
+          reason: block.reason,
+        },
+      });
+      return c.json(toCapacityBlock(block), 201);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'delete',
+      path: '/operators/{operatorId}/lots/{lotId}/blocks/{blockId}',
+      tags: ['lots'],
+      ...secured,
+      request: { params: LotParams.extend({ blockId: z.uuid() }) },
+      responses: { 204: { description: 'Capacity blackout removed' } },
+    }),
+    async (c) => {
+      const { operatorId, lotId, blockId } = c.req.valid('param');
+      await loadLot(c, operatorId, lotId, 'read');
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      const removed = await deps.store.lotBlocks.remove(lotId, blockId);
+      if (!removed) throw new ApiError('NOT_FOUND');
+      await audit(c, deps, {
+        action: 'lot.capacity_block_removed',
+        entityType: 'lot',
+        entityId: lotId,
+        after: { blockId },
+      });
+      return c.body(null, 204);
     },
   );
 

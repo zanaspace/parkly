@@ -42,6 +42,22 @@ import {
   QuoteSchema,
   VehicleListSchema,
   VehicleSchema,
+  DriverVerificationSchema,
+  PassSchema,
+  PassListSchema,
+  CreatePassResponseSchema,
+  VerifyPassPaymentResponseSchema,
+  PassWaitlistResponseSchema,
+  type DriverVerification,
+  type VerifyDriverIdentityRequest,
+  type Pass,
+  type CreatePassRequest,
+  type CreatePassResponse,
+  type VerifyPassPaymentResponse,
+  type SwapPassVehicleRequest,
+  type RenewPassRequest,
+  type JoinPassWaitlistRequest,
+  type PassWaitlistResponse,
   type LotAvailability,
   type LotSearchResponse,
   type Me,
@@ -341,6 +357,51 @@ export function createApiClient(options: ApiClientOptions) {
       appVersion?: string;
       pushToken?: string;
     }) => request<undefined>('POST', '/v1/me/devices', body),
+
+    // Driver Identity Verification (FR-AUTH-009 / FR-PASS-005)
+    verification: () =>
+      request<DriverVerification>(
+        'GET',
+        '/v1/me/verification',
+        undefined,
+        DriverVerificationSchema,
+      ),
+    submitVerification: (body: VerifyDriverIdentityRequest) =>
+      request<DriverVerification>('POST', '/v1/me/verification', body, DriverVerificationSchema),
+
+    // Monthly Passes (FR-PASS-001…005)
+    passes: async (): Promise<Pass[]> =>
+      (await request('GET', '/v1/passes', undefined, PassListSchema)).items,
+    pass: (id: string) =>
+      request<Pass>('GET', `/v1/passes/${encodeURIComponent(id)}`, undefined, PassSchema),
+    createPass: (body: CreatePassRequest, idempotencyKey: string) =>
+      request<CreatePassResponse>('POST', '/v1/passes', body, CreatePassResponseSchema, {
+        'idempotency-key': idempotencyKey,
+      }),
+    verifyPassPayment: (id: string) =>
+      request<VerifyPassPaymentResponse>(
+        'POST',
+        `/v1/passes/${encodeURIComponent(id)}/verify`,
+        undefined,
+        VerifyPassPaymentResponseSchema,
+      ),
+    swapPassVehicle: (id: string, body: SwapPassVehicleRequest) =>
+      request<Pass>('POST', `/v1/passes/${encodeURIComponent(id)}/swap-vehicle`, body, PassSchema),
+    renewPass: (id: string, body: RenewPassRequest, idempotencyKey: string) =>
+      request<CreatePassResponse>(
+        'POST',
+        `/v1/passes/${encodeURIComponent(id)}/renew`,
+        body,
+        CreatePassResponseSchema,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    joinPassWaitlist: (body: JoinPassWaitlistRequest) =>
+      request<PassWaitlistResponse>(
+        'POST',
+        '/v1/passes/waitlist',
+        body,
+        PassWaitlistResponseSchema,
+      ),
   };
 }
 

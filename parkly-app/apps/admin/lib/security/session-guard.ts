@@ -3,7 +3,7 @@ import {
   ipAllowed,
   parseAllowlist,
   type AdminSessionState,
-} from '@parkly/domain/security';
+} from '@parkly/domain';
 
 /**
  * Admin hardening in the admin app (doc 05 section 4.6, S8 task 7). `proxy.ts` calls these on

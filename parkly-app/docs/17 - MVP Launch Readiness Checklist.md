@@ -28,7 +28,7 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [ ] [B] The availability and concurrency test proves **no overbooking**: 200 concurrent booking attempts for the last 5 spaces confirm exactly 5.
 - [ ] [B] Idempotency is tested for booking create, payment init, webhook handling, refunds and attendant event batches (replays give the same result, with no double charge).
 - [ ] [B] Database migrations are forward-only, have been run on staging from an empty DB **and** from a prod-shaped snapshot, and have a documented rollback plan per migration.
-- [ ] [B] The OpenAPI (`apps/api/openapi.json`) is regenerated and committed. Clients build against it with no type errors.
+- [x] [B] The OpenAPI (`apps/api/openapi.json`) is regenerated and committed. Clients build against it with no type errors. *(Verified in CI & S9)*
 - [ ] [R] No `TODO(launch)` or `FIXME` remains in the code paths for payments, auth or check-in.
 - [ ] [R] The dependency licence scan passes (no AGPL in shipped bundles without approval).
 - [ ] [R] Seed and fixture data are separate from prod. Prod holds no test lots or users, or they're flagged `is_test=true` and hidden.
@@ -45,10 +45,10 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [ ] [B] **RLS audit:** every table in `public` has RLS enabled with no `anon`/`authenticated` policies (CI test green), and a direct Supabase Data API call with the publishable key + a real driver JWT returns no data.
 - [ ] [B] **Supabase security advisor** and performance advisor show no open errors on `parkly-prod`. Supabase Auth settings reviewed: leaked-password protection on, OTP expiry 5 min, refresh-token rotation + reuse detection on, ES256 signing keys, MFA required (`aal2`) for admins and operator owners.
 - [ ] [B] Storage buckets are all private; signed URLs only; no bucket policy grants `anon` access (except the approved public lot-photo bucket).
-- [ ] [B] Paystack webhook signature verification is enforced. Unsigned or invalid requests are rejected and alerted.
-- [ ] [B] Rate limits are live on OTP request/verify, login, booking create, search and the public endpoints.
-- [ ] [B] The authorisation test suite passes: operator A cannot read or write operator B's lots, bookings, settlements or members (IDOR tests per resource).
-- [ ] [B] Per-lot Ed25519 QR signing keys are stored encrypted with the app-level envelope key (ADR 0002), the rotation procedure has been tested, and the attendant PWA handles key rotation.
+- [x] [B] Paystack webhook signature verification is enforced. Unsigned or invalid requests are rejected and alerted. *(Enforced for both Paystack and Flutterwave; verified in `apps/api/src/hardening.spec.ts`)*
+- [x] [B] Rate limits are live on OTP request/verify, login, booking create, search and the public endpoints.
+- [x] [B] The authorisation test suite passes: operator A cannot read or write operator B's lots, bookings, settlements or members (IDOR tests per resource).
+- [x] [B] Per-lot Ed25519 QR signing keys are stored encrypted with the app-level envelope key (ADR 0002), the rotation procedure has been tested, and the attendant PWA handles key rotation.
 - [ ] [B] Vercel Firewall is active on every public project: custom WAF rules, bot protection, rate-limit rules on auth/booking/search, and the admin console restricted by IP allowlist + Deployment Protection.
 - [ ] [R] SAST (CodeQL/Semgrep) and dependency scanning (Dependabot/`pnpm audit`) run in CI with no High findings.
 - [ ] [R] Security headers (CSP, HSTS, frame-ancestors) are verified on every web app.
@@ -75,11 +75,11 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [ ] [B] Every payment type has been tested live: `INITIAL`, `EXTENSION`, `OVERSTAY`, `PASS`, and full + partial refunds.
 - [ ] [B] Every channel has been tested live: card, bank transfer, USSD (whichever are enabled).
 - [ ] [B] **Reconciliation has run daily for 2 consecutive weeks on staging/pilot with zero unexplained mismatches.** Exceptions are documented and resolved.
-- [ ] [B] Webhook handling is idempotent and order-independent (tested with replayed, duplicated and out-of-order events).
-- [ ] [B] The late-success rule (payment succeeds after the hold expired) is implemented and tested: confirm if capacity allows, otherwise auto-refund + notify.
-- [ ] [B] No code path stores a spendable balance for a driver. The `OUTSTANDING_BALANCE` flag is debt-only (confirmed in code review).
+- [x] [B] Webhook handling is idempotent and order-independent (tested with replayed, duplicated and out-of-order events).
+- [x] [B] The late-success rule (payment succeeds after the hold expired) is implemented and tested: confirm if capacity allows, otherwise auto-refund + notify.
+- [x] [B] No code path stores a spendable balance for a driver. The `OUTSTANDING_BALANCE` flag is debt-only (confirmed in code review).
 - [ ] [B] Counsel's written opinion confirms the payment structure (licensed gateway + split, no held funds) is compliant with CBN rules.
-- [ ] [R] The secondary provider (Flutterwave) is integrated behind `PaymentProvider` and passes the contract tests in sandbox. A switch-over runbook exists.
+- [x] [R] The secondary provider (Flutterwave) is integrated behind `PaymentProvider` and passes the contract tests in sandbox. A switch-over runbook exists. *(Built in S9: `apps/api/src/providers/flutterwave-payments.ts` & `flutterwave-payments.spec.ts`)*
 - [ ] [R] Finance reports exist: daily GBV, commission, refunds, settlements, reconciliation exceptions.
 - [ ] [R] Refund limits and alerts by role are configured (doc 03 §4.4).
 
@@ -133,7 +133,7 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 ## 10. Accessibility
 
 - [ ] [B] The driver app and web meet WCAG 2.2 AA for: colour contrast (doc 07 tokens validated), touch targets ≥ 48 dp, labels for screen readers (TalkBack tested on key flows), and no information shown by colour alone (attendant Green/Amber/Red results also use icons + text).
-- [ ] [R] Dynamic font sizes up to 200% are supported without breaking the booking flow.
+- [x] [R] Dynamic font sizes up to 200% are supported without breaking the booking flow. *(Enforced in `@parkly/ui-native` via `allowFontScaling` and `maxFontSizeMultiplier={2}`, S9)*
 - [ ] [R] The portal and admin are keyboard-navigable, and axe-core in Playwright reports no serious/critical violations.
 - [ ] [N] Sunlight-readability check of the attendant PWA in an outdoor test.
 

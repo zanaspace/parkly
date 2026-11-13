@@ -101,6 +101,8 @@ export const lots = pgTable(
     freeHoldMinutes: integer('free_hold_minutes').notNull().default(60),
     /** Max hold duration before space is released (ADR 0024). */
     maxHoldMinutes: integer('max_hold_minutes').notNull().default(180),
+    /** FR-PASS-005: when true, only Tier 2 verified drivers may book or buy a monthly pass here. */
+    requiresVerifiedDriver: boolean('requires_verified_driver').notNull().default(false),
     /** Optimistic concurrency for PATCH (CONFLICT_STALE_VERSION). */
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
@@ -153,7 +155,7 @@ export const lotOpeningHours = pgTable(
   ],
 ).enableRLS();
 
-/** Holidays and events when the lot is closed. */
+/** Holidays, events, and partial capacity blackouts (FR-LOT-008). */
 export const lotClosures = pgTable(
   'lot_closures',
   {
@@ -163,12 +165,14 @@ export const lotClosures = pgTable(
       .references(() => lots.id, { onDelete: 'cascade' }),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    blockedBays: integer('blocked_bays').notNull().default(1),
     reason: varchar('reason', { length: 200 }),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [
     check('lot_closures_window_check', sql`${t.endsAt} > ${t.startsAt}`),
+    check('lot_closures_bays_check', sql`${t.blockedBays} > 0`),
     index('lot_closures_lot_starts_idx').on(t.lotId, t.startsAt),
     index('lot_closures_created_by_idx').on(t.createdBy),
     apiAccess('lot_closures'),

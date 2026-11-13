@@ -94,6 +94,17 @@ export type NotificationEvent =
       bookingCode: string;
       lotName: string;
       checkOutAt: string;
+    }
+  | {
+      /** FR-PASS-003: 7-day and 2-day monthly pass expiry / renewal reminder. */
+      key: 'pass.expiring';
+      driverId: string;
+      bookingId: string;
+      bookingCode: string;
+      passId: string;
+      lotName: string;
+      periodEnd: string;
+      daysRemaining: 7 | 2;
     };
 
 export type SmsMessage = {

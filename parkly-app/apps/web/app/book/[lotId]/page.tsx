@@ -1,4 +1,10 @@
-import type { PublicLot, Quote, UnpaidOverstay, Vehicle } from '@parkly/contracts';
+import type {
+  DriverVerification,
+  PublicLot,
+  Quote,
+  UnpaidOverstay,
+  Vehicle,
+} from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
@@ -6,6 +12,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { randomUUID } from 'node:crypto';
 import { AddCarForm, PayForm } from '../../../components/booking-forms';
+import { DriverVerificationCard } from '../../../components/pass-forms';
 import { api, apiAs, ApiProblem } from '../../../lib/api';
 import { problemText } from '../../../lib/copy';
 import { lineLabel, readSearch, searchQuery, searchWindow, windowLabel } from '../../../lib/search';
@@ -53,9 +60,13 @@ export default async function ReviewAndPay({
   }
   let vehicles: Vehicle[];
   let unpaid: UnpaidOverstay['unpaid'];
+  let verification: DriverVerification | null = null;
   try {
     vehicles = (await apiAs<{ items: Vehicle[] }>(driver.accessToken, '/v1/me/vehicles')).items;
     unpaid = (await apiAs<UnpaidOverstay>(driver.accessToken, '/v1/me/unpaid-overstay')).unpaid;
+    if (lot.requiresVerifiedDriver) {
+      verification = await apiAs<DriverVerification>(driver.accessToken, '/v1/me/verification');
+    }
   } catch (err) {
     if (err instanceof ApiProblem && (err.status === 401 || err.status === 403)) {
       const supabase = await createClient();
@@ -118,28 +129,32 @@ export default async function ReviewAndPay({
         </table>
       </section>
 
-      <section className="pk-card pk-stack" aria-label="Car and payment">
-        {vehicles.length === 0 ? (
-          <>
-            <Text variant="heading-md" as="h2">
-              Add your car
-            </Text>
-            <AddCarForm back={back} />
-          </>
-        ) : (
-          <PayForm
-            window={{ lotId: lot.id, ...w }}
-            vehicles={vehicles}
-            idempotencyKey={randomUUID()}
-            back={back}
-            totalLabel={formatNaira(quote.totalKobo)}
-          />
-        )}
-        <Text variant="body-sm" tone="tertiary">
-          We hold your space for 10 minutes while you pay with card, bank transfer or USSD on
-          Paystack. Free cancellation until 30 minutes before your start time.
-        </Text>
-      </section>
+      {lot.requiresVerifiedDriver && !verification?.isVerifiedDriver ? (
+        <DriverVerificationCard isVerified={false} back={back} requiredForLot />
+      ) : (
+        <section className="pk-card pk-stack" aria-label="Car and payment">
+          {vehicles.length === 0 ? (
+            <>
+              <Text variant="heading-md" as="h2">
+                Add your car
+              </Text>
+              <AddCarForm back={back} />
+            </>
+          ) : (
+            <PayForm
+              window={{ lotId: lot.id, ...w }}
+              vehicles={vehicles}
+              idempotencyKey={randomUUID()}
+              back={back}
+              totalLabel={formatNaira(quote.totalKobo)}
+            />
+          )}
+          <Text variant="body-sm" tone="tertiary">
+            We hold your space for 10 minutes while you pay with card, bank transfer or USSD on
+            Paystack. Free cancellation until 30 minutes before your start time.
+          </Text>
+        </section>
+      )}
       <Link className="pk-link" href={`/lots/${lot.slug}?${searchQuery(search)}`}>
         Back to the car park
       </Link>

@@ -41,6 +41,7 @@ import { generateBookingCode } from '@parkly/domain/codes';
 import { mulDivRoundHalfUp, type Kobo } from '@parkly/domain/money';
 import { quote as priceQuote, type Quote as DomainQuote } from '@parkly/domain/pricing';
 import { lagosDateKey } from '@parkly/domain/time';
+import { checkVerifiedDriverGate } from '@parkly/domain/verification';
 import { v7 as uuidv7 } from 'uuid';
 import type { AppDeps } from '../../app.js';
 import { authenticate, authorize, loadActor, type AuthEnv } from '../../auth/context.js';
@@ -108,13 +109,14 @@ export const toBookingExtension = (e: BookingExtensionRow): BookingExtension => 
 export function toBooking(
   b: BookingRow,
   lot: Pick<LotRow, 'id' | 'slug' | 'name' | 'addressLine' | 'selfCheckinEnabled'> &
-    Partial<Pick<LotRow, 'area' | 'location' | 'entranceNotes'>>,
+    Partial<Pick<LotRow, 'area' | 'location' | 'entranceNotes' | 'requiresVerifiedDriver'>>,
   extra: {
     qrToken?: string | null;
     overstay?: Booking['overstay'];
     stay?: Booking['stay'];
     contactPhone?: string | null;
     checkInOpensAt?: string | null;
+    driverVerified?: boolean;
   } = {},
 ): Booking {
   const lines = (b.pricingBreakdown as DomainQuote['lines'] | null) ?? [];
@@ -139,6 +141,7 @@ export function toBooking(
       entranceNotes: lot.entranceNotes ?? null,
       contactPhone: extra.contactPhone ?? null,
       selfCheckIn: lot.selfCheckinEnabled,
+      requiresVerifiedDriver: lot.requiresVerifiedDriver ?? false,
     },
     vehicle: { id: b.vehicleId, plate: b.plateNorm },
     priceKobo: b.priceKobo,
@@ -157,6 +160,7 @@ export function toBooking(
     overstay: extra.overstay ?? null,
     checkInOpensAt: extra.checkInOpensAt ?? null,
     stay: extra.stay ?? null,
+    driverVerified: Boolean(extra.driverVerified),
     createdAt: b.createdAt.toISOString(),
   };
 }
@@ -206,6 +210,7 @@ export function bookingRoutes(deps: AppDeps) {
         const terms = await overstay.terms(b);
         const graceMin = terms?.graceMin ?? 0;
         const s = stays.get(b.id);
+        const driver = await deps.store.users.find(b.driverId);
         let stay: Booking['stay'] = null;
         if (s) {
           const late =
@@ -231,6 +236,7 @@ export function bookingRoutes(deps: AppDeps) {
               : null,
           stay,
           contactPhone: phoneMap.get(b.lotId) ?? null,
+          driverVerified: Boolean(driver?.isVerifiedDriver),
         };
       }),
     );
@@ -342,6 +348,16 @@ export function bookingRoutes(deps: AppDeps) {
       );
     const lot = await deps.store.lots.findLive(body.lotId, lagosDateKey(now));
     if (!lot) throw new ApiError('LOT_NOT_BOOKABLE');
+    const driver = await deps.store.users.find(driverId);
+    const verGate = checkVerifiedDriverGate({
+      lotRequiresVerifiedDriver: Boolean(lot.requiresVerifiedDriver),
+      isVerifiedDriver: Boolean(driver?.isVerifiedDriver),
+    });
+    if (!verGate.ok)
+      throw new ApiError(
+        'DRIVER_VERIFICATION_REQUIRED',
+        'Verified driver required for this car park',
+      );
     const vehicle = await deps.store.vehicles.find(driverId, body.vehicleId);
     if (!vehicle) throw new ApiError('NOT_FOUND', 'Vehicle not found');
 
@@ -438,7 +454,12 @@ export function bookingRoutes(deps: AppDeps) {
           {
             id: paymentId,
             payerUserId: driverId,
-            provider: deps.payments.name === 'paystack' ? 'PAYSTACK' : 'FAKE',
+            provider:
+              deps.payments.name === 'paystack'
+                ? 'PAYSTACK'
+                : deps.payments.name === 'flutterwave'
+                  ? 'FLUTTERWAVE'
+                  : 'FAKE',
             amountKobo: split.amountKobo,
             platformAmountKobo: split.platformAmountKobo,
             operatorAmountKobo: split.operatorAmountKobo,
@@ -475,7 +496,10 @@ export function bookingRoutes(deps: AppDeps) {
     const op = await deps.store.operators.find(lot.operatorId);
     const contactPhone = op?.contactPhoneEnc ? deps.crypto.decrypt(op.contactPhoneEnc) : null;
     return {
-      booking: toBooking(held.booking, lot, { contactPhone }),
+      booking: toBooking(held.booking, lot, {
+        contactPhone,
+        driverVerified: Boolean(driver?.isVerifiedDriver),
+      }),
       payment: toCheckout(payment, held.booking),
     };
   }

@@ -6,6 +6,8 @@ import type {
 import type { RoleGrant } from '@parkly/domain/authz';
 import type { IncidentCategory, IncidentSeverity, IncidentStatus } from '@parkly/domain/incident';
 import type { BookingStatus, ConfirmDecision, PaymentStatus } from '@parkly/domain/booking';
+import type { PassStatus } from '@parkly/domain/pass';
+import type { VerificationMethod, VerificationStatus } from '@parkly/domain/verification';
 import type { Bucket, VerifiedCharge } from '../providers/index.js';
 
 /**
@@ -66,6 +68,79 @@ export type UserRow = {
   phoneLast4: string | null;
   status: UserStatus;
   marketingOptIn: boolean;
+  isVerifiedDriver?: boolean;
+  verifiedAt?: Date | null;
+};
+
+export type DriverVerificationRow = {
+  id: string;
+  userId: string;
+  method: VerificationMethod;
+  status: VerificationStatus;
+  provider: 'DOJAH' | 'FAKE';
+  providerReference: string;
+  idNumberEnc: string;
+  idNumberHash: Buffer;
+  maskedIdNumber: string;
+  verifiedName: string | null;
+  dateOfBirthEnc: string | null;
+  rejectionReason: string | null;
+  verifiedAt: Date | null;
+  createdAt: Date;
+};
+
+export type CapacityBlockRow = {
+  id: string;
+  lotId: string;
+  startsAt: Date;
+  endsAt: Date;
+  blockedBays: number;
+  reason: string;
+  createdBy: string | null;
+  createdAt: Date;
+};
+
+export type PassRow = {
+  id: string;
+  code: string;
+  driverId: string;
+  vehicleId: string;
+  plateNorm: string;
+  lotId: string;
+  periodStart: string;
+  periodEnd: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: PassStatus;
+  holdExpiresAt: Date | null;
+  priceKobo: number;
+  serviceFeeKobo: number;
+  totalKobo: number;
+  commissionBps: number;
+  ratePlanId: string;
+  pricingBreakdown: unknown;
+  swapsUsed: number;
+  lastReminderDays: number | null;
+  renewedFromPassId: string | null;
+  source: 'MOBILE' | 'WEB' | 'ADMIN';
+  createdAt: Date;
+};
+
+export type NewPass = Omit<
+  PassRow,
+  'status' | 'totalKobo' | 'swapsUsed' | 'lastReminderDays' | 'createdAt'
+> & {
+  holdExpiresAt: Date;
+};
+
+export type PassWaitlistRow = {
+  id: string;
+  lotId: string;
+  driverId: string;
+  desiredStartDate: string;
+  status: 'WAITING' | 'NOTIFIED' | 'CONVERTED' | 'EXPIRED';
+  notifiedAt: Date | null;
+  createdAt: Date;
 };
 
 export type VehicleRow = {
@@ -168,6 +243,7 @@ export type LotFields = {
   holdCapPercent?: number;
   freeHoldMinutes?: number;
   maxHoldMinutes?: number;
+  requiresVerifiedDriver?: boolean;
 };
 
 export type LotRow = LotFields & {
@@ -181,6 +257,7 @@ export type LotRow = LotFields & {
   holdCapPercent: number;
   freeHoldMinutes: number;
   maxHoldMinutes: number;
+  requiresVerifiedDriver?: boolean;
   version: number;
   createdAt: Date;
 };
@@ -380,8 +457,9 @@ export type PaymentRow = {
   id: string;
   kind?: 'BOOKING' | 'EXTENSION' | 'OVERSTAY' | 'PASS';
   bookingId: string | null;
+  passId?: string | null;
   payerUserId: string;
-  provider: 'PAYSTACK' | 'FAKE';
+  provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
   status: PaymentStatus;
   amountKobo: number;
   platformAmountKobo: number;
@@ -465,6 +543,7 @@ export type ManifestRow = {
   status: BookingStatus;
   checkedInAt: Date | null;
   checkedOutAt: Date | null;
+  driverVerified?: boolean | null;
 };
 
 export type AttendEventInput =
@@ -472,7 +551,8 @@ export type AttendEventInput =
       type: 'CHECK_IN';
       clientEventId: string;
       deviceTime: Date;
-      bookingId: string;
+      bookingId?: string;
+      passId?: string;
       /** SELF: the driver scanned the entrance QR (ADR 0016). */
       method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
       plateSeen: string | null;
@@ -482,7 +562,8 @@ export type AttendEventInput =
       type: 'CHECK_OUT';
       clientEventId: string;
       deviceTime: Date;
-      bookingId: string;
+      bookingId?: string;
+      passId?: string;
       /** SELF: the driver scanned the entrance QR (ADR 0016). */
       method: 'QR' | 'CODE' | 'PLATE' | 'SELF';
     }
@@ -493,6 +574,7 @@ export type AttendEventInput =
       deviceTime: Date;
       note: string;
       bookingId: string | null;
+      passId?: string | null;
     };
 
 export type AttendEventResult = {
@@ -788,6 +870,8 @@ export type Store = {
       dsrId: string,
       at: Date,
     ): Promise<{ vehicles: number; bookings: number; notifications: number } | null>;
+    /** Doc 06 §7: re-applies erasures from `erasure_log` after a backup restore. */
+    reapplyErasures(at: Date): Promise<{ reappliedUsers: number }>;
   };
   /** Doc 06 section 4: purging data kept past its time. Each returns how many rows it removed. */
   retention: {
@@ -1181,7 +1265,7 @@ export type Store = {
   webhooks: {
     /** Stores a provider event once; a repeat of the same dedupe key is `duplicate`. */
     record(event: {
-      provider: 'PAYSTACK' | 'FAKE';
+      provider: 'PAYSTACK' | 'FLUTTERWAVE' | 'FAKE';
       dedupeKey: string;
       eventType: string;
       reference: string | null;
@@ -1604,10 +1688,136 @@ export type Store = {
     /** Admin: Parkly's revenue across every operator, from the ledger, per Lagos day and operator. */
     platformEarnings(filter: { from: string; to: string }): Promise<PlatformEarningsReport>;
   };
+  /** FR-AUTH-009: Tier 2 KYC Driver Identity Verification records. */
+  driverVerifications: {
+    record(
+      row: Omit<DriverVerificationRow, 'id' | 'createdAt'>,
+      at: Date,
+    ): Promise<DriverVerificationRow>;
+    latest(userId: string): Promise<DriverVerificationRow | null>;
+  };
+  /** FR-LOT-008: Operator capacity blackouts. */
+  lotBlocks: {
+    list(lotId: string): Promise<CapacityBlockRow[]>;
+    create(
+      row: {
+        lotId: string;
+        startsAt: Date;
+        endsAt: Date;
+        blockedBays: number;
+        reason: string;
+        createdBy: string | null;
+      },
+      at: Date,
+    ): Promise<CapacityBlockRow>;
+    remove(lotId: string, blockId: string): Promise<boolean>;
+  };
+  /** FR-PASS-001..005: Monthly passes and waitlist. */
+  passes: {
+    hold(
+      pass: NewPass,
+      payment: NewPayment,
+      maxSharePercent: number,
+      at: Date,
+    ): Promise<{ pass: PassRow; payment: PaymentRow }>;
+    find(id: string): Promise<PassRow | null>;
+    findByCode(code: string): Promise<PassRow | null>;
+    paymentForPass(passId: string): Promise<PaymentRow | null>;
+    listForDriver(
+      driverId: string,
+      which: 'active' | 'past',
+      todayLagos: string,
+      limit: number,
+    ): Promise<PassRow[]>;
+    listActiveForLot(lotId: string, todayLagos: string): Promise<PassRow[]>;
+    manifestForLot(
+      lotId: string,
+      now: Date,
+    ): Promise<
+      {
+        id: string;
+        code: string;
+        plateNorm: string;
+        periodStart: string;
+        periodEnd: string;
+        status: PassStatus;
+        checkedInAt: Date | null;
+        driverVerified: boolean;
+      }[]
+    >;
+    releaseHold(id: string, reason: string, at: Date): Promise<void>;
+    settle(
+      paymentId: string,
+      charge: VerifiedCharge,
+      at: Date,
+    ): Promise<{
+      decision: ConfirmDecision;
+      pass: PassRow;
+      payment: PaymentRow;
+      refund: { id: string; amountKobo: number } | null;
+    }>;
+    swapVehicle(
+      passId: string,
+      vehicleId: string,
+      plateNorm: string,
+      todayLagos: string,
+      at: Date,
+    ): Promise<PassRow>;
+    joinWaitlist(
+      row: { lotId: string; driverId: string; desiredStartDate: string },
+      at: Date,
+    ): Promise<PassWaitlistRow>;
+    sessionForPass(passId: string): Promise<{ inLot: boolean; checkedInAt: Date | null }>;
+    sessionsForPasses(
+      passIds: string[],
+    ): Promise<Map<string, { inLot: boolean; checkedInAt: Date | null }>>;
+    checkIn(
+      passId: string,
+      lotId: string,
+      byUserId: string | null,
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF',
+      todayLagos: string,
+      at: Date,
+    ): Promise<{ result: 'APPLIED' | 'CONFLICT' | 'REJECTED'; reason: string | null }>;
+    checkOut(
+      passId: string,
+      lotId: string,
+      byUserId: string | null,
+      method: 'QR' | 'CODE' | 'PLATE' | 'SELF',
+      at: Date,
+    ): Promise<{ result: 'APPLIED' | 'CONFLICT' | 'REJECTED'; reason: string | null }>;
+    dueForExpiryOrReminder(todayLagos: string, limit: number): Promise<PassRow[]>;
+    markReminded(id: string, days: 7 | 2): Promise<void>;
+    expire(id: string, at: Date): Promise<boolean>;
+  };
 };
 
 export class DuplicatePlateError extends Error {}
+export class VehicleInUseError extends Error {}
 export class DsrAlreadyOpenError extends Error {}
+export class CapacityBlockError extends Error {
+  constructor(
+    readonly code: 'LOT_CAPACITY_BELOW_COMMITTED' | 'BOOKING_WINDOW_INVALID',
+    readonly conflictingSlotStart?: Date,
+  ) {
+    super(code);
+  }
+}
+export type PassHoldCode =
+  'PASS_CAPACITY_UNAVAILABLE' | 'PASS_OVERLAP' | 'LOT_NOT_BOOKABLE' | 'PASS_NOT_OFFERED';
+export class PassHoldError extends Error {
+  constructor(readonly code: PassHoldCode) {
+    super(code);
+  }
+}
+export class PassSwapError extends Error {
+  constructor(
+    readonly code:
+      'PASS_NOT_ACTIVE' | 'PASS_SWAP_LIMIT_REACHED' | 'VEHICLE_IN_USE' | 'SAME_VEHICLE',
+  ) {
+    super(code);
+  }
+}
 
 export type DataRequestRow = {
   id: string;

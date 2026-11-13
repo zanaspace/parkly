@@ -97,6 +97,12 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
             <ShieldCheckIcon size={12} />
             <span>LASPA Verified</span>
           </span>
+          {booking.driverVerified && (
+            <span className="pk-badge pk-badge--verified">
+              <ShieldCheckIcon size={12} />
+              <span>Verified Driver</span>
+            </span>
+          )}
         </div>
 
         <Text variant="heading-xl" as="h1" className="pk-booking-detail-title">

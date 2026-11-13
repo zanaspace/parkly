@@ -41,8 +41,10 @@ import { discoveryRoutes } from './modules/discovery/routes.js';
 import { placesRoutes } from './modules/places/routes.js';
 import { attendRoutes } from './modules/attend/routes.js';
 import { bookingRoutes } from './modules/bookings/routes.js';
+import { passRoutes } from './modules/passes/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
 import type {
+  IdentityVerificationProvider,
   MapsProvider,
   MalwareScanner,
   EmailProvider,
@@ -79,6 +81,10 @@ export type AppDeps = {
   settlement: SettlementProvider;
   /** Paystack checkout, verify and refunds (same key as settlement). */
   payments: PaymentProvider;
+  /** Optional Flutterwave fallback payment provider (FR-PAY-007). */
+  flutterwavePayments?: PaymentProvider;
+  /** Nigerian identity verification (FRSC Driver's License / NIN, FR-AUTH-009). */
+  identityVerification: IdentityVerificationProvider;
   storage: StorageProvider;
   scanner: MalwareScanner;
   maps: MapsProvider;
@@ -167,6 +173,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', discoveryRoutes(deps));
   app.route('/v1', placesRoutes(deps));
   app.route('/v1', bookingRoutes(deps));
+  app.route('/v1', passRoutes(deps));
   app.route('/v1', attendRoutes(deps));
   app.route('/v1', webhookRoutes(deps));
 

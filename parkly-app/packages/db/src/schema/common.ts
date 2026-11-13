@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
-import { customType, pgPolicy, pgRole, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { customType, pgEnum, pgPolicy, pgRole, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
+
+export const bookingSourceEnum = pgEnum('booking_source', ['MOBILE', 'WEB', 'ADMIN']);
 
 /** Created by a hand-written migration; drizzle-kit must not manage it. */
 export const parklyApi = pgRole('parkly_api').existing();

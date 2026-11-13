@@ -132,11 +132,14 @@ export default async function LotPage({
       </Link>
 
       <header className="pk-lot-head">
-        <div className="pk-row">
+        <div className="pk-row" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           <Text variant="heading-xl" as="h1">
             {lot.name}
           </Text>
           <span className="pk-badge-verified">✓ Verified</span>
+          {lot.requiresVerifiedDriver && (
+            <span className="pk-badge pk-badge--brand-subtle">Verified Driver Required</span>
+          )}
         </div>
         <Text tone="secondary">
           {lot.addressLine}
@@ -267,6 +270,14 @@ export default async function LotPage({
                 <li key={p.product}>{priceLine(p)}</li>
               ))}
             </ul>
+            {lot.prices.some((p) => p.product === 'MONTHLY') && (
+              <Link
+                className="pk-button pk-button--secondary pk-button--full"
+                href={`/passes?lotId=${encodeURIComponent(lot.id)}`}
+              >
+                Buy 30-day Monthly Pass
+              </Link>
+            )}
             <Text variant="body-sm" tone="tertiary">
               Plus Parkly’s small service fee on stays under 24 hours, shown in your price.
             </Text>

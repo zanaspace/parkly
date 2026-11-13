@@ -207,3 +207,68 @@ export function extensionWindow(input: {
     reopensAt: reopensAt === null ? null : new Date(reopensAt),
   };
 }
+
+export interface CapacityBlockCheckInput {
+  startAt: Date;
+  endAt: Date;
+  blockedBays: number;
+  capacityBookable: number;
+  rows: readonly SlotCounts[];
+}
+
+export type CapacityBlockCheckResult =
+  | { ok: true; slotCount: number }
+  | {
+      ok: false;
+      reason:
+        | 'INVALID_WINDOW'
+        | 'UNALIGNED_SLOT'
+        | 'INVALID_BLOCKED_BAYS'
+        | 'LOT_CAPACITY_BELOW_COMMITTED';
+      conflictingSlotStart?: Date;
+    };
+
+/**
+ * Pure check for whether an operator can block `blockedBays` across `[startAt, endAt)` (`FR-LOT-008`).
+ * Returns `LOT_CAPACITY_BELOW_COMMITTED` if any 15-minute slot in the window would exceed capacity.
+ */
+export function checkCapacityBlock(input: CapacityBlockCheckInput): CapacityBlockCheckResult {
+  const startMs = input.startAt.getTime();
+  const endMs = input.endAt.getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return { ok: false, reason: 'INVALID_WINDOW' };
+  }
+  if (!isSlotAligned(input.startAt) || !isSlotAligned(input.endAt)) {
+    return { ok: false, reason: 'UNALIGNED_SLOT' };
+  }
+  if (
+    !Number.isInteger(input.blockedBays) ||
+    input.blockedBays < 1 ||
+    input.blockedBays > input.capacityBookable
+  ) {
+    return { ok: false, reason: 'INVALID_BLOCKED_BAYS' };
+  }
+
+  const stepMs = SLOT_MINUTES * MINUTE_MS;
+  const bySlot = new Map<number, SlotCounts>();
+  for (const row of input.rows) {
+    bySlot.set(row.slotStart.getTime(), row);
+  }
+
+  let slotCount = 0;
+  for (let t = startMs; t < endMs; t += stepMs) {
+    slotCount += 1;
+    const row = bySlot.get(t);
+    const cap = row ? Math.min(row.capacity, input.capacityBookable) : input.capacityBookable;
+    const committed = row ? row.booked + row.held + row.passReserved + row.blocked : 0;
+    if (committed + input.blockedBays > cap) {
+      return {
+        ok: false,
+        reason: 'LOT_CAPACITY_BELOW_COMMITTED',
+        conflictingSlotStart: new Date(t),
+      };
+    }
+  }
+
+  return { ok: true, slotCount };
+}

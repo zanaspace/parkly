@@ -17,11 +17,14 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { apiAccess, apiAppendOnly, createdAt, id, updatedAt } from './common.js';
+import { apiAccess, apiAppendOnly, bookingSourceEnum, createdAt, id, updatedAt } from './common.js';
 import { vehicles } from './account.js';
 import { users } from './identity.js';
 import { lots, productEnum, ratePlans } from './lots.js';
 import { operators } from './operators.js';
+import { passes } from './passes.js';
+
+export { bookingSourceEnum };
 
 // Doc 00 §3.6 — names are fixed. Never reorder; add new values at the end.
 export const bookingStatusEnum = pgEnum('booking_status', [
@@ -36,7 +39,6 @@ export const bookingStatusEnum = pgEnum('booking_status', [
 /** ADR 0024: RESERVE is fixed scheduled window; PARK_NOW holds space and timer starts at check-in. */
 export const bookingTypeEnum = pgEnum('booking_type', ['RESERVE', 'PARK_NOW']);
 export const bookingActorEnum = pgEnum('booking_actor', ['DRIVER', 'ADMIN', 'ATTENDANT', 'SYSTEM']);
-export const bookingSourceEnum = pgEnum('booking_source', ['MOBILE', 'WEB', 'ADMIN']);
 export const paymentStatusEnum = pgEnum('payment_status', [
   'INITIATED',
   'PENDING',
@@ -194,6 +196,7 @@ export const payments = pgTable(
     id: id(),
     kind: paymentKindEnum('kind').notNull(),
     bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'restrict' }),
+    passId: uuid('pass_id').references(() => passes.id, { onDelete: 'restrict' }),
     payerUserId: uuid('payer_user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }), // C3
@@ -226,6 +229,7 @@ export const payments = pgTable(
     uniqueIndex('payments_provider_reference_key').on(t.provider, t.providerReference),
     index('payments_status_created_idx').on(t.status, t.createdAt),
     index('payments_booking_idx').on(t.bookingId),
+    index('payments_pass_idx').on(t.passId),
     index('payments_payer_idx').on(t.payerUserId),
     index('payments_operator_idx').on(t.operatorId),
     // One open overstay checkout per booking: a second tap reuses it (gap review P-7).
@@ -233,6 +237,7 @@ export const payments = pgTable(
       .on(t.bookingId)
       .where(sql`${t.kind} = 'OVERSTAY' and ${t.status} = 'PENDING'`),
     check('payments_target_check', sql`${t.kind} <> 'BOOKING' or ${t.bookingId} is not null`),
+    check('payments_pass_target_check', sql`${t.kind} <> 'PASS' or ${t.passId} is not null`),
     check(
       'payments_amounts_check',
       sql`${t.amountKobo} > 0 and ${t.platformAmountKobo} >= 0 and ${t.operatorAmountKobo} >= 0

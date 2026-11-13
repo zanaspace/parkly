@@ -84,6 +84,7 @@ export const LotSearchResultSchema = z.object({
   isOpen: z.boolean(),
   availableCount: z.number().int(),
   isAvailable: z.boolean(),
+  requiresVerifiedDriver: z.boolean().default(false),
   quote: QuoteSchema,
 });
 export const LotSearchResponseSchema = z.object({
@@ -114,6 +115,7 @@ export const PublicLotSchema = z.object({
   location: LatLngSchema,
   entranceNotes: z.string().nullable(),
   capacityBookable: z.number().int(),
+  requiresVerifiedDriver: z.boolean().default(false),
   amenities: z.array(AmenitySchema),
   vehicleTypes: z.array(VehicleTypeSchema),
   openingHours: z.array(OpeningDaySchema),

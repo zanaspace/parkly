@@ -84,6 +84,14 @@
     "./security": {
       "types": "./dist/security/index.d.ts",
       "default": "./dist/security/index.js"
+    },
+    "./pass": {
+      "types": "./dist/pass/index.d.ts",
+      "default": "./dist/pass/index.js"
+    },
+    "./verification": {
+      "types": "./dist/verification/index.d.ts",
+      "default": "./dist/verification/index.js"
     }
   },
   "scripts": {

@@ -57,6 +57,9 @@ export const users = pgTable(
     status: userStatusEnum('status').notNull().default('ACTIVE'),
     locale: text('locale').notNull().default('en-NG'),
     marketingOptIn: boolean('marketing_opt_in').notNull().default(false), // C3
+    /** FR-AUTH-009 / FR-PASS-005: Tier 2 Nigerian driver identity verification status. */
+    isVerifiedDriver: boolean('is_verified_driver').notNull().default(false),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -95,5 +98,51 @@ export const userRoles = pgTable(
       .nullsNotDistinct(),
     index('user_roles_operator_idx').on(t.operatorId),
     apiAccess('user_roles'),
+  ],
+).enableRLS();
+
+export const driverVerificationMethodEnum = pgEnum('driver_verification_method', [
+  'FRSC_LICENSE',
+  'NIN_PHONE',
+]);
+
+export const driverVerificationStatusEnum = pgEnum('driver_verification_status', [
+  'VERIFIED',
+  'REJECTED',
+  'FAILED',
+]);
+
+export const identityProviderEnum = pgEnum('identity_provider', ['DOJAH', 'FAKE']);
+
+/**
+ * Tier 2 KYC Driver Identity Verification records (FR-AUTH-009, doc 06 §2).
+ * Raw document images are never stored; the normalised license/NIN is encrypted at rest (`id_number_enc` C4)
+ * and HMAC-hashed (`id_number_hash` C3) for deduplication.
+ */
+export const driverVerifications = pgTable(
+  'driver_verifications',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    method: driverVerificationMethodEnum('method').notNull(),
+    status: driverVerificationStatusEnum('status').notNull(),
+    provider: identityProviderEnum('provider').notNull(),
+    providerReference: varchar('provider_reference', { length: 120 }).notNull(),
+    idNumberEnc: text('id_number_enc').notNull(), // C4 [enc]
+    idNumberHash: bytea('id_number_hash').notNull(), // C3: HMAC-SHA256
+    maskedIdNumber: varchar('masked_id_number', { length: 32 }).notNull(), // C3
+    verifiedName: varchar('verified_name', { length: 120 }), // C3
+    dateOfBirthEnc: text('date_of_birth_enc'), // C3 [enc]
+    rejectionReason: text('rejection_reason'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('driver_verifications_user_idx').on(t.userId, t.createdAt.desc()),
+    index('driver_verifications_hash_idx').on(t.idNumberHash),
+    apiAccess('driver_verifications'),
   ],
 ).enableRLS();

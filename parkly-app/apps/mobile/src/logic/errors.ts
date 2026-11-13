@@ -41,6 +41,22 @@ const COPY: Partial<Record<ErrorCode, string>> = {
   QR_WRONG_LOT: 'That’s not this car park’s poster. Scan the Parkly poster at the entrance.',
   QR_OUTSIDE_WINDOW: 'It’s too early or too late for this booking. Check your booking time.',
   BOOKING_NOT_ACTIVE: 'This booking can’t be checked in or out right now.',
+  // Monthly passes & Driver identity verification (Sprint 9)
+  DRIVER_VERIFICATION_REQUIRED:
+    'Verify your driver identity (FRSC Driver’s License or NIN) in under 60 seconds to continue.',
+  IDENTITY_VERIFICATION_FAILED:
+    'We could not verify that license or NIN against official records. Check the details and try again.',
+  IDENTITY_PROVIDER_UNAVAILABLE:
+    'Identity verification is temporarily unreachable. Please try again shortly.',
+  PASS_NOT_FOUND: 'We couldn’t find that monthly pass.',
+  PASS_CAPACITY_UNAVAILABLE:
+    'Monthly passes at this car park are full right now. You can join the waitlist.',
+  PASS_OVERLAP: 'This car already has a monthly pass at this car park for those dates.',
+  PASS_NOT_OFFERED: 'This car park does not offer a 30-day monthly pass.',
+  PASS_SWAP_LIMIT_REACHED: 'You have already swapped the vehicle on this pass twice this month.',
+  PASS_NOT_ACTIVE: 'This monthly pass is not active right now.',
+  LOT_CAPACITY_BELOW_COMMITTED:
+    'This car park has confirmed bookings that exceed the remaining spaces during that window.',
 };
 
 export const NETWORK_ERROR_MESSAGE = 'You seem to be offline. Check your connection and try again.';

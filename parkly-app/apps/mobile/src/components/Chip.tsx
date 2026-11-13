@@ -18,8 +18,10 @@ export function Chip({
       accessibilityState={{ selected }}
       accessibilityLabel={label}
       onPress={onPress}
-      hitSlop={6}
+      hitSlop={8}
       style={({ pressed }) => ({
+        minHeight: 36,
+        justifyContent: 'center',
         paddingVertical: theme.space[2],
         paddingHorizontal: theme.space[3],
         borderRadius: theme.radius.pill,

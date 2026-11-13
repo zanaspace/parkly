@@ -76,6 +76,9 @@ export const MeSchema = z.object({
     privacy: z.string(),
     operatorAgreement: z.string(),
   }),
+  /** FR-AUTH-009 / FR-PASS-005: Tier 2 Nigerian driver identity verification status. */
+  isVerifiedDriver: z.boolean().default(false),
+  verifiedAt: z.iso.datetime().nullable().default(null),
 });
 
 export const BootstrapResponseSchema = z.object({
@@ -147,6 +150,38 @@ export const UpdateVehicleRequestSchema = z
 
 export const VehicleListSchema = z.object({ items: z.array(VehicleSchema) });
 
+// --- /v1/me/verification (FR-AUTH-009 Tier 2 KYC) --------------------------
+
+export const DriverVerificationMethodSchema = z.enum(['FRSC_LICENSE', 'NIN_PHONE']);
+export const DriverVerificationStatusSchema = z.enum(['VERIFIED', 'REJECTED', 'FAILED']);
+
+export const VerifyDriverIdentityRequestSchema = z.object({
+  method: DriverVerificationMethodSchema,
+  idNumber: z.string().trim().min(5).max(32),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
+    .optional(),
+});
+
+export const DriverVerificationRecordSchema = z.object({
+  id: z.uuid(),
+  method: DriverVerificationMethodSchema,
+  status: DriverVerificationStatusSchema,
+  maskedIdNumber: z.string(),
+  provider: z.enum(['DOJAH', 'FAKE']),
+  providerReference: z.string(),
+  verifiedName: z.string().nullable(),
+  verifiedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+export const DriverVerificationSchema = z.object({
+  isVerifiedDriver: z.boolean(),
+  verifiedAt: z.iso.datetime().nullable(),
+  verification: DriverVerificationRecordSchema.nullable(),
+});
+
 // --- admin audit log -------------------------------------------------------
 
 export const AuditLogQuerySchema = z.object({
@@ -177,3 +212,8 @@ export type Me = z.infer<typeof MeSchema>;
 export type Vehicle = z.infer<typeof VehicleSchema>;
 export type RoleGrant = z.infer<typeof RoleGrantSchema>;
 export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>;
+export type DriverVerificationMethod = z.infer<typeof DriverVerificationMethodSchema>;
+export type DriverVerificationStatus = z.infer<typeof DriverVerificationStatusSchema>;
+export type VerifyDriverIdentityRequest = z.infer<typeof VerifyDriverIdentityRequestSchema>;
+export type DriverVerificationRecord = z.infer<typeof DriverVerificationRecordSchema>;
+export type DriverVerification = z.infer<typeof DriverVerificationSchema>;

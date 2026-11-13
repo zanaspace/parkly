@@ -1,6 +1,6 @@
 'use server';
 
-import type { Lot, PresignUploadResponse } from '@parkly/contracts';
+import type { CapacityBlock, Lot, PresignUploadResponse } from '@parkly/contracts';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiFetch, ApiProblem } from '../api';
@@ -317,5 +317,115 @@ export async function setLotVisibility(
   }
   revalidatePath(`/lots/${lotId}`);
   revalidatePath('/lots');
+  return undefined;
+}
+
+export type CapacityBlockFormState = { error?: string; saved?: boolean } | undefined;
+
+/** FR-LOT-008: create a full or partial capacity blackout on a lot. */
+export async function createCapacityBlock(
+  _prev: CapacityBlockFormState,
+  form: FormData,
+): Promise<CapacityBlockFormState> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  const startsAtRaw = String(form.get('startsAt') ?? '');
+  const endsAtRaw = String(form.get('endsAt') ?? '');
+  const blockedBaysRaw = String(form.get('blockedBays') ?? form.get('blockedSpots') ?? '').trim();
+  const reason = String(form.get('reason') ?? '').trim();
+
+  if (!startsAtRaw || !endsAtRaw) {
+    return { error: 'Enter both a start and end date/time.' };
+  }
+  const startsAt = new Date(startsAtRaw);
+  const endsAt = new Date(endsAtRaw);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+    return { error: 'End time must be after start time.' };
+  }
+  const blockedBays = blockedBaysRaw ? Number(blockedBaysRaw) : undefined;
+  if (blockedBays !== undefined && (!Number.isInteger(blockedBays) || blockedBays < 1)) {
+    return {
+      error: 'Blocked spaces must be a positive whole number (or leave blank to block all spaces).',
+    };
+  }
+
+  try {
+    await apiFetch<CapacityBlock>(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/blocks`,
+      await token(),
+      {
+        method: 'POST',
+        body: {
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          ...(blockedBays !== undefined ? { blockedBays } : {}),
+          ...(reason ? { reason } : {}),
+        },
+      },
+    );
+  } catch (err) {
+    if (err instanceof ApiProblem) {
+      if (err.code === 'LOT_HAS_FUTURE_BOOKINGS') {
+        return {
+          error:
+            err.detail ??
+            'Cannot create blackout: confirmed bookings already exceed remaining capacity during that window.',
+        };
+      }
+      return { error: err.detail ?? err.message ?? 'Could not create capacity blackout.' };
+    }
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  revalidatePath(`/lots/${lotId}`);
+  return { saved: true };
+}
+
+/** FR-LOT-008: remove a capacity blackout. */
+export async function deleteCapacityBlock(form: FormData): Promise<void> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  const blockId = String(form.get('blockId') ?? '');
+  try {
+    await apiFetch(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}/blocks/${encodeURIComponent(blockId)}`,
+      await token(),
+      { method: 'DELETE' },
+    );
+  } catch {
+    // Revalidate reloads the current list.
+  }
+  revalidatePath(`/lots/${lotId}`);
+}
+
+/** FR-PASS-005: toggle whether this lot requires Verified Driver status (Tier 2 KYC). */
+export async function setRequiresVerifiedDriver(
+  _prev: { error?: string } | undefined,
+  form: FormData,
+): Promise<{ error?: string } | undefined> {
+  const operatorId = String(form.get('operatorId') ?? '');
+  const lotId = String(form.get('lotId') ?? '');
+  const version = Number(form.get('version') ?? 1);
+  const requiresVerifiedDriver = form.get('requiresVerifiedDriver') === 'true';
+  try {
+    await apiFetch<Lot>(
+      publicEnv().apiUrl,
+      `${lotsPath(operatorId)}/${encodeURIComponent(lotId)}`,
+      await token(),
+      {
+        method: 'PATCH',
+        body: { version, requiresVerifiedDriver },
+      },
+    );
+  } catch (err) {
+    return {
+      error:
+        err instanceof ApiProblem
+          ? (err.detail ?? err.message ?? 'Could not update Verified Driver requirement.')
+          : 'Something went wrong. Please try again.',
+    };
+  }
+  revalidatePath(`/lots/${lotId}`);
   return undefined;
 }

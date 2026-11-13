@@ -58,7 +58,9 @@ export function Button({
         return loading ? (
           <ActivityIndicator color={c.fg} size="small" />
         ) : (
-          <RNText style={{ ...m.font, color: c.fg }}>{label}</RNText>
+          <RNText allowFontScaling maxFontSizeMultiplier={2} style={{ ...m.font, color: c.fg }}>
+            {label}
+          </RNText>
         );
       }}
     </Pressable>

@@ -481,7 +481,7 @@ Dependency chain: S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7. S8 depend
 | S4 | Paid booking and k6 overbooking run on staging | Staging waits (owner) | Before S5 sign-off |
 | S4 | QR key rotation job and revocation list | Delivered with the attendant manifest | S5 |
 | S4 | Booking confirmation SMS, push and email receipt | Notifications are S6 | S6 |
-| S4 | Webhook queue (pgmq) per doc 02 §7 | Inline processing + `settle-payments` job cover it for the pilot volume | S9 (hardening) |
+| S4 | Webhook queue (pgmq) per doc 02 §7 | Inline processing + `settle-payments` job cover it for the pilot volume | **Done in S9** (`retry-webhooks` job in `apps/api/src/jobs/retry-webhooks.ts` + cron schedule) |
 | S5 | Attendant sign-in by phone OTP (from S1) | SMS isn't live | **Done in S6** with an email code, phone as the alternative (ADR 0018) |
 | S6 | Notifications in production, reminders, push registration, invite emails | Gap review L-1; real email needs a verified Resend domain | **Done in S6 Wave 3**; real email live on dev Nov 6, with every auth email through Resend too (ADR 0022) |
 | S6 | Overstay unpaid block and ops waive; stored PDF receipts by email; no-shows while a gate is offline | Gap review L-3, L-4, L-5, G-4 | **Done in S6 Wave 3** |

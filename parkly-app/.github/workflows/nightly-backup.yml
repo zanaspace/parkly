@@ -1,0 +1,73 @@
+name: Nightly Off-Platform Encrypted Backup
+
+on:
+  schedule:
+    # 02:30 UTC (03:30 Africa/Lagos) every night
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  encrypted-backup:
+    name: pg_dump + Storage Export (age encrypted -> S3/R2 off-platform bucket)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 client, age, and AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client age awscli jq curl
+
+      - name: Dump Postgres database and encrypt with age public key
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          echo "STAMP=${STAMP}" >> "$GITHUB_ENV"
+          mkdir -p /tmp/parkly-backup
+          pg_dump --format=custom --no-owner --no-privileges "$BACKUP_DATABASE_URL" \
+            | age -r "$BACKUP_AGE_PUBLIC_KEY" -o "/tmp/parkly-backup/parkly-db-${STAMP}.dump.age"
+          sha256sum "/tmp/parkly-backup/parkly-db-${STAMP}.dump.age" > "/tmp/parkly-backup/parkly-db-${STAMP}.dump.age.sha256"
+
+      - name: Export Supabase Storage metadata & objects archive (encrypted)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/parkly-storage
+          for BUCKET in lot-photos-public kyb-documents permits; do
+            curl -fsSL "${SUPABASE_URL}/storage/v1/object/list/${BUCKET}" \
+              -H "apikey: ${SUPABASE_SECRET_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SECRET_KEY}" \
+              -H "Content-Type: application/json" \
+              -d '{"prefix":"","limit":1000,"offset":0}' \
+              > "/tmp/parkly-storage/${BUCKET}-manifest.json"
+          done
+          tar -czf - -C /tmp/parkly-storage . \
+            | age -r "$BACKUP_AGE_PUBLIC_KEY" -o "/tmp/parkly-backup/parkly-storage-${STAMP}.tar.gz.age"
+
+      - name: Upload encrypted archives to off-platform bucket (30-day lifecycle)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.OFFPLATFORM_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.OFFPLATFORM_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.OFFPLATFORM_BACKUP_REGION || 'eu-west-1' }}
+          BACKUP_S3_URI: ${{ secrets.OFFPLATFORM_BACKUP_S3_URI }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.OFFPLATFORM_BACKUP_S3_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          ENDPOINT_ARG=""
+          if [ -n "${BACKUP_S3_ENDPOINT:-}" ]; then
+            ENDPOINT_ARG="--endpoint-url ${BACKUP_S3_ENDPOINT}"
+          fi
+          aws s3 cp ${ENDPOINT_ARG} --tagging "RetentionDays=35" "/tmp/parkly-backup/parkly-db-${STAMP}.dump.age" "${BACKUP_S3_URI}/db/parkly-db-${STAMP}.dump.age"
+          aws s3 cp ${ENDPOINT_ARG} --tagging "RetentionDays=35" "/tmp/parkly-backup/parkly-db-${STAMP}.dump.age.sha256" "${BACKUP_S3_URI}/db/parkly-db-${STAMP}.dump.age.sha256"
+          aws s3 cp ${ENDPOINT_ARG} --tagging "RetentionDays=35" "/tmp/parkly-backup/parkly-storage-${STAMP}.tar.gz.age" "${BACKUP_S3_URI}/storage/parkly-storage-${STAMP}.tar.gz.age"
