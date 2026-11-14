@@ -1,6 +1,7 @@
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { LogoMarkIcon } from '../../../components/icons';
+import { loadSession } from '../../../lib/auth/session';
 import { publicEnv } from '../../../lib/env';
 import { CorporateOnboardingForm } from './corporate-onboarding-form';
 
@@ -10,8 +11,12 @@ export const metadata = {
     'Self-serve onboarding for employers, enterprise fleets, and corporate transit subsidies.',
 };
 
-export default function CorporateOnboardingPage() {
+export default async function CorporateOnboardingPage() {
   const apiUrl = publicEnv().apiUrl;
+  const session = await loadSession();
+  const currentUser = session.signedIn
+    ? { signedIn: true as const, email: session.email }
+    : { signedIn: false as const, email: null };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--pk-color-bg-canvas)' }}>
@@ -78,7 +83,7 @@ export default function CorporateOnboardingPage() {
           </Text>
         </div>
 
-        <CorporateOnboardingForm apiUrl={apiUrl} />
+        <CorporateOnboardingForm apiUrl={apiUrl} currentUser={currentUser} />
       </main>
     </div>
   );

@@ -11,6 +11,10 @@ export type OnboardingFormFields = {
   primaryContactEmail: string;
   primaryContactPhone: string;
 
+  // Administrator Account (when not yet signed in)
+  password?: string;
+  confirmPassword?: string;
+
   // Step 2: Brand
   primaryColor: string;
   portalTitle: string;
@@ -38,6 +42,8 @@ export const INITIAL_FORM_FIELDS: OnboardingFormFields = {
   primaryContactName: '',
   primaryContactEmail: '',
   primaryContactPhone: '',
+  password: '',
+  confirmPassword: '',
   primaryColor: '#E31837',
   portalTitle: '',
   welcomeMessage: '',

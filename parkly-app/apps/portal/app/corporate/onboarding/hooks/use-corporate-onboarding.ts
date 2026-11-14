@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { registerCorporateAdmin } from '../../../../lib/auth/actions';
 import {
   INITIAL_FORM_FIELDS,
   type OnboardingFormFields,
@@ -8,12 +9,18 @@ import {
   submitCorporateOnboarding,
 } from '../data/onboarding-api';
 
-export function useCorporateOnboarding(apiUrl: string) {
+export function useCorporateOnboarding(
+  apiUrl: string,
+  currentUser?: { signedIn: boolean; email: string | null },
+) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successTenant, setSuccessTenant] = useState<OnboardingResult | null>(null);
-  const [fields, setFields] = useState<OnboardingFormFields>(INITIAL_FORM_FIELDS);
+  const [fields, setFields] = useState<OnboardingFormFields>(() => ({
+    ...INITIAL_FORM_FIELDS,
+    primaryContactEmail: currentUser?.email ?? '',
+  }));
 
   const setField = <K extends keyof OnboardingFormFields>(
     key: K,
@@ -62,9 +69,21 @@ export function useCorporateOnboarding(apiUrl: string) {
       !fields.primaryContactEmail ||
       !fields.primaryContactPhone
     ) {
-      setError('Please complete all required fields in Step 1.');
+      setError('Please complete all required company and contact fields in Step 1.');
       return false;
     }
+
+    if (!currentUser?.signedIn && fields.password) {
+      if (fields.password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return false;
+      }
+      if (fields.password !== fields.confirmPassword) {
+        setError('The two passwords do not match.');
+        return false;
+      }
+    }
+
     setError(null);
     return true;
   };
@@ -97,6 +116,15 @@ export function useCorporateOnboarding(apiUrl: string) {
     setBusy(true);
 
     try {
+      // 1. If newcomer created a password, register Supabase auth account
+      if (!currentUser?.signedIn && fields.password) {
+        const authRes = await registerCorporateAdmin(fields.primaryContactEmail, fields.password);
+        if (!authRes.success && authRes.error) {
+          throw new Error(authRes.error);
+        }
+      }
+
+      // 2. Provision sovereign corporate tenant
       const result = await submitCorporateOnboarding(apiUrl, fields);
       setSuccessTenant(result);
     } catch (err) {

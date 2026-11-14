@@ -13,7 +13,18 @@ const WIZARD_STEPS = [
   { num: 3, label: 'Domain & Fleet' },
 ] as const;
 
-export function CorporateOnboardingForm({ apiUrl }: { apiUrl: string }) {
+export type CurrentUserInfo = {
+  signedIn: boolean;
+  email: string | null;
+};
+
+export function CorporateOnboardingForm({
+  apiUrl,
+  currentUser,
+}: {
+  apiUrl: string;
+  currentUser?: CurrentUserInfo;
+}) {
   const {
     step,
     busy,
@@ -24,7 +35,7 @@ export function CorporateOnboardingForm({ apiUrl }: { apiUrl: string }) {
     handleLegalNameChange,
     goToStep,
     handleSubmit,
-  } = useCorporateOnboarding(apiUrl);
+  } = useCorporateOnboarding(apiUrl, currentUser);
 
   if (successTenant) {
     return <SuccessModal tenant={successTenant} />;
@@ -108,6 +119,7 @@ export function CorporateOnboardingForm({ apiUrl }: { apiUrl: string }) {
           {step === 1 && (
             <StepCompany
               fields={fields}
+              currentUser={currentUser}
               setField={setField}
               handleLegalNameChange={handleLegalNameChange}
               onContinue={() => goToStep(2)}

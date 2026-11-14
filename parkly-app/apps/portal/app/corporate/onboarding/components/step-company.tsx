@@ -1,11 +1,15 @@
 'use client';
 
 import { Select } from '@parkly/ui';
+import Link from 'next/link';
+import { GoogleIcon } from '../../../../components/icons';
+import { signInWithGoogle } from '../../../../lib/auth/actions';
 import { getTenantUrl } from '../../../../lib/tenant-url';
 import { INDUSTRY_OPTIONS, type OnboardingFormFields } from '../data/onboarding-api';
 
 type StepCompanyProps = {
   fields: OnboardingFormFields;
+  currentUser?: { signedIn: boolean; email: string | null };
   setField: <K extends keyof OnboardingFormFields>(key: K, value: OnboardingFormFields[K]) => void;
   handleLegalNameChange: (val: string) => void;
   onContinue: () => void;
@@ -13,12 +17,146 @@ type StepCompanyProps = {
 
 export function StepCompany({
   fields,
+  currentUser,
   setField,
   handleLegalNameChange,
   onContinue,
 }: StepCompanyProps) {
+  const urlInfo = getTenantUrl(fields.slug);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* 1. Admin Authentication Box */}
+      {currentUser?.signedIn ? (
+        <div
+          className="pk-card"
+          style={{
+            background: 'rgba(16, 185, 129, 0.06)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            padding: '0.875rem 1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: '0.72rem',
+                color: '#10B981',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+              }}
+            >
+              ● Authenticated Corporate Administrator
+            </div>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser.email}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--pk-color-text-secondary)' }}>
+              This corporate organization will be linked to your existing Parkly credentials.
+            </div>
+          </div>
+          <Link
+            href="/sign-in?next=/corporate/onboarding"
+            className="pk-link"
+            style={{ fontSize: '0.8rem' }}
+          >
+            Switch Account
+          </Link>
+        </div>
+      ) : (
+        <div
+          className="pk-card"
+          style={{
+            background: 'var(--pk-color-bg-canvas)',
+            padding: '1rem',
+            border: '1px solid var(--pk-color-border-default)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem',
+            }}
+          >
+            <strong style={{ fontSize: '0.85rem' }}>Administrator Account & Sign-In</strong>
+            <Link
+              href="/sign-in?next=/corporate/onboarding"
+              className="pk-link"
+              style={{ fontSize: '0.8rem' }}
+            >
+              Already have an account? Sign In
+            </Link>
+          </div>
+
+          <form action={() => signInWithGoogle('/corporate/onboarding')}>
+            <button
+              type="submit"
+              className="pk-button pk-button--secondary"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <GoogleIcon size={18} />
+              <span>Continue with Google Workspace</span>
+            </button>
+          </form>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              margin: '0.5rem 0',
+              color: 'var(--pk-color-text-muted)',
+              fontSize: '0.75rem',
+            }}
+          >
+            <div style={{ flex: 1, height: '1px', background: 'var(--pk-color-border-subtle)' }} />
+            <span>or sign up with work email and password</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--pk-color-border-subtle)' }} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div>
+              <label className="pk-label" htmlFor="corp-password">
+                Admin Password *
+              </label>
+              <input
+                id="corp-password"
+                type="password"
+                className="pk-input"
+                placeholder="At least 8 characters"
+                value={fields.password ?? ''}
+                onChange={(e) => setField('password', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="pk-label" htmlFor="corp-confirm-password">
+                Confirm Password *
+              </label>
+              <input
+                id="corp-confirm-password"
+                type="password"
+                className="pk-input"
+                placeholder="Re-enter password"
+                value={fields.confirmPassword ?? ''}
+                onChange={(e) => setField('confirmPassword', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Company Details */}
       <div>
         <label className="pk-label" htmlFor="corp-legalName">
           Company Legal Name *
@@ -48,7 +186,6 @@ export function StepCompany({
           />
         </div>
         <div>
-          {/* Brand Custom Dropdown from @parkly/ui */}
           <Select
             label="Industry Sector"
             name="industry"
@@ -91,16 +228,16 @@ export function StepCompany({
             marginTop: '0.25rem',
           }}
         >
-          {getTenantUrl(fields.slug).isStagingOrDev ? (
+          {urlInfo.isStagingOrDev ? (
             <>
-              Active Preview URL: <strong>{getTenantUrl(fields.slug).activeUrl}</strong>
+              Active Preview URL: <strong>{urlInfo.activeUrl}</strong>
               <div style={{ color: 'var(--pk-color-text-muted)', marginTop: '0.15rem' }}>
-                Production Subdomain Target: {getTenantUrl(fields.slug).productionUrl}
+                Production Subdomain Target: {urlInfo.productionUrl}
               </div>
             </>
           ) : (
             <>
-              Your sovereign URL: <strong>{getTenantUrl(fields.slug).activeUrl}</strong>
+              Your sovereign URL: <strong>{urlInfo.activeUrl}</strong>
             </>
           )}
         </div>
