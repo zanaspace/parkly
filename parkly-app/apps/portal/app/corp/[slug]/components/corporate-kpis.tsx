@@ -5,10 +5,11 @@ import {
   LotsIcon,
   ShieldCheckIcon,
 } from '../../../../components/icons';
+import { getTenantUrl } from '../../../../lib/tenant-url';
 import type { ResolvedTenant } from '../data/corporate-tenant';
 
 export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: string }) {
-  const tenantKey = slug.toLowerCase();
+  const urlInfo = getTenantUrl(slug);
 
   return (
     <div className="pk-stat-grid">
@@ -29,15 +30,24 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
               Dedicated URL
             </Text>
           </div>
-          <div className="pk-stat-count" style={{ fontSize: '1.35rem', fontFamily: 'monospace' }}>
-            {tenantKey}.parkly.ng
+          <div
+            className="pk-stat-count"
+            style={{
+              fontSize: urlInfo.isStagingOrDev ? '1.05rem' : '1.35rem',
+              fontFamily: 'monospace',
+              wordBreak: 'break-all',
+            }}
+          >
+            {urlInfo.displayUrl}
           </div>
           <Text
             variant="body-sm"
             tone="secondary"
             style={{ marginTop: '0.5rem', display: 'block' }}
           >
-            Sovereign edge-routed corporate tenant address.
+            {urlInfo.isStagingOrDev
+              ? `Active portal address (Target: ${urlInfo.productionUrl})`
+              : 'Sovereign edge-routed corporate tenant address.'}
           </Text>
         </div>
       </div>

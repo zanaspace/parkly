@@ -4,10 +4,12 @@ import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircleIcon } from '../../../../components/icons';
+import { getTenantUrl } from '../../../../lib/tenant-url';
 import type { OnboardingResult } from '../data/onboarding-api';
 
 export function SuccessModal({ tenant }: { tenant: OnboardingResult }) {
   const router = useRouter();
+  const urlInfo = getTenantUrl(tenant.slug);
 
   return (
     <div
@@ -33,7 +35,7 @@ export function SuccessModal({ tenant }: { tenant: OnboardingResult }) {
         style={{ marginTop: '0.5rem', marginBottom: '1.5rem', display: 'block' }}
       >
         <strong>{tenant.legalName}</strong> is now registered on Parkly Corporate. Your sovereign
-        dedicated subdomain and employee SSO directory are active.
+        dedicated portal and employee SSO directory are active.
       </Text>
 
       <div
@@ -52,11 +54,29 @@ export function SuccessModal({ tenant }: { tenant: OnboardingResult }) {
             marginBottom: '0.25rem',
           }}
         >
-          Dedicated Tenant URL
+          Dedicated Tenant URL ({urlInfo.isStagingOrDev ? 'Active Environment' : 'Production'})
         </div>
-        <code className="pk-code" style={{ fontSize: '1rem', color: 'var(--pk-color-text-brand)' }}>
-          https://{tenant.slug}.parkly.ng
-        </code>
+        <a
+          href={urlInfo.activeUrl}
+          className="pk-code pk-link"
+          style={{ fontSize: '1rem', wordBreak: 'break-all', display: 'inline-block' }}
+        >
+          {urlInfo.activeUrl}
+        </a>
+        {urlInfo.isStagingOrDev && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--pk-color-text-muted)',
+              marginTop: '0.5rem',
+              borderTop: '1px solid var(--pk-color-border-subtle)',
+              paddingTop: '0.4rem',
+            }}
+          >
+            Target Sovereign Domain: <strong>{urlInfo.productionUrl}</strong> (activates once DNS is
+            mapped)
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>

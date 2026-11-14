@@ -1,5 +1,6 @@
 'use client';
 
+import { getTenantUrl } from '../../../../lib/tenant-url';
 import type { OnboardingFormFields } from '../data/onboarding-api';
 
 export function PreviewTenantCard({ fields }: { fields: OnboardingFormFields }) {
@@ -103,17 +104,18 @@ export function PreviewTenantCard({ fields }: { fields: OnboardingFormFields }) 
         >
           <div>
             <div style={{ fontSize: '0.7rem', color: 'var(--pk-color-text-secondary)' }}>
-              Subdomain URL
+              Dedicated URL
             </div>
             <div
               style={{
-                fontSize: '0.85rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 color: 'var(--pk-color-text-brand)',
                 fontFamily: 'monospace',
+                wordBreak: 'break-all',
               }}
             >
-              {slug || 'company'}.parkly.ng
+              {getTenantUrl(slug).displayUrl}
             </div>
           </div>
           <div>

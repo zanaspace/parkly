@@ -1,6 +1,7 @@
 'use client';
 
 import { Select } from '@parkly/ui';
+import { getTenantUrl } from '../../../../lib/tenant-url';
 import { INDUSTRY_OPTIONS, type OnboardingFormFields } from '../data/onboarding-api';
 
 type StepCompanyProps = {
@@ -90,7 +91,18 @@ export function StepCompany({
             marginTop: '0.25rem',
           }}
         >
-          Your sovereign URL: <strong>https://{fields.slug || 'company'}.parkly.ng</strong>
+          {getTenantUrl(fields.slug).isStagingOrDev ? (
+            <>
+              Active Preview URL: <strong>{getTenantUrl(fields.slug).activeUrl}</strong>
+              <div style={{ color: 'var(--pk-color-text-muted)', marginTop: '0.15rem' }}>
+                Production Subdomain Target: {getTenantUrl(fields.slug).productionUrl}
+              </div>
+            </>
+          ) : (
+            <>
+              Your sovereign URL: <strong>{getTenantUrl(fields.slug).activeUrl}</strong>
+            </>
+          )}
         </div>
       </div>
 
