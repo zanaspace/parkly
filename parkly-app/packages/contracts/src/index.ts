@@ -21,3 +21,4 @@ export * from './support.js';
 export * from './incidents.js';
 export * from './platform.js';
 export * from './privacy.js';
+export * from './corporate.js';

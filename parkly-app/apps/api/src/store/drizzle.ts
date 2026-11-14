@@ -26,6 +26,10 @@ import {
   StaleVersionError,
   VehicleInUseError,
   type ConsentType,
+  type CorporateAccountRow,
+  type CorporateBrandingRow,
+  type CorporateDomainRow,
+  type CorporateMemberRow,
   type FileRow,
   type KybDocumentRow,
   type LotPhotoRow,
@@ -82,6 +86,10 @@ const {
   lotSigningKeys,
   bookings,
   passes,
+  corporateAccounts,
+  corporateDomains,
+  corporateBranding,
+  corporateMembers,
 } = schema;
 
 const lotKeyColumns = {
@@ -1726,6 +1734,189 @@ export function drizzleStore(db: Db): Store {
             set: { value, updatedBy: by, updatedAt: at },
           });
         return { before: old?.value };
+      },
+    },
+
+    corporate: {
+      async findBySlug(slug: string) {
+        const [account] = await db
+          .select()
+          .from(corporateAccounts)
+          .where(and(eq(corporateAccounts.slug, slug), eq(corporateAccounts.isActive, true)));
+        if (!account) return null;
+
+        const [branding] = await db
+          .select()
+          .from(corporateBranding)
+          .where(eq(corporateBranding.corporateId, account.id));
+
+        const domains = await db
+          .select()
+          .from(corporateDomains)
+          .where(eq(corporateDomains.corporateId, account.id));
+
+        return {
+          account: account as CorporateAccountRow,
+          branding: (branding as CorporateBrandingRow | undefined) ?? null,
+          domains: domains as CorporateDomainRow[],
+        };
+      },
+      async findBySubdomain(subdomain: string) {
+        const [domain] = await db
+          .select()
+          .from(corporateDomains)
+          .where(eq(corporateDomains.subdomain, subdomain.toLowerCase()));
+        if (!domain) return null;
+
+        const [account] = await db
+          .select()
+          .from(corporateAccounts)
+          .where(
+            and(eq(corporateAccounts.id, domain.corporateId), eq(corporateAccounts.isActive, true)),
+          );
+        if (!account) return null;
+
+        const [branding] = await db
+          .select()
+          .from(corporateBranding)
+          .where(eq(corporateBranding.corporateId, account.id));
+
+        const domains = await db
+          .select()
+          .from(corporateDomains)
+          .where(eq(corporateDomains.corporateId, account.id));
+
+        return {
+          account: account as CorporateAccountRow,
+          branding: (branding as CorporateBrandingRow | undefined) ?? null,
+          domains: domains as CorporateDomainRow[],
+        };
+      },
+      async findByDomain(customDomain: string) {
+        const [domain] = await db
+          .select()
+          .from(corporateDomains)
+          .where(eq(corporateDomains.customDomain, customDomain.toLowerCase()));
+        if (!domain) return null;
+
+        const [account] = await db
+          .select()
+          .from(corporateAccounts)
+          .where(
+            and(eq(corporateAccounts.id, domain.corporateId), eq(corporateAccounts.isActive, true)),
+          );
+        if (!account) return null;
+
+        const [branding] = await db
+          .select()
+          .from(corporateBranding)
+          .where(eq(corporateBranding.corporateId, account.id));
+
+        const domains = await db
+          .select()
+          .from(corporateDomains)
+          .where(eq(corporateDomains.corporateId, account.id));
+
+        return {
+          account: account as CorporateAccountRow,
+          branding: (branding as CorporateBrandingRow | undefined) ?? null,
+          domains: domains as CorporateDomainRow[],
+        };
+      },
+      async createAccount(data) {
+        const [row] = await db
+          .insert(corporateAccounts)
+          .values({
+            id: data.id,
+            slug: data.slug,
+            legalName: data.legalName,
+            cacRcNumber: data.cacRcNumber,
+            industry: data.industry,
+            headOfficeAddress: data.headOfficeAddress,
+            primaryContactName: data.primaryContactName,
+            primaryContactEmail: data.primaryContactEmail,
+            primaryContactPhone: data.primaryContactPhone,
+            billingTier: data.billingTier ?? 'STANDARD',
+            isActive: true,
+          })
+          .returning();
+        return row as CorporateAccountRow;
+      },
+      async setBranding(corporateId, branding) {
+        const [row] = await db
+          .insert(corporateBranding)
+          .values({
+            corporateId,
+            logoUrl: branding.logoUrl,
+            primaryColor: branding.primaryColor ?? '#E31837',
+            secondaryColor: branding.secondaryColor ?? '#1E1E1E',
+            portalTitle: branding.portalTitle,
+            welcomeMessage: branding.welcomeMessage ?? null,
+          })
+          .onConflictDoUpdate({
+            target: corporateBranding.corporateId,
+            set: {
+              logoUrl: branding.logoUrl,
+              primaryColor: branding.primaryColor ?? '#E31837',
+              secondaryColor: branding.secondaryColor ?? '#1E1E1E',
+              portalTitle: branding.portalTitle,
+              welcomeMessage: branding.welcomeMessage ?? null,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        return row as CorporateBrandingRow;
+      },
+      async addDomain(corporateId, domain) {
+        const [row] = await db
+          .insert(corporateDomains)
+          .values({
+            id: domain.id,
+            corporateId,
+            subdomain: domain.subdomain,
+            customDomain: domain.customDomain ?? null,
+            emailDomain: domain.emailDomain,
+            isVerified: domain.isVerified ?? false,
+          })
+          .returning();
+        return row as CorporateDomainRow;
+      },
+      async addMember(data) {
+        const [row] = await db
+          .insert(corporateMembers)
+          .values({
+            id: data.id,
+            corporateId: data.corporateId,
+            userId: data.userId,
+            role: data.role ?? 'EMPLOYEE',
+            costCenterId: data.costCenterId ?? null,
+            workEmail: data.workEmail ?? null,
+            isActive: true,
+          })
+          .returning();
+        return row as CorporateMemberRow;
+      },
+      async listMembers(corporateId) {
+        const rows = await db
+          .select()
+          .from(corporateMembers)
+          .where(
+            and(eq(corporateMembers.corporateId, corporateId), eq(corporateMembers.isActive, true)),
+          );
+        return rows as CorporateMemberRow[];
+      },
+      async findMember(corporateId, userId) {
+        const [row] = await db
+          .select()
+          .from(corporateMembers)
+          .where(
+            and(
+              eq(corporateMembers.corporateId, corporateId),
+              eq(corporateMembers.userId, userId),
+              eq(corporateMembers.isActive, true),
+            ),
+          );
+        return (row as CorporateMemberRow | undefined) ?? null;
       },
     },
   };

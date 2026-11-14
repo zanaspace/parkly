@@ -1790,6 +1790,119 @@ export type Store = {
     markReminded(id: string, days: 7 | 2): Promise<void>;
     expire(id: string, at: Date): Promise<boolean>;
   };
+  corporate: {
+    findBySlug(slug: string): Promise<CorporateTenantDetails | null>;
+    findBySubdomain(subdomain: string): Promise<CorporateTenantDetails | null>;
+    findByDomain(domain: string): Promise<CorporateTenantDetails | null>;
+    createAccount(data: {
+      id?: string;
+      slug: string;
+      legalName: string;
+      cacRcNumber: string;
+      industry: string;
+      headOfficeAddress: string;
+      primaryContactName: string;
+      primaryContactEmail: string;
+      primaryContactPhone: string;
+      billingTier?: string;
+    }): Promise<CorporateAccountRow>;
+    setBranding(
+      corporateId: string,
+      branding: {
+        logoUrl: string;
+        primaryColor?: string;
+        secondaryColor?: string;
+        portalTitle: string;
+        welcomeMessage?: string | null;
+      },
+    ): Promise<CorporateBrandingRow>;
+    addDomain(
+      corporateId: string,
+      domain: {
+        id?: string;
+        subdomain: string;
+        customDomain?: string | null;
+        emailDomain: string;
+        isVerified?: boolean;
+      },
+    ): Promise<CorporateDomainRow>;
+    addMember(data: {
+      id?: string;
+      corporateId: string;
+      userId: string;
+      role?: CorporateMemberRole;
+      costCenterId?: string | null;
+      workEmail?: string | null;
+    }): Promise<CorporateMemberRow>;
+    listMembers(corporateId: string): Promise<CorporateMemberRow[]>;
+    findMember(corporateId: string, userId: string): Promise<CorporateMemberRow | null>;
+  };
+};
+
+export type CorporateAccountRow = {
+  id: string;
+  slug: string;
+  legalName: string;
+  cacRcNumber: string;
+  industry: string;
+  headOfficeAddress: string;
+  primaryContactName: string;
+  primaryContactEmail: string;
+  primaryContactPhone: string;
+  billingTier: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CorporateDomainRow = {
+  id: string;
+  corporateId: string;
+  subdomain: string;
+  customDomain: string | null;
+  emailDomain: string;
+  isVerified: boolean;
+  createdAt: Date;
+};
+
+export type CorporateBrandingRow = {
+  corporateId: string;
+  logoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  portalTitle: string;
+  welcomeMessage: string | null;
+  updatedAt: Date;
+};
+
+export type CorporateCostCenterRow = {
+  id: string;
+  corporateId: string;
+  code: string;
+  name: string;
+  monthlyBudgetKobo: number | null;
+  isActive: boolean;
+  createdAt: Date;
+};
+
+export type CorporateMemberRole =
+  'CORP_ADMIN' | 'HR_MANAGER' | 'FLEET_DISPATCHER' | 'SECURITY_GUARD' | 'EMPLOYEE';
+
+export type CorporateMemberRow = {
+  id: string;
+  corporateId: string;
+  userId: string;
+  role: CorporateMemberRole;
+  costCenterId: string | null;
+  workEmail: string | null;
+  isActive: boolean;
+  createdAt: Date;
+};
+
+export type CorporateTenantDetails = {
+  account: CorporateAccountRow;
+  branding: CorporateBrandingRow | null;
+  domains: CorporateDomainRow[];
 };
 
 export class DuplicatePlateError extends Error {}

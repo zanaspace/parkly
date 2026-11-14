@@ -1,0 +1,1 @@
+ALTER TABLE "corporate_branding" ADD COLUMN "created_at" timestamp with time zone DEFAULT now() NOT NULL;
