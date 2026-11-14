@@ -142,14 +142,29 @@ Parkly enables a State Government to go live across hundreds of parking zones in
 3. **Geofencing:** High-precision GPS polygon mapping for each facility to enforce driver self-checkin verification and attendant location lock.
 
 ### Stage 3: Field Personnel & Gate Deployment (Days 8–10)
-1. **Attendant Phone Onboarding:** Existing state traffic marshals or revenue contractors download the lightweight **Parkly Attendant PWA** onto standard Android phones.
-2. **Device Identity Pairing:** Device fingerprints are cryptographically bound to specific lots, preventing marshals from operating outside their assigned zones.
+1. **Low-Literacy Marshal Self-Onboarding via Designated Barcode Snapshot:**
+   * Many field attendants and traffic marshals possess limited formal literacy and cannot navigate complex login forms, passwords, or corporate emails.
+   * **Zero-Typing Snapshot Activation:** Each municipal booth, street corridor signpost, or supervisor badge features a physical laminated **Marshal Shift Activation Barcode/QR**.
+   * An attendant simply opens the app on any low-cost Android phone, taps the big **"Snap Shift Barcode"** button, and scans the physical marker.
+   * The system checks the device fingerprint and GPS fence, instantly accrediting and verifying the marshal for an active 8-to-12 hour shift on that specific lot/beat with **zero typing required**.
+2. **Ultra-Simple, Audio-Visual Field Scanner (Zero-Text Reliance):**
+   * **Giant Color Feedback:**
+     * 🟢 **FULL GREEN SCREEN:** Session active & paid. Accompanied by a positive bell chime and voice prompt in Pidgin English (*"Dis motor don pay!"*), Yoruba (*"Motó yi ti sanwó"*), Hausa (*"Wannan mota ta biya"*), or Igbo (*"Ụgbọ ala a akwụọla"*).
+     * 🟡 **FULL YELLOW SCREEN:** Grace period / 10 minutes left (*"Time dey finish"*).
+     * 🔴 **FULL RED SCREEN:** Violation / Unpaid. Accompanied by a clear warning buzzer and voice alert: *"Dis motor never pay! Clamp am!"*.
+   * **Automatic Plate OCR:** Marshals do not type plate numbers; they point the camera at the front or rear bumper.
+   * **One-Tap Clamp & Ticket:** If red, tapping the giant clamp icon snaps a photo proof, logs GPS location, and sends an instant SMS unlock ticket to the car owner.
 3. **Gate Code Generation:** Unique, tamper-evident cryptographic QR posters (`PKG1.<lotId>.<signedSignature>`) are printed and mounted at facility entrances and along street curbs.
 
-### Stage 4: Public Launch & Enforcement (Days 11–14)
-1. **Public Awareness Campaign:** Signage installed: *"This is a Verified State Parking Zone. Pay Cashless via <stateSlug>.parkly.ng or USSD to avoid vehicle impoundment."*
-2. **Driver Experience:** Citizens scan the gate code or enter their vehicle registration number via the dedicated state URL or USSD code `*384*PARK#`.
-3. **Instant Gate Pass:** Citizens receive a digital gate pass with a countdown timer. Field marshals scan plates or passes in under two seconds to confirm active paid status.
+### Stage 4: Public Launch & Frictionless Driver Experience (Days 11–14)
+1. **Unified Driver Experience (Zero Friction Across Public & Private Spaces):**
+   * Drivers do not need to care whether they are parking in a private commercial mall or a government street curb. The payment and check-in experience is 100% unified, intuitive, and frictionless.
+   * **Zero App Download Wall:** Citizens can scan the entrance poster QR using any basic phone camera or WhatsApp, landing directly on the instant payment screen.
+   * **Frictionless Nigerian Payment Options:**
+     * **Instant Dynamic Bank Transfer:** Auto-generates a dedicated Nigerian virtual account number (Paystack/Remita/Moniepoint); citizen transfers via any bank app, and payment confirms in under 3 seconds.
+     * **USSD 1-Tap:** Dial short string (e.g. `*737*...#`, `*894*...#`) for instant offline settlement.
+     * **Debit Card & Mobile Wallet:** 1-tap payment via saved card or Apple/Google Pay.
+2. **Instant Gate Pass:** Citizens receive a digital gate pass with a countdown timer. Field marshals scan plates or passes in under two seconds to confirm active paid status.
 
 ---
 

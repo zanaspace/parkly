@@ -15,12 +15,12 @@ Sprint GOV-02 builds the official onboarding and settlement infrastructure for S
 
 ### Core Deliverables
 
-1. **State Institutional Onboarding Wizard (`https://<stateSlug>.parkly.ng/onboard`):**
-   - 4-step wizard:
-     1. State Executive Charter & Governor's Mandate (Executive Order upload, Commissioner credentials).
-     2. Ministry of Finance / SIRS Lead Registration with mandatory Multi-Factor Authentication (AAL2 MFA).
-     3. Financial Subaccount Configuration (Remita RRR TSA or Paystack Split Subaccount).
-     4. Initial MDA Mapping (Ministry of Transport, Ministry of Health, High Courts, etc.).
+1. **Ultra-Simple State Onboarding Wizard (`https://<stateSlug>.parkly.ng/onboard`):**
+   - Built specifically for non-tech savvy public servants and coordinators with progressive, plain-English steps:
+     1. _Who is Onboarding:_ Select State Government & Ministry/Agency, enter Lead Officer contact, and upload Executive Order or Gazette.
+     2. _Settlement Account Setup:_ Enter Bank & Account Number (auto-resolves bank name and account name via NUBAN lookup) or enter Remita TSA Service Type ID (RRR).
+     3. _Review & Provision:_ One-tap submission generating dedicated sovereign URL (`<stateSlug>.parkly.ng`), assigning initial credentials, and providing printable setup guides.
+   - Built-in live progress stepper, plain-language tooltips, and WhatsApp/phone onboarding concierge support link.
 2. **State TSA & Financial Subaccount Schema (`packages/db`):**
    - `state_tsa_accounts`: Subaccount records (Bank name, Account number, Sort code, Remita Service Type ID / Paystack Subaccount Code, settlement schedule: T+0 or T+1).
    - `state_settlement_rules`: Automated revenue allocation rules defining percentage/fixed splits:

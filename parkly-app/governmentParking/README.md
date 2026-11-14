@@ -52,7 +52,48 @@ When a user visits `https://<stateSlug>.parkly.ng`, Parkly's Edge Middleware par
 
 ---
 
-## 3. The 6-Sprint Government Delivery Program
+## 3. Inclusive Field Ergonomics & Unified Experience
+
+To succeed in real Nigerian municipal conditions, Parkly GovTech is designed with three core ergonomic breakthroughs:
+
+### 3.1 Ultra-Simple Onboarding for Non-Tech Savvy Stakeholders
+
+- Government coordinators and MDA officers do not navigate complex technical configurations.
+- **3-Step Conversational Onboarding:**
+  1. _What is your State & Agency?_ (Select state, upload appointment letter or Gazette).
+  2. _Where is the street curb or facility?_ (Type street name or pin on map).
+  3. _Where should money go?_ (Enter Bank & Account Number / Remita TSA Service Type ID).
+- Parkly automatically provisions the dedicated `<stateSlug>.parkly.ng` subdomain, generates printable entrance posters, sets up payment routes, and demarcates bays.
+
+### 3.2 Unified Driver Experience (Zero Friction Across Public & Private Spaces)
+
+- Drivers never have to wonder whether they are parking in a private commercial garage or a municipal street curb.
+- **Universal Flow:** Scan poster QR or enter plate number -> Select duration -> 1-Tap Pay -> Instant Digital Pass.
+- **Zero App Download Requirement:** Guest checkouts work in standard mobile browsers.
+- **Payment Ingestion Fitted for Nigeria:**
+  - _Instant Dynamic Virtual Account:_ Citizen transfers to an auto-generated dedicated account via any bank app; verifies in under 3 seconds.
+  - _USSD 1-Tap:_ Dial short code (`*737#`, `*894#`) without internet.
+  - _Debit Card & Apple/Google Pay._
+
+### 3.3 Zero-Literacy Marshal Self-Onboarding & Audio-Visual Field Scanner
+
+Street marshals and curb attendants often have limited formal education and cannot manage complex logins or read tiny text:
+
+1. **Zero-Typing Self-Onboarding via Designated Booth/Badge Barcode:**
+   - Every supervisor badge or physical guard booth has a laminated **Marshal Pairing QR Barcode**.
+   - The attendant opens the app, taps the giant **"Snap Shift Barcode"** button, and scans the physical marker.
+   - The device is instantly verified via GPS and device fingerprint, binding the marshal to that specific lot for an active 8-to-12 hour shift. **Zero typing, zero passwords, zero email forms.**
+2. **Audio-Visual, Zero-Text Verification Interface:**
+   - **Giant Color Feedback:**
+     - 🟢 **FULL GREEN SCREEN:** Session active and paid. Accompanied by loud bell chime and voice prompt in **Nigerian Pidgin English** (_"Dis motor don pay!"_), **Yoruba** (_"Motó yi ti sanwó"_), **Hausa** (_"Wannan mota ta biya"_), or **Igbo** (_"Ụgbọ ala a akwụọla"_).
+     - 🟡 **FULL YELLOW SCREEN:** Expiring soon / 10-minute courtesy grace window (_"Time dey finish"_).
+     - 🔴 **FULL RED SCREEN:** Unpaid / Evasion. Loud warning buzzer and voice prompt: _"Dis motor never pay! Clamp am!"_.
+   - **Automatic Plate OCR:** Marshals do not type letters or numbers; they simply point their camera at the car's plate.
+   - **One-Tap Clamp & Ticket:** If red, tapping the giant clamp icon snaps photo proof, logs GPS, and sends an instant SMS unlock ticket to the car owner.
+
+---
+
+## 4. The 6-Sprint Government Delivery Program
 
 To build Parkly GovTech systematically and cleanly, development is divided into 6 distinct sprints. Each sprint contains full technical specifications, database schema migrations, API routes, frontend views, and verification tests:
 

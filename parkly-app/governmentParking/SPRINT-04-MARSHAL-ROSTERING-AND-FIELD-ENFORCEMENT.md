@@ -15,23 +15,23 @@ Sprint GOV-04 delivers the enforcement engine for State Traffic Authorities (e.g
 
 ### Core Deliverables
 
-1. **Traffic Marshal Rostering & Device Binding (`https://<stateSlug>.parkly.ng/marshals`):**
-   - Onboard traffic marshals with official service badges (Badge ID, Agency, Beat/Zone assignment).
-   - Device pairing: Bind marshal session to authorized Android device fingerprint and GPS geofence.
+1. **Low-Literacy Marshal Self-Onboarding via Barcode Snapshot:**
+   - Designed specifically for non-tech savvy and low-literacy attendants who cannot manage passwords, emails, or text forms.
+   - **Laminated Booth/Badge Barcode Pairing:** Each municipal gate booth, street signpost, or supervisor card contains a cryptographic pairing token (`PKG_SHIFT.<lotId>.<signedToken>`).
+   - The marshal opens the PWA, taps the giant **"Snap Shift Barcode"** button, and scans the physical marker.
+   - The system checks device fingerprint and GPS fence, instantly activating an 8-to-12 hour verified patrol shift tied to that lot/beat with **zero typing required**.
 2. **Dedicated Mobile Enforcement PWA (`https://<stateSlug>.parkly.ng/enforce`):**
    - Mobile-first, low-bandwidth, offline-capable scanner interface.
-   - Dual verification methods:
-     - **Plate OCR Scanner:** Fast camera recognition of Nigerian vehicle registration plates (e.g. `KJA-123AA`, `ABC-456XY`).
-     - **Dynamic Ed25519 QR Scanner:** Decodes citizen digital gate passes and checks 24-hour cached local manifests.
-3. **Instant Enforcement Status Signals:**
-   - 🟢 **VALID (Active Session):** Vehicle has paid, displays time remaining and bay number.
-   - 🟡 **OVERSTAY / COURTESY GRACE:** Within 10-minute grace window; displays accrued overstay fee.
-   - 🔴 **VIOLATION (Unpaid / Evasion):** No booking recorded or overstay grace elapsed.
-4. **Digital Violation & Clamping Workflow:**
-   - One-tap digital ticket generation: Captures timestamp, GPS coordinates, marshal badge ID, and photo proof.
-   - Wheel-clamp lock logging with unique Clamp ID.
+   - **Zero-Typing Automatic Plate OCR:** Marshal points camera at car bumper; app recognizes Nigerian registration plates without manual entry.
+   - **Dynamic Ed25519 QR Scanner:** Decodes citizen digital gate passes against 24-hour locally cached manifests.
+3. **Audio-Visual Feedback with Nigerian Language Prompts (Zero-Text Reliance):**
+   - 🟢 **FULL GREEN SCREEN:** Session active & paid. Plays bell chime and loud voice prompt in Nigerian Pidgin English (_"Dis motor don pay!"_), Yoruba (_"Motó yi ti sanwó"_), Hausa (_"Wannan mota ta biya"_), or Igbo (_"Ụgbọ ala a akwụọla"_).
+   - 🟡 **FULL YELLOW SCREEN:** Within 10-minute courtesy grace window (_"Time dey finish"_).
+   - 🔴 **FULL RED SCREEN:** Unpaid / Evasion. Loud warning buzzer and voice prompt: _"Dis motor never pay! Clamp am!"_.
+4. **One-Tap Digital Violation & Clamping Workflow:**
+   - One-tap clamp button: Snaps photo proof, tags GPS coordinates, and assigns unique Clamp Serial ID.
+   - Automated citizen SMS dispatch with secure payment link to unlock vehicle.
    - Digital impound towing dispatch notification to State Towing Yard.
-   - Automated citizen notification via SMS with payment link to unlock vehicle.
 
 ---
 
@@ -56,10 +56,42 @@ export const stateMarshals = pgTable('state_marshals', {
   badgeNumber: text('badge_number').notNull(), // e.g. "LASPA-MR-042"
   fullName: text('full_name').notNull(),
   phoneNumber: text('phone_number').notNull(),
+  preferredLanguage: text('preferred_language').notNull().default('PIDGIN'), // "PIDGIN" | "YORUBA" | "HAUSA" | "IGBO" | "ENGLISH"
   assignedAssetId: uuid('assigned_asset_id').references(() => statePublicAssets.id),
   isActive: boolean('is_active').notNull().default(true),
   deviceFingerprint: text('device_fingerprint'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const marshalShiftTokens = pgTable('marshal_shift_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  stateId: text('state_id')
+    .notNull()
+    .references(() => governmentStates.id, { onDelete: 'cascade' }),
+  assetId: uuid('asset_id')
+    .notNull()
+    .references(() => statePublicAssets.id, { onDelete: 'cascade' }),
+  locationLabel: text('location_label').notNull(), // e.g. "Broad Street Booth A"
+  tokenCode: text('token_code').notNull().unique(), // Cryptographic Ed25519 payload for printable QR
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const marshalActiveShifts = pgTable('marshal_active_shifts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  marshalId: uuid('marshal_id').references(() => stateMarshals.id),
+  shiftTokenId: uuid('shift_token_id')
+    .notNull()
+    .references(() => marshalShiftTokens.id),
+  assetId: uuid('asset_id')
+    .notNull()
+    .references(() => statePublicAssets.id),
+  deviceFingerprint: text('device_fingerprint').notNull(),
+  gpsLatitude: text('gps_latitude').notNull(),
+  gpsLongitude: text('gps_longitude').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
 });
 
 export const curbViolations = pgTable('curb_violations', {
