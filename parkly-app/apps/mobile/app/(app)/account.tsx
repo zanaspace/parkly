@@ -10,6 +10,7 @@ import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
 import { confirm } from '../../src/lib/confirm';
+import { legalUrl } from '../../src/lib/legal-links';
 
 const MAX_VEHICLES = 5;
 
@@ -290,6 +291,22 @@ export default function Account() {
         loading={busy === 'all'}
         onPress={() => void signOut('all')}
       />
+
+      <Text variant="heading.sm">Legal & policies</Text>
+      <View style={{ gap: theme.space.stack.xs }}>
+        <Button
+          label="Terms of Service"
+          variant="secondary"
+          fullWidth
+          onPress={() => void Linking.openURL(legalUrl('terms'))}
+        />
+        <Button
+          label="Privacy Notice"
+          variant="secondary"
+          fullWidth
+          onPress={() => void Linking.openURL(legalUrl('privacy'))}
+        />
+      </View>
 
       <Text variant="heading.sm">Your data</Text>
       <Text tone="secondary">
