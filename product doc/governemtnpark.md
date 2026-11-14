@@ -1,9 +1,9 @@
 # Parkly State Government & Public Sector Onboarding Blueprint
-## Centralized Municipal Revenue Collection, Automated Multi-Lot Management, and Inter-Agency Mobility Governance
+## Centralized Municipal Revenue Collection, Automated Multi-Lot Management, and Sovereign Multi-Tenant Architecture
 
-**Document Classification:** Strategic Whitepaper & Government Implementation Guide  
-**Target Audience:** State Governors, State Internal Revenue Services (SIRS), Ministries of Transport, Municipal Parking Authorities (e.g., LASPA, KASTLEA, EDSTMA), Ministries of Finance, and Heads of Government Parastatals across the 36 States & FCT.  
-**Version:** 1.0  
+**Document Classification:** Strategic Whitepaper, Technical Architecture & Government Implementation Guide  
+**Target Audience:** State Governors, State Internal Revenue Services (SIRS), Ministries of Transport, Municipal Parking Authorities (e.g., LASPA, KASTLEA, EDSTMA, VIO), Ministries of Finance, and Heads of Government Parastatals across the 36 States & FCT.  
+**Version:** 2.0 (Integrated Multi-Tenant Dedicated State URL Architecture)  
 **Effective Date:** November 2026  
 
 ---
@@ -18,33 +18,37 @@ State Governments across Nigeria face identical structural dilemmas in municipal
 
 **Parkly GovTech Edition** is an end-to-end, zero-hardware-capex digital infrastructure designed specifically to solve these challenges. Parkly transforms parking and municipal curb space into a **transparent, auditable, cashless revenue stream** that routes funds directly into the State Government’s **Treasury Single Account (TSA)** while giving State leadership live, command-centre visibility over every car park, gate, attendant, and vehicle in the State.
 
+Just as private car park operators have their dedicated portal (`apps/portal`), Parkly GovTech introduces **Dedicated Sovereign State URLs** (e.g., `https://lagos.parkly.ng`, `https://kano.parkly.ng`, `https://rivers.parkly.ng`, `https://fct.parkly.ng` or `https://gov.parkly.ng/:stateCode`). These dedicated sovereign domains serve as the permanent, single routing gateway where:
+- State Governments complete verifiable institutional onboarding (KYG - Know Your Government).
+- Ministries, Departments, and Agencies (MDAs) manage their respective public parking assets.
+- State Internal Revenue Services (SIRS) track live TSA remittals, splits, and daily reconciliations.
+- Traffic Marshals and Enforcement Officers access their synchronized field consoles.
+- Citizens and motorists search, book, verify, and pay for municipal and parastatal parking under the trusted seal and identity of their State Government.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                       STATE INTERNAL REVENUE SERVICE (SIRS)                     │
-│                        TREASURY SINGLE ACCOUNT (TSA / IGR)                      │
+│                      DEDICATED SOVEREIGN STATE PORTAL                           │
+│     (e.g., https://lagos.parkly.ng  |  https://kano.parkly.ng)                 │
+│      Official State Crest · Custom Gov Palette · Subdomain Multi-Tenant Router  │
 └────────────────────────────────────────┬────────────────────────────────────────┘
-                                         ▲
-                         Direct Split / Daily Settlement
                                          │
-┌────────────────────────────────────────┴────────────────────────────────────────┐
-│                        PARKLY CENTRALIZED STATE ENGINE                          │
-│     (Multi-Agency Hierarchy · Real-time Audit Trail · Fraud/Ghost Detection)    │
-└──────────────┬─────────────────────────┬─────────────────────────┬──────────────┘
-               │                         │                         │
-               ▼                         ▼                         ▼
-   ┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
-   │ Ministry of Transport │ │ Government Parastatals│ │ Commercial / Private  │
-   │ & Parking Authorities │ │ (Hospitals, Secretariats,│ │ Partner Car Parks    │
-   │ (On-Street / Off-Street)│ │ Courts, Stadiums)   │ │ (LASPA/State Permitted)│
-   └───────────┬───────────┘ └───────────┬───────────┘ └───────────┬───────────┘
-               │                         │                         │
-               ▼                         ▼                         ▼
-   ┌───────────────────────────────────────────────────────────────────────────┐
-   │                       UNIFIED DRIVER & ENFORCEMENT LAYER                  │
-   │  • Cashless Mobile App (Card, USSD, Bank Transfer, QR Pass)              │
-   │  • Low-End Smartphone Attendant/Traffic Officer PWA (Offline-First)       │
-   │  • Zero Capex Entrance Posters with Signed Dynamic Cryptographic Codes     │
-   └───────────────────────────────────────────────────────────────────────────┘
+     ┌───────────────────────────────────┼───────────────────────────────────┐
+     ▼                                   ▼                                   ▼
+┌───────────────────────┐   ┌───────────────────────┐   ┌───────────────────────┐
+│  EXECUTIVE COMMAND &  │   │  STATE ASSET & MDA    │   │  CITIZEN MOBILITY &   │
+│   SIRS TSA LEDGER     │   │   REGISTRY PORTAL     │   │   PAYMENT INTERFACE   │
+│ • Live IGR Dashboard  │   │ • On-street Curbs     │   │ • Curb Bay Discovery  │
+│ • TSA Remita/Paystack │   │ • General Hospitals   │   │ • Resident Passes     │
+│ • Audit-General Logs  │   │ • State Secretariats  │   │ • Civil Servant Tier  │
+│ • Parastatal Splits   │   │ • Marshal Rostering   │   │ • Overstay Payments   │
+└───────────┬───────────┘   └───────────┬───────────┘   └───────────┬───────────┘
+            │                           │                           │
+            └───────────────────────────┼───────────────────────────┘
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         PARKLY CENTRALIZED STATE ENGINE                         │
+│   (Multi-Agency Hierarchy · Ed25519 Signed QR · Offline PWA · Remita/TSA Split) │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -69,15 +73,40 @@ State Governments across Nigeria face identical structural dilemmas in municipal
 
 ---
 
-## 2. Structural Pain Points & How Parkly Solves Them
+## 2. Dedicated State URL & Sovereign Multi-Tenancy Architecture
 
-| Conventional Municipal Parking in Nigeria | The Parkly Solution | State Impact |
+To ensure operational trust, constitutional autonomy, and seamless inter-agency routing, every State onboarded to Parkly receives a **Dedicated Sovereign State URL**:
+
+### 2.1 Subdomain Routing Matrix
+| Domain / Route | Target Audience | Primary Function |
 | :--- | :--- | :--- |
-| **Cash Collection by Area Agents:** Cash collected at curb-sides or stadium gates disappears before reaching the State Treasury. | **100% Cashless Ingestion:** Drivers pay via Mobile App, USSD, Bank Transfer, or Debit Card into dedicated state subaccounts. | **Zero Cash Leakage;** 100% auditability. |
-| **Ghost Attendants & Collusion:** Field attendants issue counterfeit physical tickets or recycle paper passes. | **Offline-First PWA with GPS Fence & Cryptographic QR:** Attendant phones must be registered, approved, and operate within geofenced lot boundaries. | Eliminates ticket recycling and attendant fraud. |
-| **Isolated Parastatals:** Hospitals, Courts, and Secretariats run independent informal parking schemes with zero centralized accounting. | **Hierarchical Multi-Tenant Government Platform:** One sovereign console for the State Governor with scoped sub-dashboards for ministries and parastatals. | Unifies hundreds of revenue collection points into a single state window. |
-| **Illegal Overstays & Road Blocking:** Vehicles park for days on public curbs without penalty, blocking commercial logistics. | **Automated Overstay Billing & Enforcement:** System tracks elapsed time, grace periods, and applies automated progressive overstay pricing. | Prevents street abandonment and maximizes vehicle turnover. |
-| **Expensive Infrastructure Maintenance:** Mechanical ticketing machines and RFID gates imported from abroad break down within months due to dust, humidity, and erratic power. | **Zero-Capex Software Architecture:** Runs on standard Android smartphones and QR gate codes that function 100% offline during telecom outages. | Zero maintenance contracts or forex-denominated spare part costs. |
+| `https://<stateSlug>.parkly.ng/` | Motorists & Citizens | State-branded parking discovery, curb booking, active sessions, and overstay fine clearance under the official State seal. |
+| `https://<stateSlug>.parkly.ng/onboard` | Government Ministries | Institutional KYG (Know Your Government) charter initiation, authorization letter uploads, and MDA setup. |
+| `https://<stateSlug>.parkly.ng/executive` | Governor & Commissioners | High-level macro command centre: real-time IGR ticker, city congestion index, LGA revenue distribution, and leakage abatement KPIs. |
+| `https://<stateSlug>.parkly.ng/sirs` | SIRS & Finance Officers | TSA remittance ledger, Remita/Paystack split subaccount settlement, bank reconciliation runs, and revenue audits. |
+| `https://<stateSlug>.parkly.ng/assets` | MDA Facility Managers | Management of public parking inventory: General Hospitals, High Courts, Secretariats, Stadiums, and On-street curb corridors. |
+| `https://<stateSlug>.parkly.ng/curbs` | State Parking Authorities (LASPA) | Zonal tariff design, peak hour multipliers, 15–30 min courtesy windows, and geofence polygon mapping. |
+| `https://<stateSlug>.parkly.ng/marshals` | Enforcement Commanders | Traffic marshal shift rostering, handheld scanner provisioning, GPS attendance fence, and body-cam/device linking. |
+| `https://<stateSlug>.parkly.ng/enforce` | Field Enforcement Marshals | Fast mobile camera plate scanner, Ed25519 QR validation, digital violation notices, wheel-clamp dispatch, and tow requests. |
+
+### 2.2 Next.js Edge Multi-Tenant Routing Engine
+```typescript
+// Edge middleware routing logic for sovereign state subdomains
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const hostname = req.headers.get("host") || "";
+  
+  // Extract state slug: e.g. "lagos.parkly.ng" -> "lagos"
+  const currentHost = hostname.replace(`.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`, "");
+  
+  if (currentHost && currentHost !== "www" && currentHost !== "app") {
+    // Rewrite internal request to the government dynamic tenant route
+    return NextResponse.rewrite(
+      new URL(`/government/${currentHost}${url.pathname}${url.search}`, req.url)
+    );
+  }
+}
+```
 
 ---
 
@@ -96,9 +125,10 @@ Parkly enables a State Government to go live across hundreds of parking zones in
 
 ### Stage 1: Institutional & Financial Charter (Days 1–3)
 1. **Executive Order / Authorization:** The State Governor or Commissioner of Transport designates Parkly as the certified technological platform for public parking management.
-2. **TSA Subaccount Integration:** The State Ministry of Finance / SIRS configures its settlement subaccount (via Paystack/Interswitch/Remita).
+2. **Dedicated State URL Provisioning:** Subdomain `<stateSlug>.parkly.ng` is reserved and branded with the official State Government crest, motto, and approved palette.
+3. **TSA Subaccount Integration:** The State Ministry of Finance / SIRS configures its settlement subaccount (via Remita TSA RRR or Paystack Split Subaccount).
    * Funds collected from citizens are automatically split: **State Treasury receives the principal revenue**, while Parkly's negotiated technology fee is partitioned transparently at point of settlement.
-3. **Super-Admin Provisioning:** The State Auditor-General, Chairman of the SIRS, and Commissioner of Transport are provisioned with enterprise roles featuring multi-factor authentication (MFA/AAL2).
+4. **Super-Admin Provisioning:** The State Auditor-General, Chairman of the SIRS, and Commissioner of Transport are provisioned with enterprise roles featuring multi-factor authentication (MFA/AAL2).
 
 ### Stage 2: Asset Mapping & Tariff Configuration (Days 4–7)
 1. **Municipal Lot & Curb Inventory:** The state transit authority registers public facilities across all LGAs:
@@ -117,13 +147,13 @@ Parkly enables a State Government to go live across hundreds of parking zones in
 3. **Gate Code Generation:** Unique, tamper-evident cryptographic QR posters (`PKG1.<lotId>.<signedSignature>`) are printed and mounted at facility entrances and along street curbs.
 
 ### Stage 4: Public Launch & Enforcement (Days 11–14)
-1. **Public Awareness Campaign:** Signage installed: *"This is a Verified State Parking Zone. Pay Cashless via Parkly App or USSD to avoid vehicle impoundment."*
-2. **Driver Experience:** Citizens scan the gate code or enter their vehicle registration number via the Parkly Mobile App or USSD code `*384*PARK#`.
+1. **Public Awareness Campaign:** Signage installed: *"This is a Verified State Parking Zone. Pay Cashless via <stateSlug>.parkly.ng or USSD to avoid vehicle impoundment."*
+2. **Driver Experience:** Citizens scan the gate code or enter their vehicle registration number via the dedicated state URL or USSD code `*384*PARK#`.
 3. **Instant Gate Pass:** Citizens receive a digital gate pass with a countdown timer. Field marshals scan plates or passes in under two seconds to confirm active paid status.
 
 ---
 
-## 4. Expanding to Government Parastatals: The Centralized Ecosystem
+## 4. Expanding to Government Parastatals: The Centralized Multi-Agency Hierarchy
 
 A major leakage point in state finances is the autonomy of government parastatals. Parkly implements an enterprise multi-tenant hierarchy that unifies all public bodies under a single dashboard while preserving operational independence:
 
@@ -198,7 +228,7 @@ Rather than spending tens of millions on imported automated barriers that fail i
 
 ### 5.4 Sovereign Audit & Anti-Fraud Ledger
 * The financial backbone operates on double-entry accounting principles:
-  * Every transaction generates matching debit and credit entries in the state ledger (`Driver Payment = Operator/State Share + Service Fee + Tax`).
+  * Every transaction generates matching debit and credit entries in the state ledger (`Driver Payment = State TSA Share + Parastatal Maintenance Quota + Parkly Tech Fee`).
   * Ledger entries are **immutable** and append-only.
   * No state official, attendant, or software developer can delete or alter financial records after creation.
 
@@ -211,18 +241,18 @@ Parkly supports automated payment routing so funds never get trapped in bureaucr
 $$\text{Driver Gross Payment} = \text{State IGR (TSA)} + \text{Parastatal Maintenance Fund} + \text{Parkly Tech Service Fee}$$
 
 ```
-                               ₦1,000 Driver Payment
-                                        │
-           ┌────────────────────────────┼────────────────────────────┐
-           ▼                            ▼                            ▼
-        75% (₦750)                   15% (₦150)                   10% (₦100)
-    State Government TSA        Hospital/Parastatal           Parkly Technology
-    Consolidated Revenue       Facility Maintenance          Infrastructure Fee
+                                ₦1,000 Driver Payment
+                                         │
+            ┌────────────────────────────┼────────────────────────────┐
+            ▼                            ▼                            ▼
+         75% (₦750)                   15% (₦150)                   10% (₦100)
+     State Government TSA        Hospital/Parastatal           Parkly Technology
+     Consolidated Revenue       Facility Maintenance          Infrastructure Fee
 ```
 
 * **Instant Disbursement:** When a citizen pays, the payment gateway splits the kobo immediately.
 * **Zero Reconciliation Delays:** The State Treasury receives its bulk share daily; the hosting facility receives its maintenance quota to keep facilities clean and lit.
-* **Transparent Transaction Fees:** Citizens can settle payments via standard local channels: Interswitch, Paystack, Bank USSD (`*737#`, `*894#`, etc.), Debit Cards, or Virtual Bank Transfer Accounts.
+* **Transparent Transaction Channels:** Citizens can settle payments via Remita RRR, Interswitch, Paystack, Bank USSD (`*737#`, `*894#`, etc.), Debit Cards, or Virtual Bank Transfer Accounts.
 
 ---
 
@@ -243,42 +273,52 @@ Parkly complies with state parking regulatory frameworks, including:
 
 ---
 
-## 8. Implementation Roadmap: 60-Day State Pilot Rollout
+## 8. Implementation Roadmap: The 6 Dedicated Government Sprints
 
-To ensure immediate success and zero political risk, Parkly proposes a structured **60-Day Pilot** in the State capital before statewide expansion:
+To systematically construct and deliver Parkly GovTech Edition alongside the core product, the engineering and operational rollout is structured into **6 Dedicated Government Sprints** housed in [`parkly-app/governmentParking/`](file:///c:/Users/CI-STAFF/Documents/parkly/parkly-app/governmentParking):
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                              60-DAY PILOT                              │
-├─────────────────────┬─────────────────────┬────────────────────────────┤
-│    WEEKS 1 – 2      │    WEEKS 3 – 4      │       WEEKS 5 – 8          │
-│ Institutional Setup │ Field Deployment &  │ Live Pilot Execution,      │
-│ & Asset Mapping     │ Marshal Training    │ Optimization & Expansion   │
-│                     │                     │                            │
-│ • Executive Charter │ • Onboard 50 field  │ • Go-live across 5 CBD     │
-│ • TSA Subaccount    │   attendants        │   corridors & 3 hospitals │
-│ • Pilot zone        │ • Mount QR gate     │ • Public announcement      │
-│   survey (500 bays) │   posters           │ • Weekly IGR review meeting│
-└─────────────────────┴─────────────────────┴────────────────────────────┘
+│               GOVERNMENT PARKING DELIVERY SPRINT PROGRAM               │
+├───────────────┬────────────────────────────────────────────────────────┤
+│ Sprint GOV-01 │ Multi-Tenant Subdomain Routing & Sovereign State Brand │
+│ Sprint GOV-02 │ Institutional State Onboarding, KYG & TSA Split Engine │
+│ Sprint GOV-03 │ Public Asset Inventory, Geofencing & Parastatals       │
+│ Sprint GOV-04 │ Traffic Marshal Scanner, Rostering & Curb Enforcement  │
+│ Sprint GOV-05 │ Executive Governor Command Centre & SIRS IGR Portal    │
+│ Sprint GOV-06 │ Citizen Mobility Experience, Passes & Pilot Rollout    │
+└───────────────┴────────────────────────────────────────────────────────┘
 ```
 
-### Phase 1: Institutional Setup (Weeks 1–2)
-* Executive briefing with the Governor and relevant Commissioners.
-* Sign-off on the State Parking Technology Agreement.
-* Mapping of 500 initial high-yield parking bays (e.g., 2 commercial streets, 1 state hospital, 1 secretariat complex).
-* Routing of TSA settlement accounts.
+1. **Sprint GOV-01: Multi-Tenant Subdomain Routing & Sovereign State Brand**
+   - Database schema for `government_states`, `state_mdas`, `state_subdomains`, and `state_tsa_accounts`.
+   - Next.js edge wildcard subdomain router resolving `<stateSlug>.parkly.ng` dynamically.
+   - Dynamic branding engine rendering State crest, coat of arms, official colors, and contact info.
 
-### Phase 2: Field Deployment & Marshal Training (Weeks 3–4)
-* Training of 50 State traffic marshals and revenue assistants.
-* Distribution of standard Android smartphones equipped with the offline-first app.
-* Installation of weather-proof QR code signage at all pilot bay locations.
-* Direct integration of LASPA/State enforcement rules into the tariff engine.
+2. **Sprint GOV-02: Institutional State Onboarding, KYG & TSA Split Engine**
+   - Official State onboarding wizard at `https://<stateSlug>.parkly.ng/onboard`.
+   - KYG verification: Gazetted appointment letters, TSA subaccount validation via Remita / Paystack.
+   - Three-way settlement split engine (State TSA + Parastatal Maintenance + Tech fee).
 
-### Phase 3: Live Pilot & Citizen Engagement (Weeks 5–8)
-* Launch of cashless enforcement with initial 1-week grace/public education campaign.
-* Full cashless activation: field officers no longer accept physical naira cash.
-* Weekly executive IGR dashboards presented to the Governor's Economic Council.
-* Evaluation of leakage reduction and planning for Statewide rollout across all 20+ LGAs.
+3. **Sprint GOV-03: Public Asset Inventory, Geofencing & Parastatals**
+   - Asset ingestion wizard: On-street curb zones, General Hospitals, Secretariats, High Courts, and Stadiums.
+   - GPS polygon geofencing and curb-bay demarcation.
+   - Zonal tariff rules: Peak/off-peak pricing, 30-min emergency hospital grace windows, civil servant subsidy tiers.
+
+4. **Sprint GOV-04: Traffic Marshal Scanner, Rostering & Curb Enforcement**
+   - Enforcement officer onboarding and hardware device fingerprint pairing.
+   - Dedicated Mobile Marshal PWA (`/enforce`) with camera OCR plate recognition and offline QR validation.
+   - Digital clamp ticketing, violation notice generation, and impound lot dispatch.
+
+5. **Sprint GOV-05: Executive Governor Command Centre & SIRS IGR Portal**
+   - Executive Governor Command Centre (`/executive`) with real-time IGR revenue counter, congestion heatmap, and LGA breakdown.
+   - SIRS Console (`/sirs`): Daily remittance ledger, automatic bank reconciliation, and watermarked audit PDF/CSV exports.
+   - Parastatal sub-dashboards for hospital and court maintenance fund tracking.
+
+6. **Sprint GOV-06: Citizen Mobility Experience, Passes & Pilot Rollout**
+   - Citizen state portal on `<stateSlug>.parkly.ng`: zone search, bay booking, digital passes, and overstay fee clearance.
+   - Civil servant digital staff permits.
+   - 60-Day State Pilot deployment playbook, attendant field guide, and k6 load verification.
 
 ---
 
@@ -287,15 +327,14 @@ To ensure immediate success and zero political risk, Parkly proposes a structure
 Informal, cash-based parking collections cost Nigerian state governments billions of naira every year in lost Internally Generated Revenue while exacerbating urban gridlock and security vulnerabilities. 
 
 **Parkly provides a ready-to-deploy, sovereign technological solution that:**
-1. **Recovers lost billions** directly into the State Treasury Single Account.
+1. **Recovers lost billions** directly into the State Treasury Single Account via dedicated State URLs.
 2. **Requires zero capital expenditure** from the State Government.
 3. **Unifies ministries, secretariats, hospitals, and commercial parking** into a single glass-box command centre.
 4. **Delivers an orderly, modern, digital experience** that citizens appreciate and respect.
 
 ### Recommended Action
-The Office of the Executive Governor should direct the Ministry of Transport and State Internal Revenue Service to initiate the **14-day technical onboarding assessment** and designate the pilot corridors for Phase 1 deployment.
+The Office of the Executive Governor should direct the Ministry of Transport and State Internal Revenue Service to initiate the **14-day technical onboarding assessment** and activate the state's dedicated URL at `<stateSlug>.parkly.ng`.
 
 ---
 *Parkly Technologies Ltd · Building Africa's Sovereign Municipal Mobility Infrastructure*  
 *Enquiries: gov@parkly.ng · Lagos · Abuja*
-
