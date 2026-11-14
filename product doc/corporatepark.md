@@ -98,10 +98,32 @@ Designed so any HR executive or facility administrator can onboard their company
 3. **Billing Method:** Select Corporate Direct Debit, Credit Card, or Monthly Bank Transfer (TSA / Corporate NUBAN).
 *Parkly instantly provisions `<companySlug>.parkly.ng`, issues digital passes to all staff, and sends automated welcome SMS/emails.*
 
-### 3.2 Unified Driver Experience (Zero Employee Friction)
-* **Zero Personal Expense:** When an employee parks at their company lot, an affiliated commercial lot, or a municipal curb, they scan the gate code or display their pass. **₦0 is charged to the driver.**
-* **1-Tap Workplace Pass:** The employee accesses their company pass directly via mobile app or standard mobile browser.
-* **Auto-Plate Whitelist:** For office gates equipped with automatic plate reading, the barrier opens automatically upon approach.
+### 3.2 Unified Driver Experience & Personal-to-Corporate Seamless Linking
+Drivers should never need two separate phones, duplicate accounts, or separate apps to switch between personal and corporate parking:
+
+1. **Dual-Profile Architecture (Personal + Corporate in One Account):**
+   * A driver retains their single personal Parkly account (`users` table, personal phone number, personal payment cards, and private vehicle history).
+   * Within the mobile app or web, a seamless **Profile Switcher** toggle appears:
+     $$\text{[ 👤 Personal Profile ]} \quad \longleftrightarrow \quad \text{[ 🏢 Corporate Profile: Zenith Bank PLC ]}$$
+   * **Weekend / Personal Errands:** Driver selects *Personal*; charges apply to their private card, bank transfer, or wallet.
+   * **Work Commute / Business Meetings:** Driver selects *Corporate*; charges are ₦0 to the driver and routed to the company's consolidated monthly invoice.
+
+2. **Effortless Linking Methods for Existing Users:**
+   * **Method A: Automatic Phone Number Discovery:**
+     * When HR uploads the staff roster containing employee phone numbers, Parkly instantly checks existing user accounts.
+     * When the driver opens Parkly, an instant banner pops up:
+       > *"🎉 Zenith Bank PLC has added you to their Corporate Parking Plan. Tap to activate your ₦0 Workplace Pass."*
+     * **1-Tap Acceptance:** Instantly links their corporate profile with zero typing.
+   * **Method B: In-App Work Email Verification:**
+     * An existing driver navigates to `Account` $\rightarrow$ `Linked Workplaces`.
+     * Enters their corporate email (e.g. `ada@kpmg.ng`).
+     * Parkly sends a 6-digit magic OTP to their work inbox.
+     * Entering the code links their existing personal account to the corporate entity immediately.
+   * **Method C: Magic Invite Link:**
+     * Clicking an invite link sent via Slack, Teams, or email (`https://<companySlug>.parkly.ng/join?token=...`) auto-authenticates and links the profile in one click.
+
+3. **Zero Vehicle Duplication:**
+   * An employee's registered vehicle (e.g. `LND-452-XY`) works automatically across both personal parking lots and corporate workplace bays.
 
 ### 3.3 Zero-Literacy Gate Security Guard Scanner
 Corporate gate guards and private security personnel (e.g. Halogen, Proton, KingsGuard) often have low tech literacy:

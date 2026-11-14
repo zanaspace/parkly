@@ -19,14 +19,19 @@ Sprint CORP-02 builds the effortless onboarding workflow for enterprise clients.
    - _Step 1: Organization Details:_ Legal Company Name, CAC/RC Number, and Work Email Domain (e.g. `@kpmg.ng`).
    - _Step 2: Employee Roster Ingestion:_ Drag-and-drop Excel/CSV upload or Google Workspace / Microsoft 365 directory sync.
    - _Step 3: Billing & Pass Activation:_ Select billing method (Direct Debit, Corporate NUBAN Bank Transfer, Corporate Card) and assign pass quotas.
-2. **Work Email Domain Auto-Verification Engine:**
+2. **Work Email Domain Auto-Verification Engine & Dual-Profile Linking:**
    - Any employee logging into the Parkly mobile app or web with their corporate email (e.g. `ada@kpmg.ng`) receives an instant 6-digit magic OTP.
    - Upon verification, their employee pass is auto-provisioned without HR manual intervention.
-3. **Bulk CSV Staff Roster Ingestion (`apps/api`):**
+3. **Seamless Personal-to-Corporate Account Linking for Existing Users:**
+   - Allows existing retail drivers with personal Parkly accounts to link their corporate membership seamlessly:
+     - _Automatic Phone Discovery:_ If an existing driver's phone number is present in an uploaded staff roster, an in-app banner prompts 1-tap activation: _"🎉 [Company Name] has added you! Tap to link."_
+     - _In-App Work Email Linking:_ In `Account` -> `Linked Workplaces`, users enter their work email and confirm with a 6-digit OTP to link their personal profile.
+     - _In-App Profile Switcher:_ Driver toggles between `[ 👤 Personal (My Card) ]` and `[ 🏢 Corporate (₦0 / Company Invoiced) ]` when parking.
+4. **Bulk CSV Staff Roster Ingestion (`apps/api`):**
    - Parser accepting `.csv` and `.xlsx` files with columns: `fullName`, `workEmail`, `phoneNumber`, `plateNumber`, `department`.
    - Automatic phone number normalization (+234 standard) and Nigerian plate formatting (`LND-452-XY`).
    - Handles duplicates, updates existing vehicle plates, and flags errors gracefully.
-4. **HR Staff Management Console (`https://<companySlug>.parkly.ng/portal`):**
+5. **HR Staff Management Console (`https://<companySlug>.parkly.ng/portal`):**
    - Active employee roster table with instant search and status toggles (`ACTIVE`, `SUSPENDED`).
    - One-click employee pass deactivation upon staff exit.
 
