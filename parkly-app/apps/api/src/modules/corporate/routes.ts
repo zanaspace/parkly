@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
   CorporateTenantResponseSchema,
+  CreateCorporateTenantRequestSchema,
   ResolveCorporateDomainResponseSchema,
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
@@ -60,6 +61,80 @@ export function corporateRoutes(deps: AppDeps) {
           legalName: tenant.account.legalName,
         },
         200,
+      );
+    },
+  );
+
+  /**
+   * Self-serve onboarding for new corporate enterprise accounts.
+   */
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/corp/onboard',
+      tags: ['corporate'],
+      summary: 'Register and onboard a new corporate tenant',
+      request: {
+        body: json(CreateCorporateTenantRequestSchema),
+      },
+      responses: {
+        201: {
+          description: 'Corporate tenant created successfully',
+          ...json(CorporateTenantResponseSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const input = c.req.valid('json');
+      const normalizedSlug = input.slug.toLowerCase().trim();
+
+      const existing = await deps.store.corporate.findBySlug(normalizedSlug);
+      if (existing) {
+        throw new ApiError('SLUG_TAKEN', `Subdomain '${normalizedSlug}' is already taken`);
+      }
+
+      const account = await deps.store.corporate.createAccount({
+        slug: normalizedSlug,
+        legalName: input.legalName.trim(),
+        cacRcNumber: input.cacRcNumber.trim(),
+        industry: input.industry.trim(),
+        headOfficeAddress: input.headOfficeAddress.trim(),
+        primaryContactName: input.primaryContactName.trim(),
+        primaryContactEmail: input.primaryContactEmail.toLowerCase().trim(),
+        primaryContactPhone: input.primaryContactPhone.trim(),
+      });
+
+      const branding = await deps.store.corporate.setBranding(account.id, {
+        logoUrl: input.branding.logoUrl || `https://avatar.vercel.sh/${normalizedSlug}.png`,
+        primaryColor: input.branding.primaryColor || '#E31837',
+        secondaryColor: input.branding.secondaryColor || '#1E1E1E',
+        portalTitle: input.branding.portalTitle.trim(),
+        welcomeMessage: input.branding.welcomeMessage?.trim() ?? null,
+      });
+
+      const domain = await deps.store.corporate.addDomain(account.id, {
+        subdomain: normalizedSlug,
+        emailDomain: input.emailDomain.toLowerCase().replace(/^@/, '').trim(),
+        isVerified: false,
+      });
+
+      return c.json(
+        {
+          id: account.id,
+          slug: account.slug,
+          legalName: account.legalName,
+          industry: account.industry,
+          billingTier: account.billingTier,
+          branding: {
+            logoUrl: branding.logoUrl,
+            primaryColor: branding.primaryColor,
+            secondaryColor: branding.secondaryColor,
+            portalTitle: branding.portalTitle,
+            welcomeMessage: branding.welcomeMessage,
+          },
+          emailDomains: [domain.emailDomain],
+        },
+        201,
       );
     },
   );

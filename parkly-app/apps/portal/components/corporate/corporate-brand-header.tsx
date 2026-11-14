@@ -26,7 +26,10 @@ export function CorporateBrandHeader({
         padding: '0.875rem 1.5rem',
       }}
     >
-      <div className="pk-topbar-main" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div
+        className="pk-topbar-main"
+        style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}
+      >
         {logoUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -67,7 +70,10 @@ export function CorporateBrandHeader({
             >
               {legalName}
             </span>
-            <span className="pk-badge pk-badge--verified" style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+            <span
+              className="pk-badge pk-badge--verified"
+              style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}
+            >
               Verified Enterprise
             </span>
           </div>
@@ -91,9 +97,23 @@ export function CorporateBrandHeader({
             {welcomeMessage}
           </span>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderLeft: '1px solid var(--pk-color-border-default)', paddingLeft: '1rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            borderLeft: '1px solid var(--pk-color-border-default)',
+            paddingLeft: '1rem',
+          }}
+        >
           <LogoMarkIcon size={20} />
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pk-color-text-secondary)' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--pk-color-text-secondary)',
+            }}
+          >
             Parkly Corporate
           </span>
         </div>

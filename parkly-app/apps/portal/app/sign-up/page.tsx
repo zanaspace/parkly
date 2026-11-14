@@ -29,6 +29,17 @@ export default async function SignUpPage({
       >
         Already have an account? Sign in
       </Link>
+      <div
+        style={{
+          borderTop: '1px solid var(--pk-color-border-subtle)',
+          paddingTop: '0.75rem',
+          marginTop: '0.25rem',
+        }}
+      >
+        <Link className="pk-link" href="/corporate/onboarding">
+          🏢 Are you an employer or enterprise? Onboard your corporate account
+        </Link>
+      </div>
     </AuthPage>
   );
 }

@@ -26,6 +26,17 @@ export default async function SignInPage({
       <Link className="pk-link" href="/sign-up">
         New to Parkly? Create an operator account
       </Link>
+      <div
+        style={{
+          borderTop: '1px solid var(--pk-color-border-subtle)',
+          paddingTop: '0.75rem',
+          marginTop: '0.25rem',
+        }}
+      >
+        <Link className="pk-link" href="/corporate/onboarding">
+          🏢 Looking for Corporate Mobility? Onboard your enterprise
+        </Link>
+      </div>
     </AuthPage>
   );
 }
