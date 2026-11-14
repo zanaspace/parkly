@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "contracts:openapi": "pnpm --filter @parkly/api openapi",
     "tokens:build": "pnpm --filter @parkly/tokens build",
-    "db:generate": "pnpm --filter @parkly/db generate"
+    "db:generate": "pnpm --filter @parkly/db generate",
+    "test:load": "tsx tests/load/run-load-test.ts"
   },
   "devDependencies": {
     "prettier": "3.9.10",

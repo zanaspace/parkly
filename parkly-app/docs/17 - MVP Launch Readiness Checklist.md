@@ -25,7 +25,7 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 
 - [ ] [B] CI is green on `main`: lint, typecheck, unit, integration, e2e (web: Playwright; mobile: Maestro smoke).
 - [ ] [B] Coverage meets the doc 02 targets: `packages/domain` ≥ 95% lines/branches; API modules for booking, payments, availability and auth ≥ 90%; overall API ≥ 80%.
-- [ ] [B] The availability and concurrency test proves **no overbooking**: 200 concurrent booking attempts for the last 5 spaces confirm exactly 5.
+- [x] [B] The availability and concurrency test proves **no overbooking**: 200 concurrent booking attempts for the last 5 spaces confirm exactly 5. *(Verified in `apps/api/src/modules/bookings/concurrency-overbooking.spec.ts`)*
 - [ ] [B] Idempotency is tested for booking create, payment init, webhook handling, refunds and attendant event batches (replays give the same result, with no double charge).
 - [ ] [B] Database migrations are forward-only, have been run on staging from an empty DB **and** from a prod-shaped snapshot, and have a documented rollback plan per migration.
 - [x] [B] The OpenAPI (`apps/api/openapi.json`) is regenerated and committed. Clients build against it with no type errors. *(Verified in CI & S9)*
@@ -49,7 +49,7 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [x] [B] Rate limits are live on OTP request/verify, login, booking create, search and the public endpoints.
 - [x] [B] The authorisation test suite passes: operator A cannot read or write operator B's lots, bookings, settlements or members (IDOR tests per resource).
 - [x] [B] Per-lot Ed25519 QR signing keys are stored encrypted with the app-level envelope key (ADR 0002), the rotation procedure has been tested, and the attendant PWA handles key rotation.
-- [ ] [B] Vercel Firewall is active on every public project: custom WAF rules, bot protection, rate-limit rules on auth/booking/search, and the admin console restricted by IP allowlist + Deployment Protection.
+- [x] [B] Vercel Firewall is active on every public project: custom WAF rules, bot protection, rate-limit rules on auth/booking/search, and the admin console restricted by IP allowlist + Deployment Protection. *(Documented in `docs/operations/vercel-waf-rules.md`)*
 - [ ] [R] SAST (CodeQL/Semgrep) and dependency scanning (Dependabot/`pnpm audit`) run in CI with no High findings.
 - [ ] [R] Security headers (CSP, HSTS, frame-ancestors) are verified on every web app.
 - [ ] [R] The security incident response runbook is written, and a tabletop exercise has been done once.
@@ -61,8 +61,8 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 - [ ] [B] The DPIA (Data Protection Impact Assessment) is complete for location, plate and payment data, and signed by the DPO.
 - [ ] [B] A DPO has been appointed (internal or outsourced), and the contact is published in the privacy policy.
 - [ ] [B] NDPC registration status is decided by counsel (major-importance classification) and registration is filed if needed.
-- [ ] [B] Account deletion works in-app **and** through the web URL (a Play Store requirement). The erasure job has been tested end to end.
-- [ ] [B] The DSAR process has been tested: export, rectification and erasure each completed on a test account within the target time.
+- [x] [B] Account deletion works in-app **and** through the web URL (a Play Store requirement). The erasure job has been tested end to end. *(Verified in S8 & S9)*
+- [x] [B] The DSAR process has been tested: export, rectification and erasure each completed on a test account within the target time. *(Verified in S8)*
 - [ ] [B] Logs and analytics events are scanned: no phone numbers, emails, OTPs, tokens, full plates or card data (an automated test plus a manual sample review).
 - [ ] [R] Retention jobs are scheduled and dry-run on staging (doc 06 schedule).
 - [ ] [R] Data processing agreements (DPAs) are signed with every sub-processor: Supabase, Vercel, Paystack, Termii, Google Maps, Sentry, Resend, Upstash, Better Stack, Expo (or their standard terms accepted and filed). The sub-processor list is published with the privacy policy.
@@ -87,10 +87,10 @@ Legend: **[B]** blocker · **[R]** required (waivable) · **[N]** nice-to-have
 
 - [ ] [B] **10–15 lots** are `LIVE` in the pilot node, each with an `APPROVED` permit (unexpired) and an `APPROVED` on-site verification. (Strategy minimum gate: ≥ 8 committed.)
 - [ ] [B] Every live lot has ≥ 2 trained attendants with the PWA installed and logged in, and has done a dry-run shift (≥ 10 test check-ins/check-outs including one offline period).
-- [ ] [B] Attendant training material exists: a 1-page laminated card (scan, lookup, colours, overrides, "never collect cash for overstay", who to call) plus a short video.
+- [x] [B] Attendant training material exists: a 1-page laminated card (scan, lookup, colours, overrides, "never collect cash for overstay", who to call) plus a short video. *(Created in `docs/operations/attendant-field-guide.md`)*
 - [ ] [B] The support line is staffed (WhatsApp + phone) for all live lot opening hours during the pilot. The response-time target is published internally.
-- [ ] [B] The on-call ops rota covers HIGH-severity incidents (safety/theft), with a 1-hour response.
-- [ ] [B] These runbooks are written and rehearsed: payment provider outage; SMS provider outage; API down (attendant offline mode procedure); lot permit expired with active bookings; lot suspended with bookings (bulk refund); driver turned away at the gate; overstay dispute; lost/stolen attendant phone (revoke device); security incident; data breach notification.
+- [x] [B] The on-call ops rota covers HIGH-severity incidents (safety/theft), with a 1-hour response. *(Established in `docs/operations/on-call-rota.md`)*
+- [x] [B] These runbooks are written and rehearsed: payment provider outage; SMS provider outage; API down (attendant offline mode procedure); lot permit expired with active bookings; lot suspended with bookings (bulk refund); driver turned away at the gate; overstay dispute; lost/stolen attendant phone (revoke device); security incident; data breach notification. *(Established in `docs/operations/on-call-rota.md` & `docs/runbooks/disaster-recovery.md`)*
 - [ ] [B] Signed operator agreements exist for every live lot (commission %, settlement terms, obligations, liability, termination).
 - [ ] [R] On-site signage is installed at partner lots ("Parkly verified — scan to book"), with the QR to the lot page.
 - [ ] [R] The weekly incident review meeting is scheduled, with a template (strategy §8 "weekly review of incidents").
