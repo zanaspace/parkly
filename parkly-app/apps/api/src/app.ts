@@ -43,6 +43,7 @@ import { attendRoutes } from './modules/attend/routes.js';
 import { bookingRoutes } from './modules/bookings/routes.js';
 import { passRoutes } from './modules/passes/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
+import { corporateRoutes } from './modules/corporate/routes.js';
 import type {
   IdentityVerificationProvider,
   MapsProvider,
@@ -176,6 +177,7 @@ export function createApp(deps: AppDeps) {
   app.route('/v1', passRoutes(deps));
   app.route('/v1', attendRoutes(deps));
   app.route('/v1', webhookRoutes(deps));
+  app.route('/v1', corporateRoutes(deps));
 
   app.notFound((c) => problemResponse(c, new ApiError('NOT_FOUND')));
   app.onError((err, c) => {

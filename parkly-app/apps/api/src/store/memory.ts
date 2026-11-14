@@ -12,6 +12,11 @@ import {
   VehicleInUseError,
   type AuditRow,
   type DataRequestRow,
+  type CorporateAccountRow,
+  type CorporateBrandingRow,
+  type CorporateCostCenterRow,
+  type CorporateDomainRow,
+  type CorporateMemberRow,
   type FileRow,
   type IncidentNoteRow,
   type IncidentRow,
@@ -78,6 +83,11 @@ export class MemoryStore implements Store {
   readonly hourRows = new Map<string, OpeningHourRow[]>();
   readonly photoRows: LotPhotoRow[] = [];
   readonly permitRows: PermitRow[] = [];
+  readonly corporateAccountRows = new Map<string, CorporateAccountRow>();
+  readonly corporateBrandingRows = new Map<string, CorporateBrandingRow>();
+  readonly corporateDomainRows = new Map<string, CorporateDomainRow>();
+  readonly corporateMemberRows = new Map<string, CorporateMemberRow>();
+  readonly corporateCostCenterRows = new Map<string, CorporateCostCenterRow>();
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
   readonly verificationRows: VerificationRow[] = [];
   readonly flagRows = new Map<string, boolean>();
@@ -1410,6 +1420,135 @@ export class MemoryStore implements Store {
       this.settingRows.set(key, value);
       this.settingUpdatedAt.set(key, at);
       return { before };
+    },
+  };
+
+  corporate: Store['corporate'] = {
+    findBySlug: async (slug) => {
+      const account = Array.from(this.corporateAccountRows.values()).find(
+        (a) => a.slug === slug && a.isActive,
+      );
+      if (!account) return null;
+      const branding = this.corporateBrandingRows.get(account.id) ?? null;
+      const domains = Array.from(this.corporateDomainRows.values()).filter(
+        (d) => d.corporateId === account.id,
+      );
+      return {
+        account: { ...account },
+        branding: branding ? { ...branding } : null,
+        domains: domains.map((d) => ({ ...d })),
+      };
+    },
+    findBySubdomain: async (subdomain) => {
+      const domain = Array.from(this.corporateDomainRows.values()).find(
+        (d) => d.subdomain.toLowerCase() === subdomain.toLowerCase(),
+      );
+      if (!domain) return null;
+      const account = this.corporateAccountRows.get(domain.corporateId);
+      if (!account || !account.isActive) return null;
+      const branding = this.corporateBrandingRows.get(account.id) ?? null;
+      const domains = Array.from(this.corporateDomainRows.values()).filter(
+        (d) => d.corporateId === account.id,
+      );
+      return {
+        account: { ...account },
+        branding: branding ? { ...branding } : null,
+        domains: domains.map((d) => ({ ...d })),
+      };
+    },
+    findByDomain: async (customDomain) => {
+      const domain = Array.from(this.corporateDomainRows.values()).find(
+        (d) => d.customDomain?.toLowerCase() === customDomain.toLowerCase(),
+      );
+      if (!domain) return null;
+      const account = this.corporateAccountRows.get(domain.corporateId);
+      if (!account || !account.isActive) return null;
+      const branding = this.corporateBrandingRows.get(account.id) ?? null;
+      const domains = Array.from(this.corporateDomainRows.values()).filter(
+        (d) => d.corporateId === account.id,
+      );
+      return {
+        account: { ...account },
+        branding: branding ? { ...branding } : null,
+        domains: domains.map((d) => ({ ...d })),
+      };
+    },
+    createAccount: async (data) => {
+      const id = data.id ?? randomUUID();
+      const now = new Date();
+      const row: CorporateAccountRow = {
+        id,
+        slug: data.slug,
+        legalName: data.legalName,
+        cacRcNumber: data.cacRcNumber,
+        industry: data.industry,
+        headOfficeAddress: data.headOfficeAddress,
+        primaryContactName: data.primaryContactName,
+        primaryContactEmail: data.primaryContactEmail,
+        primaryContactPhone: data.primaryContactPhone,
+        billingTier: data.billingTier ?? 'STANDARD',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.corporateAccountRows.set(id, row);
+      return { ...row };
+    },
+    setBranding: async (corporateId, branding) => {
+      const now = new Date();
+      const row: CorporateBrandingRow = {
+        corporateId,
+        logoUrl: branding.logoUrl,
+        primaryColor: branding.primaryColor ?? '#E31837',
+        secondaryColor: branding.secondaryColor ?? '#1E1E1E',
+        portalTitle: branding.portalTitle,
+        welcomeMessage: branding.welcomeMessage ?? null,
+        updatedAt: now,
+      };
+      this.corporateBrandingRows.set(corporateId, row);
+      return { ...row };
+    },
+    addDomain: async (corporateId, domain) => {
+      const id = domain.id ?? randomUUID();
+      const now = new Date();
+      const row: CorporateDomainRow = {
+        id,
+        corporateId,
+        subdomain: domain.subdomain,
+        customDomain: domain.customDomain ?? null,
+        emailDomain: domain.emailDomain,
+        isVerified: domain.isVerified ?? false,
+        createdAt: now,
+      };
+      this.corporateDomainRows.set(id, row);
+      return { ...row };
+    },
+    addMember: async (data) => {
+      const id = data.id ?? randomUUID();
+      const now = new Date();
+      const row: CorporateMemberRow = {
+        id,
+        corporateId: data.corporateId,
+        userId: data.userId,
+        role: data.role ?? 'EMPLOYEE',
+        costCenterId: data.costCenterId ?? null,
+        workEmail: data.workEmail ?? null,
+        isActive: true,
+        createdAt: now,
+      };
+      this.corporateMemberRows.set(id, row);
+      return { ...row };
+    },
+    listMembers: async (corporateId) => {
+      return Array.from(this.corporateMemberRows.values())
+        .filter((m) => m.corporateId === corporateId && m.isActive)
+        .map((m) => ({ ...m }));
+    },
+    findMember: async (corporateId, userId) => {
+      const member = Array.from(this.corporateMemberRows.values()).find(
+        (m) => m.corporateId === corporateId && m.userId === userId && m.isActive,
+      );
+      return member ? { ...member } : null;
     },
   };
 

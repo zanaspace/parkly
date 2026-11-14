@@ -25057,6 +25057,168 @@
           }
         }
       }
+    },
+    "/v1/corp/resolve": {
+      "get": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Resolve corporate subdomain or custom domain",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "domain",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved corporate domain mapping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "corporateId": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "subdomain": {
+                      "type": "string"
+                    },
+                    "customDomain": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isVerified": {
+                      "type": "boolean"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "corporateId",
+                    "slug",
+                    "subdomain",
+                    "customDomain",
+                    "isVerified",
+                    "legalName"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/corp/:slug": {
+      "get": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Get public corporate tenant metadata",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Corporate tenant details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "industry": {
+                      "type": "string"
+                    },
+                    "billingTier": {
+                      "type": "string"
+                    },
+                    "branding": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "logoUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "primaryColor": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondaryColor": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "portalTitle": {
+                          "type": "string"
+                        },
+                        "welcomeMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "logoUrl",
+                        "primaryColor",
+                        "secondaryColor",
+                        "portalTitle",
+                        "welcomeMessage"
+                      ]
+                    },
+                    "emailDomains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "legalName",
+                    "industry",
+                    "billingTier",
+                    "branding",
+                    "emailDomains"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}
