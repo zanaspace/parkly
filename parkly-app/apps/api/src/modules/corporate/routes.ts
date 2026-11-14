@@ -71,7 +71,7 @@ export function corporateRoutes(deps: AppDeps) {
   app.openapi(
     createRoute({
       method: 'get',
-      path: '/corp/:slug',
+      path: '/corp/{slug}',
       tags: ['corporate'],
       summary: 'Get public corporate tenant metadata',
       request: { params: SlugParam },

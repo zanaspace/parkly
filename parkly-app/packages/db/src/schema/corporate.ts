@@ -89,6 +89,7 @@ export const corporateBranding = pgTable(
     secondaryColor: varchar('secondary_color', { length: 20 }).notNull().default('#1E1E1E'),
     portalTitle: varchar('portal_title', { length: 150 }).notNull(),
     welcomeMessage: text('welcome_message'),
+    createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   () => [apiAccess('corporate_branding')],

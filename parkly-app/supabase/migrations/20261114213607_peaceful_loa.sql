@@ -23,6 +23,7 @@ CREATE TABLE "corporate_branding" (
 	"secondary_color" varchar(20) DEFAULT '#1E1E1E' NOT NULL,
 	"portal_title" varchar(150) NOT NULL,
 	"welcome_message" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

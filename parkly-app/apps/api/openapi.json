@@ -25120,7 +25120,7 @@
         }
       }
     },
-    "/v1/corp/:slug": {
+    "/v1/corp/{slug}": {
       "get": {
         "tags": [
           "corporate"
