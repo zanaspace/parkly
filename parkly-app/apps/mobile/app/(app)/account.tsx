@@ -2,9 +2,8 @@ import type { Vehicle } from '@parkly/contracts';
 import { Button, Input, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
-import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
@@ -108,6 +107,18 @@ export default function Account() {
   const { me, vehicles } = auth;
 
   async function verifyIdentity() {
+    if (!idNumber.trim()) {
+      setError(
+        method === 'FRSC_LICENSE'
+          ? 'Please enter your FRSC driver’s license number.'
+          : 'Please enter your 11-digit NIN.',
+      );
+      return;
+    }
+    if (method === 'FRSC_LICENSE' && !dob.trim()) {
+      setError('Please enter your date of birth (YYYY-MM-DD).');
+      return;
+    }
     setBusy('verify');
     setError(null);
     try {
@@ -223,44 +234,113 @@ export default function Account() {
             we only store a masked reference.
           </Text>
           <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
-            <Chip
-              label="FRSC Driver’s License"
-              selected={method === 'FRSC_LICENSE'}
-              onPress={() => setMethod('FRSC_LICENSE')}
-            />
-            <Chip
-              label="11-digit NIN"
-              selected={method === 'NIN_PHONE'}
-              onPress={() => setMethod('NIN_PHONE')}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: method === 'FRSC_LICENSE' }}
+              accessibilityLabel="FRSC Driver's License"
+              onPress={() => {
+                setMethod('FRSC_LICENSE');
+                setError(null);
+              }}
+              style={({ pressed }) => ({
+                flex: 1,
+                minHeight: 42,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingVertical: theme.space[2],
+                paddingHorizontal: theme.space[2],
+                borderRadius: theme.radius.pill,
+                borderWidth: 1,
+                borderColor:
+                  method === 'FRSC_LICENSE' ? theme.color.border.brand : theme.color.border.default,
+                backgroundColor:
+                  method === 'FRSC_LICENSE'
+                    ? theme.color.bg['brand-subtle']
+                    : pressed
+                      ? theme.color.bg.muted
+                      : theme.color.bg.surface,
+              })}
+            >
+              <Text
+                variant="body.sm"
+                tone={method === 'FRSC_LICENSE' ? 'brand' : 'primary'}
+                style={{
+                  textAlign: 'center',
+                  fontWeight: method === 'FRSC_LICENSE' ? '600' : '400',
+                }}
+              >
+                FRSC License
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: method === 'NIN_PHONE' }}
+              accessibilityLabel="11-digit NIN"
+              onPress={() => {
+                setMethod('NIN_PHONE');
+                setError(null);
+              }}
+              style={({ pressed }) => ({
+                flex: 1,
+                minHeight: 42,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingVertical: theme.space[2],
+                paddingHorizontal: theme.space[2],
+                borderRadius: theme.radius.pill,
+                borderWidth: 1,
+                borderColor:
+                  method === 'NIN_PHONE' ? theme.color.border.brand : theme.color.border.default,
+                backgroundColor:
+                  method === 'NIN_PHONE'
+                    ? theme.color.bg['brand-subtle']
+                    : pressed
+                      ? theme.color.bg.muted
+                      : theme.color.bg.surface,
+              })}
+            >
+              <Text
+                variant="body.sm"
+                tone={method === 'NIN_PHONE' ? 'brand' : 'primary'}
+                style={{ textAlign: 'center', fontWeight: method === 'NIN_PHONE' ? '600' : '400' }}
+              >
+                11-digit NIN
+              </Text>
+            </Pressable>
           </View>
           <Input
             label={method === 'FRSC_LICENSE' ? 'License number' : '11-digit NIN'}
             value={idNumber}
-            onChangeText={setIdNumber}
+            onChangeText={(t) => {
+              setIdNumber(t);
+              if (error) setError(null);
+            }}
             autoCapitalize="characters"
-            placeholder={method === 'FRSC_LICENSE' ? 'ABC12345AA12' : '12345678901'}
+            placeholder={method === 'FRSC_LICENSE' ? 'e.g. ABC12345AA12' : 'e.g. 12345678901'}
           />
           {method === 'FRSC_LICENSE' ? (
             <Input
               label="Date of birth (YYYY-MM-DD)"
               value={dob}
-              onChangeText={setDob}
+              onChangeText={(t) => {
+                setDob(t);
+                if (error) setError(null);
+              }}
               placeholder="1990-01-01"
             />
           ) : null}
+          {error ? <Notice message={error} /> : null}
           <Button
             label="Verify my driver identity"
             fullWidth
             loading={busy === 'verify'}
-            disabled={!idNumber.trim()}
             onPress={() => void verifyIdentity()}
           />
         </View>
       ) : null}
 
       <Text variant="heading.sm">Vehicles</Text>
-      {error ? <Notice message={error} /> : null}
+      {error && me?.isVerifiedDriver ? <Notice message={error} /> : null}
       {vehicles && vehicles.length > 0 ? (
         vehicles.map((v) => (
           <VehicleRow key={v.id} vehicle={v} onChanged={auth.refreshVehicles} onError={setError} />
