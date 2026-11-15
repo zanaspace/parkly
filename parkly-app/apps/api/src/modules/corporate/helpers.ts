@@ -1,4 +1,9 @@
-import { z } from '@hono/zod-openapi';
+import { createRoute, z } from '@hono/zod-openapi';
+import {
+  CorporateFleetDriverSchema,
+  UpdateFleetDriverRequestSchema,
+  UpdateFleetDriverStatusRequestSchema,
+} from '@parkly/contracts';
 import type {
   CorporateAccountRow,
   CorporateBrandingRow,
@@ -12,6 +17,40 @@ export const DriverParam = z.object({
   driverId: z.string().uuid(),
 });
 export const DomainQuery = z.object({ domain: z.string().min(1) });
+
+export const DriverStatusRoute = createRoute({
+  method: 'patch',
+  path: '/corp/{slug}/drivers/{driverId}/status',
+  tags: ['corporate'],
+  summary: 'Update driver approval status',
+  request: {
+    params: DriverParam,
+    body: { ...json(UpdateFleetDriverStatusRequestSchema), required: true },
+  },
+  responses: {
+    200: {
+      description: 'Driver status updated',
+      ...json(CorporateFleetDriverSchema),
+    },
+  },
+});
+
+export const DriverPatchRoute = createRoute({
+  method: 'patch',
+  path: '/corp/{slug}/drivers/{driverId}',
+  tags: ['corporate'],
+  summary: 'Update driver details and vehicle plate',
+  request: {
+    params: DriverParam,
+    body: { ...json(UpdateFleetDriverRequestSchema), required: true },
+  },
+  responses: {
+    200: {
+      description: 'Driver updated',
+      ...json(CorporateFleetDriverSchema),
+    },
+  },
+});
 
 export function serializeDriver(d: CorporateFleetDriverRow) {
   return {

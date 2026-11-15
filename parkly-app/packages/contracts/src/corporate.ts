@@ -143,3 +143,12 @@ export const UpdateFleetDriverStatusRequestSchema = z.object({
   approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'SUSPENDED']),
 });
 export type UpdateFleetDriverStatusRequest = z.infer<typeof UpdateFleetDriverStatusRequestSchema>;
+
+export const UpdateFleetDriverRequestSchema = z.object({
+  driverName: z.string().min(2).max(120).optional(),
+  phone: z.string().min(7).max(30).optional(),
+  vehiclePlate: z.string().min(2).max(20).optional().nullable(),
+  approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'SUSPENDED']).optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateFleetDriverRequest = z.infer<typeof UpdateFleetDriverRequestSchema>;
