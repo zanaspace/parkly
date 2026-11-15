@@ -80,6 +80,7 @@ export const UpdateCorporateProfileRequestSchema = z.object({
   primaryContactName: z.string().min(2).max(120).optional(),
   primaryContactEmail: z.string().email().optional(),
   primaryContactPhone: z.string().min(7).max(30).optional(),
+  emailDomain: z.string().min(3).max(254).optional(),
   branding: z
     .object({
       logoUrl: z.string().url().optional(),

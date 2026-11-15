@@ -25658,6 +25658,11 @@
                     "minLength": 7,
                     "maxLength": 30
                   },
+                  "emailDomain": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 254
+                  },
                   "branding": {
                     "type": "object",
                     "properties": {

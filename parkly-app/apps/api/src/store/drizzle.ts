@@ -1959,6 +1959,14 @@ export function drizzleStore(db: Db): Store {
           .returning();
         return row as CorporateBrandingRow;
       },
+      async updateEmailDomain(corporateId, emailDomain) {
+        const [row] = await db
+          .update(corporateDomains)
+          .set({ emailDomain })
+          .where(eq(corporateDomains.corporateId, corporateId))
+          .returning();
+        return (row as CorporateDomainRow) ?? null;
+      },
       async listFleetDrivers(corporateId) {
         const rows = await db
           .select()
