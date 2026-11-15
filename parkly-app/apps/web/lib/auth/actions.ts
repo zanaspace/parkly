@@ -129,20 +129,35 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
       body: { deviceId: await getOrCreateDeviceId(), platform: 'WEB', asDriver: true },
     });
     user = bootstrap.user;
-    const v = user.currentLegalVersions;
-    if (user.consents.termsVersion !== v.terms)
-      await apiAs(accessToken, '/v1/me/consents', {
-        method: 'POST',
-        body: { type: 'TERMS', version: v.terms, granted: true },
-      });
-    if (user.consents.privacyVersion !== v.privacy)
-      await apiAs(accessToken, '/v1/me/consents', {
-        method: 'POST',
-        body: { type: 'PRIVACY', version: v.privacy, granted: true },
-      });
-  } catch {
+    try {
+      const v = user.currentLegalVersions;
+      if (user.consents.termsVersion !== v.terms && v.terms && v.terms !== 'unset')
+        await apiAs(accessToken, '/v1/me/consents', {
+          method: 'POST',
+          body: { type: 'TERMS', version: v.terms, granted: true },
+        });
+      if (user.consents.privacyVersion !== v.privacy && v.privacy && v.privacy !== 'unset')
+        await apiAs(accessToken, '/v1/me/consents', {
+          method: 'POST',
+          body: { type: 'PRIVACY', version: v.privacy, granted: true },
+        });
+    } catch (consentErr) {
+      console.warn('Non-fatal: could not sync consents during sign-in', consentErr);
+    }
+  } catch (err: unknown) {
+    console.error('verifyCode bootstrap error:', err);
     await supabase.auth.signOut({ scope: 'local' });
-    return { step: 'start', method, error: 'We couldn’t reach Parkly just now. Please try again.' };
+    const detail =
+      err instanceof ApiProblem
+        ? ` (${err.code}: ${err.detail || err.status})`
+        : err instanceof Error
+          ? ` (${err.message})`
+          : '';
+    return {
+      step: 'start',
+      method,
+      error: `We couldn’t reach Parkly just now${detail}. Please try again.`,
+    };
   }
 
   const explicitNext = safeNext(field(form, 'next'), '');
