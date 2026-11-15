@@ -38,7 +38,18 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
               wordBreak: 'break-all',
             }}
           >
-            {urlInfo.displayUrl}
+            <a
+              href={urlInfo.activeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'inherit',
+                textDecoration: 'underline',
+                textUnderlineOffset: '4px',
+              }}
+            >
+              {urlInfo.displayUrl}
+            </a>
           </div>
           <Text
             variant="body-sm"
