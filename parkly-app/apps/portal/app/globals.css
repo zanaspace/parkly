@@ -120,11 +120,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--pk-space-stack-sm);
-  padding: var(--pk-card-padding);
-  border: 1px solid var(--pk-card-border);
-  border-radius: var(--pk-card-radius);
-  background: var(--pk-card-bg);
-  box-shadow: var(--pk-card-shadow);
+  padding: var(--pk-card-padding, var(--pk-space-inset-md, 1rem));
+  border: 1px solid var(--pk-card-border, var(--pk-color-border-default));
+  border-radius: var(--pk-card-radius, var(--pk-radius-lg));
+  background: var(--pk-card-bg, var(--pk-color-bg-surface));
+  box-shadow: var(--pk-card-shadow, none);
 }
 .pk-list {
   margin: 0;
@@ -456,13 +456,14 @@ a.pk-button {
   justify-content: space-between;
   gap: var(--pk-space-stack-md);
   padding: var(--pk-space-inset-md);
-  border: 1px solid var(--pk-card-border);
-  border-radius: var(--pk-card-radius);
-  background: var(--pk-card-bg);
-  box-shadow: var(--pk-card-shadow);
+  border: 1px solid var(--pk-card-border, var(--pk-color-border-default));
+  border-radius: var(--pk-card-radius, var(--pk-radius-lg));
+  background: var(--pk-card-bg, var(--pk-color-bg-surface));
+  box-shadow: var(--pk-card-shadow, none);
   transition:
     transform 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .pk-stat-card:hover {

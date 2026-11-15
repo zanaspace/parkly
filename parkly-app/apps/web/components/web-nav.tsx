@@ -5,14 +5,17 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  BuildingIcon,
   ChevronDownIcon,
   LogOutIcon,
   LogoMarkIcon,
   SearchIcon,
+  TeamIcon,
   TicketIcon,
   UserIcon,
 } from './icons';
 import { signOut } from '../lib/auth/actions';
+import { getPortalUrls } from '../lib/portal-url';
 
 export interface WebNavProps {
   signedIn: boolean;
@@ -75,6 +78,7 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
   ];
 
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'DR';
+  const portalUrls = getPortalUrls();
 
   const mobileNav = (
     <nav className="pk-bottom-bar" aria-label="Mobile Navigation">
@@ -154,6 +158,32 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
         </div>
 
         <div className="pk-topbar-actions">
+          <div
+            className="pk-portal-shortcuts"
+            style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}
+          >
+            <a
+              href={portalUrls.operatorSignUp}
+              className="pk-nav-pill"
+              title="Monetize and manage your car park"
+              style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+            >
+              <BuildingIcon size={14} />
+              <span>For Operators</span>
+            </a>
+            <a
+              href={portalUrls.corporateOnboarding}
+              className="pk-nav-pill"
+              title="Employer transit subsidies and fleet mobility"
+              style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+            >
+              <TeamIcon size={14} />
+              <span>For Corporates</span>
+            </a>
+          </div>
+
+          <span className="pk-topbar-divider" aria-hidden="true" style={{ margin: '0 0.25rem' }} />
+
           {signedIn ? (
             <div className="pk-user-menu-container" ref={dropdownRef}>
               <button

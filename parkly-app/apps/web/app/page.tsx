@@ -1,6 +1,7 @@
 import { Text } from '@parkly/ui';
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { OnboardingAudienceSelector } from '../components/onboarding-audience/onboarding-audience-selector';
 import { SearchForm } from '../components/search-form';
 import { AREAS, dateRange, readSearch } from '../lib/search';
 
@@ -29,6 +30,9 @@ export default async function Home() {
       <section className="pk-card" aria-label="Find parking">
         <SearchForm initial={initial} today={today} lastDay={lastDay} />
       </section>
+
+      {/* Unified Multi-Audience Onboarding & Tier Selector */}
+      <OnboardingAudienceSelector />
 
       <section className="pk-promises" aria-label="Why Parkly">
         <div>
