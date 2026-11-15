@@ -66,7 +66,8 @@ export function meRoutes(deps: AppDeps) {
     async (c) => {
       authorize(c, deps.logger, 'profile:read:own', own(c));
       const actor = c.get('actor');
-      return c.json(await buildMe(deps.store, c.get('user'), actor.roles), 200);
+      const email = c.get('identity')?.email;
+      return c.json(await buildMe(deps.store, c.get('user'), actor.roles, email), 200);
     },
   );
 
@@ -82,8 +83,9 @@ export function meRoutes(deps: AppDeps) {
     async (c) => {
       authorize(c, deps.logger, 'profile:update:own', own(c));
       const actor = c.get('actor');
+      const email = c.get('identity')?.email;
       const user = await deps.store.users.updateProfile(actor.userId, c.req.valid('json'));
-      return c.json(await buildMe(deps.store, user, actor.roles), 200);
+      return c.json(await buildMe(deps.store, user, actor.roles, email), 200);
     },
   );
 
@@ -100,6 +102,7 @@ export function meRoutes(deps: AppDeps) {
     async (c) => {
       authorize(c, deps.logger, 'consent:write:own', own(c));
       const actor = c.get('actor');
+      const email = c.get('identity')?.email;
       const consent = c.req.valid('json');
       const ip = clientIp(c.req.header('x-forwarded-for'));
       await deps.store.consents.add({
@@ -110,7 +113,7 @@ export function meRoutes(deps: AppDeps) {
       if (consent.type === 'MARKETING')
         await deps.store.users.setMarketingOptIn(actor.userId, consent.granted);
       const user = (await deps.store.users.find(actor.userId)) ?? c.get('user');
-      return c.json(await buildMe(deps.store, user, actor.roles), 200);
+      return c.json(await buildMe(deps.store, user, actor.roles, email), 200);
     },
   );
 

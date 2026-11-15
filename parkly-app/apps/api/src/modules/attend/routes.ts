@@ -230,6 +230,15 @@ export function attendRoutes(deps: AppDeps) {
         throw new ApiError('DEVICE_REVOKED');
       const lot = await gateLot(c, lotId);
       await approvedDevice(c.get('actor').userId, clientDeviceId, lotId);
+      let contactPhone: string | null = null;
+      try {
+        const op = await deps.store.operators.find(lot.operatorId);
+        if (op?.contactPhoneEnc) {
+          contactPhone = deps.crypto.decrypt(op.contactPhoneEnc);
+        }
+      } catch {
+        contactPhone = null;
+      }
       const now = deps.now();
       const [rows, passRows, keys, walkIns, earlyArrivalMin, noShowGraceMin, overstayGraceMin] =
         await Promise.all([
@@ -252,6 +261,7 @@ export function attendRoutes(deps: AppDeps) {
             id: lot.id,
             name: lot.name,
             capacityBookable: lot.capacityBookable,
+            contactPhone,
             gateKey: codes.attendantKey(lot.id),
           },
           rules: { earlyArrivalMin, noShowGraceMin, overstayGraceMin },

@@ -59,6 +59,7 @@ export const ManifestSchema = z.object({
     id: z.uuid(),
     name: z.string(),
     capacityBookable: z.number().int(),
+    contactPhone: z.string().nullable().optional(),
     /**
      * Key for the code the phone shows drivers, which changes every minute
      * (gap review G-2); base64url. Absent from manifests cached before it existed.

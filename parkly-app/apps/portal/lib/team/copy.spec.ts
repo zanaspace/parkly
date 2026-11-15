@@ -15,6 +15,9 @@ describe('team copy', () => {
     const share = whatsappShare(link, 'Eko Hotel');
     expect(share.startsWith('https://wa.me/?text=')).toBe(true);
     expect(decodeURIComponent(share)).toContain(link);
+
+    const shareWithPhone = whatsappShare(link, 'Eko Hotel', '+2348012345678');
+    expect(decodeURIComponent(shareWithPhone)).toContain('+2348012345678');
   });
 
   it('tells invitees who invited them, as what, and what to do', () => {

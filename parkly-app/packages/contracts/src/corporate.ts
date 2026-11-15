@@ -152,3 +152,20 @@ export const UpdateFleetDriverRequestSchema = z.object({
   isActive: z.boolean().optional(),
 });
 export type UpdateFleetDriverRequest = z.infer<typeof UpdateFleetDriverRequestSchema>;
+
+export const CorporateDriverLoginRequestSchema = z.object({
+  phone: z.string().trim().min(5).max(30),
+  joinCode: z.string().trim().min(3).max(20),
+});
+export type CorporateDriverLoginRequest = z.infer<typeof CorporateDriverLoginRequestSchema>;
+
+export const CorporateDriverLoginResponseSchema = z.object({
+  token: z.string(),
+  corporate: z.object({
+    id: z.string(),
+    slug: z.string(),
+    legalName: z.string(),
+  }),
+  driver: CorporateFleetDriverSchema,
+});
+export type CorporateDriverLoginResponse = z.infer<typeof CorporateDriverLoginResponseSchema>;

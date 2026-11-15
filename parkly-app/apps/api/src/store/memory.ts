@@ -1552,6 +1552,63 @@ export class MemoryStore implements Store {
       );
       return member ? { ...member } : null;
     },
+    findTenantsForUser: async (userId, email) => {
+      const results: Array<{ slug: string; name: string; role: string }> = [];
+      const seen = new Set<string>();
+
+      // 1. Direct active memberships
+      const members = Array.from(this.corporateMemberRows.values()).filter(
+        (m) => m.userId === userId && m.isActive,
+      );
+      for (const m of members) {
+        const acc = this.corporateAccountRows.get(m.corporateId);
+        if (acc && acc.isActive && !seen.has(acc.slug)) {
+          seen.add(acc.slug);
+          results.push({ slug: acc.slug, name: acc.legalName, role: m.role });
+        }
+      }
+
+      // 2. Email domain auto-linking (e.g. oluwaseun.adeleye@sellytichq.com or @sellyticshq.com)
+      if (email && email.includes('@')) {
+        const emailDomain = email.split('@')[1]?.toLowerCase().trim();
+        if (emailDomain) {
+          for (const d of this.corporateDomainRows.values()) {
+            const matchesDomain =
+              d.emailDomain.toLowerCase() === emailDomain ||
+              d.emailDomain.toLowerCase().replace(/s(?=hq)/, '') ===
+                emailDomain.replace(/s(?=hq)/, '') ||
+              d.customDomain?.toLowerCase() === emailDomain;
+            if (matchesDomain) {
+              const acc = this.corporateAccountRows.get(d.corporateId);
+              if (acc && acc.isActive && !seen.has(acc.slug)) {
+                seen.add(acc.slug);
+                const isContact = acc.primaryContactEmail.toLowerCase() === email.toLowerCase();
+                const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
+                // Auto link membership
+                const existing = Array.from(this.corporateMemberRows.values()).find(
+                  (m) => m.corporateId === acc.id && m.userId === userId,
+                );
+                if (!existing) {
+                  const mId = `mem-${userId.slice(0, 8)}-${acc.slug}`;
+                  this.corporateMemberRows.set(mId, {
+                    id: mId,
+                    corporateId: acc.id,
+                    userId,
+                    role,
+                    costCenterId: null,
+                    workEmail: email,
+                    isActive: true,
+                    createdAt: new Date(),
+                  });
+                }
+                results.push({ slug: acc.slug, name: acc.legalName, role });
+              }
+            }
+          }
+        }
+      }
+      return results;
+    },
     updateAccount: async (id, data) => {
       const existing = this.corporateAccountRows.get(id);
       if (!existing) throw new Error(`Corporate account ${id} not found`);
@@ -1654,6 +1711,7 @@ export class MemoryStore implements Store {
         ...(patch.vehiclePlate !== undefined && { vehiclePlate: patch.vehiclePlate }),
         ...(patch.approvalStatus !== undefined && { approvalStatus: patch.approvalStatus }),
         ...(patch.isActive !== undefined && { isActive: patch.isActive }),
+        ...(patch.userId !== undefined && { userId: patch.userId }),
         updatedAt: new Date(),
       };
       this.corporateFleetDriverRows.set(driverId, updated);

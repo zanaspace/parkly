@@ -1920,6 +1920,79 @@ export function drizzleStore(db: Db): Store {
           );
         return (row as CorporateMemberRow | undefined) ?? null;
       },
+      async findTenantsForUser(userId, email) {
+        const results: Array<{ slug: string; name: string; role: string }> = [];
+        const seen = new Set<string>();
+
+        // 1. Direct active memberships
+        const memberRows = await db
+          .select({
+            role: corporateMembers.role,
+            slug: corporateAccounts.slug,
+            name: corporateAccounts.legalName,
+          })
+          .from(corporateMembers)
+          .innerJoin(corporateAccounts, eq(corporateMembers.corporateId, corporateAccounts.id))
+          .where(
+            and(
+              eq(corporateMembers.userId, userId),
+              eq(corporateMembers.isActive, true),
+              eq(corporateAccounts.isActive, true),
+            ),
+          );
+
+        for (const m of memberRows) {
+          if (!seen.has(m.slug)) {
+            seen.add(m.slug);
+            results.push({ slug: m.slug, name: m.name, role: m.role });
+          }
+        }
+
+        // 2. Email domain auto-linking (e.g. oluwaseun.adeleye@sellytichq.com or @sellyticshq.com)
+        if (email && email.includes('@')) {
+          const emailDomain = email.split('@')[1]?.toLowerCase().trim();
+          if (emailDomain) {
+            const domainRows = await db
+              .select({
+                corpId: corporateAccounts.id,
+                slug: corporateAccounts.slug,
+                name: corporateAccounts.legalName,
+                primaryContactEmail: corporateAccounts.primaryContactEmail,
+              })
+              .from(corporateDomains)
+              .innerJoin(corporateAccounts, eq(corporateDomains.corporateId, corporateAccounts.id))
+              .where(
+                and(
+                  or(
+                    eq(sql`lower(${corporateDomains.emailDomain})`, emailDomain),
+                    eq(sql`lower(${corporateDomains.customDomain})`, emailDomain),
+                  ),
+                  eq(corporateAccounts.isActive, true),
+                ),
+              );
+
+            for (const d of domainRows) {
+              if (!seen.has(d.slug)) {
+                seen.add(d.slug);
+                const isContact = d.primaryContactEmail.toLowerCase() === email.toLowerCase();
+                const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
+                await db
+                  .insert(corporateMembers)
+                  .values({
+                    corporateId: d.corpId,
+                    userId,
+                    role,
+                    workEmail: email,
+                  })
+                  .onConflictDoNothing();
+                results.push({ slug: d.slug, name: d.name, role });
+              }
+            }
+          }
+        }
+
+        return results;
+      },
       async updateAccount(id, data) {
         const [row] = await db
           .update(corporateAccounts)
@@ -2039,6 +2112,7 @@ export function drizzleStore(db: Db): Store {
             ...(patch.vehiclePlate !== undefined && { vehiclePlate: patch.vehiclePlate }),
             ...(patch.approvalStatus !== undefined && { approvalStatus: patch.approvalStatus }),
             ...(patch.isActive !== undefined && { isActive: patch.isActive }),
+            ...(patch.userId !== undefined && { userId: patch.userId }),
             updatedAt: new Date(),
           })
           .where(

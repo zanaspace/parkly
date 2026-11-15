@@ -25,8 +25,15 @@ export const inviteLink = (origin: string, token: string) =>
   `${origin}/invite/${encodeURIComponent(token)}`;
 
 /** Doc 03 §2.3 sends the link by SMS; until SMS is live the inviter shares it (e.g. WhatsApp). */
-export function whatsappShare(link: string, businessName: string): string {
-  const text = `You’ve been invited to join ${businessName} on Parkly. Open this link within 72 hours to accept: ${link}`;
+export function whatsappShare(
+  link: string,
+  businessName: string,
+  lotContactPhone?: string | null,
+): string {
+  const phoneNote = lotContactPhone
+    ? `\nNeed voice directions to the lot? Call: ${lotContactPhone}`
+    : '';
+  const text = `You’ve been invited to join ${businessName} on Parkly.${phoneNote}\nOpen this link within 72 hours to accept: ${link}`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 

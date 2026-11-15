@@ -341,6 +341,29 @@
                           ],
                           "format": "date-time",
                           "default": null
+                        },
+                        "corporateTenants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "role": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "slug",
+                              "name",
+                              "role"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -550,6 +573,29 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "corporateTenants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "role"
+                        ]
+                      },
+                      "default": []
                     }
                   },
                   "required": [
@@ -733,6 +779,29 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "corporateTenants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "role"
+                        ]
+                      },
+                      "default": []
                     }
                   },
                   "required": [
@@ -967,6 +1036,29 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "corporateTenants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "role"
+                        ]
+                      },
+                      "default": []
                     }
                   },
                   "required": [
@@ -23887,6 +23979,12 @@
                         "capacityBookable": {
                           "type": "integer"
                         },
+                        "contactPhone": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "gateKey": {
                           "type": "string"
                         }
@@ -25478,6 +25576,142 @@
                     "message",
                     "driver",
                     "corporate"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/corp/drivers/login": {
+      "post": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Authenticate corporate fleet driver with phone and join code without SMS OTP",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 30
+                  },
+                  "joinCode": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "phone",
+                  "joinCode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Driver authenticated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    },
+                    "corporate": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "legalName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "legalName"
+                      ]
+                    },
+                    "driver": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "corporateId": {
+                          "type": "string"
+                        },
+                        "driverName": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "vehiclePlate": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "joinCode": {
+                          "type": "string"
+                        },
+                        "approvalStatus": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_APPROVAL",
+                            "APPROVED",
+                            "SUSPENDED"
+                          ]
+                        },
+                        "userId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "corporateId",
+                        "driverName",
+                        "phone",
+                        "vehiclePlate",
+                        "joinCode",
+                        "approvalStatus",
+                        "userId",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "corporate",
+                    "driver"
                   ]
                 }
               }

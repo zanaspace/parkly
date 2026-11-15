@@ -24,12 +24,6 @@ export default async function ChooseWorkspacePage() {
 
   const workspaces = resolveWorkspaces(user);
 
-  // If user only belongs to one workspace, take them there directly
-  const firstWs = workspaces[0];
-  if (workspaces.length === 1 && firstWs) {
-    redirect(firstWs.url);
-  }
-
   const getWorkspaceIcon = (type: WorkspaceItem['type']) => {
     switch (type) {
       case 'driver':

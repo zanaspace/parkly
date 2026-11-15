@@ -79,6 +79,17 @@ export const MeSchema = z.object({
   /** FR-AUTH-009 / FR-PASS-005: Tier 2 Nigerian driver identity verification status. */
   isVerifiedDriver: z.boolean().default(false),
   verifiedAt: z.iso.datetime().nullable().default(null),
+  /** Corporate organizational tenancies mapped to this user. */
+  corporateTenants: z
+    .array(
+      z.object({
+        slug: z.string(),
+        name: z.string(),
+        role: z.string(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 export const BootstrapResponseSchema = z.object({

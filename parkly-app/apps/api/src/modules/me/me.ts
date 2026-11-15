@@ -16,10 +16,16 @@ export async function legalVersions(store: Store) {
  * have a first name and have accepted the current Terms and Privacy Notice
  * (FR-AUTH-002); staff only need a name.
  */
-export async function buildMe(store: Store, user: UserRow, roles: RoleGrant[]): Promise<Me> {
-  const [consents, current] = await Promise.all([
+export async function buildMe(
+  store: Store,
+  user: UserRow,
+  roles: RoleGrant[],
+  email?: string | null,
+): Promise<Me> {
+  const [consents, current, corporateTenants] = await Promise.all([
     store.consents.latest(user.id),
     legalVersions(store),
+    store.corporate.findTenantsForUser(user.id, email),
   ]);
   const terms = consents.TERMS?.granted ? consents.TERMS.version : null;
   const privacy = consents.PRIVACY?.granted ? consents.PRIVACY.version : null;
@@ -37,5 +43,6 @@ export async function buildMe(store: Store, user: UserRow, roles: RoleGrant[]): 
     verifiedAt: user.verifiedAt ? user.verifiedAt.toISOString() : null,
     consents: { termsVersion: terms, privacyVersion: privacy, marketing: user.marketingOptIn },
     currentLegalVersions: current,
+    corporateTenants,
   };
 }

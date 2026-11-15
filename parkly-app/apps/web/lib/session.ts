@@ -1,4 +1,5 @@
 import type { Me } from '@parkly/contracts';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { apiAs, ApiProblem } from './api';
 import { getOrCreateDeviceId } from './auth/device';
@@ -10,12 +11,30 @@ export type Driver = { userId: string; accessToken: string; me?: Me };
 export async function loadDriver(): Promise<Driver | null> {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  if (!claims) return null;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return null;
-  return { userId: String(claims.claims.sub), accessToken: session.access_token };
+  if (claims) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      return { userId: String(claims.claims.sub), accessToken: session.access_token };
+    }
+  }
+
+  // Check for corporate fleet driver session cookie
+  const cookieStore = await cookies();
+  const corpCookie = cookieStore.get('pk_corp_driver')?.value;
+  if (corpCookie) {
+    try {
+      const parsed = JSON.parse(corpCookie) as { token?: string; userId?: string };
+      if (parsed.token && parsed.userId) {
+        return { userId: parsed.userId, accessToken: parsed.token };
+      }
+    } catch {
+      // ignore malformed cookie
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -37,6 +56,8 @@ export async function requireDriver(next: string): Promise<Driver> {
     if (err instanceof ApiProblem && (err.status === 401 || err.status === 403)) {
       const supabase = await createClient();
       await supabase.auth.signOut({ scope: 'local' });
+      const cookieStore = await cookies();
+      cookieStore.delete('pk_corp_driver');
       redirect(`/sign-in?next=${encodeURIComponent(next)}`);
     }
     throw err;
