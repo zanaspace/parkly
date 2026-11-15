@@ -81,7 +81,7 @@ export function corporateRoutes(deps: AppDeps) {
     async (c) => {
       const { domain } = c.req.valid('query');
       const normalized = domain.toLowerCase().trim();
-      let tenant =
+      const tenant =
         (await deps.store.corporate.findBySubdomain(normalized)) ||
         (await deps.store.corporate.findByDomain(normalized));
 
