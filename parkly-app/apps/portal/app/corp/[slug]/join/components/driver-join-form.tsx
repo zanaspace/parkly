@@ -195,6 +195,25 @@ export function DriverJoinForm({
               : 'Keep your phone handy. Your fleet coordinator will activate your access shortly.'}
           </Text>
         </div>
+
+        {tenant.primaryContactPhone && (
+          <a
+            href={`tel:${tenant.primaryContactPhone}`}
+            className="pk-button pk-button--secondary pk-button--sm"
+            style={{
+              textDecoration: 'none',
+              marginTop: '0.75rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          >
+            📞 Call Facility Hotline for Directions
+          </a>
+        )}
       </div>
     );
   }

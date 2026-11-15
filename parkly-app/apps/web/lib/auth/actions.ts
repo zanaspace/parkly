@@ -7,6 +7,7 @@ import {
   type Me,
 } from '@parkly/contracts';
 import { normaliseNigerianPhone } from '@parkly/domain/phone';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { api, apiAs, ApiProblem } from '../api';
 import { resolveWorkspaces } from '../platform-router';
@@ -14,8 +15,8 @@ import { safeNext } from '../session';
 import { createClient } from '../supabase/server';
 import { getOrCreateDeviceId } from './device';
 
-/** Email first until SMS codes are live (ADR 0015); phone stays for test numbers. */
-export type SignInMethod = 'email' | 'phone';
+/** Email first until SMS codes are live (ADR 0015); phone stays for test numbers; corp-driver for fleet join codes. */
+export type SignInMethod = 'email' | 'phone' | 'corp-driver';
 
 export type SignInState = {
   step: 'start' | 'code';
@@ -152,8 +153,89 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
   redirect(destination);
 }
 
+/** Step 1 for corporate drivers: direct phone + join code authentication without SMS OTP. */
+export async function loginCorporateDriver(
+  _prev: SignInState,
+  form: FormData,
+): Promise<SignInState> {
+  const rawContact = field(form, 'contact');
+  const rawCode = field(form, 'joinCode').toUpperCase();
+  const phone = normaliseNigerianPhone(rawContact);
+  if (!phone) {
+    return {
+      step: 'start',
+      method: 'corp-driver',
+      error: 'Enter a valid Nigerian mobile number, like 0803 123 4567.',
+    };
+  }
+  if (!rawCode || rawCode.length < 4) {
+    return {
+      step: 'start',
+      method: 'corp-driver',
+      error: 'Enter your 6-character Join Code (e.g. SEL-2805).',
+    };
+  }
+  if (form.get('terms') !== 'on') {
+    return {
+      step: 'start',
+      method: 'corp-driver',
+      error: 'Please accept the Terms and Privacy Policy to continue.',
+    };
+  }
+
+  let res: {
+    token: string;
+    driver: { id: string; driverName: string; phone: string; vehiclePlate: string | null };
+    corporate: { id: string; slug: string; legalName: string };
+  };
+
+  try {
+    res = await api<{
+      token: string;
+      driver: { id: string; driverName: string; phone: string; vehiclePlate: string | null };
+      corporate: { id: string; slug: string; legalName: string };
+    }>('/v1/corp/drivers/login', {
+      method: 'POST',
+      body: { phone, joinCode: rawCode },
+    });
+  } catch (err: unknown) {
+    const msg =
+      err instanceof ApiProblem && err.detail
+        ? err.detail
+        : 'Invalid join code or phone number. Check with your fleet administrator.';
+    return { step: 'start', method: 'corp-driver', error: msg };
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(
+    'pk_corp_driver',
+    JSON.stringify({
+      token: res.token,
+      userId: res.driver.id,
+      phone: res.driver.phone,
+      corporateSlug: res.corporate.slug,
+    }),
+    {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 3600,
+    },
+  );
+
+  const explicitNext = safeNext(field(form, 'next'), '');
+  let destination = explicitNext;
+  if (!destination || destination === '/bookings') {
+    destination = '/bookings';
+  }
+  redirect(destination);
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut({ scope: 'local' });
+  const cookieStore = await cookies();
+  cookieStore.delete('pk_corp_driver');
   redirect('/');
 }

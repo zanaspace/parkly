@@ -97,7 +97,7 @@ export function authRoutes(deps: AppDeps) {
 
       if (body.asDriver) await deps.store.users.addDriverRole(user.id);
       const roles = await deps.store.users.roles(user.id);
-      const me = await buildMe(deps.store, user, roles);
+      const me = await buildMe(deps.store, user, roles, identity.email);
       return c.json({ user: me, isNewUser: created || !me.profileComplete }, 200);
     },
   );

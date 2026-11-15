@@ -1,6 +1,15 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import {
+  CorporateDriverLoginRequestSchema,
+  CorporateDriverLoginResponseSchema,
   CorporateFleetDriverSchema,
+  CorporateTenantResponseSchema,
+  CreateCorporateTenantRequestSchema,
+  CreateFleetDriverRequestSchema,
+  DriverJoinRequestSchema,
+  DriverJoinResponseSchema,
+  ResolveCorporateDomainResponseSchema,
+  UpdateCorporateProfileRequestSchema,
   UpdateFleetDriverRequestSchema,
   UpdateFleetDriverStatusRequestSchema,
 } from '@parkly/contracts';
@@ -17,6 +26,124 @@ export const DriverParam = z.object({
   driverId: z.string().uuid(),
 });
 export const DomainQuery = z.object({ domain: z.string().min(1) });
+
+export const ResolveTenantRoute = createRoute({
+  method: 'get',
+  path: '/corp/resolve',
+  tags: ['corporate'],
+  summary: 'Resolve corporate subdomain or custom domain',
+  request: { query: DomainQuery },
+  responses: {
+    200: {
+      description: 'Resolved corporate domain mapping',
+      ...json(ResolveCorporateDomainResponseSchema),
+    },
+  },
+});
+
+export const OnboardTenantRoute = createRoute({
+  method: 'post',
+  path: '/corp/onboard',
+  tags: ['corporate'],
+  summary: 'Register and onboard a new corporate tenant',
+  request: { body: json(CreateCorporateTenantRequestSchema) },
+  responses: {
+    201: {
+      description: 'Corporate tenant created successfully',
+      ...json(CorporateTenantResponseSchema),
+    },
+  },
+});
+
+export const DriverJoinRoute = createRoute({
+  method: 'post',
+  path: '/corp/drivers/join',
+  tags: ['corporate'],
+  summary: 'Driver joins corporate roster using join code and phone number',
+  request: { body: json(DriverJoinRequestSchema) },
+  responses: {
+    200: {
+      description: 'Driver successfully validated and pending approval',
+      ...json(DriverJoinResponseSchema),
+    },
+  },
+});
+
+export const DriverLoginRoute = createRoute({
+  method: 'post',
+  path: '/corp/drivers/login',
+  tags: ['corporate'],
+  summary: 'Authenticate corporate fleet driver with phone and join code without SMS OTP',
+  request: { body: json(CorporateDriverLoginRequestSchema) },
+  responses: {
+    200: {
+      description: 'Driver authenticated successfully',
+      ...json(CorporateDriverLoginResponseSchema),
+    },
+  },
+});
+
+export const GetTenantRoute = createRoute({
+  method: 'get',
+  path: '/corp/{slug}',
+  tags: ['corporate'],
+  summary: 'Get public corporate tenant metadata',
+  request: { params: SlugParam },
+  responses: {
+    200: {
+      description: 'Corporate tenant details',
+      ...json(CorporateTenantResponseSchema),
+    },
+  },
+});
+
+export const UpdateTenantRoute = createRoute({
+  method: 'patch',
+  path: '/corp/{slug}',
+  tags: ['corporate'],
+  summary: 'Update corporate tenant profile and branding',
+  request: {
+    params: SlugParam,
+    body: { ...json(UpdateCorporateProfileRequestSchema), required: true },
+  },
+  responses: {
+    200: {
+      description: 'Corporate tenant updated successfully',
+      ...json(CorporateTenantResponseSchema),
+    },
+  },
+});
+
+export const ListDriversRoute = createRoute({
+  method: 'get',
+  path: '/corp/{slug}/drivers',
+  tags: ['corporate'],
+  summary: 'List corporate fleet and field drivers',
+  request: { params: SlugParam },
+  responses: {
+    200: {
+      description: 'List of fleet drivers',
+      ...json(z.array(CorporateFleetDriverSchema)),
+    },
+  },
+});
+
+export const CreateDriverRoute = createRoute({
+  method: 'post',
+  path: '/corp/{slug}/drivers',
+  tags: ['corporate'],
+  summary: 'Add field driver and generate join code',
+  request: {
+    params: SlugParam,
+    body: { ...json(CreateFleetDriverRequestSchema), required: true },
+  },
+  responses: {
+    201: {
+      description: 'Field driver added with join code',
+      ...json(CorporateFleetDriverSchema),
+    },
+  },
+});
 
 export const DriverStatusRoute = createRoute({
   method: 'patch',

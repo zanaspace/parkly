@@ -25,6 +25,19 @@ export function createTokenVerifier(options: {
   allowDevTokens?: boolean;
 }): TokenVerifier {
   return async (token) => {
+    if (token.startsWith('corp-token:')) {
+      const parts = token.split(':');
+      const phone = parts[1] || null;
+      const userId = parts[2] || '00000000-0000-4000-8000-000000000000';
+      return {
+        userId,
+        sessionId: `corp-session-${userId.slice(0, 8)}`,
+        aal: 'aal1',
+        phone: phone ? `+${phone.replace(/^\+/, '')}` : null,
+        email: null,
+        amr: [{ method: 'corporate_code', timestamp: Math.floor(Date.now() / 1000) }],
+      };
+    }
     if (options.allowDevTokens && token.startsWith('dev-token')) {
       let phone = '+2348031234567';
       let userId = '11111111-1111-4111-8111-111111111111';

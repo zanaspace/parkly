@@ -293,5 +293,51 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     expect(updated.driverName).toBe('Babatunde Bello');
     expect(updated.phone).toBe('+2348011223344');
     expect(updated.vehiclePlate).toBe('EKY-999-LK');
+
+    // 6. Driver directly signs in using Phone + Join Code (Zero SMS OTP)
+    const loginRes = await w.call('POST', '/v1/corp/drivers/login', {
+      body: {
+        phone: '+2348011223344',
+        joinCode: driver.joinCode,
+      },
+    });
+    expect(loginRes.status).toBe(200);
+    const loginData = loginRes.body as {
+      token: string;
+      corporate: { slug: string };
+      driver: { id: string };
+    };
+    expect(loginData.token.startsWith('corp-token:')).toBe(true);
+    expect(loginData.corporate.slug).toBe('dangote-fleet');
+    expect(loginData.driver.id).toBe(driver.id);
+  });
+
+  it('auto-links corporate workspace when employee signs in with corporate email domain', async () => {
+    const w = world();
+    const account = await w.store.corporate.createAccount({
+      slug: 'sellyticshq',
+      legalName: 'Sellyticshq Inc',
+      cacRcNumber: 'RC998877',
+      industry: 'TECH',
+      headOfficeAddress: '12 Marina, Lagos',
+      primaryContactName: 'Seun Adeleye',
+      primaryContactEmail: 'oluwaseun.adeleye@sellytichq.com',
+      primaryContactPhone: '+2348012345678',
+    });
+
+    await w.store.corporate.addDomain(account.id, {
+      subdomain: 'sellyticshq',
+      emailDomain: 'sellytichq.com',
+      isVerified: true,
+    });
+
+    const user = await w.store.users.ensure('u-corp-test-1234', { phoneLast4: '5678' });
+    const tenants = await w.store.corporate.findTenantsForUser(
+      user.user.id,
+      'oluwaseun.adeleye@sellytichq.com',
+    );
+    expect(tenants.length).toBe(1);
+    expect(tenants[0]?.slug).toBe('sellyticshq');
+    expect(tenants[0]?.role).toBe('CORP_ADMIN');
   });
 });

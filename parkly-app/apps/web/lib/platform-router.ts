@@ -128,18 +128,20 @@ export function resolveWorkspaces(
   }
 
   // 3. Corporate Tenancies
-  if (options?.corporateTenants && options.corporateTenants.length > 0) {
-    for (const tenant of options.corporateTenants) {
-      workspaces.push({
-        id: `corp-${tenant.slug}`,
-        title: `${tenant.name} Corporate Mobility`,
-        subtitle: 'Employee pass subsidies, cost centers, and fleet billing.',
-        type: 'corporate',
-        url: resolveAppUrl('corporate', { slug: tenant.slug, hostOrOrigin: options?.hostOrOrigin }),
-        badge: 'Enterprise',
-        badgeTone: 'verified',
-      });
-    }
+  const corpTenants =
+    user.corporateTenants && user.corporateTenants.length > 0
+      ? user.corporateTenants
+      : (options?.corporateTenants ?? []);
+  for (const tenant of corpTenants) {
+    workspaces.push({
+      id: `corp-${tenant.slug}`,
+      title: `${tenant.name} Corporate Mobility`,
+      subtitle: 'Employee pass subsidies, cost centers, and fleet billing.',
+      type: 'corporate',
+      url: resolveAppUrl('corporate', { slug: tenant.slug, hostOrOrigin: options?.hostOrOrigin }),
+      badge: 'Enterprise',
+      badgeTone: 'verified',
+    });
   }
 
   // 4. Back-Office Administrative Staff

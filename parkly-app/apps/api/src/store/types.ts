@@ -1836,6 +1836,10 @@ export type Store = {
     }): Promise<CorporateMemberRow>;
     listMembers(corporateId: string): Promise<CorporateMemberRow[]>;
     findMember(corporateId: string, userId: string): Promise<CorporateMemberRow | null>;
+    findTenantsForUser(
+      userId: string,
+      email?: string | null,
+    ): Promise<Array<{ slug: string; name: string; role: string }>>;
     updateAccount(
       id: string,
       data: Partial<
@@ -1888,6 +1892,7 @@ export type Store = {
         vehiclePlate?: string | null;
         approvalStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'SUSPENDED';
         isActive?: boolean;
+        userId?: string | null;
       },
     ): Promise<CorporateFleetDriverRow>;
   };

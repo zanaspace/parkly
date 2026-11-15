@@ -725,6 +725,23 @@ export function AttendApp({ signedIn }: { signedIn: boolean }) {
           <strong>{walkIns}</strong> walk-ins
         </span>
       </div>
+      {manifest?.lot.contactPhone && (
+        <a
+          href={`tel:${manifest.lot.contactPhone}`}
+          className="pk-button pk-button--secondary"
+          style={{
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            fontSize: '0.85rem',
+            padding: '0.5rem 1rem',
+          }}
+        >
+          📞 Lot Hotline: {manifest.lot.contactPhone}
+        </a>
+      )}
       <Button
         size="lg"
         fullWidth

@@ -700,6 +700,7 @@ const COVERED_ELSEWHERE = new Set([
   'GET /v1/corp/{slug}',
   'POST /v1/corp/onboard',
   'POST /v1/corp/drivers/join',
+  'POST /v1/corp/drivers/login',
   'PATCH /v1/corp/{slug}',
   'GET /v1/corp/{slug}/drivers',
   'POST /v1/corp/{slug}/drivers',
