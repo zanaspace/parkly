@@ -11,10 +11,10 @@ type StepBrandingProps = {
 
 export function StepBranding({ fields, setField, onBack, onContinue }: StepBrandingProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div>
-        <label className="pk-label">Corporate Primary Theme Color</label>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%' }}>
+      <div className="pk-field">
+        <label className="pk-field__label">Corporate Primary Theme Color</label>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
           {PRESET_COLORS.map((c) => (
             <button
               key={c.hex}
@@ -44,10 +44,12 @@ export function StepBranding({ fields, setField, onBack, onContinue }: StepBrand
             value={fields.primaryColor}
             onChange={(e) => setField('primaryColor', e.target.value)}
             style={{
-              width: '40px',
-              height: '36px',
-              borderRadius: '4px',
-              border: 'none',
+              width: '42px',
+              height: '38px',
+              borderRadius: '6px',
+              border: '1px solid var(--pk-color-border-default)',
+              padding: '2px',
+              background: 'transparent',
               cursor: 'pointer',
             }}
           />
@@ -55,13 +57,13 @@ export function StepBranding({ fields, setField, onBack, onContinue }: StepBrand
             className="pk-input"
             value={fields.primaryColor}
             onChange={(e) => setField('primaryColor', e.target.value)}
-            style={{ width: '120px', fontFamily: 'monospace' }}
+            style={{ width: '140px', fontFamily: 'monospace' }}
           />
         </div>
       </div>
 
-      <div>
-        <label className="pk-label" htmlFor="corp-portalTitle">
+      <div className="pk-field">
+        <label className="pk-field__label" htmlFor="corp-portalTitle">
           Portal Title *
         </label>
         <input
@@ -74,22 +76,23 @@ export function StepBranding({ fields, setField, onBack, onContinue }: StepBrand
         />
       </div>
 
-      <div>
-        <label className="pk-label" htmlFor="corp-welcome">
+      <div className="pk-field">
+        <label className="pk-field__label" htmlFor="corp-welcome">
           Portal Welcome Banner Note
         </label>
         <textarea
           id="corp-welcome"
           className="pk-input"
-          rows={2}
+          rows={3}
           placeholder="e.g. Authorized staff and fleet parking for Zenith Bank branches and headquarters."
           value={fields.welcomeMessage}
           onChange={(e) => setField('welcomeMessage', e.target.value)}
+          style={{ height: 'auto', minHeight: '80px', padding: '0.625rem 0.875rem' }}
         />
       </div>
 
-      <div>
-        <label className="pk-label" htmlFor="corp-logo">
+      <div className="pk-field">
+        <label className="pk-field__label" htmlFor="corp-logo">
           Logo Image URL (Optional)
         </label>
         <input
@@ -101,7 +104,16 @@ export function StepBranding({ fields, setField, onBack, onContinue }: StepBrand
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '1rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
         <button type="button" className="pk-button pk-button--secondary" onClick={onBack}>
           ← Back
         </button>

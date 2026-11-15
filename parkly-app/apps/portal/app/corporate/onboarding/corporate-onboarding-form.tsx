@@ -42,16 +42,9 @@ export function CorporateOnboardingForm({
   }
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '2rem',
-        alignItems: 'start',
-      }}
-    >
+    <div className="pk-onboarding-layout">
       {/* Left Form Column */}
-      <div className="pk-card" style={{ padding: '2rem' }}>
+      <div className="pk-card pk-onboarding-card">
         {/* Step Indicator */}
         <div
           style={{
@@ -61,9 +54,11 @@ export function CorporateOnboardingForm({
             marginBottom: '1.5rem',
             borderBottom: '1px solid var(--pk-color-border-default)',
             paddingBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
           }}
         >
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {WIZARD_STEPS.map((s) => (
               <button
                 key={s.num}
@@ -72,10 +67,12 @@ export function CorporateOnboardingForm({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.35rem',
+                  gap: '0.4rem',
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '6px',
                   color:
                     step === s.num
                       ? 'var(--pk-color-text-brand)'
@@ -98,6 +95,7 @@ export function CorporateOnboardingForm({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '0.75rem',
+                    flexShrink: 0,
                   }}
                 >
                   {s.num}

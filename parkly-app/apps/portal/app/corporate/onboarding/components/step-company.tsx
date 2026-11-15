@@ -56,13 +56,13 @@ export function StepCompany({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
       {/* SECTION 1: Company Profile */}
-      <div className="pk-card" style={{ padding: '1.25rem', borderRadius: '12px' }}>
+      <div className="pk-card pk-onboarding-card">
         <div
           style={{
             borderBottom: '1px solid var(--pk-color-border-default)',
-            paddingBottom: '0.5rem',
+            paddingBottom: '0.625rem',
             marginBottom: '1rem',
           }}
         >
@@ -78,9 +78,9 @@ export function StepCompany({
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div>
-            <label className="pk-label" htmlFor="corp-legalName">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <div className="pk-field">
+            <label className="pk-field__label" htmlFor="corp-legalName">
               Company Legal Name *
             </label>
             <input
@@ -93,15 +93,9 @@ export function StepCompany({
             />
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            <div>
-              <label className="pk-label" htmlFor="corp-rc">
+          <div className="pk-form-grid-2">
+            <div className="pk-field">
+              <label className="pk-field__label" htmlFor="corp-rc">
                 CAC / RC Number *
               </label>
               <input
@@ -113,7 +107,7 @@ export function StepCompany({
                 required
               />
             </div>
-            <div>
+            <div className="pk-field">
               <Select
                 label="Industry Sector"
                 name="industry"
@@ -124,14 +118,14 @@ export function StepCompany({
             </div>
           </div>
 
-          <div>
-            <label className="pk-label" htmlFor="corp-slug">
+          <div className="pk-field">
+            <label className="pk-field__label" htmlFor="corp-slug">
               Dedicated Sovereign Subdomain *
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div className="pk-input-group">
               <input
                 id="corp-slug"
-                className="pk-input"
+                className="pk-input-group__input"
                 placeholder="e.g. zenith"
                 value={fields.slug}
                 onChange={(e) =>
@@ -139,30 +133,16 @@ export function StepCompany({
                 }
                 required
               />
-              <span
-                style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--pk-color-text-secondary)',
-                  fontWeight: 600,
-                }}
-              >
-                .parkly.ng
-              </span>
+              <span className="pk-input-group__suffix">.parkly.ng</span>
             </div>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--pk-color-text-secondary)',
-                marginTop: '0.25rem',
-              }}
-            >
+            <div className="pk-subdomain-hint">
               Active Address:{' '}
               <strong style={{ color: 'var(--pk-color-text-brand)' }}>{urlInfo.activeUrl}</strong>
             </div>
           </div>
 
-          <div>
-            <label className="pk-label" htmlFor="corp-address">
+          <div className="pk-field">
+            <label className="pk-field__label" htmlFor="corp-address">
               Head Office Address
             </label>
             <input
@@ -177,11 +157,11 @@ export function StepCompany({
       </div>
 
       {/* SECTION 2: Administrator Account & Access (Unified Credentials) */}
-      <div className="pk-card" style={{ padding: '1.25rem', borderRadius: '12px' }}>
+      <div className="pk-card pk-onboarding-card">
         <div
           style={{
             borderBottom: '1px solid var(--pk-color-border-default)',
-            paddingBottom: '0.5rem',
+            paddingBottom: '0.625rem',
             marginBottom: '1rem',
           }}
         >
@@ -217,7 +197,7 @@ export function StepCompany({
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {currentUser?.signedIn ? (
             <div
               style={{
@@ -271,7 +251,7 @@ export function StepCompany({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.625rem',
-                  padding: '0.7rem',
+                  padding: '0.75rem',
                   cursor: googleLoading ? 'wait' : 'pointer',
                 }}
               >
@@ -294,9 +274,10 @@ export function StepCompany({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.75rem',
                   color: 'var(--pk-color-text-muted)',
                   fontSize: '0.78rem',
+                  margin: '0.25rem 0',
                 }}
               >
                 <div
@@ -309,8 +290,8 @@ export function StepCompany({
               </div>
 
               {/* Work Email Address */}
-              <div>
-                <label className="pk-label" htmlFor="corp-admin-email">
+              <div className="pk-field">
+                <label className="pk-field__label" htmlFor="corp-admin-email">
                   Work Email Address *
                 </label>
                 <input
@@ -334,16 +315,10 @@ export function StepCompany({
                 </span>
               </div>
 
-              {/* Password & Confirm Password (Grouped right below Work Email!) */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '0.75rem',
-                }}
-              >
-                <div>
-                  <label className="pk-label" htmlFor="corp-password">
+              {/* Password & Confirm Password (Side-by-side on desktop, stacked on mobile) */}
+              <div className="pk-form-grid-2">
+                <div className="pk-field">
+                  <label className="pk-field__label" htmlFor="corp-password">
                     Create Admin Password *
                   </label>
                   <input
@@ -356,8 +331,8 @@ export function StepCompany({
                     required
                   />
                 </div>
-                <div>
-                  <label className="pk-label" htmlFor="corp-confirm-password">
+                <div className="pk-field">
+                  <label className="pk-field__label" htmlFor="corp-confirm-password">
                     Confirm Password *
                   </label>
                   <input
@@ -374,16 +349,10 @@ export function StepCompany({
             </>
           )}
 
-          {/* Primary Contact Person Details */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            <div>
-              <label className="pk-label" htmlFor="corp-admin-name">
+          {/* Primary Contact Person Details (Side-by-side on desktop, stacked on mobile) */}
+          <div className="pk-form-grid-2">
+            <div className="pk-field">
+              <label className="pk-field__label" htmlFor="corp-admin-name">
                 Primary Contact Full Name *
               </label>
               <input
@@ -395,8 +364,8 @@ export function StepCompany({
                 required
               />
             </div>
-            <div>
-              <label className="pk-label" htmlFor="corp-admin-phone">
+            <div className="pk-field">
+              <label className="pk-field__label" htmlFor="corp-admin-phone">
                 Contact Phone Number *
               </label>
               <input
@@ -413,11 +382,11 @@ export function StepCompany({
       </div>
 
       {/* Navigation CTA */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
         <button
           type="button"
           className="pk-button pk-button--primary"
-          style={{ padding: '0.75rem 1.75rem', fontWeight: 600 }}
+          style={{ padding: '0.75rem 1.75rem', fontWeight: 600, width: 'auto' }}
           onClick={onContinue}
         >
           Continue to Brand Customization →
