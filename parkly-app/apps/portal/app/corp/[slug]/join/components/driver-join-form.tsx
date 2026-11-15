@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { Badge, Button, Input, Text } from '@parkly/ui';
-import Link from 'next/link';
 import { publicEnv } from '../../../../../lib/env';
 import type { ResolvedTenant } from '../../data/corporate-tenant';
 
-export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug: string }) {
+export function DriverJoinForm({ tenant }: { tenant: ResolvedTenant; slug?: string }) {
   const [phone, setPhone] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -153,26 +152,21 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
 
         <div
           style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'center',
             marginTop: '0.5rem',
+            padding: '1rem',
+            borderRadius: '8px',
+            background: 'var(--pk-color-bg-canvas)',
+            border: '1px solid var(--pk-color-border-subtle)',
+            textAlign: 'center',
             width: '100%',
+            boxSizing: 'border-box',
           }}
         >
-          <Link
-            href={`/corp/${slug}`}
-            className="pk-button pk-button--primary"
-            style={{
-              backgroundColor: tenant.primaryColor,
-              borderColor: tenant.primaryColor,
-              textDecoration: 'none',
-              width: '100%',
-              textAlign: 'center',
-            }}
-          >
-            Go to {tenant.legalName} Portal
-          </Link>
+          <Text variant="body-sm" tone="secondary">
+            {isApproved
+              ? 'You are all set! Show your phone number or vehicle plate to the car park attendant at the gate.'
+              : 'Keep your phone handy. Your fleet coordinator will activate your access shortly.'}
+          </Text>
         </div>
       </div>
     );
@@ -267,25 +261,6 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
           </Button>
         </div>
       </form>
-
-      <div
-        style={{
-          textAlign: 'center',
-          borderTop: '1px solid var(--pk-color-border-subtle)',
-          paddingTop: '1rem',
-        }}
-      >
-        <Link
-          href={`/corp/${slug}`}
-          style={{
-            fontSize: '0.85rem',
-            color: 'var(--pk-color-text-secondary)',
-            textDecoration: 'none',
-          }}
-        >
-          ← Return to {tenant.legalName} Portal Home
-        </Link>
-      </div>
     </div>
   );
 }
