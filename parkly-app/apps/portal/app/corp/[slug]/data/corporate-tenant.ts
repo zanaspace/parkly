@@ -22,7 +22,12 @@ export type CorporateTenantApiResult = {
   id?: string;
   slug?: string;
   legalName?: string;
+  cacRcNumber?: string;
   industry?: string;
+  headOfficeAddress?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
   billingTier?: string;
   branding?: {
     logoUrl?: string | null;
@@ -35,7 +40,14 @@ export type CorporateTenantApiResult = {
 };
 
 export type ResolvedTenant = {
+  id?: string;
+  slug: string;
   legalName: string;
+  cacRcNumber?: string;
+  headOfficeAddress?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
   portalTitle: string;
   logoUrl?: string | null;
   primaryColor: string;
@@ -160,10 +172,18 @@ export async function loadCorporateTenant(slug: string): Promise<ResolvedTenant>
   const totalPasses = costCenters.reduce((sum, cc) => sum + cc.activePasses, 0);
 
   return {
+    id: apiTenant?.id,
+    slug: apiTenant?.slug ?? tenantKey,
     legalName:
       apiTenant?.legalName ??
       demoTenant?.legalName ??
       `${slug.charAt(0).toUpperCase() + slug.slice(1)} Enterprise`,
+    cacRcNumber: apiTenant?.cacRcNumber ?? 'RC-992812',
+    headOfficeAddress:
+      apiTenant?.headOfficeAddress ?? 'Corporate Headquarters, Victoria Island, Lagos, Nigeria',
+    primaryContactName: apiTenant?.primaryContactName ?? 'Operations Director',
+    primaryContactEmail: apiTenant?.primaryContactEmail ?? `admin@${tenantKey}.com`,
+    primaryContactPhone: apiTenant?.primaryContactPhone ?? '+2348000000000',
     portalTitle:
       apiTenant?.branding?.portalTitle ??
       demoTenant?.portalTitle ??

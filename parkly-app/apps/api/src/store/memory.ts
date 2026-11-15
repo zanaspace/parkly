@@ -16,6 +16,7 @@ import {
   type CorporateBrandingRow,
   type CorporateCostCenterRow,
   type CorporateDomainRow,
+  type CorporateFleetDriverRow,
   type CorporateMemberRow,
   type FileRow,
   type IncidentNoteRow,
@@ -86,6 +87,7 @@ export class MemoryStore implements Store {
   readonly corporateAccountRows = new Map<string, CorporateAccountRow>();
   readonly corporateBrandingRows = new Map<string, CorporateBrandingRow>();
   readonly corporateDomainRows = new Map<string, CorporateDomainRow>();
+  readonly corporateFleetDriverRows = new Map<string, CorporateFleetDriverRow>();
   readonly corporateMemberRows = new Map<string, CorporateMemberRow>();
   readonly corporateCostCenterRows = new Map<string, CorporateCostCenterRow>();
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
@@ -1549,6 +1551,86 @@ export class MemoryStore implements Store {
         (m) => m.corporateId === corporateId && m.userId === userId && m.isActive,
       );
       return member ? { ...member } : null;
+    },
+    updateAccount: async (id, data) => {
+      const existing = this.corporateAccountRows.get(id);
+      if (!existing) throw new Error(`Corporate account ${id} not found`);
+      const updated: CorporateAccountRow = {
+        ...existing,
+        ...data,
+        updatedAt: new Date(),
+      };
+      this.corporateAccountRows.set(id, updated);
+      return { ...updated };
+    },
+    updateBranding: async (corporateId, branding) => {
+      const existing = this.corporateBrandingRows.get(corporateId);
+      const now = new Date();
+      const updated: CorporateBrandingRow = existing
+        ? {
+            ...existing,
+            ...branding,
+            updatedAt: now,
+          }
+        : {
+            corporateId,
+            logoUrl: branding.logoUrl ?? `https://avatar.vercel.sh/${corporateId}.png`,
+            primaryColor: branding.primaryColor ?? '#E31837',
+            secondaryColor: branding.secondaryColor ?? '#1E1E1E',
+            portalTitle: branding.portalTitle ?? 'Corporate Portal',
+            welcomeMessage: branding.welcomeMessage ?? null,
+            updatedAt: now,
+          };
+      this.corporateBrandingRows.set(corporateId, updated);
+      return { ...updated };
+    },
+    listFleetDrivers: async (corporateId) => {
+      return Array.from(this.corporateFleetDriverRows.values())
+        .filter((d) => d.corporateId === corporateId && d.isActive)
+        .map((d) => ({ ...d }));
+    },
+    createFleetDriver: async (data) => {
+      const id = data.id ?? randomUUID();
+      const now = new Date();
+      const row: CorporateFleetDriverRow = {
+        id,
+        corporateId: data.corporateId,
+        driverName: data.driverName,
+        phone: data.phone,
+        vehiclePlate: data.vehiclePlate ?? null,
+        joinCode: data.joinCode,
+        approvalStatus: 'PENDING_APPROVAL',
+        userId: null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.corporateFleetDriverRows.set(id, row);
+      return { ...row };
+    },
+    findFleetDriverByCode: async (joinCode) => {
+      const driver = Array.from(this.corporateFleetDriverRows.values()).find(
+        (d) => d.joinCode.toUpperCase() === joinCode.toUpperCase() && d.isActive,
+      );
+      if (!driver) return null;
+      const corporate = this.corporateAccountRows.get(driver.corporateId);
+      if (!corporate) return null;
+      return {
+        ...driver,
+        corporate: { ...corporate },
+      };
+    },
+    updateFleetDriverStatus: async (driverId, status, userId) => {
+      const existing = this.corporateFleetDriverRows.get(driverId);
+      if (!existing) throw new Error(`Fleet driver ${driverId} not found`);
+      const updated: CorporateFleetDriverRow = {
+        ...existing,
+        approvalStatus: status,
+        userId: userId !== undefined ? userId : existing.userId,
+        updatedAt: new Date(),
+      };
+      this.corporateFleetDriverRows.set(driverId, updated);
+      return { ...updated };
     },
   };
 

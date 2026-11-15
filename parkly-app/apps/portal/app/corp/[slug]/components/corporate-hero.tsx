@@ -62,7 +62,14 @@ export function CorporateHero({ tenant }: { tenant: ResolvedTenant }) {
             Employee Single Sign-On
           </Link>
           <Link
-            href="/onboarding"
+            href={`/corp/${tenant.slug}/join`}
+            className="pk-button pk-button--secondary"
+            style={{ textDecoration: 'none' }}
+          >
+            Field Driver Join
+          </Link>
+          <Link
+            href={`/corp/${tenant.slug}/settings`}
             className="pk-button pk-button--secondary"
             style={{ textDecoration: 'none' }}
           >

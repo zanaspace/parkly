@@ -25266,7 +25266,22 @@
                     "legalName": {
                       "type": "string"
                     },
+                    "cacRcNumber": {
+                      "type": "string"
+                    },
                     "industry": {
+                      "type": "string"
+                    },
+                    "headOfficeAddress": {
+                      "type": "string"
+                    },
+                    "primaryContactName": {
+                      "type": "string"
+                    },
+                    "primaryContactEmail": {
+                      "type": "string"
+                    },
+                    "primaryContactPhone": {
                       "type": "string"
                     },
                     "billingTier": {
@@ -25331,6 +25346,146 @@
         }
       }
     },
+    "/v1/corp/drivers/join": {
+      "post": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Driver joins corporate roster using join code and phone number",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "joinCode": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "phone",
+                  "joinCode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Driver successfully validated and pending approval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "driver": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "corporateId": {
+                          "type": "string"
+                        },
+                        "driverName": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "vehiclePlate": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "joinCode": {
+                          "type": "string"
+                        },
+                        "approvalStatus": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING_APPROVAL",
+                            "APPROVED",
+                            "SUSPENDED"
+                          ]
+                        },
+                        "userId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "corporateId",
+                        "driverName",
+                        "phone",
+                        "vehiclePlate",
+                        "joinCode",
+                        "approvalStatus",
+                        "userId",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "corporate": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "legalName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "legalName"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "driver",
+                    "corporate"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/corp/{slug}": {
       "get": {
         "tags": [
@@ -25366,7 +25521,22 @@
                     "legalName": {
                       "type": "string"
                     },
+                    "cacRcNumber": {
+                      "type": "string"
+                    },
                     "industry": {
+                      "type": "string"
+                    },
+                    "headOfficeAddress": {
+                      "type": "string"
+                    },
+                    "primaryContactName": {
+                      "type": "string"
+                    },
+                    "primaryContactEmail": {
+                      "type": "string"
+                    },
+                    "primaryContactPhone": {
                       "type": "string"
                     },
                     "billingTier": {
@@ -25423,6 +25593,534 @@
                     "billingTier",
                     "branding",
                     "emailDomains"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Update corporate tenant profile and branding",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "legalName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "cacRcNumber": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50
+                  },
+                  "industry": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "headOfficeAddress": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "primaryContactName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "primaryContactEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "primaryContactPhone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "branding": {
+                    "type": "object",
+                    "properties": {
+                      "logoUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "primaryColor": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$"
+                      },
+                      "secondaryColor": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$"
+                      },
+                      "portalTitle": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 150
+                      },
+                      "welcomeMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "maxLength": 500
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Corporate tenant updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "legalName": {
+                      "type": "string"
+                    },
+                    "cacRcNumber": {
+                      "type": "string"
+                    },
+                    "industry": {
+                      "type": "string"
+                    },
+                    "headOfficeAddress": {
+                      "type": "string"
+                    },
+                    "primaryContactName": {
+                      "type": "string"
+                    },
+                    "primaryContactEmail": {
+                      "type": "string"
+                    },
+                    "primaryContactPhone": {
+                      "type": "string"
+                    },
+                    "billingTier": {
+                      "type": "string"
+                    },
+                    "branding": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "logoUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "primaryColor": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondaryColor": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "portalTitle": {
+                          "type": "string"
+                        },
+                        "welcomeMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "logoUrl",
+                        "primaryColor",
+                        "secondaryColor",
+                        "portalTitle",
+                        "welcomeMessage"
+                      ]
+                    },
+                    "emailDomains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "legalName",
+                    "industry",
+                    "billingTier",
+                    "branding",
+                    "emailDomains"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/corp/{slug}/drivers": {
+      "get": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "List corporate fleet and field drivers",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of fleet drivers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "corporateId": {
+                        "type": "string"
+                      },
+                      "driverName": {
+                        "type": "string"
+                      },
+                      "phone": {
+                        "type": "string"
+                      },
+                      "vehiclePlate": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "joinCode": {
+                        "type": "string"
+                      },
+                      "approvalStatus": {
+                        "type": "string",
+                        "enum": [
+                          "PENDING_APPROVAL",
+                          "APPROVED",
+                          "SUSPENDED"
+                        ]
+                      },
+                      "userId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "corporateId",
+                      "driverName",
+                      "phone",
+                      "vehiclePlate",
+                      "joinCode",
+                      "approvalStatus",
+                      "userId",
+                      "isActive",
+                      "createdAt",
+                      "updatedAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Add field driver and generate join code",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "driverName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "vehiclePlate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 2,
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "driverName",
+                  "phone"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Field driver added with join code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "corporateId": {
+                      "type": "string"
+                    },
+                    "driverName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "vehiclePlate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "joinCode": {
+                      "type": "string"
+                    },
+                    "approvalStatus": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_APPROVAL",
+                        "APPROVED",
+                        "SUSPENDED"
+                      ]
+                    },
+                    "userId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "corporateId",
+                    "driverName",
+                    "phone",
+                    "vehiclePlate",
+                    "joinCode",
+                    "approvalStatus",
+                    "userId",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/corp/{slug}/drivers/{driverId}/status": {
+      "patch": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Update driver approval status",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "driverId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approvalStatus": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING_APPROVAL",
+                      "APPROVED",
+                      "SUSPENDED"
+                    ]
+                  }
+                },
+                "required": [
+                  "approvalStatus"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Driver status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "corporateId": {
+                      "type": "string"
+                    },
+                    "driverName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "vehiclePlate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "joinCode": {
+                      "type": "string"
+                    },
+                    "approvalStatus": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_APPROVAL",
+                        "APPROVED",
+                        "SUSPENDED"
+                      ]
+                    },
+                    "userId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "corporateId",
+                    "driverName",
+                    "phone",
+                    "vehiclePlate",
+                    "joinCode",
+                    "approvalStatus",
+                    "userId",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
                   ]
                 }
               }

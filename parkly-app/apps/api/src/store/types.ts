@@ -1836,6 +1836,48 @@ export type Store = {
     }): Promise<CorporateMemberRow>;
     listMembers(corporateId: string): Promise<CorporateMemberRow[]>;
     findMember(corporateId: string, userId: string): Promise<CorporateMemberRow | null>;
+    updateAccount(
+      id: string,
+      data: Partial<
+        Pick<
+          CorporateAccountRow,
+          | 'legalName'
+          | 'cacRcNumber'
+          | 'industry'
+          | 'headOfficeAddress'
+          | 'primaryContactName'
+          | 'primaryContactEmail'
+          | 'primaryContactPhone'
+        >
+      >,
+    ): Promise<CorporateAccountRow>;
+    updateBranding(
+      corporateId: string,
+      branding: Partial<{
+        logoUrl: string;
+        primaryColor: string;
+        secondaryColor: string;
+        portalTitle: string;
+        welcomeMessage: string | null;
+      }>,
+    ): Promise<CorporateBrandingRow>;
+    listFleetDrivers(corporateId: string): Promise<CorporateFleetDriverRow[]>;
+    createFleetDriver(data: {
+      id?: string;
+      corporateId: string;
+      driverName: string;
+      phone: string;
+      vehiclePlate?: string | null;
+      joinCode: string;
+    }): Promise<CorporateFleetDriverRow>;
+    findFleetDriverByCode(
+      joinCode: string,
+    ): Promise<(CorporateFleetDriverRow & { corporate: CorporateAccountRow }) | null>;
+    updateFleetDriverStatus(
+      driverId: string,
+      status: 'PENDING_APPROVAL' | 'APPROVED' | 'SUSPENDED',
+      userId?: string | null,
+    ): Promise<CorporateFleetDriverRow>;
   };
 };
 
@@ -1897,6 +1939,20 @@ export type CorporateMemberRow = {
   workEmail: string | null;
   isActive: boolean;
   createdAt: Date;
+};
+
+export type CorporateFleetDriverRow = {
+  id: string;
+  corporateId: string;
+  driverName: string;
+  phone: string;
+  vehiclePlate: string | null;
+  joinCode: string;
+  approvalStatus: 'PENDING_APPROVAL' | 'APPROVED' | 'SUSPENDED';
+  userId: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type CorporateTenantDetails = {

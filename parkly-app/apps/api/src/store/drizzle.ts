@@ -29,6 +29,7 @@ import {
   type CorporateAccountRow,
   type CorporateBrandingRow,
   type CorporateDomainRow,
+  type CorporateFleetDriverRow,
   type CorporateMemberRow,
   type FileRow,
   type KybDocumentRow,
@@ -89,6 +90,7 @@ const {
   corporateAccounts,
   corporateDomains,
   corporateBranding,
+  corporateFleetDrivers,
   corporateMembers,
 } = schema;
 
@@ -1917,6 +1919,108 @@ export function drizzleStore(db: Db): Store {
             ),
           );
         return (row as CorporateMemberRow | undefined) ?? null;
+      },
+      async updateAccount(id, data) {
+        const [row] = await db
+          .update(corporateAccounts)
+          .set({ ...data, updatedAt: new Date() })
+          .where(eq(corporateAccounts.id, id))
+          .returning();
+        if (!row) throw new Error(`Corporate account ${id} not found`);
+        return row as CorporateAccountRow;
+      },
+      async updateBranding(corporateId, branding) {
+        const [row] = await db
+          .insert(corporateBranding)
+          .values({
+            corporateId,
+            logoUrl: branding.logoUrl ?? `https://avatar.vercel.sh/${corporateId}.png`,
+            primaryColor: branding.primaryColor ?? '#E31837',
+            secondaryColor: branding.secondaryColor ?? '#1E1E1E',
+            portalTitle: branding.portalTitle ?? 'Corporate Portal',
+            welcomeMessage: branding.welcomeMessage ?? null,
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: corporateBranding.corporateId,
+            set: {
+              ...(branding.logoUrl !== undefined && { logoUrl: branding.logoUrl }),
+              ...(branding.primaryColor !== undefined && { primaryColor: branding.primaryColor }),
+              ...(branding.secondaryColor !== undefined && {
+                secondaryColor: branding.secondaryColor,
+              }),
+              ...(branding.portalTitle !== undefined && { portalTitle: branding.portalTitle }),
+              ...(branding.welcomeMessage !== undefined && {
+                welcomeMessage: branding.welcomeMessage,
+              }),
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        return row as CorporateBrandingRow;
+      },
+      async listFleetDrivers(corporateId) {
+        const rows = await db
+          .select()
+          .from(corporateFleetDrivers)
+          .where(
+            and(
+              eq(corporateFleetDrivers.corporateId, corporateId),
+              eq(corporateFleetDrivers.isActive, true),
+            ),
+          );
+        return rows as CorporateFleetDriverRow[];
+      },
+      async createFleetDriver(data) {
+        const [row] = await db
+          .insert(corporateFleetDrivers)
+          .values({
+            id: data.id,
+            corporateId: data.corporateId,
+            driverName: data.driverName,
+            phone: data.phone,
+            vehiclePlate: data.vehiclePlate ?? null,
+            joinCode: data.joinCode,
+            approvalStatus: 'PENDING_APPROVAL',
+            userId: null,
+            isActive: true,
+          })
+          .returning();
+        return row as CorporateFleetDriverRow;
+      },
+      async findFleetDriverByCode(joinCode) {
+        const [driver] = await db
+          .select()
+          .from(corporateFleetDrivers)
+          .where(
+            and(
+              eq(corporateFleetDrivers.joinCode, joinCode.toUpperCase()),
+              eq(corporateFleetDrivers.isActive, true),
+            ),
+          );
+        if (!driver) return null;
+        const [corp] = await db
+          .select()
+          .from(corporateAccounts)
+          .where(eq(corporateAccounts.id, driver.corporateId));
+        if (!corp) return null;
+        return {
+          ...(driver as CorporateFleetDriverRow),
+          corporate: corp as CorporateAccountRow,
+        };
+      },
+      async updateFleetDriverStatus(driverId, status, userId) {
+        const [row] = await db
+          .update(corporateFleetDrivers)
+          .set({
+            approvalStatus: status,
+            ...(userId !== undefined && { userId }),
+            updatedAt: new Date(),
+          })
+          .where(eq(corporateFleetDrivers.id, driverId))
+          .returning();
+        if (!row) throw new Error(`Fleet driver ${driverId} not found`);
+        return row as CorporateFleetDriverRow;
       },
     },
   };

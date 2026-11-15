@@ -146,3 +146,34 @@ export const corporateMembers = pgTable(
     apiAccess('corporate_members'),
   ],
 ).enableRLS();
+
+/**
+ * Field operators and truck drivers associated with a corporate tenant.
+ * Onboarded via admin-generated join codes / WhatsApp links without SMS OTP delays.
+ */
+export const corporateFleetDrivers = pgTable(
+  'corporate_fleet_drivers',
+  {
+    id: id(),
+    corporateId: uuid('corporate_id')
+      .notNull()
+      .references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+    driverName: varchar('driver_name', { length: 120 }).notNull(),
+    phone: varchar('phone', { length: 30 }).notNull(),
+    vehiclePlate: varchar('vehicle_plate', { length: 20 }),
+    joinCode: varchar('join_code', { length: 20 }).notNull(),
+    approvalStatus: varchar('approval_status', { length: 30 })
+      .notNull()
+      .default('PENDING_APPROVAL'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('corporate_fleet_drivers_join_code_key').on(t.joinCode),
+    index('corporate_fleet_drivers_corporate_id_idx').on(t.corporateId),
+    index('corporate_fleet_drivers_phone_idx').on(t.phone),
+    apiAccess('corporate_fleet_drivers'),
+  ],
+).enableRLS();

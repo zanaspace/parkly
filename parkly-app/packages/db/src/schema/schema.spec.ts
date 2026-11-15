@@ -24,6 +24,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'corporate_branding',
       'corporate_cost_centers',
       'corporate_domains',
+      'corporate_fleet_drivers',
       'corporate_members',
       'data_subject_requests',
       'devices',
