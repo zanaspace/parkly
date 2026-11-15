@@ -89,9 +89,18 @@ export function CorporateDriversRoster({ tenant, slug }: { tenant: ResolvedTenan
     }
   }
 
+  function getDriverJoinUrl(driver: FleetDriver) {
+    const params = new URLSearchParams({
+      phone: driver.phone,
+      code: driver.joinCode,
+    });
+    return `${joinUrl}?${params.toString()}`;
+  }
+
   function getWhatsAppUrl(driver: FleetDriver) {
     const cleanPhone = driver.phone.replace(/[\s\-()+]/g, '');
-    const message = `Hello ${driver.driverName}, you have been added to ${tenant.legalName} corporate transit on Parkly! Use your Join Code: *${driver.joinCode}* to access corporate parking without SMS OTP.\n\nJoin here: ${joinUrl}`;
+    const personalizedJoinUrl = getDriverJoinUrl(driver);
+    const message = `Hello ${driver.driverName}, you have been added to ${tenant.legalName} corporate transit on Parkly! Use your Join Code: *${driver.joinCode}* to access corporate parking without SMS OTP.\n\nJoin here: ${personalizedJoinUrl}`;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   }
 
@@ -286,6 +295,24 @@ export function CorporateDriversRoster({ tenant, slug }: { tenant: ResolvedTenan
                           >
                             💬 WhatsApp Invite
                           </a>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopy(getDriverJoinUrl(driver), `link-${driver.id}`)
+                            }
+                            className="pk-button pk-button--secondary pk-button--sm"
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.25rem 0.6rem',
+                              color:
+                                copiedCode === `link-${driver.id}`
+                                  ? '#10B981'
+                                  : 'var(--pk-color-text-secondary)',
+                            }}
+                          >
+                            {copiedCode === `link-${driver.id}` ? '✓ Copied' : '🔗 Copy Link'}
+                          </button>
 
                           {!isApproved ? (
                             <button

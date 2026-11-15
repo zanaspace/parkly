@@ -4,8 +4,15 @@ import { DriverJoinForm } from './components/driver-join-form';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DriverJoinPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function DriverJoinPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ phone?: string; code?: string; joinCode?: string }>;
+}) {
   const { slug } = await params;
+  const query = searchParams ? await searchParams : {};
   const tenant = await loadCorporateTenant(slug);
 
   return (
@@ -32,7 +39,12 @@ export default async function DriverJoinPage({ params }: { params: Promise<{ slu
         className="pk-page"
         style={{ padding: '2rem 1rem', width: '100%', boxSizing: 'border-box' }}
       >
-        <DriverJoinForm tenant={tenant} slug={slug} />
+        <DriverJoinForm
+          tenant={tenant}
+          slug={slug}
+          initialPhone={query.phone}
+          initialCode={query.code || query.joinCode}
+        />
       </main>
     </div>
   );

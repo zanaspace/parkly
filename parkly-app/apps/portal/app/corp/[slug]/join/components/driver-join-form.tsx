@@ -1,15 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge, Button, Input, Text } from '@parkly/ui';
 import { publicEnv } from '../../../../../lib/env';
 import type { ResolvedTenant } from '../../data/corporate-tenant';
 
-export function DriverJoinForm({ tenant }: { tenant: ResolvedTenant; slug?: string }) {
-  const [phone, setPhone] = useState('');
-  const [joinCode, setJoinCode] = useState('');
+export function DriverJoinForm({
+  tenant,
+  initialPhone = '',
+  initialCode = '',
+}: {
+  tenant: ResolvedTenant;
+  slug?: string;
+  initialPhone?: string;
+  initialCode?: string;
+}) {
+  const [phone, setPhone] = useState(initialPhone);
+  const [joinCode, setJoinCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialPhone && !phone) setPhone(initialPhone);
+  }, [initialPhone]);
+
+  useEffect(() => {
+    if (initialCode && !joinCode) setJoinCode(initialCode.toUpperCase());
+  }, [initialCode]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const urlPhone = sp.get('phone');
+      const urlCode = sp.get('code') || sp.get('joinCode');
+      if (urlPhone && !phone) setPhone(urlPhone);
+      if (urlCode && !joinCode) setJoinCode(urlCode.toUpperCase());
+    }
+  }, []);
 
   const [joinedDriver, setJoinedDriver] = useState<{
     driverName: string;
@@ -234,7 +261,11 @@ export function DriverJoinForm({ tenant }: { tenant: ResolvedTenant; slug?: stri
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="+2348012345678"
-          helper="The exact phone number where you received your invitation."
+          helper={
+            phone
+              ? 'Your employer-linked phone number. Pre-filled from your corporate invite.'
+              : 'The exact phone number where you received your invitation.'
+          }
           required
         />
 
