@@ -249,7 +249,8 @@ export function CorporateDriverRow({
             gap: '0.5rem',
             justifyContent: 'flex-end',
             alignItems: 'center',
-            minWidth: '300px',
+            minWidth: '420px',
+            flexWrap: 'nowrap',
             whiteSpace: 'nowrap',
           }}
         >
@@ -262,6 +263,7 @@ export function CorporateDriverRow({
               padding: '0.25rem 0.6rem',
               color: 'var(--pk-color-text-primary)',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             ✏️ Edit
@@ -281,6 +283,7 @@ export function CorporateDriverRow({
               padding: '0.25rem 0.6rem',
               fontWeight: 600,
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             💬 WhatsApp Invite
@@ -296,6 +299,7 @@ export function CorporateDriverRow({
               color:
                 copiedCode === `link-${driver.id}` ? '#10B981' : 'var(--pk-color-text-secondary)',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {copiedCode === `link-${driver.id}` ? '✓ Copied' : '🔗 Copy Link'}
@@ -312,6 +316,7 @@ export function CorporateDriverRow({
                 backgroundColor: '#059669',
                 borderColor: '#059669',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               Approve
@@ -327,6 +332,7 @@ export function CorporateDriverRow({
                 color: '#EF4444',
                 borderColor: '#EF4444',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               Suspend
