@@ -3,7 +3,9 @@
  * defaults match `supabase start` and the API dev server.
  */
 export function publicEnv() {
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    (typeof window === 'undefined' ? 'public-anon-key-placeholder' : '');
   if (!supabaseKey) {
     throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set (see .env.example)');
   }

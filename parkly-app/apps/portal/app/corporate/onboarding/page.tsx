@@ -5,6 +5,8 @@ import { loadSession } from '../../../lib/auth/session';
 import { publicEnv } from '../../../lib/env';
 import { CorporateOnboardingForm } from './corporate-onboarding-form';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Corporate Onboarding · Parkly Enterprise',
   description:
