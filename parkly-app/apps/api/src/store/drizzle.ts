@@ -1924,28 +1924,32 @@ export function drizzleStore(db: Db): Store {
         const results: Array<{ slug: string; name: string; role: string }> = [];
         const seen = new Set<string>();
 
-        // 1. Direct active memberships
-        const memberRows = await db
-          .select({
-            role: corporateMembers.role,
-            slug: corporateAccounts.slug,
-            name: corporateAccounts.legalName,
-          })
-          .from(corporateMembers)
-          .innerJoin(corporateAccounts, eq(corporateMembers.corporateId, corporateAccounts.id))
-          .where(
-            and(
-              eq(corporateMembers.userId, userId),
-              eq(corporateMembers.isActive, true),
-              eq(corporateAccounts.isActive, true),
-            ),
-          );
+        try {
+          // 1. Direct active memberships
+          const memberRows = await db
+            .select({
+              role: corporateMembers.role,
+              slug: corporateAccounts.slug,
+              name: corporateAccounts.legalName,
+            })
+            .from(corporateMembers)
+            .innerJoin(corporateAccounts, eq(corporateMembers.corporateId, corporateAccounts.id))
+            .where(
+              and(
+                eq(corporateMembers.userId, userId),
+                eq(corporateMembers.isActive, true),
+                eq(corporateAccounts.isActive, true),
+              ),
+            );
 
-        for (const m of memberRows) {
-          if (!seen.has(m.slug)) {
-            seen.add(m.slug);
-            results.push({ slug: m.slug, name: m.name, role: m.role });
+          for (const m of memberRows) {
+            if (!seen.has(m.slug)) {
+              seen.add(m.slug);
+              results.push({ slug: m.slug, name: m.name, role: m.role });
+            }
           }
+        } catch {
+          // Non-fatal if corporate_members is not yet migrated on the active database
         }
 
         // 2. Email domain auto-linking (e.g. oluwaseun.adeleye@sellytichq.com or @sellyticshq.com)
@@ -1953,81 +1957,102 @@ export function drizzleStore(db: Db): Store {
           const emailDomain = email.split('@')[1]?.toLowerCase().trim();
           const baseDomain = emailDomain?.replace(/\.(com|ng|io|org|co)$/, '');
           if (emailDomain) {
-            const domainRows = await db
-              .select({
-                corpId: corporateAccounts.id,
-                slug: corporateAccounts.slug,
-                name: corporateAccounts.legalName,
-                primaryContactEmail: corporateAccounts.primaryContactEmail,
-              })
-              .from(corporateDomains)
-              .innerJoin(corporateAccounts, eq(corporateDomains.corporateId, corporateAccounts.id))
-              .where(
-                and(
-                  or(
-                    eq(sql`lower(${corporateDomains.emailDomain})`, emailDomain),
-                    eq(sql`lower(${corporateDomains.customDomain})`, emailDomain),
-                    sql`replace(lower(${corporateDomains.emailDomain}), 'sellyticshq', 'sellytichq') = ${emailDomain}`,
-                    sql`replace(lower(${corporateDomains.emailDomain}), 'sellytichq', 'sellyticshq') = ${emailDomain}`,
+            try {
+              const domainRows = await db
+                .select({
+                  corpId: corporateAccounts.id,
+                  slug: corporateAccounts.slug,
+                  name: corporateAccounts.legalName,
+                  primaryContactEmail: corporateAccounts.primaryContactEmail,
+                })
+                .from(corporateDomains)
+                .innerJoin(
+                  corporateAccounts,
+                  eq(corporateDomains.corporateId, corporateAccounts.id),
+                )
+                .where(
+                  and(
+                    or(
+                      eq(sql`lower(${corporateDomains.emailDomain})`, emailDomain),
+                      eq(sql`lower(${corporateDomains.customDomain})`, emailDomain),
+                      sql`replace(lower(coalesce(${corporateDomains.emailDomain}, '')), 'sellyticshq', 'sellytichq') = ${emailDomain}`,
+                      sql`replace(lower(coalesce(${corporateDomains.emailDomain}, '')), 'sellytichq', 'sellyticshq') = ${emailDomain}`,
+                    ),
+                    eq(corporateAccounts.isActive, true),
                   ),
-                  eq(corporateAccounts.isActive, true),
-                ),
-              );
+                );
 
-            for (const d of domainRows) {
-              if (!seen.has(d.slug)) {
-                seen.add(d.slug);
-                const isContact = d.primaryContactEmail?.toLowerCase() === email.toLowerCase();
-                const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
-                await db
-                  .insert(corporateMembers)
-                  .values({
-                    corporateId: d.corpId,
-                    userId,
-                    role,
-                    workEmail: email,
-                  })
-                  .onConflictDoNothing();
-                results.push({ slug: d.slug, name: d.name, role });
+              for (const d of domainRows) {
+                if (!seen.has(d.slug)) {
+                  seen.add(d.slug);
+                  const isContact = d.primaryContactEmail?.toLowerCase() === email.toLowerCase();
+                  const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
+                  try {
+                    await db
+                      .insert(corporateMembers)
+                      .values({
+                        corporateId: d.corpId,
+                        userId,
+                        role,
+                        workEmail: email,
+                      })
+                      .onConflictDoNothing();
+                  } catch {
+                    // Ignore membership insertion errors
+                  }
+                  results.push({ slug: d.slug, name: d.name, role });
+                }
               }
+            } catch {
+              // Non-fatal if corporate_domains is not available
             }
 
             // 2b. Match directly via corporateAccounts (primary contact or matching slug)
-            const accountRows = await db
-              .select({
-                corpId: corporateAccounts.id,
-                slug: corporateAccounts.slug,
-                name: corporateAccounts.legalName,
-                primaryContactEmail: corporateAccounts.primaryContactEmail,
-              })
-              .from(corporateAccounts)
-              .where(eq(corporateAccounts.isActive, true));
+            try {
+              const accountRows = await db
+                .select({
+                  corpId: corporateAccounts.id,
+                  slug: corporateAccounts.slug,
+                  name: corporateAccounts.legalName,
+                  primaryContactEmail: corporateAccounts.primaryContactEmail,
+                })
+                .from(corporateAccounts)
+                .where(eq(corporateAccounts.isActive, true));
 
-            for (const acc of accountRows) {
-              if (seen.has(acc.slug)) continue;
-              const contactDomain = acc.primaryContactEmail?.split('@')[1]?.toLowerCase().trim();
-              const isMatch =
-                acc.primaryContactEmail?.toLowerCase() === email.toLowerCase() ||
-                contactDomain === emailDomain ||
-                acc.slug.toLowerCase() === baseDomain ||
-                acc.slug.toLowerCase().replace(/s(?=hq)/, '') ===
-                  (baseDomain || '').replace(/s(?=hq)/, '');
+              for (const acc of accountRows) {
+                if (seen.has(acc.slug)) continue;
+                const contactDomain = acc.primaryContactEmail?.split('@')[1]?.toLowerCase().trim();
+                const isMatch =
+                  acc.primaryContactEmail?.toLowerCase() === email.toLowerCase() ||
+                  contactDomain === emailDomain ||
+                  acc.slug.toLowerCase() === baseDomain ||
+                  acc.slug.toLowerCase().replace(/s(?=hq)/, '') ===
+                    (baseDomain || '').replace(/s(?=hq)/, '');
 
-              if (isMatch) {
-                seen.add(acc.slug);
-                const isContact = acc.primaryContactEmail?.toLowerCase() === email.toLowerCase();
-                const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
-                await db
-                  .insert(corporateMembers)
-                  .values({
-                    corporateId: acc.corpId,
-                    userId,
-                    role,
-                    workEmail: email,
-                  })
-                  .onConflictDoNothing();
-                results.push({ slug: acc.slug, name: acc.name, role });
+                if (isMatch) {
+                  seen.add(acc.slug);
+                  const role =
+                    acc.primaryContactEmail?.toLowerCase() === email.toLowerCase()
+                      ? 'CORP_ADMIN'
+                      : 'EMPLOYEE';
+                  try {
+                    await db
+                      .insert(corporateMembers)
+                      .values({
+                        corporateId: acc.corpId,
+                        userId,
+                        role,
+                        workEmail: email,
+                      })
+                      .onConflictDoNothing();
+                  } catch {
+                    // Ignore membership insertion errors
+                  }
+                  results.push({ slug: acc.slug, name: acc.name, role });
+                }
               }
+            } catch {
+              // Non-fatal
             }
           }
         }

@@ -81,19 +81,31 @@ export function authRoutes(deps: AppDeps) {
         throw new ApiError('AUTH_ACCOUNT_LOCKED');
 
       // The encrypted copies let jobs send SMS and email later (doc 06 §2).
-      await deps.store.users.setContact(user.id, {
-        phoneHash: identity.phone ? deps.crypto.lookupHash(identity.phone) : null,
-        emailHash: identity.email ? deps.crypto.lookupHash(identity.email) : null,
-        phoneEnc: identity.phone ? deps.crypto.encrypt(identity.phone) : null,
-        emailEnc: identity.email ? deps.crypto.encrypt(identity.email) : null,
-      });
-      await deps.store.devices.upsert({
-        userId: user.id,
-        clientDeviceId: body.deviceId,
-        platform: body.platform,
-        appVersion: body.appVersion ?? null,
-        authSessionId: identity.sessionId,
-      });
+      try {
+        await deps.store.users.setContact(user.id, {
+          phoneHash: identity.phone ? deps.crypto.lookupHash(identity.phone) : null,
+          emailHash: identity.email ? deps.crypto.lookupHash(identity.email) : null,
+          phoneEnc: identity.phone ? deps.crypto.encrypt(identity.phone) : null,
+          emailEnc: identity.email ? deps.crypto.encrypt(identity.email) : null,
+        });
+      } catch (contactErr) {
+        deps.logger.warn(
+          { contactErr, userId: user.id },
+          'Non-fatal: could not set user contact enc',
+        );
+      }
+
+      try {
+        await deps.store.devices.upsert({
+          userId: user.id,
+          clientDeviceId: body.deviceId,
+          platform: body.platform,
+          appVersion: body.appVersion ?? null,
+          authSessionId: identity.sessionId,
+        });
+      } catch (deviceErr) {
+        deps.logger.warn({ deviceErr, userId: user.id }, 'Non-fatal: could not upsert device');
+      }
 
       if (body.asDriver) await deps.store.users.addDriverRole(user.id);
       const roles = await deps.store.users.roles(user.id);
