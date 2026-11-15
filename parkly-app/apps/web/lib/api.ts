@@ -2,16 +2,22 @@ import { ERROR_STATUS, type ErrorCode } from '@parkly/contracts';
 
 /** The Parkly API base URL (public). */
 export const apiUrl = () => {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (envUrl && !envUrl.includes('localhost')) {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  const isLocal =
+    !envUrl ||
+    envUrl.includes('localhost') ||
+    envUrl.includes('127.0.0.1') ||
+    envUrl.startsWith('http://0.0.0.0');
+  const isCloud =
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.VERCEL_URL) ||
+    Boolean(process.env.NEXT_PUBLIC_VERCEL_URL) ||
+    process.env.NODE_ENV === 'production';
+
+  if (!isLocal && envUrl) {
     return envUrl.replace(/\/$/, '');
   }
-  if (
-    process.env.VERCEL ||
-    process.env.VERCEL_URL ||
-    process.env.NEXT_PUBLIC_VERCEL_URL ||
-    process.env.NODE_ENV === 'production'
-  ) {
+  if (isCloud) {
     return 'https://parkly-api-six.vercel.app';
   }
   return (envUrl || 'http://localhost:4000').replace(/\/$/, '');

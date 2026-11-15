@@ -125,9 +125,15 @@ export async function verifySignInCode(
       method: 'POST',
       body: { deviceId: await getOrCreateDeviceId(), platform: 'WEB' },
     });
-  } catch {
+  } catch (err: unknown) {
+    console.error('verifySignInCode bootstrap error:', err);
     await supabase.auth.signOut({ scope: 'local' });
-    return { step: 'start', method, error: 'We couldn’t reach Parkly just now. Please try again.' };
+    const detail = err instanceof Error ? ` (${err.message})` : '';
+    return {
+      step: 'start',
+      method,
+      error: `We couldn’t reach Parkly just now${detail}. Please try again.`,
+    };
   }
 
   const inviteToken = field(form, 'inviteToken');
