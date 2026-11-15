@@ -9,6 +9,7 @@ import {
 import { normaliseNigerianPhone } from '@parkly/domain/phone';
 import { redirect } from 'next/navigation';
 import { api, apiAs, ApiProblem } from '../api';
+import { resolveWorkspaces } from '../platform-router';
 import { safeNext } from '../session';
 import { createClient } from '../supabase/server';
 import { getOrCreateDeviceId } from './device';
@@ -109,12 +110,14 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
     return retry(error ? authMessage(error) : 'That code didn’t work. Try again.');
 
   const accessToken = data.session.access_token;
+  let user: Me;
   try {
-    const { user } = await apiAs<{ user: Me }>(accessToken, '/v1/auth/bootstrap', {
+    const bootstrap = await apiAs<{ user: Me }>(accessToken, '/v1/auth/bootstrap', {
       method: 'POST',
       // The driver website: an email sign-up becomes a driver (ADR 0015).
       body: { deviceId: await getOrCreateDeviceId(), platform: 'WEB', asDriver: true },
     });
+    user = bootstrap.user;
     const v = user.currentLegalVersions;
     if (user.consents.termsVersion !== v.terms)
       await apiAs(accessToken, '/v1/me/consents', {
@@ -130,7 +133,23 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
     await supabase.auth.signOut({ scope: 'local' });
     return { step: 'start', method, error: 'We couldn’t reach Parkly just now. Please try again.' };
   }
-  redirect(safeNext(field(form, 'next')));
+
+  const explicitNext = safeNext(field(form, 'next'), '');
+  let destination = explicitNext;
+
+  if (!destination || destination === '/bookings') {
+    const workspaces = resolveWorkspaces(user);
+    const firstWs = workspaces[0];
+    if (workspaces.length > 1) {
+      destination = '/auth/choose-workspace';
+    } else if (firstWs && firstWs.type !== 'driver') {
+      destination = firstWs.url;
+    } else {
+      destination = '/bookings';
+    }
+  }
+
+  redirect(destination);
 }
 
 export async function signOut(): Promise<void> {

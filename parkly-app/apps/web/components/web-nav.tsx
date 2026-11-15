@@ -221,6 +221,15 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
                     <TicketIcon size={16} />
                     <span>My Bookings</span>
                   </Link>
+                  <Link
+                    href="/auth/choose-workspace"
+                    className="pk-user-dropdown-item"
+                    role="menuitem"
+                    onClick={() => setUserDropdownOpen(false)}
+                  >
+                    <BuildingIcon size={16} />
+                    <span>Switch Workspace</span>
+                  </Link>
                   <div className="pk-user-dropdown-divider" />
                   <form action={signOut}>
                     <button
@@ -236,10 +245,19 @@ export function WebNav({ signedIn, userEmail }: WebNavProps) {
               )}
             </div>
           ) : (
-            <Link className="pk-btn-signin" href="/sign-in">
-              <UserIcon size={16} />
-              <span>Sign in</span>
-            </Link>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Link className="pk-btn-signin" href="/sign-in">
+                <UserIcon size={16} />
+                <span>Sign in</span>
+              </Link>
+              <Link
+                href="/sign-up"
+                className="pk-button pk-button--primary pk-button--sm"
+                style={{ textDecoration: 'none', padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+              >
+                Sign up
+              </Link>
+            </div>
           )}
         </div>
       </header>
