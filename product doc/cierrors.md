@@ -2,9 +2,8 @@
 
 ## Branch: `feat/gov-dedicated-state-urls-and-sprints`
 
-### Checks Status:
-- `pnpm format:check` — **PASSED** (All matched files use Prettier code style)
-- `pnpm lint` (`turbo run lint` across 12 packages) — **PASSED** (17/17 tasks successful, 0 errors)
-- `pnpm typecheck` (`turbo run typecheck` across 12 packages) — **PASSED** (17/17 tasks successful)
-- `pnpm contracts:openapi` & `git diff --exit-code apps/api/openapi.json` — **PASSED**
-- Mobile viewport & responsive header fixes — **PASSED**
+### Resolution of Format Warning on `3ea981d`:
+- The previous commit `3ea981d` had formatting warnings on `helpers.ts`, `routes.ts`, and `types.ts`.
+- In commit `47519dc`, Prettier was run across all files, and the mobile responsive layout fixes were applied.
+- `pnpm format:check` — **PASSED** (All matched files use Prettier code style).
+- `turbo run lint typecheck` — **PASSED** (28/28 tasks successful).
