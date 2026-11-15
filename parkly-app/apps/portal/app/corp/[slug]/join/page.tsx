@@ -9,7 +9,15 @@ export default async function DriverJoinPage({ params }: { params: Promise<{ slu
   const tenant = await loadCorporateTenant(slug);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--pk-color-bg-canvas)' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        background: 'var(--pk-color-bg-canvas)',
+      }}
+    >
       {/* 1. Sovereign Branded Topbar */}
       <CorporateBrandHeader
         legalName={tenant.legalName}
@@ -20,7 +28,10 @@ export default async function DriverJoinPage({ params }: { params: Promise<{ slu
         welcomeMessage={tenant.welcomeMessage}
       />
 
-      <main className="pk-page" style={{ padding: '3rem 1rem' }}>
+      <main
+        className="pk-page"
+        style={{ padding: '2rem 1rem', width: '100%', boxSizing: 'border-box' }}
+      >
         <DriverJoinForm tenant={tenant} slug={slug} />
       </main>
     </div>

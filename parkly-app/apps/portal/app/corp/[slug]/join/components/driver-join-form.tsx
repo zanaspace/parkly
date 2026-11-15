@@ -55,17 +55,11 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
 
     return (
       <div
-        className="pk-card"
+        className="pk-join-card"
         style={{
-          maxWidth: '560px',
-          margin: '0 auto',
-          padding: '2.5rem',
-          background: 'var(--pk-color-bg-surface)',
           borderTop: `6px solid ${tenant.primaryColor}`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem',
           textAlign: 'center',
+          alignItems: 'center',
         }}
       >
         <div
@@ -110,19 +104,42 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
             flexDirection: 'column',
             gap: '0.75rem',
             fontSize: '0.875rem',
+            width: '100%',
+            boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.25rem',
+            }}
+          >
             <span style={{ color: 'var(--pk-color-text-secondary)' }}>Registered Phone:</span>
             <span style={{ fontWeight: 600 }}>{joinedDriver.phone}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.25rem',
+            }}
+          >
             <span style={{ color: 'var(--pk-color-text-secondary)' }}>Assigned Vehicle:</span>
             <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>
               {joinedDriver.vehiclePlate || 'Not Assigned'}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.25rem',
+            }}
+          >
             <span style={{ color: 'var(--pk-color-text-secondary)' }}>Join Verification:</span>
             <span style={{ fontWeight: 600, color: '#059669' }}>Bypassed SMS OTP ✓</span>
           </div>
@@ -135,7 +152,13 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
         </Text>
 
         <div
-          style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '0.5rem' }}
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            justifyContent: 'center',
+            marginTop: '0.5rem',
+            width: '100%',
+          }}
         >
           <Link
             href={`/corp/${slug}`}
@@ -144,6 +167,8 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
               backgroundColor: tenant.primaryColor,
               borderColor: tenant.primaryColor,
               textDecoration: 'none',
+              width: '100%',
+              textAlign: 'center',
             }}
           >
             Go to {tenant.legalName} Portal
@@ -155,24 +180,30 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
 
   return (
     <div
-      className="pk-card"
+      className="pk-join-card"
       style={{
-        maxWidth: '540px',
-        margin: '0 auto',
-        padding: '2.25rem',
-        background: 'var(--pk-color-bg-surface)',
         borderLeft: `4px solid ${tenant.primaryColor}`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.5rem',
       }}
     >
       <div>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
+            flexWrap: 'wrap',
+          }}
         >
           <span className="pk-badge pk-badge--brand-subtle">Direct Driver Join</span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--pk-color-text-secondary)' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--pk-color-text-secondary)',
+              fontWeight: 500,
+            }}
+          >
             No SMS OTP Required
           </span>
         </div>
@@ -232,7 +263,7 @@ export function DriverJoinForm({ tenant, slug }: { tenant: ResolvedTenant; slug:
             fullWidth
             style={{ backgroundColor: tenant.primaryColor, borderColor: tenant.primaryColor }}
           >
-            Verify Code & Access Corporate Parking
+            Verify & Access Corporate Parking
           </Button>
         </div>
       </form>

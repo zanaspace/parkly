@@ -1642,3 +1642,57 @@ a.pk-button {
   margin-top: 0.35rem;
   word-break: break-all;
 }
+
+/* Corporate Sovereign Header & Portal Mobile Responsiveness */
+.pk-corp-welcome-desktop {
+  display: none;
+}
+@media (min-width: 860px) {
+  .pk-corp-welcome-desktop {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--pk-color-text-muted);
+    max-width: 380px;
+    text-align: right;
+    line-height: 1.3;
+  }
+}
+
+.pk-corp-partner-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-left: 1px solid var(--pk-color-border-default);
+  padding-left: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .pk-corp-partner-text {
+    display: none;
+  }
+  .pk-corp-partner-badge {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+.pk-join-card {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  box-sizing: border-box;
+  background: var(--pk-color-bg-surface);
+  border-radius: var(--pk-radius-lg, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .pk-join-card {
+    padding: 2rem;
+    gap: 1.5rem;
+  }
+}

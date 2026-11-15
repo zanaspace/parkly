@@ -256,10 +256,7 @@ export function corporateRoutes(deps: AppDeps) {
         }
       }
 
-      return c.json(
-        formatTenant(account, branding, emailDomains),
-        200,
-      );
+      return c.json(formatTenant(account, branding, emailDomains), 200);
     },
   );
 

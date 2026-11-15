@@ -1861,10 +1861,7 @@ export type Store = {
         welcomeMessage: string | null;
       }>,
     ): Promise<CorporateBrandingRow>;
-    updateEmailDomain(
-      corporateId: string,
-      emailDomain: string,
-    ): Promise<CorporateDomainRow | null>;
+    updateEmailDomain(corporateId: string, emailDomain: string): Promise<CorporateDomainRow | null>;
     listFleetDrivers(corporateId: string): Promise<CorporateFleetDriverRow[]>;
     createFleetDriver(data: {
       id?: string;

@@ -13,7 +13,15 @@ export default async function CorporateSettingsPage({
   const tenant = await loadCorporateTenant(slug);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--pk-color-bg-canvas)' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        background: 'var(--pk-color-bg-canvas)',
+      }}
+    >
       {/* 1. Sovereign Branded Topbar */}
       <CorporateBrandHeader
         legalName={tenant.legalName}

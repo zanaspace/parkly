@@ -7,7 +7,10 @@ import type {
 
 export const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 export const SlugParam = z.object({ slug: z.string().min(1).max(64) });
-export const DriverParam = z.object({ slug: z.string().min(1).max(64), driverId: z.string().uuid() });
+export const DriverParam = z.object({
+  slug: z.string().min(1).max(64),
+  driverId: z.string().uuid(),
+});
 export const DomainQuery = z.object({ domain: z.string().min(1) });
 
 export function serializeDriver(d: CorporateFleetDriverRow) {
