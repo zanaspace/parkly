@@ -130,15 +130,23 @@
   display: flex;
   flex-direction: column;
   gap: var(--pk-space-stack-xs);
+  width: 100%;
 }
-.pk-field__label {
+.pk-field__label,
+.pk-label {
+  display: block;
+  width: 100%;
   color: var(--pk-input-label-fg);
   font-family: var(--pk-type-label-md-font-family);
   font-size: var(--pk-type-label-md-font-size);
   font-weight: var(--pk-type-label-md-font-weight);
   line-height: var(--pk-type-label-md-line-height);
+  margin-bottom: 0.25rem;
 }
 .pk-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   height: var(--pk-input-height-md);
   padding-inline: var(--pk-input-padding-x);
   border: var(--pk-input-border-width) solid var(--pk-input-border);

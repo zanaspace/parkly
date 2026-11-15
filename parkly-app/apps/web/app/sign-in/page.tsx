@@ -1,5 +1,6 @@
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SignInForm } from '../../components/sign-in-form';
 import { loadDriver, safeNext } from '../../lib/session';
@@ -29,6 +30,22 @@ export default async function SignIn({
           </Text>
         </div>
         <SignInForm next={next} />
+
+        <div
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--pk-color-border-default)',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            color: 'var(--pk-color-text-secondary)',
+          }}
+        >
+          <span>Looking to onboard an Operator or Corporate account? </span>
+          <Link href="/sign-up" className="pk-link" style={{ fontWeight: 600 }}>
+            Choose another account type
+          </Link>
+        </div>
       </div>
     </main>
   );

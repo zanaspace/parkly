@@ -100,4 +100,48 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     const res3 = await w.call('GET', '/v1/corp/resolve?domain=unknown-corp.ng');
     expect(res3.status).toBe(404);
   });
+
+  it('registers and onboards a new corporate tenant via POST /v1/corp/onboard', async () => {
+    const w = world();
+
+    const payload = {
+      legalName: 'Access Holdings PLC',
+      cacRcNumber: 'RC554433',
+      slug: 'access',
+      industry: 'Banking',
+      headOfficeAddress: '14/15 Prince Alaba Oniru Street, Victoria Island, Lagos',
+      primaryContactName: 'Roosevelt Ogbonna',
+      primaryContactEmail: 'admin@accessbankplc.com',
+      primaryContactPhone: '+2348022334455',
+      emailDomain: 'accessbankplc.com',
+      branding: {
+        logoUrl: 'https://cdn.parkly.ng/corp/access/logo.png',
+        primaryColor: '#F58220',
+        secondaryColor: '#1E1E1E',
+        portalTitle: 'Access Bank Employee Mobility & Commute Portal',
+        welcomeMessage: 'Welcome to Access Bank corporate parking.',
+      },
+    };
+
+    const res = await w.call('POST', '/v1/corp/onboard', { body: payload });
+    expect(res.status).toBe(201);
+    const body = res.body as {
+      slug: string;
+      legalName: string;
+      branding: { primaryColor: string; portalTitle: string };
+      emailDomains: string[];
+    };
+    expect(body.slug).toBe('access');
+    expect(body.legalName).toBe('Access Holdings PLC');
+    expect(body.branding.primaryColor).toBe('#F58220');
+    expect(body.emailDomains).toContain('accessbankplc.com');
+
+    // Confirm it can immediately be fetched via GET /v1/corp/access
+    const fetchRes = await w.call('GET', '/v1/corp/access');
+    expect(fetchRes.status).toBe(200);
+
+    // Conflict test: duplicate slug
+    const dupRes = await w.call('POST', '/v1/corp/onboard', { body: payload });
+    expect(dupRes.status).toBe(409);
+  });
 });

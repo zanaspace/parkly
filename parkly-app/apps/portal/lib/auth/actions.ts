@@ -92,6 +92,51 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
   };
 }
 
+// --- corporate OAuth & admin registration -----------------------------------
+
+/** Returns the Google Workspace OAuth URL for corporate admin onboarding or sign-in. */
+export async function getGoogleOAuthUrl(redirectTo = '/corporate/onboarding'): Promise<string> {
+  const supabase = await createClient();
+  const baseOrigin = await origin();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${baseOrigin}/auth/confirm?next=${encodeURIComponent(safeNext(redirectTo))}`,
+    },
+  });
+  if (error || !data.url) {
+    throw new Error(error?.message || 'Could not start Google sign in');
+  }
+  return data.url;
+}
+
+/** Initiates Google Workspace SSO for corporate admin onboarding or sign-in. */
+export async function signInWithGoogle(redirectTo = '/corporate/onboarding'): Promise<void> {
+  const url = await getGoogleOAuthUrl(redirectTo);
+  redirect(url);
+}
+
+/** Registers a corporate administrator with email + password in Supabase Auth. */
+export async function registerCorporateAdmin(
+  email: string,
+  password: string,
+): Promise<{ error?: string; success: boolean }> {
+  const supabase = await createClient();
+  const baseOrigin = await origin();
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${baseOrigin}/auth/confirm?next=${encodeURIComponent('/corporate/onboarding')}`,
+      data: { corporate_signup: true },
+    },
+  });
+  if (error) {
+    return { error: authErrorMessage(error), success: false };
+  }
+  return { success: true };
+}
+
 // --- MFA (TOTP) --------------------------------------------------------------
 
 export type EnrollStart = { factorId: string; qrCode: string; secret: string } | { error: string };

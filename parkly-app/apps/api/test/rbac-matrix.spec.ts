@@ -698,6 +698,7 @@ const COVERED_ELSEWHERE = new Set([
   // Corporate tenancy (Sprint CORP-01): public tenant metadata & subdomain resolution: corporate.spec
   'GET /v1/corp/resolve',
   'GET /v1/corp/{slug}',
+  'POST /v1/corp/onboard',
 ]);
 
 describe('RBAC matrix', () => {
