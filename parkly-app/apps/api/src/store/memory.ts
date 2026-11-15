@@ -1642,6 +1642,23 @@ export class MemoryStore implements Store {
       this.corporateFleetDriverRows.set(driverId, updated);
       return { ...updated };
     },
+    updateFleetDriver: async (corporateId, driverId, patch) => {
+      const existing = this.corporateFleetDriverRows.get(driverId);
+      if (!existing || existing.corporateId !== corporateId) {
+        throw new Error(`Fleet driver ${driverId} not found`);
+      }
+      const updated: CorporateFleetDriverRow = {
+        ...existing,
+        ...(patch.driverName !== undefined && { driverName: patch.driverName }),
+        ...(patch.phone !== undefined && { phone: patch.phone }),
+        ...(patch.vehiclePlate !== undefined && { vehiclePlate: patch.vehiclePlate }),
+        ...(patch.approvalStatus !== undefined && { approvalStatus: patch.approvalStatus }),
+        ...(patch.isActive !== undefined && { isActive: patch.isActive }),
+        updatedAt: new Date(),
+      };
+      this.corporateFleetDriverRows.set(driverId, updated);
+      return { ...updated };
+    },
   };
 
   private mustFile(id: string) {

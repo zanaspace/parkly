@@ -8,14 +8,14 @@ import {
   DriverJoinResponseSchema,
   ResolveCorporateDomainResponseSchema,
   UpdateCorporateProfileRequestSchema,
-  UpdateFleetDriverStatusRequestSchema,
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { ApiError } from '../../lib/errors.js';
 import type { CorporateAccountRow } from '../../store/types.js';
 import {
   DomainQuery,
-  DriverParam,
+  DriverPatchRoute,
+  DriverStatusRoute,
   formatTenant,
   json,
   serializeDriver,
@@ -325,36 +325,28 @@ export function corporateRoutes(deps: AppDeps) {
   );
 
   /** Update driver approval status */
-  app.openapi(
-    createRoute({
-      method: 'patch',
-      path: '/corp/{slug}/drivers/{driverId}/status',
-      tags: ['corporate'],
-      summary: 'Update driver approval status',
-      request: {
-        params: DriverParam,
-        body: { ...json(UpdateFleetDriverStatusRequestSchema), required: true },
-      },
-      responses: {
-        200: {
-          description: 'Driver status updated',
-          ...json(CorporateFleetDriverSchema),
-        },
-      },
-    }),
-    async (c) => {
-      const { slug, driverId } = c.req.valid('param');
-      const input = c.req.valid('json');
-      const tenant = await deps.store.corporate.findBySlug(slug);
-      if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+  app.openapi(DriverStatusRoute, async (c) => {
+    const { slug, driverId } = c.req.valid('param');
+    const input = c.req.valid('json');
+    const tenant = await deps.store.corporate.findBySlug(slug);
+    if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
 
-      const driver = await deps.store.corporate.updateFleetDriverStatus(
-        driverId,
-        input.approvalStatus,
-      );
-      return c.json(serializeDriver(driver), 200);
-    },
-  );
+    const driver = await deps.store.corporate.updateFleetDriver(tenant.account.id, driverId, {
+      approvalStatus: input.approvalStatus,
+    });
+    return c.json(serializeDriver(driver), 200);
+  });
+
+  /** Update driver details and vehicle plate */
+  app.openapi(DriverPatchRoute, async (c) => {
+    const { slug, driverId } = c.req.valid('param');
+    const input = c.req.valid('json');
+    const tenant = await deps.store.corporate.findBySlug(slug);
+    if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+
+    const driver = await deps.store.corporate.updateFleetDriver(tenant.account.id, driverId, input);
+    return c.json(serializeDriver(driver), 200);
+  });
 
   return app;
 }

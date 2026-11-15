@@ -1879,6 +1879,17 @@ export type Store = {
       status: 'PENDING_APPROVAL' | 'APPROVED' | 'SUSPENDED',
       userId?: string | null,
     ): Promise<CorporateFleetDriverRow>;
+    updateFleetDriver(
+      corporateId: string,
+      driverId: string,
+      patch: {
+        driverName?: string;
+        phone?: string;
+        vehiclePlate?: string | null;
+        approvalStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'SUSPENDED';
+        isActive?: boolean;
+      },
+    ): Promise<CorporateFleetDriverRow>;
   };
 };
 

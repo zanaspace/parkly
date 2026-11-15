@@ -703,6 +703,7 @@ const COVERED_ELSEWHERE = new Set([
   'PATCH /v1/corp/{slug}',
   'GET /v1/corp/{slug}/drivers',
   'POST /v1/corp/{slug}/drivers',
+  'PATCH /v1/corp/{slug}/drivers/{driverId}',
   'PATCH /v1/corp/{slug}/drivers/{driverId}/status',
 ]);
 

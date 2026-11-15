@@ -275,5 +275,23 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     expect(approveRes.status).toBe(200);
     const approvedDriver = approveRes.body as { approvalStatus: string };
     expect(approvedDriver.approvalStatus).toBe('APPROVED');
+
+    // 5. Admin updates driver details (name, phone, and vehicle plate)
+    const updateRes = await w.call('PATCH', `/v1/corp/dangote-fleet/drivers/${driver.id}`, {
+      body: {
+        driverName: 'Babatunde Bello',
+        phone: '+2348011223344',
+        vehiclePlate: 'EKY-999-LK',
+      },
+    });
+    expect(updateRes.status).toBe(200);
+    const updated = updateRes.body as {
+      driverName: string;
+      phone: string;
+      vehiclePlate: string;
+    };
+    expect(updated.driverName).toBe('Babatunde Bello');
+    expect(updated.phone).toBe('+2348011223344');
+    expect(updated.vehiclePlate).toBe('EKY-999-LK');
   });
 });

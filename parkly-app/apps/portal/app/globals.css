@@ -1696,3 +1696,54 @@ a.pk-button {
     gap: 1.5rem;
   }
 }
+
+/* Corporate Driver Directory Responsive Views */
+.pk-driver-table-desktop {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pk-driver-cards-mobile {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .pk-driver-table-desktop {
+    display: none;
+  }
+
+  .pk-driver-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .pk-driver-mobile-card {
+    background: var(--pk-color-bg-canvas);
+    border: 1px solid var(--pk-color-border-subtle);
+    border-radius: 8px;
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .pk-driver-mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .pk-driver-mobile-actions > * {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+}

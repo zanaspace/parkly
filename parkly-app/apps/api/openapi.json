@@ -26133,6 +26133,147 @@
           }
         }
       }
+    },
+    "/v1/corp/{slug}/drivers/{driverId}": {
+      "patch": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Update driver details and vehicle plate",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "driverId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "driverName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "vehiclePlate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 2,
+                    "maxLength": 20
+                  },
+                  "approvalStatus": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING_APPROVAL",
+                      "APPROVED",
+                      "SUSPENDED"
+                    ]
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Driver updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "corporateId": {
+                      "type": "string"
+                    },
+                    "driverName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "vehiclePlate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "joinCode": {
+                      "type": "string"
+                    },
+                    "approvalStatus": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_APPROVAL",
+                        "APPROVED",
+                        "SUSPENDED"
+                      ]
+                    },
+                    "userId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "corporateId",
+                    "driverName",
+                    "phone",
+                    "vehiclePlate",
+                    "joinCode",
+                    "approvalStatus",
+                    "userId",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

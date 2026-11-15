@@ -2030,6 +2030,27 @@ export function drizzleStore(db: Db): Store {
         if (!row) throw new Error(`Fleet driver ${driverId} not found`);
         return row as CorporateFleetDriverRow;
       },
+      async updateFleetDriver(corporateId, driverId, patch) {
+        const [row] = await db
+          .update(corporateFleetDrivers)
+          .set({
+            ...(patch.driverName !== undefined && { driverName: patch.driverName }),
+            ...(patch.phone !== undefined && { phone: patch.phone }),
+            ...(patch.vehiclePlate !== undefined && { vehiclePlate: patch.vehiclePlate }),
+            ...(patch.approvalStatus !== undefined && { approvalStatus: patch.approvalStatus }),
+            ...(patch.isActive !== undefined && { isActive: patch.isActive }),
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(corporateFleetDrivers.id, driverId),
+              eq(corporateFleetDrivers.corporateId, corporateId),
+            ),
+          )
+          .returning();
+        if (!row) throw new Error(`Fleet driver ${driverId} not found`);
+        return row as CorporateFleetDriverRow;
+      },
     },
   };
 }

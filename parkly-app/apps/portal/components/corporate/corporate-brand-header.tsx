@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { LogoMarkIcon } from '../icons';
 
 export type CorporateBrandHeaderProps = {
@@ -17,6 +19,8 @@ export function CorporateBrandHeader({
   primaryColor = '#E31837',
   welcomeMessage,
 }: CorporateBrandHeaderProps) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <header
       className="pk-topbar"
@@ -34,11 +38,12 @@ export function CorporateBrandHeader({
         className="pk-topbar-main"
         style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}
       >
-        {logoUrl ? (
+        {logoUrl && !imgError ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={logoUrl}
             alt={`${legalName} Logo`}
+            onError={() => setImgError(true)}
             style={{
               height: '32px',
               maxWidth: '110px',
