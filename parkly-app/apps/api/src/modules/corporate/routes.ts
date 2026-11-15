@@ -1,23 +1,69 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  CorporateFleetDriverSchema,
   CorporateTenantResponseSchema,
   CreateCorporateTenantRequestSchema,
+  CreateFleetDriverRequestSchema,
+  DriverJoinRequestSchema,
+  DriverJoinResponseSchema,
   ResolveCorporateDomainResponseSchema,
+  UpdateCorporateProfileRequestSchema,
+  UpdateFleetDriverStatusRequestSchema,
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { ApiError } from '../../lib/errors.js';
+import type {
+  CorporateAccountRow,
+  CorporateBrandingRow,
+  CorporateFleetDriverRow,
+} from '../../store/types.js';
 
 const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 const SlugParam = z.object({ slug: z.string().min(1).max(64) });
+const DriverParam = z.object({ slug: z.string().min(1).max(64), driverId: z.string().uuid() });
 const DomainQuery = z.object({ domain: z.string().min(1) });
+
+function serializeDriver(d: CorporateFleetDriverRow) {
+  return {
+    ...d,
+    createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : String(d.createdAt),
+    updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
+  };
+}
+
+function formatTenant(
+  account: CorporateAccountRow,
+  branding: CorporateBrandingRow | null,
+  emailDomains: string[],
+) {
+  return {
+    id: account.id,
+    slug: account.slug,
+    legalName: account.legalName,
+    cacRcNumber: account.cacRcNumber,
+    industry: account.industry,
+    headOfficeAddress: account.headOfficeAddress,
+    primaryContactName: account.primaryContactName,
+    primaryContactEmail: account.primaryContactEmail,
+    primaryContactPhone: account.primaryContactPhone,
+    billingTier: account.billingTier,
+    branding: branding
+      ? {
+          logoUrl: branding.logoUrl,
+          primaryColor: branding.primaryColor,
+          secondaryColor: branding.secondaryColor,
+          portalTitle: branding.portalTitle,
+          welcomeMessage: branding.welcomeMessage,
+        }
+      : null,
+    emailDomains,
+  };
+}
 
 export function corporateRoutes(deps: AppDeps) {
   const app = new OpenAPIHono();
 
-  /**
-   * Resolves a subdomain or custom domain for Edge Middleware routing.
-   * Registered first so it doesn't get captured by :slug.
-   */
+  /** Resolves corporate subdomain or custom domain for Edge Middleware */
   app.openapi(
     createRoute({
       method: 'get',
@@ -35,16 +81,13 @@ export function corporateRoutes(deps: AppDeps) {
     async (c) => {
       const { domain } = c.req.valid('query');
       const normalized = domain.toLowerCase().trim();
-
-      // Check if domain is a direct subdomain or a custom CNAME domain
-      let tenant = await deps.store.corporate.findBySubdomain(normalized);
-      if (!tenant) {
-        tenant = await deps.store.corporate.findByDomain(normalized);
-      }
+      let tenant =
+        (await deps.store.corporate.findBySubdomain(normalized)) ||
+        (await deps.store.corporate.findByDomain(normalized));
 
       if (!tenant) throw new ApiError('NOT_FOUND', `Domain '${domain}' is not registered`);
 
-      const matchingDomain =
+      const matching =
         tenant.domains.find(
           (d) =>
             d.subdomain.toLowerCase() === normalized ||
@@ -55,9 +98,9 @@ export function corporateRoutes(deps: AppDeps) {
         {
           corporateId: tenant.account.id,
           slug: tenant.account.slug,
-          subdomain: matchingDomain ? matchingDomain.subdomain : tenant.account.slug,
-          customDomain: matchingDomain ? matchingDomain.customDomain : null,
-          isVerified: matchingDomain ? matchingDomain.isVerified : false,
+          subdomain: matching ? matching.subdomain : tenant.account.slug,
+          customDomain: matching ? matching.customDomain : null,
+          isVerified: matching ? matching.isVerified : false,
           legalName: tenant.account.legalName,
         },
         200,
@@ -65,18 +108,14 @@ export function corporateRoutes(deps: AppDeps) {
     },
   );
 
-  /**
-   * Self-serve onboarding for new corporate enterprise accounts.
-   */
+  /** Onboards a new corporate tenant */
   app.openapi(
     createRoute({
       method: 'post',
       path: '/corp/onboard',
       tags: ['corporate'],
       summary: 'Register and onboard a new corporate tenant',
-      request: {
-        body: json(CreateCorporateTenantRequestSchema),
-      },
+      request: { body: json(CreateCorporateTenantRequestSchema) },
       responses: {
         201: {
           description: 'Corporate tenant created successfully',
@@ -87,11 +126,8 @@ export function corporateRoutes(deps: AppDeps) {
     async (c) => {
       const input = c.req.valid('json');
       const normalizedSlug = input.slug.toLowerCase().trim();
-
       const existing = await deps.store.corporate.findBySlug(normalizedSlug);
-      if (existing) {
-        throw new ApiError('SLUG_TAKEN', `Subdomain '${normalizedSlug}' is already taken`);
-      }
+      if (existing) throw new ApiError('SLUG_TAKEN', `Subdomain '${normalizedSlug}' is taken`);
 
       const account = await deps.store.corporate.createAccount({
         slug: normalizedSlug,
@@ -118,31 +154,52 @@ export function corporateRoutes(deps: AppDeps) {
         isVerified: false,
       });
 
+      return c.json(formatTenant(account, branding, [domain.emailDomain]), 201);
+    },
+  );
+
+  /** Driver join route with phone number and join code (no SMS OTP required) */
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/corp/drivers/join',
+      tags: ['corporate'],
+      summary: 'Driver joins corporate roster using join code and phone number',
+      request: { body: json(DriverJoinRequestSchema) },
+      responses: {
+        200: {
+          description: 'Driver successfully validated and pending approval',
+          ...json(DriverJoinResponseSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const input = c.req.valid('json');
+      const driver = await deps.store.corporate.findFleetDriverByCode(input.joinCode.trim());
+      if (!driver) throw new ApiError('NOT_FOUND', 'Invalid join code. Contact your fleet admin.');
+
+      const cleanNum = (num: string) => num.replace(/[\s\-()+]/g, '');
+      if (cleanNum(driver.phone) !== cleanNum(input.phone)) {
+        throw new ApiError('FORBIDDEN', 'Phone number does not match this invitation code');
+      }
+
       return c.json(
         {
-          id: account.id,
-          slug: account.slug,
-          legalName: account.legalName,
-          industry: account.industry,
-          billingTier: account.billingTier,
-          branding: {
-            logoUrl: branding.logoUrl,
-            primaryColor: branding.primaryColor,
-            secondaryColor: branding.secondaryColor,
-            portalTitle: branding.portalTitle,
-            welcomeMessage: branding.welcomeMessage,
+          success: true,
+          message: 'Join code verified. Your profile is pending corporate admin approval.',
+          driver: serializeDriver(driver),
+          corporate: {
+            id: driver.corporate.id,
+            slug: driver.corporate.slug,
+            legalName: driver.corporate.legalName,
           },
-          emailDomains: [domain.emailDomain],
         },
-        201,
+        200,
       );
     },
   );
 
-  /**
-   * Public tenant discovery for corporate subdomains (e.g. zenith.parkly.ng).
-   * Returns branding, logo, colors, and verified email domains.
-   */
+  /** Public corporate tenant discovery metadata */
   app.openapi(
     createRoute({
       method: 'get',
@@ -163,25 +220,172 @@ export function corporateRoutes(deps: AppDeps) {
       if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
 
       return c.json(
-        {
-          id: tenant.account.id,
-          slug: tenant.account.slug,
-          legalName: tenant.account.legalName,
-          industry: tenant.account.industry,
-          billingTier: tenant.account.billingTier,
-          branding: tenant.branding
-            ? {
-                logoUrl: tenant.branding.logoUrl,
-                primaryColor: tenant.branding.primaryColor,
-                secondaryColor: tenant.branding.secondaryColor,
-                portalTitle: tenant.branding.portalTitle,
-                welcomeMessage: tenant.branding.welcomeMessage,
-              }
-            : null,
-          emailDomains: tenant.domains.map((d) => d.emailDomain),
-        },
+        formatTenant(
+          tenant.account,
+          tenant.branding,
+          tenant.domains.map((d) => d.emailDomain),
+        ),
         200,
       );
+    },
+  );
+
+  /** Update corporate tenant details & branding */
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/corp/{slug}',
+      tags: ['corporate'],
+      summary: 'Update corporate tenant profile and branding',
+      request: {
+        params: SlugParam,
+        body: { ...json(UpdateCorporateProfileRequestSchema), required: true },
+      },
+      responses: {
+        200: {
+          description: 'Corporate tenant updated successfully',
+          ...json(CorporateTenantResponseSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const { slug } = c.req.valid('param');
+      const input = c.req.valid('json');
+      const tenant = await deps.store.corporate.findBySlug(slug);
+      if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+
+      let account = tenant.account;
+      const updates: Partial<CorporateAccountRow> = {};
+      if (input.legalName) updates.legalName = input.legalName.trim();
+      if (input.cacRcNumber) updates.cacRcNumber = input.cacRcNumber.trim();
+      if (input.industry) updates.industry = input.industry.trim();
+      if (input.headOfficeAddress) updates.headOfficeAddress = input.headOfficeAddress.trim();
+      if (input.primaryContactName) updates.primaryContactName = input.primaryContactName.trim();
+      if (input.primaryContactEmail)
+        updates.primaryContactEmail = input.primaryContactEmail.toLowerCase().trim();
+      if (input.primaryContactPhone) updates.primaryContactPhone = input.primaryContactPhone.trim();
+
+      if (Object.keys(updates).length > 0) {
+        account = await deps.store.corporate.updateAccount(tenant.account.id, updates);
+      }
+
+      let branding = tenant.branding;
+      if (input.branding) {
+        branding = await deps.store.corporate.updateBranding(tenant.account.id, {
+          ...(input.branding.logoUrl && { logoUrl: input.branding.logoUrl }),
+          ...(input.branding.primaryColor && { primaryColor: input.branding.primaryColor }),
+          ...(input.branding.secondaryColor && { secondaryColor: input.branding.secondaryColor }),
+          ...(input.branding.portalTitle && { portalTitle: input.branding.portalTitle.trim() }),
+          ...(input.branding.welcomeMessage !== undefined && {
+            welcomeMessage: input.branding.welcomeMessage,
+          }),
+        });
+      }
+
+      return c.json(
+        formatTenant(
+          account,
+          branding,
+          tenant.domains.map((d) => d.emailDomain),
+        ),
+        200,
+      );
+    },
+  );
+
+  /** List field drivers */
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/corp/{slug}/drivers',
+      tags: ['corporate'],
+      summary: 'List corporate fleet and field drivers',
+      request: { params: SlugParam },
+      responses: {
+        200: {
+          description: 'List of fleet drivers',
+          ...json(z.array(CorporateFleetDriverSchema)),
+        },
+      },
+    }),
+    async (c) => {
+      const { slug } = c.req.valid('param');
+      const tenant = await deps.store.corporate.findBySlug(slug);
+      if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+
+      const drivers = await deps.store.corporate.listFleetDrivers(tenant.account.id);
+      return c.json(drivers.map(serializeDriver), 200);
+    },
+  );
+
+  /** Add field driver and generate unique Join Code */
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/corp/{slug}/drivers',
+      tags: ['corporate'],
+      summary: 'Add field driver and generate join code',
+      request: {
+        params: SlugParam,
+        body: { ...json(CreateFleetDriverRequestSchema), required: true },
+      },
+      responses: {
+        201: {
+          description: 'Field driver added with join code',
+          ...json(CorporateFleetDriverSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const { slug } = c.req.valid('param');
+      const input = c.req.valid('json');
+      const tenant = await deps.store.corporate.findBySlug(slug);
+      if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+
+      const prefix = slug.slice(0, 3).toUpperCase();
+      const joinCode = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const driver = await deps.store.corporate.createFleetDriver({
+        corporateId: tenant.account.id,
+        driverName: input.driverName.trim(),
+        phone: input.phone.trim(),
+        vehiclePlate: input.vehiclePlate?.toUpperCase().trim() || null,
+        joinCode,
+      });
+
+      return c.json(serializeDriver(driver), 201);
+    },
+  );
+
+  /** Update driver approval status */
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/corp/{slug}/drivers/{driverId}/status',
+      tags: ['corporate'],
+      summary: 'Update driver approval status',
+      request: {
+        params: DriverParam,
+        body: { ...json(UpdateFleetDriverStatusRequestSchema), required: true },
+      },
+      responses: {
+        200: {
+          description: 'Driver status updated',
+          ...json(CorporateFleetDriverSchema),
+        },
+      },
+    }),
+    async (c) => {
+      const { slug, driverId } = c.req.valid('param');
+      const input = c.req.valid('json');
+      const tenant = await deps.store.corporate.findBySlug(slug);
+      if (!tenant) throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
+
+      const driver = await deps.store.corporate.updateFleetDriverStatus(
+        driverId,
+        input.approvalStatus,
+      );
+      return c.json(serializeDriver(driver), 200);
     },
   );
 

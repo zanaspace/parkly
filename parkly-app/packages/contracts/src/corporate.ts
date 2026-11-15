@@ -13,7 +13,12 @@ export const CorporateTenantResponseSchema = z.object({
   id: z.string(),
   slug: z.string(),
   legalName: z.string(),
+  cacRcNumber: z.string().optional(),
   industry: z.string(),
+  headOfficeAddress: z.string().optional(),
+  primaryContactName: z.string().optional(),
+  primaryContactEmail: z.string().optional(),
+  primaryContactPhone: z.string().optional(),
   billingTier: z.string(),
   branding: CorporateBrandingSchema.nullable(),
   emailDomains: z.array(z.string()),
@@ -66,3 +71,74 @@ export const CreateCorporateTenantRequestSchema = z.object({
     .optional(),
 });
 export type CreateCorporateTenantRequest = z.infer<typeof CreateCorporateTenantRequestSchema>;
+
+export const UpdateCorporateProfileRequestSchema = z.object({
+  legalName: z.string().min(2).max(200).optional(),
+  cacRcNumber: z.string().min(3).max(50).optional(),
+  industry: z.string().min(2).max(80).optional(),
+  headOfficeAddress: z.string().min(3).max(500).optional(),
+  primaryContactName: z.string().min(2).max(120).optional(),
+  primaryContactEmail: z.string().email().optional(),
+  primaryContactPhone: z.string().min(7).max(30).optional(),
+  branding: z
+    .object({
+      logoUrl: z.string().url().optional(),
+      primaryColor: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/)
+        .optional(),
+      secondaryColor: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/)
+        .optional(),
+      portalTitle: z.string().min(2).max(150).optional(),
+      welcomeMessage: z.string().max(500).nullable().optional(),
+    })
+    .optional(),
+});
+export type UpdateCorporateProfileRequest = z.infer<typeof UpdateCorporateProfileRequestSchema>;
+
+export const CorporateFleetDriverSchema = z.object({
+  id: z.string(),
+  corporateId: z.string(),
+  driverName: z.string(),
+  phone: z.string(),
+  vehiclePlate: z.string().nullable(),
+  joinCode: z.string(),
+  approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'SUSPENDED']),
+  userId: z.string().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type CorporateFleetDriver = z.infer<typeof CorporateFleetDriverSchema>;
+
+export const CreateFleetDriverRequestSchema = z.object({
+  driverName: z.string().min(2).max(120),
+  phone: z.string().min(7).max(30),
+  vehiclePlate: z.string().min(2).max(20).optional().nullable(),
+});
+export type CreateFleetDriverRequest = z.infer<typeof CreateFleetDriverRequestSchema>;
+
+export const DriverJoinRequestSchema = z.object({
+  phone: z.string().min(7).max(30),
+  joinCode: z.string().min(4).max(20),
+});
+export type DriverJoinRequest = z.infer<typeof DriverJoinRequestSchema>;
+
+export const DriverJoinResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  driver: CorporateFleetDriverSchema,
+  corporate: z.object({
+    id: z.string(),
+    slug: z.string(),
+    legalName: z.string(),
+  }),
+});
+export type DriverJoinResponse = z.infer<typeof DriverJoinResponseSchema>;
+
+export const UpdateFleetDriverStatusRequestSchema = z.object({
+  approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'SUSPENDED']),
+});
+export type UpdateFleetDriverStatusRequest = z.infer<typeof UpdateFleetDriverStatusRequestSchema>;

@@ -144,4 +144,128 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     const dupRes = await w.call('POST', '/v1/corp/onboard', { body: payload });
     expect(dupRes.status).toBe(409);
   });
+
+  it('updates corporate profile details and branding via PATCH /v1/corp/:slug', async () => {
+    const w = world();
+
+    await w.store.corporate.createAccount({
+      slug: 'sellyticshq',
+      legalName: 'Sellytics Global HQ',
+      cacRcNumber: 'RC998877',
+      industry: 'Technology',
+      headOfficeAddress: 'Victoria Island, Lagos',
+      primaryContactName: 'Chief Operator',
+      primaryContactEmail: 'ops@sellyticshq.com',
+      primaryContactPhone: '+2348011223344',
+    });
+
+    const updatePayload = {
+      legalName: 'Sellytics Enterprise Technologies Ltd',
+      headOfficeAddress: 'Admiralty Way, Lekki Phase 1, Lagos',
+      branding: {
+        primaryColor: '#00C48C',
+        secondaryColor: '#111827',
+        portalTitle: 'Sellytics Smart Commute & Fleet Transit',
+        welcomeMessage: 'Premium employer parking for engineers and drivers.',
+      },
+    };
+
+    const res = await w.call('PATCH', '/v1/corp/sellyticshq', { body: updatePayload });
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      legalName: string;
+      headOfficeAddress?: string;
+      branding: { primaryColor: string; portalTitle: string; welcomeMessage: string };
+    };
+
+    expect(body.legalName).toBe('Sellytics Enterprise Technologies Ltd');
+    expect(body.headOfficeAddress).toBe('Admiralty Way, Lekki Phase 1, Lagos');
+    expect(body.branding.primaryColor).toBe('#00C48C');
+    expect(body.branding.portalTitle).toBe('Sellytics Smart Commute & Fleet Transit');
+    expect(body.branding.welcomeMessage).toBe(
+      'Premium employer parking for engineers and drivers.',
+    );
+  });
+
+  it('supports field driver roster management, join code verification, and admin approval', async () => {
+    const w = world();
+
+    await w.store.corporate.createAccount({
+      slug: 'dangote-fleet',
+      legalName: 'Dangote Cement Fleet Operations',
+      cacRcNumber: 'RC112233',
+      industry: 'Logistics',
+      headOfficeAddress: 'Ikoyi, Lagos',
+      primaryContactName: 'Fleet Admin',
+      primaryContactEmail: 'fleet@dangote.com',
+      primaryContactPhone: '+2348055667788',
+    });
+
+    // 1. Admin adds a field driver
+    const addRes = await w.call('POST', '/v1/corp/dangote-fleet/drivers', {
+      body: {
+        driverName: 'Ibrahim Musa',
+        phone: '+2348099112233',
+        vehiclePlate: 'KJA-882-XD',
+      },
+    });
+
+    expect(addRes.status).toBe(201);
+    const driver = addRes.body as {
+      id: string;
+      driverName: string;
+      phone: string;
+      vehiclePlate: string;
+      joinCode: string;
+      approvalStatus: string;
+    };
+
+    expect(driver.driverName).toBe('Ibrahim Musa');
+    expect(driver.phone).toBe('+2348099112233');
+    expect(driver.vehiclePlate).toBe('KJA-882-XD');
+    expect(driver.joinCode).toMatch(/^DAN-\d{4}$/);
+    expect(driver.approvalStatus).toBe('PENDING_APPROVAL');
+
+    // 2. Listing drivers returns the added driver
+    const listRes = await w.call('GET', '/v1/corp/dangote-fleet/drivers');
+    expect(listRes.status).toBe(200);
+    const list = listRes.body as unknown as Array<{ id: string; joinCode: string }>;
+    expect(list.length).toBe(1);
+    expect(list[0]?.id).toBe(driver.id);
+
+    // 3. Driver joins using Phone + Join Code without SMS OTP
+    // Attempt with wrong phone number fails
+    const failJoin = await w.call('POST', '/v1/corp/drivers/join', {
+      body: {
+        phone: '+2348000000000',
+        joinCode: driver.joinCode,
+      },
+    });
+    expect(failJoin.status).toBe(403);
+
+    // Valid phone + join code succeeds
+    const joinRes = await w.call('POST', '/v1/corp/drivers/join', {
+      body: {
+        phone: '+2348099112233',
+        joinCode: driver.joinCode,
+      },
+    });
+    expect(joinRes.status).toBe(200);
+    const joinData = joinRes.body as {
+      success: boolean;
+      driver: { id: string; approvalStatus: string };
+      corporate: { slug: string; legalName: string };
+    };
+    expect(joinData.success).toBe(true);
+    expect(joinData.driver.approvalStatus).toBe('PENDING_APPROVAL');
+    expect(joinData.corporate.slug).toBe('dangote-fleet');
+
+    // 4. Admin approves the driver
+    const approveRes = await w.call('PATCH', `/v1/corp/dangote-fleet/drivers/${driver.id}/status`, {
+      body: { approvalStatus: 'APPROVED' },
+    });
+    expect(approveRes.status).toBe(200);
+    const approvedDriver = approveRes.body as { approvalStatus: string };
+    expect(approvedDriver.approvalStatus).toBe('APPROVED');
+  });
 });

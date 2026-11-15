@@ -699,6 +699,11 @@ const COVERED_ELSEWHERE = new Set([
   'GET /v1/corp/resolve',
   'GET /v1/corp/{slug}',
   'POST /v1/corp/onboard',
+  'POST /v1/corp/drivers/join',
+  'PATCH /v1/corp/{slug}',
+  'GET /v1/corp/{slug}/drivers',
+  'POST /v1/corp/{slug}/drivers',
+  'PATCH /v1/corp/{slug}/drivers/{driverId}/status',
 ]);
 
 describe('RBAC matrix', () => {
