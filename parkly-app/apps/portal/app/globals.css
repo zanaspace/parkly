@@ -1753,6 +1753,12 @@ a.pk-button {
     margin-top: 0.25rem;
   }
 
+  @media (max-width: 380px) {
+    .pk-driver-mobile-actions {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .pk-driver-mobile-actions > * {
     width: 100%;
     text-align: center;

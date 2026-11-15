@@ -147,6 +147,7 @@ export function CorporateDriversRoster({ tenant, slug }: { tenant: ResolvedTenan
               <table
                 style={{
                   width: '100%',
+                  minWidth: '760px',
                   borderCollapse: 'collapse',
                   textAlign: 'left',
                   fontSize: '0.9rem',
