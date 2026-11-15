@@ -1,7 +1,21 @@
 import { ERROR_STATUS, type ErrorCode } from '@parkly/contracts';
 
 /** The Parkly API base URL (public). */
-export const apiUrl = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+export const apiUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes('localhost')) {
+    return envUrl.replace(/\/$/, '');
+  }
+  if (
+    process.env.VERCEL ||
+    process.env.VERCEL_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.NODE_ENV === 'production'
+  ) {
+    return 'https://parkly-api-six.vercel.app';
+  }
+  return (envUrl || 'http://localhost:4000').replace(/\/$/, '');
+};
 
 /** A problem+json error from the API (doc 02 §11). */
 export class ApiProblem extends Error {

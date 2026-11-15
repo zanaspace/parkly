@@ -20,6 +20,7 @@ declare global {
 
 let loading: Promise<TurnstileApi> | null = null;
 function loadTurnstile(): Promise<TurnstileApi> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('no window'));
   if (window.turnstile) return Promise.resolve(window.turnstile);
   loading ??= new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${SCRIPT_URL}"]`);
@@ -49,6 +50,11 @@ function loadTurnstile(): Promise<TurnstileApi> {
     document.head.appendChild(script);
   });
   return loading;
+}
+
+// Pre-fetch turnstile script in browser context immediately so it is ready when forms render
+if (typeof window !== 'undefined') {
+  void loadTurnstile().catch(() => undefined);
 }
 
 /**
@@ -136,7 +142,12 @@ export function Turnstile({ siteKey }: { siteKey: string | undefined }) {
     <div
       ref={box}
       className="pk-captcha"
-      style={{ minHeight: '65px', display: 'flex', flexDirection: 'column' }}
+      style={{
+        minHeight: '65px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
     />
   );
 }

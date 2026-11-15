@@ -10,6 +10,20 @@ body {
   color: var(--pk-color-text-primary);
   font-family: var(--pk-font-family-text);
 }
+.pk-captcha {
+  min-height: 65px;
+}
+.pk-captcha:empty::before {
+  content: 'Securing connection…';
+  display: block;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--pk-color-text-secondary, #9ca3af);
+  border: 1px dashed var(--pk-color-border-subtle, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
 .pk-page {
   max-width: min(100% - 3rem, 96rem);
   width: 100%;
