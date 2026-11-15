@@ -91,7 +91,10 @@ export function resolveAppUrl(
  */
 export function resolveWorkspaces(
   user: Me,
-  options?: { hostOrOrigin?: string; corporateTenants?: Array<{ slug: string; name: string }> },
+  options?: {
+    hostOrOrigin?: string;
+    corporateTenants?: Array<{ slug: string; name: string; role?: string }>;
+  },
 ): WorkspaceItem[] {
   const workspaces: WorkspaceItem[] = [];
   const roles = user.roles.map((r) => r.role);

@@ -27,6 +27,12 @@ export default async function ChooseWorkspacePage() {
 
   const workspaces = resolveWorkspaces(user, { hostOrOrigin: host });
 
+  // Pure drivers (personal or corporate fleet) have no management consoles; send them directly to bookings.
+  const nonDriverWorkspaces = workspaces.filter((w) => w.type !== 'driver');
+  if (nonDriverWorkspaces.length === 0) {
+    redirect('/bookings');
+  }
+
   const getWorkspaceIcon = (type: WorkspaceItem['type']) => {
     switch (type) {
       case 'driver':
