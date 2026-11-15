@@ -1571,6 +1571,7 @@ export class MemoryStore implements Store {
       // 2. Email domain auto-linking (e.g. oluwaseun.adeleye@sellytichq.com or @sellyticshq.com)
       if (email && email.includes('@')) {
         const emailDomain = email.split('@')[1]?.toLowerCase().trim();
+        const baseDomain = emailDomain?.replace(/\.(com|ng|io|org|co)$/, '');
         if (emailDomain) {
           for (const d of this.corporateDomainRows.values()) {
             const matchesDomain =
@@ -1603,6 +1604,36 @@ export class MemoryStore implements Store {
                 }
                 results.push({ slug: acc.slug, name: acc.legalName, role });
               }
+            }
+          }
+
+          // Fallback: match corporateAccount directly
+          for (const acc of this.corporateAccountRows.values()) {
+            if (!acc.isActive || seen.has(acc.slug)) continue;
+            const contactDomain = acc.primaryContactEmail?.split('@')[1]?.toLowerCase().trim();
+            const isMatch =
+              acc.primaryContactEmail?.toLowerCase() === email.toLowerCase() ||
+              contactDomain === emailDomain ||
+              acc.slug.toLowerCase() === baseDomain ||
+              acc.slug.toLowerCase().replace(/s(?=hq)/, '') ===
+                (baseDomain || '').replace(/s(?=hq)/, '');
+
+            if (isMatch) {
+              seen.add(acc.slug);
+              const isContact = acc.primaryContactEmail?.toLowerCase() === email.toLowerCase();
+              const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
+              const mId = `mem-${userId.slice(0, 8)}-${acc.slug}`;
+              this.corporateMemberRows.set(mId, {
+                id: mId,
+                corporateId: acc.id,
+                userId,
+                role,
+                costCenterId: null,
+                workEmail: email,
+                isActive: true,
+                createdAt: new Date(),
+              });
+              results.push({ slug: acc.slug, name: acc.legalName, role });
             }
           }
         }

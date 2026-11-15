@@ -9,9 +9,18 @@ export function publicEnv() {
   if (!supabaseKey) {
     throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set (see .env.example)');
   }
+  const defaultApi =
+    process.env.VERCEL ||
+    process.env.VERCEL_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.NODE_ENV === 'production'
+      ? 'https://parkly-api-six.vercel.app'
+      : 'http://localhost:4000';
+  const rawApi = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = (rawApi && !rawApi.includes('localhost') ? rawApi : defaultApi).replace(/\/$/, '');
   return {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321',
     supabaseKey,
-    apiUrl: (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, ''),
+    apiUrl,
   };
 }

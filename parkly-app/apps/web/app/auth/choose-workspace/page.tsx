@@ -1,5 +1,6 @@
 import { Text } from '@parkly/ui';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
@@ -15,6 +16,8 @@ import { requireDriver } from '../../../lib/session';
 export const metadata: Metadata = { title: 'Select Workspace · Parkly' };
 
 export default async function ChooseWorkspacePage() {
+  const headerList = await headers();
+  const host = headerList.get('x-forwarded-host') || headerList.get('host') || undefined;
   const driver = await requireDriver('/auth/choose-workspace');
   const user = driver.me;
 
@@ -22,7 +25,7 @@ export default async function ChooseWorkspacePage() {
     redirect('/sign-in');
   }
 
-  const workspaces = resolveWorkspaces(user);
+  const workspaces = resolveWorkspaces(user, { hostOrOrigin: host });
 
   const getWorkspaceIcon = (type: WorkspaceItem['type']) => {
     switch (type) {

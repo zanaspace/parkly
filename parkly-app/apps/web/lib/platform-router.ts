@@ -80,9 +80,7 @@ export function resolveAppUrl(
     case 'operator':
       return `https://portal.parkly.ng${path}`;
     case 'corporate':
-      return options?.slug
-        ? `https://${slug}.parkly.ng${path}`
-        : `https://corporate.parkly.ng${path}`;
+      return `https://portal.parkly.ng/corp/${slug}${path}`;
     case 'admin':
       return `https://admin.parkly.ng${path}`;
   }
