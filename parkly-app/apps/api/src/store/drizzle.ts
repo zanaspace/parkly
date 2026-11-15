@@ -1951,6 +1951,7 @@ export function drizzleStore(db: Db): Store {
         // 2. Email domain auto-linking (e.g. oluwaseun.adeleye@sellytichq.com or @sellyticshq.com)
         if (email && email.includes('@')) {
           const emailDomain = email.split('@')[1]?.toLowerCase().trim();
+          const baseDomain = emailDomain?.replace(/\.(com|ng|io|org|co)$/, '');
           if (emailDomain) {
             const domainRows = await db
               .select({
@@ -1966,6 +1967,8 @@ export function drizzleStore(db: Db): Store {
                   or(
                     eq(sql`lower(${corporateDomains.emailDomain})`, emailDomain),
                     eq(sql`lower(${corporateDomains.customDomain})`, emailDomain),
+                    sql`replace(lower(${corporateDomains.emailDomain}), 'sellyticshq', 'sellytichq') = ${emailDomain}`,
+                    sql`replace(lower(${corporateDomains.emailDomain}), 'sellytichq', 'sellyticshq') = ${emailDomain}`,
                   ),
                   eq(corporateAccounts.isActive, true),
                 ),
@@ -1974,7 +1977,7 @@ export function drizzleStore(db: Db): Store {
             for (const d of domainRows) {
               if (!seen.has(d.slug)) {
                 seen.add(d.slug);
-                const isContact = d.primaryContactEmail.toLowerCase() === email.toLowerCase();
+                const isContact = d.primaryContactEmail?.toLowerCase() === email.toLowerCase();
                 const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
                 await db
                   .insert(corporateMembers)
@@ -1986,6 +1989,44 @@ export function drizzleStore(db: Db): Store {
                   })
                   .onConflictDoNothing();
                 results.push({ slug: d.slug, name: d.name, role });
+              }
+            }
+
+            // 2b. Match directly via corporateAccounts (primary contact or matching slug)
+            const accountRows = await db
+              .select({
+                corpId: corporateAccounts.id,
+                slug: corporateAccounts.slug,
+                name: corporateAccounts.legalName,
+                primaryContactEmail: corporateAccounts.primaryContactEmail,
+              })
+              .from(corporateAccounts)
+              .where(eq(corporateAccounts.isActive, true));
+
+            for (const acc of accountRows) {
+              if (seen.has(acc.slug)) continue;
+              const contactDomain = acc.primaryContactEmail?.split('@')[1]?.toLowerCase().trim();
+              const isMatch =
+                acc.primaryContactEmail?.toLowerCase() === email.toLowerCase() ||
+                contactDomain === emailDomain ||
+                acc.slug.toLowerCase() === baseDomain ||
+                acc.slug.toLowerCase().replace(/s(?=hq)/, '') ===
+                  (baseDomain || '').replace(/s(?=hq)/, '');
+
+              if (isMatch) {
+                seen.add(acc.slug);
+                const isContact = acc.primaryContactEmail?.toLowerCase() === email.toLowerCase();
+                const role = isContact ? 'CORP_ADMIN' : 'EMPLOYEE';
+                await db
+                  .insert(corporateMembers)
+                  .values({
+                    corporateId: acc.corpId,
+                    userId,
+                    role,
+                    workEmail: email,
+                  })
+                  .onConflictDoNothing();
+                results.push({ slug: acc.slug, name: acc.name, role });
               }
             }
           }

@@ -33,9 +33,9 @@ export function getTenantUrl(slug: string, hostOrOrigin?: string): DynamicTenant
   // 1. If running under official domain (parkly.ng)
   if (currentOrigin.includes('parkly.ng') && !currentOrigin.includes('vercel.app')) {
     return {
-      activeUrl: `https://${cleanSlug}.parkly.ng`,
-      displayUrl: `${cleanSlug}.parkly.ng`,
-      productionUrl,
+      activeUrl: `https://portal.parkly.ng/corp/${cleanSlug}`,
+      displayUrl: `portal.parkly.ng/corp/${cleanSlug}`,
+      productionUrl: `https://portal.parkly.ng/corp/${cleanSlug}`,
       isStagingOrDev: false,
     };
   }

@@ -65,7 +65,17 @@ export async function sendCode(_prev: SignInState, form: FormData): Promise<Sign
       email: contact,
       options: { shouldCreateUser: true, captchaToken: captchaToken(form) },
     });
-    if (error) return { step: 'start', method, error: authMessage(error) };
+    if (error) {
+      if (error.code === 'over_request_rate_limit') {
+        return {
+          step: 'start',
+          method,
+          error:
+            'Too many code attempts for this email. Please wait a few minutes before trying again, or sign in using your Corporate Join Code below if registered with a corporate fleet.',
+        };
+      }
+      return { step: 'start', method, error: authMessage(error) };
+    }
     return { step: 'code', method, contact };
   }
   try {
