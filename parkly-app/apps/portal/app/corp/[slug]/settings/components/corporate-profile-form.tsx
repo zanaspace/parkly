@@ -22,6 +22,7 @@ export function CorporateProfileForm({ tenant, slug }: { tenant: ResolvedTenant;
   const [primaryContactName, setPrimaryContactName] = useState(tenant.primaryContactName || '');
   const [primaryContactEmail, setPrimaryContactEmail] = useState(tenant.primaryContactEmail || '');
   const [primaryContactPhone, setPrimaryContactPhone] = useState(tenant.primaryContactPhone || '');
+  const [emailDomain, setEmailDomain] = useState(tenant.emailDomain || '');
 
   const [portalTitle, setPortalTitle] = useState(tenant.portalTitle);
   const [welcomeMessage, setWelcomeMessage] = useState(tenant.welcomeMessage || '');
@@ -48,6 +49,7 @@ export function CorporateProfileForm({ tenant, slug }: { tenant: ResolvedTenant;
         primaryContactName: primaryContactName.trim(),
         primaryContactEmail: primaryContactEmail.trim(),
         primaryContactPhone: primaryContactPhone.trim(),
+        emailDomain: emailDomain.trim().replace(/^@/, '') || undefined,
         branding: {
           logoUrl: logoUrl.trim() || undefined,
           primaryColor: primaryColor.trim(),
@@ -175,6 +177,14 @@ export function CorporateProfileForm({ tenant, slug }: { tenant: ResolvedTenant;
             label="Primary Phone Number"
             value={primaryContactPhone}
             onChange={(e) => setPrimaryContactPhone(e.target.value)}
+            required
+          />
+          <Input
+            label="Authorized Email Domain"
+            value={emailDomain}
+            onChange={(e) => setEmailDomain(e.target.value)}
+            helper="Staff with this domain (@domain) auto-verify via Employee SSO."
+            placeholder="e.g. sellyticshq.com"
             required
           />
         </div>

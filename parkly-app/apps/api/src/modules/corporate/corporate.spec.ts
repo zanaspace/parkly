@@ -148,7 +148,7 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
   it('updates corporate profile details and branding via PATCH /v1/corp/:slug', async () => {
     const w = world();
 
-    await w.store.corporate.createAccount({
+    const acct = await w.store.corporate.createAccount({
       slug: 'sellyticshq',
       legalName: 'Sellytics Global HQ',
       cacRcNumber: 'RC998877',
@@ -159,9 +159,15 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
       primaryContactPhone: '+2348011223344',
     });
 
+    await w.store.corporate.addDomain(acct.id, {
+      subdomain: 'sellyticshq',
+      emailDomain: 'sellyttichq.com',
+    });
+
     const updatePayload = {
       legalName: 'Sellytics Enterprise Technologies Ltd',
       headOfficeAddress: 'Admiralty Way, Lekki Phase 1, Lagos',
+      emailDomain: 'sellyticshq.com',
       branding: {
         primaryColor: '#00C48C',
         secondaryColor: '#111827',
@@ -175,11 +181,13 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     const body = res.body as {
       legalName: string;
       headOfficeAddress?: string;
+      emailDomains: string[];
       branding: { primaryColor: string; portalTitle: string; welcomeMessage: string };
     };
 
     expect(body.legalName).toBe('Sellytics Enterprise Technologies Ltd');
     expect(body.headOfficeAddress).toBe('Admiralty Way, Lekki Phase 1, Lagos');
+    expect(body.emailDomains).toContain('sellyticshq.com');
     expect(body.branding.primaryColor).toBe('#00C48C');
     expect(body.branding.portalTitle).toBe('Sellytics Smart Commute & Fleet Transit');
     expect(body.branding.welcomeMessage).toBe(

@@ -1584,6 +1584,16 @@ export class MemoryStore implements Store {
       this.corporateBrandingRows.set(corporateId, updated);
       return { ...updated };
     },
+    updateEmailDomain: async (corporateId, emailDomain) => {
+      for (const [id, d] of this.corporateDomainRows.entries()) {
+        if (d.corporateId === corporateId) {
+          const updated = { ...d, emailDomain };
+          this.corporateDomainRows.set(id, updated);
+          return { ...updated };
+        }
+      }
+      return null;
+    },
     listFleetDrivers: async (corporateId) => {
       return Array.from(this.corporateFleetDriverRows.values())
         .filter((d) => d.corporateId === corporateId && d.isActive)

@@ -12,53 +12,15 @@ import {
 } from '@parkly/contracts';
 import type { AppDeps } from '../../app.js';
 import { ApiError } from '../../lib/errors.js';
-import type {
-  CorporateAccountRow,
-  CorporateBrandingRow,
-  CorporateFleetDriverRow,
-} from '../../store/types.js';
-
-const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
-const SlugParam = z.object({ slug: z.string().min(1).max(64) });
-const DriverParam = z.object({ slug: z.string().min(1).max(64), driverId: z.string().uuid() });
-const DomainQuery = z.object({ domain: z.string().min(1) });
-
-function serializeDriver(d: CorporateFleetDriverRow) {
-  return {
-    ...d,
-    createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : String(d.createdAt),
-    updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
-  };
-}
-
-function formatTenant(
-  account: CorporateAccountRow,
-  branding: CorporateBrandingRow | null,
-  emailDomains: string[],
-) {
-  return {
-    id: account.id,
-    slug: account.slug,
-    legalName: account.legalName,
-    cacRcNumber: account.cacRcNumber,
-    industry: account.industry,
-    headOfficeAddress: account.headOfficeAddress,
-    primaryContactName: account.primaryContactName,
-    primaryContactEmail: account.primaryContactEmail,
-    primaryContactPhone: account.primaryContactPhone,
-    billingTier: account.billingTier,
-    branding: branding
-      ? {
-          logoUrl: branding.logoUrl,
-          primaryColor: branding.primaryColor,
-          secondaryColor: branding.secondaryColor,
-          portalTitle: branding.portalTitle,
-          welcomeMessage: branding.welcomeMessage,
-        }
-      : null,
-    emailDomains,
-  };
-}
+import type { CorporateAccountRow } from '../../store/types.js';
+import {
+  DomainQuery,
+  DriverParam,
+  formatTenant,
+  json,
+  serializeDriver,
+  SlugParam,
+} from './helpers.js';
 
 export function corporateRoutes(deps: AppDeps) {
   const app = new OpenAPIHono();
@@ -282,12 +244,20 @@ export function corporateRoutes(deps: AppDeps) {
         });
       }
 
+      let emailDomains = tenant.domains.map((d) => d.emailDomain);
+      if (input.emailDomain) {
+        const normalizedDomain = input.emailDomain.toLowerCase().trim();
+        const updatedDomain = await deps.store.corporate.updateEmailDomain(
+          tenant.account.id,
+          normalizedDomain,
+        );
+        if (updatedDomain) {
+          emailDomains = [updatedDomain.emailDomain];
+        }
+      }
+
       return c.json(
-        formatTenant(
-          account,
-          branding,
-          tenant.domains.map((d) => d.emailDomain),
-        ),
+        formatTenant(account, branding, emailDomains),
         200,
       );
     },
