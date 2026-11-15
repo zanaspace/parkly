@@ -131,15 +131,31 @@ export function resolveWorkspaces(
       ? user.corporateTenants
       : (options?.corporateTenants ?? []);
   for (const tenant of corpTenants) {
-    workspaces.push({
-      id: `corp-${tenant.slug}`,
-      title: `${tenant.name} Corporate Mobility`,
-      subtitle: 'Employee pass subsidies, cost centers, and fleet billing.',
-      type: 'corporate',
-      url: resolveAppUrl('corporate', { slug: tenant.slug, hostOrOrigin: options?.hostOrOrigin }),
-      badge: 'Enterprise',
-      badgeTone: 'verified',
-    });
+    const isCorpAdmin = tenant.role === 'CORP_ADMIN';
+    if (isCorpAdmin) {
+      workspaces.push({
+        id: `corp-${tenant.slug}`,
+        title: `${tenant.name} Corporate Admin Console`,
+        subtitle: 'Manage drivers, cost centers, subsidies, and fleet billing.',
+        type: 'corporate',
+        url: resolveAppUrl('corporate', { slug: tenant.slug, hostOrOrigin: options?.hostOrOrigin }),
+        badge: 'Enterprise Admin',
+        badgeTone: 'verified',
+      });
+    } else {
+      workspaces.push({
+        id: `corp-driver-${tenant.slug}`,
+        title: `${tenant.name} Corporate Driver`,
+        subtitle: 'Corporate parking pass and fleet mobility access.',
+        type: 'driver',
+        url: resolveAppUrl('driver', {
+          path: '/bookings',
+          hostOrOrigin: options?.hostOrOrigin,
+        }),
+        badge: 'Fleet Driver',
+        badgeTone: 'live',
+      });
+    }
   }
 
   // 4. Back-Office Administrative Staff

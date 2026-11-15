@@ -165,11 +165,11 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
 
   if (!destination || destination === '/bookings') {
     const workspaces = resolveWorkspaces(user);
-    const firstWs = workspaces[0];
-    if (workspaces.length > 1) {
+    const nonDriverWorkspaces = workspaces.filter((w) => w.type !== 'driver');
+    if (nonDriverWorkspaces.length > 0 && workspaces.length > 1) {
       destination = '/auth/choose-workspace';
-    } else if (firstWs && firstWs.type !== 'driver') {
-      destination = firstWs.url;
+    } else if (nonDriverWorkspaces.length === 1 && workspaces.length === 1) {
+      destination = nonDriverWorkspaces[0]?.url || '/bookings';
     } else {
       destination = '/bookings';
     }
