@@ -6,6 +6,7 @@ import { publicEnv } from '../../../../../lib/env';
 import { getTenantUrl } from '../../../../../lib/tenant-url';
 import type { ResolvedTenant } from '../../data/corporate-tenant';
 import { CorporateAddDriverForm } from './corporate-add-driver-form';
+import { CorporateDriverCard } from './corporate-driver-card';
 import { CorporateDriverRow } from './corporate-driver-row';
 
 export type FleetDriver = {
@@ -140,48 +141,69 @@ export function CorporateDriversRoster({ tenant, slug }: { tenant: ResolvedTenan
             No field drivers added yet. Use the form above to onboard your first driver.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                textAlign: 'left',
-                fontSize: '0.9rem',
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: '1px solid var(--pk-color-border-subtle)',
-                    color: 'var(--pk-color-text-secondary)',
-                  }}
-                >
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Driver Name</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Phone Number</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Plate Number</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Join Code</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Status</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {drivers.map((driver) => (
-                  <CorporateDriverRow
-                    key={driver.id}
-                    driver={driver}
-                    tenant={tenant}
-                    slug={slug}
-                    copiedCode={copiedCode}
-                    joinUrl={joinUrl}
-                    onCopy={handleCopy}
-                    onDriverUpdated={(updated) =>
-                      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
-                    }
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Desktop Table View */}
+            <div className="pk-driver-table-desktop">
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  textAlign: 'left',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: '1px solid var(--pk-color-border-subtle)',
+                      color: 'var(--pk-color-text-secondary)',
+                    }}
+                  >
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Driver Name</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Phone Number</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Plate Number</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Join Code</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Status</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drivers.map((driver) => (
+                    <CorporateDriverRow
+                      key={driver.id}
+                      driver={driver}
+                      tenant={tenant}
+                      slug={slug}
+                      copiedCode={copiedCode}
+                      joinUrl={joinUrl}
+                      onCopy={handleCopy}
+                      onDriverUpdated={(updated) =>
+                        setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
+                      }
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Stacked Card View */}
+            <div className="pk-driver-cards-mobile">
+              {drivers.map((driver) => (
+                <CorporateDriverCard
+                  key={driver.id}
+                  driver={driver}
+                  tenant={tenant}
+                  slug={slug}
+                  copiedCode={copiedCode}
+                  joinUrl={joinUrl}
+                  onCopy={handleCopy}
+                  onDriverUpdated={(updated) =>
+                    setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
+                  }
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

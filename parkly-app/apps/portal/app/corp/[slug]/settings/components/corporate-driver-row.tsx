@@ -242,13 +242,15 @@ export function CorporateDriverRow({
           <Badge variant="danger">Suspended</Badge>
         )}
       </td>
-      <td style={{ padding: '0.85rem 0.5rem', textAlign: 'right' }}>
+      <td style={{ padding: '0.85rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
         <div
           style={{
             display: 'flex',
             gap: '0.5rem',
             justifyContent: 'flex-end',
-            flexWrap: 'wrap',
+            alignItems: 'center',
+            minWidth: '300px',
+            whiteSpace: 'nowrap',
           }}
         >
           <button
@@ -259,6 +261,7 @@ export function CorporateDriverRow({
               fontSize: '0.75rem',
               padding: '0.25rem 0.6rem',
               color: 'var(--pk-color-text-primary)',
+              whiteSpace: 'nowrap',
             }}
           >
             ✏️ Edit
@@ -277,6 +280,7 @@ export function CorporateDriverRow({
               fontSize: '0.75rem',
               padding: '0.25rem 0.6rem',
               fontWeight: 600,
+              whiteSpace: 'nowrap',
             }}
           >
             💬 WhatsApp Invite
@@ -291,6 +295,7 @@ export function CorporateDriverRow({
               padding: '0.25rem 0.6rem',
               color:
                 copiedCode === `link-${driver.id}` ? '#10B981' : 'var(--pk-color-text-secondary)',
+              whiteSpace: 'nowrap',
             }}
           >
             {copiedCode === `link-${driver.id}` ? '✓ Copied' : '🔗 Copy Link'}
@@ -306,6 +311,7 @@ export function CorporateDriverRow({
                 padding: '0.25rem 0.6rem',
                 backgroundColor: '#059669',
                 borderColor: '#059669',
+                whiteSpace: 'nowrap',
               }}
             >
               Approve
@@ -320,6 +326,7 @@ export function CorporateDriverRow({
                 padding: '0.25rem 0.6rem',
                 color: '#EF4444',
                 borderColor: '#EF4444',
+                whiteSpace: 'nowrap',
               }}
             >
               Suspend
