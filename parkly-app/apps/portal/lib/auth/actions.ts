@@ -94,8 +94,8 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
 
 // --- corporate OAuth & admin registration -----------------------------------
 
-/** Initiates Google Workspace SSO for corporate admin onboarding or sign-in. */
-export async function signInWithGoogle(redirectTo = '/corporate/onboarding'): Promise<void> {
+/** Returns the Google Workspace OAuth URL for corporate admin onboarding or sign-in. */
+export async function getGoogleOAuthUrl(redirectTo = '/corporate/onboarding'): Promise<string> {
   const supabase = await createClient();
   const baseOrigin = await origin();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -107,7 +107,13 @@ export async function signInWithGoogle(redirectTo = '/corporate/onboarding'): Pr
   if (error || !data.url) {
     throw new Error(error?.message || 'Could not start Google sign in');
   }
-  redirect(data.url);
+  return data.url;
+}
+
+/** Initiates Google Workspace SSO for corporate admin onboarding or sign-in. */
+export async function signInWithGoogle(redirectTo = '/corporate/onboarding'): Promise<void> {
+  const url = await getGoogleOAuthUrl(redirectTo);
+  redirect(url);
 }
 
 /** Registers a corporate administrator with email + password in Supabase Auth. */

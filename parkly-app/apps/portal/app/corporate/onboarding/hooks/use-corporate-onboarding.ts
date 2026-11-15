@@ -73,7 +73,13 @@ export function useCorporateOnboarding(
       return false;
     }
 
-    if (!currentUser?.signedIn && fields.password) {
+    if (!currentUser?.signedIn) {
+      if (!fields.password) {
+        setError(
+          'Please enter a password for your corporate admin account (or sign in with Google).',
+        );
+        return false;
+      }
       if (fields.password.length < 8) {
         setError('Password must be at least 8 characters long.');
         return false;
