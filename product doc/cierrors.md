@@ -1,51 +1,56 @@
-20s
-Run pnpm lint
+  env:
+    GITHUB_TOKEN: ***
+(node:2385) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:2385) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+[zanaspace] is an individual user. No license key is required.
+gitleaks version: 8.24.3
+Version to install: 8.24.3 (target directory: /tmp/gitleaks-8.24.3)
+Cache hit for: gitleaks-cache-8.24.3-linux-x64
+Received 5717485 of 5717485 (100.0%), 6.1 MBs/sec
+Cache Size: ~5 MB (5717485 B)
+/usr/bin/tar -xf /home/runner/work/_temp/4b2ae502-a2c1-4129-8309-7fe7e9ca9dce/cache.tzst -P -C /home/runner/work/parkly/parkly --use-compress-program unzstd
+Cache restored successfully
+Gitleaks restored from cache
+event type: push
+gitleaks cmd: gitleaks detect --redact -v --exit-code=2 --report-format=sarif --report-path=results.sarif --log-level=debug --log-opts=-1
+/tmp/gitleaks-8.24.3/gitleaks detect --redact -v --exit-code=2 --report-format=sarif --report-path=results.sarif --log-level=debug --log-opts=-1
 
-> parkly@ lint /home/runner/work/parkly/parkly/parkly-app
-> turbo run lint
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
 
+10:52AM DBG using github.com/wasilibs/go-re2 regex engine
+10:52AM DBG no gitleaks config found in path .gitleaks.toml, using default gitleaks config
+10:52AM DBG found .gitleaksignore file: .gitleaksignore
+10:52AM DBG found .gitleaksignore file: .gitleaksignore
+10:52AM DBG executing: /usr/bin/git -C . log -p -U0 -1
+10:52AM DBG SCM platform parsed from host host=github.com platform=github
+Finding:     "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "REDACTED"
+Secret:      REDACTED
+RuleID:      generic-api-key
+Entropy:     4.811499
+File:        parkly-app/apps/mobile/eas.json
+Line:        12
+Commit:      d70b54e17048b461f44c44c26caa7470b70ae377
+Author:      zanaspace
+Email:       sellytics@gmail.com
+Date:        2026-11-20T10:52:13Z
+Fingerprint: d70b54e17048b461f44c44c26caa7470b70ae377:parkly-app/apps/mobile/eas.json:generic-api-key:12
+Link:        https://github.com/zanaspace/parkly/blob/d70b54e17048b461f44c44c26caa7470b70ae377/parkly-app/apps/mobile/eas.json#L12
 
-Attention:
-Turborepo now collects completely anonymous telemetry regarding usage.
-This information is used to shape the Turborepo roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://turborepo.dev/docs/telemetry
-
-
-   • Packages in scope: @parkly/admin, @parkly/api, @parkly/config, @parkly/contracts, @parkly/db, @parkly/domain, @parkly/mobile, @parkly/portal, @parkly/tokens, @parkly/ui, @parkly/ui-native, @parkly/web
-   • Running lint in 12 packages
-   • Remote caching disabled
-
-@parkly/tokens:build
-@parkly/tokens:lint
-@parkly/domain:build
-@parkly/ui-native:lint
-@parkly/db:build
-@parkly/mobile:lint
-@parkly/web:lint
-cache miss, executing 36dbf9b5f091a884
-
-> @parkly/web@0.0.0 lint /home/runner/work/parkly/parkly/parkly-app/apps/web
-> eslint .
-
-
-/home/runner/work/parkly/parkly/parkly-app/apps/web/lib/auth/actions.ts
-Error:   145:7  error  Unexpected console statement  no-console
-Error:   148:5  error  Unexpected console statement  no-console
-
-✖ 2 problems (2 errors, 0 warnings)
-
- ELIFECYCLE  Command failed with exit code 1.
-@parkly/admin:lint
-@parkly/api:lint
-Error: command (/home/runner/work/parkly/parkly/parkly-app/apps/web) /home/runner/setup-pnpm/node_modules/.bin/pnpm run lint exited (1)
-@parkly/web#lint:  ERROR  command (/home/runner/work/parkly/parkly/parkly-app/apps/web) /home/runner/setup-pnpm/node_modules/.bin/pnpm run lint exited (1)
-@parkly/portal:lint
-
- Tasks:    13 successful, 17 total
-Cached:    0 cached, 17 total
-  Time:    19.6s 
-Failed:    @parkly/web#lint
-
- ELIFECYCLE  Command failed with exit code 1.
-Error: Process completed with exit code 1.
+10:52AM INF 1 commits scanned.
+10:52AM DBG Note: this number might be smaller than expected due to commits with no additions
+10:52AM INF scanned ~210 bytes (210 bytes) in 153ms
+10:52AM WRN leaks found: 1
+Artifact name is valid!
+Root directory input is valid!
+Beginning upload of artifact content to blob storage
+Uploaded bytes 7131
+Finished uploading artifact content to blob storage!
+SHA256 digest of uploaded artifact zip is a1ea86bb283db38a434ae214f2cf6872f624df81865d162ad4ddd5f2f2c035da
+Finalizing artifact upload
+Artifact gitleaks-results.sarif.zip successfully finalized. Artifact ID 14621674830
+Warning: 🛑 Leaks detected, see job summary for details

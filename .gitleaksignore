@@ -2,3 +2,4 @@ eccd90ef4803f762f87db421a52a48b457a3a82d:parkly-app/apps/web/lib/env.ts:jwt:2
 eccd90ef4803f762f87db421a52a48b457a3a82d:parkly-app/apps/admin/lib/env.ts:jwt:2
 da0963caaec7af5fa41740699530ed455369478b:.github/workflows/ci.yml:generic-api-key:43
 eccd90ef4803f762f87db421a52a48b457a3a82d:parkly-app/apps/portal/lib/env.ts:jwt:2
+d70b54e17048b461f44c44c26caa7470b70ae377:parkly-app/apps/mobile/eas.json:generic-api-key:12
