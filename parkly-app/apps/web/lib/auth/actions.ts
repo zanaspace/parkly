@@ -141,11 +141,10 @@ export async function verifyCode(_prev: SignInState, form: FormData): Promise<Si
           method: 'POST',
           body: { type: 'PRIVACY', version: v.privacy, granted: true },
         });
-    } catch (consentErr) {
-      console.warn('Non-fatal: could not sync consents during sign-in', consentErr);
+    } catch {
+      // Non-fatal: could not sync consents during sign-in
     }
   } catch (err: unknown) {
-    console.error('verifyCode bootstrap error:', err);
     await supabase.auth.signOut({ scope: 'local' });
     const detail =
       err instanceof ApiProblem

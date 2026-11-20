@@ -25,10 +25,7 @@ export async function buildMe(
   const [consents, current, corporateTenants] = await Promise.all([
     store.consents.latest(user.id),
     legalVersions(store),
-    store.corporate.findTenantsForUser(user.id, email).catch((err) => {
-      console.warn('Failed to find corporate tenants for user:', err);
-      return [];
-    }),
+    store.corporate.findTenantsForUser(user.id, email).catch(() => []),
   ]);
   const terms = consents.TERMS?.granted ? consents.TERMS.version : null;
   const privacy = consents.PRIVACY?.granted ? consents.PRIVACY.version : null;

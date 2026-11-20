@@ -126,7 +126,6 @@ export async function verifySignInCode(
       body: { deviceId: await getOrCreateDeviceId(), platform: 'WEB' },
     });
   } catch (err: unknown) {
-    console.error('verifySignInCode bootstrap error:', err);
     await supabase.auth.signOut({ scope: 'local' });
     const detail = err instanceof Error ? ` (${err.message})` : '';
     return {
