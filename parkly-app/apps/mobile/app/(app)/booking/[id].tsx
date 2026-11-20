@@ -179,6 +179,12 @@ export default function BookingScreen() {
 
   const handlePayOverstay = async () => {
     if (!booking) return;
+    if (!booking.stay?.checkedOutAt) {
+      setActionError(
+        'Please check out first. Overstay charges continue calculating until checkout.',
+      );
+      return;
+    }
     setActionLoading(true);
     setActionError(null);
     try {
@@ -569,33 +575,63 @@ export default function BookingScreen() {
           booking.stay.overstayStatus === 'UNPAID') && (
           <View
             style={{
-              backgroundColor: theme.color.status.danger.bg,
+              backgroundColor: booking.stay.checkedOutAt
+                ? theme.color.status.danger.bg
+                : theme.color.status.warning.bg,
               borderLeftWidth: 4,
-              borderLeftColor: theme.color.status.danger.icon,
+              borderLeftColor: booking.stay.checkedOutAt
+                ? theme.color.status.danger.icon
+                : theme.color.status.warning.icon,
               borderRadius: theme.radius.surface,
               padding: theme.space.inset.md,
               gap: theme.space.stack.sm,
             }}
           >
             <View style={{ gap: 2 }}>
-              <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
-                {`Unpaid overstay due · ${formatNaira(booking.stay.overstayKobo)}`}
+              <Text
+                variant="label.lg"
+                style={{
+                  color: booking.stay.checkedOutAt
+                    ? theme.color.status.danger.fg
+                    : theme.color.status.warning.fg,
+                }}
+              >
+                {booking.stay.checkedOutAt
+                  ? `Unpaid overstay due · ${formatNaira(booking.stay.overstayKobo)}`
+                  : `Overstay in progress · ${formatNaira(booking.stay.overstayKobo)}`}
               </Text>
               <Text variant="body.sm" tone="secondary">
-                {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
+                {booking.stay.checkedOutAt
+                  ? `Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`
+                  : `Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Check out at the barrier or attendant first to finalize your balance.`}
               </Text>
             </View>
-            <Button
-              label={
-                actionLoading
-                  ? 'Connecting...'
-                  : `Pay overstay (${formatNaira(booking.stay.overstayKobo)})`
-              }
-              variant="danger"
-              fullWidth
-              disabled={actionLoading}
-              onPress={handlePayOverstay}
-            />
+            {booking.stay.checkedOutAt ? (
+              <Button
+                label={
+                  actionLoading
+                    ? 'Connecting...'
+                    : `Pay overstay (${formatNaira(booking.stay.overstayKobo)})`
+                }
+                variant="danger"
+                fullWidth
+                disabled={actionLoading}
+                onPress={handlePayOverstay}
+              />
+            ) : (
+              <Button
+                label="Check out to finalize payment"
+                variant="secondary"
+                fullWidth
+                disabled={actionLoading}
+                onPress={() => {
+                  setActionError(null);
+                  setActionSuccess(
+                    'Please tap "Check out (scan barrier or attendant)" above to close your stay first.',
+                  );
+                }}
+              />
+            )}
           </View>
         )}
 

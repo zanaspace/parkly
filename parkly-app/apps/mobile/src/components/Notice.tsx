@@ -10,9 +10,20 @@ const PREFIX: Record<Kind, string> = {
 };
 
 /** Inline status message. Colour plus a text prefix, never colour alone (doc 04 accessibility). */
-export function Notice({ kind = 'danger', message }: { kind?: Kind; message: string }) {
+export function Notice({
+  kind = 'danger',
+  message,
+  prefix,
+  hidePrefix = false,
+}: {
+  kind?: Kind;
+  message: string;
+  prefix?: string;
+  hidePrefix?: boolean;
+}) {
   const theme = useTheme();
   const c = theme.color.status[kind];
+  const label = hidePrefix ? message : `${prefix ?? PREFIX[kind]}: ${message}`;
   return (
     <View
       accessibilityRole={kind === 'danger' ? 'alert' : undefined}
@@ -24,7 +35,7 @@ export function Notice({ kind = 'danger', message }: { kind?: Kind; message: str
       }}
     >
       <Text variant="body.sm" style={{ color: c.fg }}>
-        {`${PREFIX[kind]}: ${message}`}
+        {label}
       </Text>
     </View>
   );

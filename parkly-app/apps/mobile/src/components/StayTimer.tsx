@@ -85,10 +85,11 @@ export function StayTimer({ booking }: { booking: Booking }) {
         <>
           <Text variant="heading.xl">+{clockLabel(t.overMs)}</Text>
           <Notice
-            kind="danger"
-            message={`Overstay so far: ${formatNaira(overstay)}${
+            kind="warning"
+            prefix="Overstay"
+            message={`So far: ${formatNaira(overstay)}${
               booking.overstay ? ` (${formatNaira(booking.overstay.per15Kobo)} per 15 min)` : ''
-            }. It is added when you check out.`}
+            }. It will be finalized and settled when you check out.`}
           />
         </>
       ) : null}
