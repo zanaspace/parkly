@@ -1,4 +1,4 @@
-15s
+20s
 Run pnpm lint
 
 > parkly@ lint /home/runner/work/parkly/parkly/parkly-app
@@ -19,15 +19,9 @@ https://turborepo.dev/docs/telemetry
 @parkly/tokens:build
 @parkly/tokens:lint
 @parkly/domain:build
-@parkly/ui-native:build
 @parkly/ui-native:lint
-@parkly/ui:lint
-@parkly/ui:build
-@parkly/domain:lint
-@parkly/db:lint
-@parkly/contracts:lint
-@parkly/contracts:build
 @parkly/db:build
+@parkly/mobile:lint
 @parkly/web:lint
 cache miss, executing 36dbf9b5f091a884
 
@@ -42,17 +36,15 @@ Error:   148:5  error  Unexpected console statement  no-console
 ✖ 2 problems (2 errors, 0 warnings)
 
  ELIFECYCLE  Command failed with exit code 1.
-@parkly/api:lint
-@parkly/portal:lint
 @parkly/admin:lint
-@parkly/mobile:lint
+@parkly/api:lint
 Error: command (/home/runner/work/parkly/parkly/parkly-app/apps/web) /home/runner/setup-pnpm/node_modules/.bin/pnpm run lint exited (1)
 @parkly/web#lint:  ERROR  command (/home/runner/work/parkly/parkly/parkly-app/apps/web) /home/runner/setup-pnpm/node_modules/.bin/pnpm run lint exited (1)
- ERROR  run failed: command  exited (1)
+@parkly/portal:lint
 
- Tasks:    12 successful, 17 total
+ Tasks:    13 successful, 17 total
 Cached:    0 cached, 17 total
-  Time:    14.498s 
+  Time:    19.6s 
 Failed:    @parkly/web#lint
 
  ELIFECYCLE  Command failed with exit code 1.
