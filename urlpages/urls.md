@@ -10,3 +10,9 @@ pnpm --filter @parkly/mobile tunnel # driver mobile (Expo) → :8081
 pnpm --filter @parkly/portal dev
 pnpm --filter @parkly/admin dev
 pnpm --filter @parkly/mobile tunnel
+
+
+
+-----android build apk--code
+cd parkly-app\apps\mobile
+npx eas-cli build --platform android --profile preview

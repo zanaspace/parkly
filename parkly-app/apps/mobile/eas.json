@@ -9,6 +9,7 @@
       "pnpm": "10.34.7",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://qbheoilyuvudiefubdco.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_HrJbKNmjEKpLxVlge_qBGA_kzzvnHF6",
         "EXPO_PUBLIC_API_URL": "https://parkly-api-six.vercel.app",
         "EXPO_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFsyOLeaV5XGi7en",
         "EXPO_PUBLIC_TURNSTILE_ORIGIN": "https://parkly-web-two.vercel.app"
