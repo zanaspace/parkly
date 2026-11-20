@@ -1,20 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { Booking } from '@parkly/contracts';
+import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
 import { formatNaira } from '@parkly/domain/money';
 import { Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
 import { api, tickets } from '../../src/lib/client';
-import { useAuth } from '../../src/auth/AuthProvider';
-import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
-import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
 import { upcomingTabLabel } from '../../src/logic/booking-tabs';
+import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
 
-/** My bookings (FR-BOOK-004): upcoming first, then past. */
+/** My bookings (FR-BOOK-004): upcoming first, then past. Enterprise OPay-style cards. */
 export default function MyBookings() {
   const theme = useTheme();
   const router = useRouter();
@@ -92,7 +93,9 @@ export default function MyBookings() {
           accessibilityLabel={`${b.lot.name}, ${bookingWindowLabel(b)}, ${statusLabel(b.status)}`}
           onPress={() => router.push({ pathname: '/booking/[id]', params: { id: b.id } })}
           style={{
-            gap: theme.space.stack.xs,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
             padding: theme.card.padding,
             borderRadius: theme.card.radius,
             borderWidth: 1,
@@ -100,18 +103,59 @@ export default function MyBookings() {
             backgroundColor: theme.card.bg,
           }}
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text variant="label.lg" style={{ flex: 1 }}>
-              {b.lot.name}
-            </Text>
-            <Text variant="code.md">{b.code}</Text>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons
+              name={
+                b.status === 'CHECKED_IN'
+                  ? 'time-outline'
+                  : b.status === 'COMPLETED'
+                    ? 'checkmark-circle-outline'
+                    : 'car-outline'
+              }
+              size={22}
+              color={theme.color.text.brand}
+            />
           </View>
-          <Text variant="body.sm">{bookingWindowLabel(b)}</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text variant="label.md" style={{ flex: 1 }} numberOfLines={1}>
+                {b.lot.name}
+              </Text>
+              <Text variant="code.sm">{b.code}</Text>
+            </View>
             <Text variant="body.sm" tone="secondary">
-              {statusLabel(b.status)} · {b.vehicle.plate}
+              {bookingWindowLabel(b)}
             </Text>
-            <Text variant="body.sm">{formatNaira(b.totalKobo)}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 2,
+              }}
+            >
+              <Text variant="label.sm" tone={b.status === 'CHECKED_IN' ? 'brand' : 'secondary'}>
+                {statusLabel(b.status)} · {b.vehicle.plate}
+              </Text>
+              <Text variant="label.sm" style={{ fontWeight: '600' }}>
+                {formatNaira(b.totalKobo)}
+              </Text>
+            </View>
           </View>
         </Pressable>
       ))}

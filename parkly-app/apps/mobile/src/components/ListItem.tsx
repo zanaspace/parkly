@@ -1,11 +1,13 @@
 import { Text, useTheme } from '@parkly/ui-native';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
-/** Settings/menu row (doc 15 §2 row 29): label + optional helper text, chevron or spinner. */
+/** Settings/menu row (doc 15 §2 row 29): optional leading icon badge, label + optional helper text, chevron or spinner. */
 export function ListItem({
   label,
   description,
   onPress,
+  icon,
+  iconBg,
   tone = 'default',
   loading = false,
   disabled = false,
@@ -14,6 +16,8 @@ export function ListItem({
   label: string;
   description?: string;
   onPress: () => void;
+  icon?: React.ReactNode;
+  iconBg?: string;
   tone?: 'default' | 'danger';
   loading?: boolean;
   disabled?: boolean;
@@ -38,6 +42,24 @@ export function ListItem({
         backgroundColor: pressed ? theme.color.bg.subtle : 'transparent',
       })}
     >
+      {icon ? (
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor:
+              iconBg ??
+              (tone === 'danger'
+                ? theme.color.status.danger.bg
+                : theme.color.bg['brand-subtle']),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {icon}
+        </View>
+      ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text
           variant="label.md"

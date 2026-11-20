@@ -1,9 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Text, useTheme } from '@parkly/ui-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type TabKey = 'search' | 'bookings' | 'passes' | 'account';
+
+type TabConfig = {
+  key: TabKey;
+  label: string;
+  route: '/home' | '/bookings' | '/passes' | '/account';
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  inactiveIcon: keyof typeof Ionicons.glyphMap;
+};
 
 export function BottomNav() {
   const theme = useTheme();
@@ -19,15 +28,35 @@ export function BottomNav() {
         ? 'account'
         : 'search';
 
-  const tabs: Array<{
-    key: TabKey;
-    label: string;
-    route: '/home' | '/bookings' | '/passes' | '/account';
-  }> = [
-    { key: 'search', label: 'Search', route: '/home' },
-    { key: 'bookings', label: 'Bookings', route: '/bookings' },
-    { key: 'passes', label: 'Passes', route: '/passes' },
-    { key: 'account', label: 'Account', route: '/account' },
+  const tabs: TabConfig[] = [
+    {
+      key: 'search',
+      label: 'Search',
+      route: '/home',
+      activeIcon: 'search',
+      inactiveIcon: 'search-outline',
+    },
+    {
+      key: 'bookings',
+      label: 'Bookings',
+      route: '/bookings',
+      activeIcon: 'calendar',
+      inactiveIcon: 'calendar-outline',
+    },
+    {
+      key: 'passes',
+      label: 'Passes',
+      route: '/passes',
+      activeIcon: 'card',
+      inactiveIcon: 'card-outline',
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      route: '/account',
+      activeIcon: 'person',
+      inactiveIcon: 'person-outline',
+    },
   ];
 
   return (
@@ -43,6 +72,9 @@ export function BottomNav() {
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
+        const iconName = isActive ? tab.activeIcon : tab.inactiveIcon;
+        const color = isActive ? theme.color.text.brand : theme.color.text.secondary;
+
         return (
           <Pressable
             key={tab.key}
@@ -59,24 +91,27 @@ export function BottomNav() {
               flex: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingTop: 10,
-              paddingBottom: 8,
+              paddingTop: 8,
+              paddingBottom: 6,
+              gap: 4,
             }}
           >
             <View
               style={{
-                height: 3,
-                width: 20,
-                borderRadius: theme.radius.full,
-                backgroundColor: isActive ? theme.color.bg.brand : 'transparent',
-                marginBottom: 6,
+                width: 32,
+                height: 28,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-            />
+            >
+              <Ionicons name={iconName} size={22} color={color} />
+            </View>
             <Text
               variant="label.sm"
               style={{
-                color: isActive ? theme.color.text.brand : theme.color.text.secondary,
+                color,
                 fontWeight: isActive ? '700' : '500',
+                fontSize: 11,
               }}
             >
               {tab.label}

@@ -1,4 +1,4 @@
-import type { Vehicle } from '@parkly/contracts';
+import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { useAuth } from '../../src/auth/AuthProvider';
 import { ListItem, ListItemGroup } from '../../src/components/ListItem';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
+import { VehicleRow } from '../../src/components/VehicleRow';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
 import { confirm } from '../../src/lib/confirm';
@@ -16,81 +17,6 @@ const MAX_VEHICLES = 5;
 
 function errorText(err: unknown) {
   return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-}
-
-function VehicleRow({
-  vehicle,
-  onChanged,
-  onError,
-}: {
-  vehicle: Vehicle;
-  onChanged: () => Promise<void>;
-  onError: (m: string) => void;
-}) {
-  const theme = useTheme();
-  const [busy, setBusy] = useState(false);
-  const details = [vehicle.colour, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-
-  async function run(action: () => Promise<unknown>) {
-    setBusy(true);
-    try {
-      await action();
-      await onChanged();
-    } catch (err) {
-      onError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <View
-      style={{
-        backgroundColor: theme.card.bg,
-        borderColor: theme.card.border,
-        borderWidth: 1,
-        borderRadius: theme.card.radius,
-        padding: theme.card.padding,
-        gap: theme.space.stack.sm,
-      }}
-    >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="code.md">{vehicle.plateNorm}</Text>
-        {vehicle.isDefault ? (
-          <Text variant="label.sm" tone="brand">
-            Default
-          </Text>
-        ) : null}
-      </View>
-      {details ? <Text tone="secondary">{details}</Text> : null}
-      <View style={{ flexDirection: 'row', gap: theme.space.inline.sm, flexWrap: 'wrap' }}>
-        {!vehicle.isDefault ? (
-          <Button
-            label="Make default"
-            size="sm"
-            variant="secondary"
-            disabled={busy}
-            onPress={() => void run(() => api.setDefaultVehicle(vehicle.id))}
-          />
-        ) : null}
-        <Button
-          label="Remove"
-          size="sm"
-          variant="ghost"
-          disabled={busy}
-          accessibilityHint={`Removes ${vehicle.plateNorm} from your account`}
-          onPress={() =>
-            void confirm(
-              'Remove vehicle?',
-              `${vehicle.plateNorm} will be removed from your account.`,
-              'Remove',
-              true,
-            ).then((ok) => (ok ? run(() => api.removeVehicle(vehicle.id)) : undefined))
-          }
-        />
-      </View>
-    </View>
-  );
 }
 
 /** D-26 Account settings: profile, vehicles, sign-out, deletion request. */
@@ -212,9 +138,12 @@ export default function Account() {
         </Text>
         {me?.phoneLast4 ? <Text tone="secondary">{`Phone ending ${me.phoneLast4}`}</Text> : null}
         {me?.isVerifiedDriver ? (
-          <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
-            ✓ Verified Driver (Tier 2 KYC)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="shield-checkmark" size={16} color={theme.badge.verified.fg} />
+            <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
+              Verified Driver (Tier 2 KYC)
+            </Text>
+          </View>
         ) : null}
       </View>
 
@@ -229,7 +158,10 @@ export default function Account() {
             gap: theme.space.stack.sm,
           }}
         >
-          <Text variant="heading.sm">Verified Driver (60-second check)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="shield-outline" size={20} color={theme.color.text.brand} />
+            <Text variant="heading.sm">Verified Driver (60-second check)</Text>
+          </View>
           <Text variant="body.sm" tone="secondary">
             Required for 30-day monthly passes and gated car parks. Verified against FRSC or NIMC;
             we only store a masked reference.
@@ -249,7 +181,7 @@ export default function Account() {
                 justifyContent: 'center',
                 alignItems: 'center',
                 paddingVertical: theme.space[2],
-                paddingHorizontal: theme.space[2],
+                paddingHorizontal: theme.space[3],
                 borderRadius: theme.radius.pill,
                 borderWidth: 1,
                 borderColor:
@@ -270,7 +202,7 @@ export default function Account() {
                   fontWeight: method === 'FRSC_LICENSE' ? '600' : '400',
                 }}
               >
-                FRSC License
+                FRSC Driver’s License
               </Text>
             </Pressable>
             <Pressable
@@ -287,7 +219,7 @@ export default function Account() {
                 justifyContent: 'center',
                 alignItems: 'center',
                 paddingVertical: theme.space[2],
-                paddingHorizontal: theme.space[2],
+                paddingHorizontal: theme.space[3],
                 borderRadius: theme.radius.pill,
                 borderWidth: 1,
                 borderColor:
@@ -360,41 +292,48 @@ export default function Account() {
       <Text variant="heading.sm">Settings</Text>
       <ListItemGroup>
         <ListItem
+          icon={<Ionicons name="download-outline" size={18} color={theme.color.text.brand} />}
           label="Download my data"
-          description="A copy of the personal data Parkly holds about you. The link works for 15 minutes."
+          description="A copy of the personal data Parkly holds about you."
           loading={busy === 'export'}
           onPress={() => void downloadMyData()}
         />
         <ListItem
+          icon={<Ionicons name="document-text-outline" size={18} color={theme.color.text.secondary} />}
           label="Terms of Service"
           onPress={() => void Linking.openURL(legalUrl('terms'))}
         />
         <ListItem
+          icon={<Ionicons name="shield-checkmark-outline" size={18} color={theme.color.text.secondary} />}
           label="Privacy Notice"
           onPress={() => void Linking.openURL(legalUrl('privacy'))}
         />
         <ListItem
+          icon={<Ionicons name="log-out-outline" size={18} color={theme.color.text.secondary} />}
           label="Sign out of this phone"
           loading={busy === 'device'}
           onPress={() => void signOut('device')}
         />
         <ListItem
+          icon={<Ionicons name="phone-portrait-outline" size={18} color={theme.color.text.secondary} />}
           label="Sign out everywhere"
           loading={busy === 'all'}
           onPress={() => void signOut('all')}
         />
         {me?.status === 'PENDING_DELETION' ? (
           <ListItem
+            icon={<Ionicons name="refresh-outline" size={18} color={theme.color.text.brand} />}
             label="Keep my account"
-            description="Your account is set to be erased. You can still change your mind for 30 days after you asked."
+            description="Your account is set to be erased. You can change your mind within 30 days."
             loading={busy === 'keep'}
             showChevron={false}
             onPress={() => void keepAccount()}
           />
         ) : (
           <ListItem
+            icon={<Ionicons name="trash-outline" size={18} color={theme.color.status.danger.fg} />}
             label="Delete my account"
-            description="Your details are erased after 30 days. Until then you can change your mind."
+            description="Your details are erased after 30 days."
             tone="danger"
             loading={busy === 'delete'}
             showChevron={false}
