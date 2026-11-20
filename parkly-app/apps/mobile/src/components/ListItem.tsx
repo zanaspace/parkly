@@ -50,9 +50,7 @@ export function ListItem({
             borderRadius: 18,
             backgroundColor:
               iconBg ??
-              (tone === 'danger'
-                ? theme.color.status.danger.bg
-                : theme.color.bg['brand-subtle']),
+              (tone === 'danger' ? theme.color.status.danger.bg : theme.color.bg['brand-subtle']),
             alignItems: 'center',
             justifyContent: 'center',
           }}
