@@ -299,12 +299,20 @@ export default function Account() {
           onPress={() => void downloadMyData()}
         />
         <ListItem
-          icon={<Ionicons name="document-text-outline" size={18} color={theme.color.text.secondary} />}
+          icon={
+            <Ionicons name="document-text-outline" size={18} color={theme.color.text.secondary} />
+          }
           label="Terms of Service"
           onPress={() => void Linking.openURL(legalUrl('terms'))}
         />
         <ListItem
-          icon={<Ionicons name="shield-checkmark-outline" size={18} color={theme.color.text.secondary} />}
+          icon={
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={18}
+              color={theme.color.text.secondary}
+            />
+          }
           label="Privacy Notice"
           onPress={() => void Linking.openURL(legalUrl('privacy'))}
         />
@@ -315,7 +323,9 @@ export default function Account() {
           onPress={() => void signOut('device')}
         />
         <ListItem
-          icon={<Ionicons name="phone-portrait-outline" size={18} color={theme.color.text.secondary} />}
+          icon={
+            <Ionicons name="phone-portrait-outline" size={18} color={theme.color.text.secondary} />
+          }
           label="Sign out everywhere"
           loading={busy === 'all'}
           onPress={() => void signOut('all')}
