@@ -22,13 +22,12 @@ export function BottomNav() {
   const tabs: Array<{
     key: TabKey;
     label: string;
-    icon: string;
     route: '/home' | '/bookings' | '/passes' | '/account';
   }> = [
-    { key: 'search', label: 'Search', icon: '🔍', route: '/home' },
-    { key: 'bookings', label: 'Bookings', icon: '🎟️', route: '/bookings' },
-    { key: 'passes', label: 'Passes', icon: '🪪', route: '/passes' },
-    { key: 'account', label: 'Account', icon: '👤', route: '/account' },
+    { key: 'search', label: 'Search', route: '/home' },
+    { key: 'bookings', label: 'Bookings', route: '/bookings' },
+    { key: 'passes', label: 'Passes', route: '/passes' },
+    { key: 'account', label: 'Account', route: '/account' },
   ];
 
   return (
@@ -39,10 +38,7 @@ export function BottomNav() {
         borderTopWidth: 1,
         borderTopColor: theme.color.border.default,
         paddingBottom: Math.max(insets.bottom, 8),
-        paddingTop: 8,
         paddingHorizontal: theme.space.layout.gutter,
-        alignItems: 'center',
-        justifyContent: 'space-around',
       }}
     >
       {tabs.map((tab) => {
@@ -59,35 +55,32 @@ export function BottomNav() {
               }
             }}
             hitSlop={8}
-            style={({ pressed }) => ({
+            style={{
               flex: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingVertical: 6,
-              borderRadius: theme.radius.md,
-              opacity: pressed ? 0.7 : 1,
-              backgroundColor: isActive ? theme.color.bg['brand-subtle'] : 'transparent',
-            })}
+              paddingTop: 10,
+              paddingBottom: 8,
+            }}
           >
-            <View style={{ alignItems: 'center', gap: 2 }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  marginBottom: 1,
-                }}
-              >
-                {tab.icon}
-              </Text>
-              <Text
-                variant="label.sm"
-                style={{
-                  color: isActive ? theme.color.text.brand : theme.color.text.secondary,
-                  fontWeight: isActive ? '700' : '500',
-                }}
-              >
-                {tab.label}
-              </Text>
-            </View>
+            <View
+              style={{
+                height: 3,
+                width: 20,
+                borderRadius: theme.radius.full,
+                backgroundColor: isActive ? theme.color.bg.brand : 'transparent',
+                marginBottom: 6,
+              }}
+            />
+            <Text
+              variant="label.sm"
+              style={{
+                color: isActive ? theme.color.text.brand : theme.color.text.secondary,
+                fontWeight: isActive ? '700' : '500',
+              }}
+            >
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}

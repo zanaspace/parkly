@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { ListItem, ListItemGroup } from '../../src/components/ListItem';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
@@ -356,78 +357,51 @@ export default function Account() {
         />
       ) : null}
 
-      <Text variant="heading.sm">Sign out</Text>
-      <Button
-        label="Sign out of this phone"
-        variant="secondary"
-        fullWidth
-        loading={busy === 'device'}
-        onPress={() => void signOut('device')}
-      />
-      <Button
-        label="Sign out everywhere"
-        variant="ghost"
-        fullWidth
-        loading={busy === 'all'}
-        onPress={() => void signOut('all')}
-      />
-
-      <Text variant="heading.sm">Legal & policies</Text>
-      <View style={{ gap: theme.space.stack.xs }}>
-        <Button
+      <Text variant="heading.sm">Settings</Text>
+      <ListItemGroup>
+        <ListItem
+          label="Download my data"
+          description="A copy of the personal data Parkly holds about you. The link works for 15 minutes."
+          loading={busy === 'export'}
+          onPress={() => void downloadMyData()}
+        />
+        <ListItem
           label="Terms of Service"
-          variant="secondary"
-          fullWidth
           onPress={() => void Linking.openURL(legalUrl('terms'))}
         />
-        <Button
+        <ListItem
           label="Privacy Notice"
-          variant="secondary"
-          fullWidth
           onPress={() => void Linking.openURL(legalUrl('privacy'))}
         />
-      </View>
-
-      <Text variant="heading.sm">Your data</Text>
-      <Text tone="secondary">
-        Get a copy of the personal data Parkly holds about you. The link works for 15 minutes.
-      </Text>
-      <Button
-        label="Download my data"
-        variant="secondary"
-        fullWidth
-        loading={busy === 'export'}
-        onPress={() => void downloadMyData()}
-      />
-
-      <Text variant="heading.sm">Delete account</Text>
-      {me?.status === 'PENDING_DELETION' ? (
-        <>
-          <Text tone="secondary">
-            Your account is set to be erased. You can still change your mind for 30 days after you
-            asked.
-          </Text>
-          <Button
+        <ListItem
+          label="Sign out of this phone"
+          loading={busy === 'device'}
+          onPress={() => void signOut('device')}
+        />
+        <ListItem
+          label="Sign out everywhere"
+          loading={busy === 'all'}
+          onPress={() => void signOut('all')}
+        />
+        {me?.status === 'PENDING_DELETION' ? (
+          <ListItem
             label="Keep my account"
-            fullWidth
+            description="Your account is set to be erased. You can still change your mind for 30 days after you asked."
             loading={busy === 'keep'}
+            showChevron={false}
             onPress={() => void keepAccount()}
           />
-        </>
-      ) : (
-        <>
-          <Text tone="secondary">
-            Your details are erased after 30 days. Until then you can change your mind.
-          </Text>
-          <Button
+        ) : (
+          <ListItem
             label="Delete my account"
-            variant="danger"
-            fullWidth
+            description="Your details are erased after 30 days. Until then you can change your mind."
+            tone="danger"
             loading={busy === 'delete'}
+            showChevron={false}
             onPress={() => void requestDeletion()}
           />
-        </>
-      )}
+        )}
+      </ListItemGroup>
     </Screen>
   );
 }

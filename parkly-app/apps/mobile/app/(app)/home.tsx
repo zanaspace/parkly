@@ -73,7 +73,7 @@ export default function Home() {
       showNav
       footer={
         <Button
-          label="🔍  Find parking"
+          label="Find parking"
           size="lg"
           fullWidth
           onPress={() => router.push({ pathname: '/search', params: toParams(search) })}
@@ -108,7 +108,6 @@ export default function Home() {
             marginTop: 4,
           })}
         >
-          <Text style={{ fontSize: 13 }}>🚗</Text>
           <Text variant="label.sm" style={{ color: theme.color.text.brand, fontWeight: '600' }}>
             {defaultVehicle ? defaultVehicle.plateNorm : '+ Vehicle'}
           </Text>
