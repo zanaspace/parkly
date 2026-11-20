@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, View } from 'react-native';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { config } from '../../../src/lib/config';
+import { ActionSheet, type ActionSheetItem } from '../../../src/components/ActionSheet';
 import { Notice } from '../../../src/components/Notice';
 import { QrCode } from '../../../src/components/QrCode';
 import { Screen } from '../../../src/components/Screen';
@@ -38,6 +39,49 @@ const CANCEL_REASONS = [
   { id: 'OTHER', label: 'Other reason' },
 ];
 
+/** Plain label/value row for the Facility & Access card (doc 14 P16): no decorative icons. */
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <View style={{ gap: 2 }}>
+      <Text variant="label.sm" tone="secondary">
+        {label}
+      </Text>
+      {typeof value === 'string' ? <Text variant="body.md">{value}</Text> : value}
+    </View>
+  );
+}
+
+/** "More actions" trigger row, inline at the bottom of the facility card. */
+function MoreActionsRow({ onPress, count }: { onPress: () => void; count: number }) {
+  const theme = useTheme();
+  if (count === 0) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="More actions: directions, contact & receipts"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minHeight: theme.target.min,
+        marginHorizontal: -theme.space.inset.sm,
+        paddingHorizontal: theme.space.inset.sm,
+        borderTopWidth: 1,
+        borderTopColor: theme.color.border.default,
+        backgroundColor: pressed ? theme.color.bg.subtle : 'transparent',
+      })}
+    >
+      <Text variant="label.md" tone="brand">
+        Directions, contact & receipts
+      </Text>
+      <Text variant="label.lg" tone="tertiary">
+        ›
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function BookingScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -56,6 +100,7 @@ export default function BookingScreen() {
   const [extensionOptions, setExtensionOptions] = useState<ExtensionOptions | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('CHANGE_OF_PLANS');
+  const [moreOpen, setMoreOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -194,9 +239,18 @@ export default function BookingScreen() {
   }, [id, userId, reload]);
 
   const footer = (
-    <View style={{ gap: theme.space[2] }}>
-      <Button label="My bookings" fullWidth onPress={() => router.replace('/bookings')} />
-      <Button label="Home" variant="ghost" fullWidth onPress={() => router.replace('/home')} />
+    <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
+      <View style={{ flex: 1 }}>
+        <Button
+          label="My bookings"
+          variant="secondary"
+          fullWidth
+          onPress={() => router.replace('/bookings')}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Button label="Home" variant="ghost" fullWidth onPress={() => router.replace('/home')} />
+      </View>
     </View>
   );
 
@@ -240,154 +294,149 @@ export default function BookingScreen() {
           label: 'NOT PAID IN TIME',
           bg: theme.color.status.danger.bg,
           fg: theme.color.status.danger.fg,
-          border: 'rgba(239, 68, 68, 0.4)',
         };
       case 'CANCELLED':
         return {
           label: 'CANCELLED',
           bg: theme.color.status.danger.bg,
           fg: theme.color.status.danger.fg,
-          border: 'rgba(239, 68, 68, 0.4)',
         };
       case 'NO_SHOW':
         return {
           label: 'NO SHOW',
           bg: theme.color.status.warning.bg,
           fg: theme.color.status.warning.fg,
-          border: 'rgba(245, 158, 11, 0.4)',
         };
       case 'CONFIRMED':
         return {
           label: 'CONFIRMED',
           bg: theme.color.status.success.bg,
           fg: theme.color.status.success.fg,
-          border: 'rgba(16, 185, 129, 0.4)',
         };
       case 'CHECKED_IN':
         return {
           label: 'CHECKED IN',
           bg: theme.color.bg['brand-subtle'],
           fg: theme.color.text.brand,
-          border: 'rgba(19, 112, 102, 0.4)',
         };
       case 'COMPLETED':
-        return {
-          label: 'COMPLETED',
-          bg: theme.color.bg.subtle,
-          fg: theme.color.text.secondary,
-          border: theme.color.border.default,
-        };
+        return { label: 'COMPLETED', bg: theme.color.bg.subtle, fg: theme.color.text.secondary };
       case 'PENDING_PAYMENT':
       default:
         return {
           label: 'WAITING FOR PAYMENT',
           bg: theme.color.status.warning.bg,
           fg: theme.color.status.warning.fg,
-          border: 'rgba(245, 158, 11, 0.4)',
         };
     }
   };
 
   const statusBadge = getStatusBadge();
 
+  const moreActions: ActionSheetItem[] = [
+    {
+      label: 'Get directions',
+      onPress: () => void Linking.openURL(directionsUrl).catch(() => undefined),
+    },
+    ...(phoneCallUrl
+      ? [
+          {
+            label: 'Call gate attendant',
+            onPress: () => void Linking.openURL(phoneCallUrl).catch(() => undefined),
+          },
+        ]
+      : []),
+    ...(whatsappUrl
+      ? [
+          {
+            label: 'WhatsApp gate attendant',
+            onPress: () => void Linking.openURL(whatsappUrl).catch(() => undefined),
+          },
+        ]
+      : []),
+    {
+      label: 'View car park details',
+      onPress: () => router.push({ pathname: '/lot/[slug]', params: { slug: booking.lot.slug } }),
+    },
+    ...(confirmed
+      ? [
+          {
+            label: 'View official receipt',
+            onPress: () => {
+              void api
+                .receiptUrl(booking.id)
+                .then((url) => Linking.openURL(url))
+                .catch(() => undefined);
+            },
+          },
+          {
+            label: 'Download PDF receipt',
+            onPress: () => {
+              void api
+                .receiptUrl(booking.id, 'pdf')
+                .then((url) => Linking.openURL(url))
+                .catch(() => undefined);
+            },
+          },
+        ]
+      : []),
+  ];
+
   return (
     <Screen footer={footer}>
-      {/* Top Bar Navigation & Pass Reference Code */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 4,
-        }}
-      >
+      {/* Top bar: back navigation & pass reference code */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back to My Bookings"
           onPress={() => router.replace('/bookings')}
           hitSlop={8}
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-            borderRadius: theme.radius.pill,
-            borderWidth: 1,
-            borderColor: theme.color.border.default,
-            backgroundColor: pressed ? theme.color.bg.muted : theme.color.bg.surface,
-          })}
         >
           <Text variant="body.sm" tone="secondary">
-            ← Back to My Bookings
+            ← Back
           </Text>
         </Pressable>
 
-        <View
-          style={{
-            paddingVertical: 4,
-            paddingHorizontal: 10,
-            borderRadius: theme.radius.pill,
-            backgroundColor: theme.color.bg.surface,
-            borderWidth: 1,
-            borderColor: theme.color.border.default,
-          }}
-        >
-          <Text variant="code.sm" tone="secondary">
-            PASS #{booking.code}
-          </Text>
-        </View>
+        <Text variant="code.sm" tone="secondary">
+          PASS #{booking.code}
+        </Text>
       </View>
 
-      {/* Status Tags & Heading Header */}
-      <View style={{ gap: theme.space[2] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {/* Status & heading */}
+      <View style={{ gap: theme.space.stack.xs }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.space.inline.sm,
+            flexWrap: 'wrap',
+          }}
+        >
           <View
             style={{
-              paddingVertical: 3,
-              paddingHorizontal: 8,
-              borderRadius: theme.radius.sm,
+              height: 24,
+              justifyContent: 'center',
+              paddingHorizontal: theme.space[2],
+              borderRadius: theme.radius.pill,
               backgroundColor: statusBadge.bg,
-              borderWidth: 1,
-              borderColor: statusBadge.border,
             }}
           >
-            <Text
-              variant="label.sm"
-              style={{
-                color: statusBadge.fg,
-                fontSize: 11,
-                fontWeight: '700',
-                letterSpacing: 0.5,
-              }}
-            >
+            <Text variant="label.sm" style={{ color: statusBadge.fg, fontWeight: '700' }}>
               {statusBadge.label}
             </Text>
           </View>
 
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingVertical: 3,
-              paddingHorizontal: 8,
-              borderRadius: theme.radius.sm,
-              backgroundColor: theme.color.status.success.bg,
-              borderWidth: 1,
-              borderColor: 'rgba(16, 185, 129, 0.4)',
+              height: 24,
+              justifyContent: 'center',
+              paddingHorizontal: theme.space[2],
+              borderRadius: theme.radius.pill,
+              backgroundColor: theme.badge.verified.bg,
             }}
           >
-            <Text
-              variant="label.sm"
-              style={{
-                color: theme.color.status.success.fg,
-                fontSize: 11,
-                fontWeight: '700',
-                letterSpacing: 0.5,
-              }}
-            >
-              ✓ LASPA VERIFIED
+            <Text variant="label.sm" style={{ color: theme.badge.verified.fg, fontWeight: '700' }}>
+              LASPA Verified
             </Text>
           </View>
         </View>
@@ -409,7 +458,7 @@ export default function BookingScreen() {
         </Text>
       </View>
 
-      {/* Offline Notice */}
+      {/* Offline notice */}
       {offline ? (
         <Notice
           kind="info"
@@ -417,49 +466,34 @@ export default function BookingScreen() {
         />
       ) : null}
 
-      {/* Status Alert Banner (Expired / Cancelled / No Show) */}
+      {/* Status alert banner (expired / cancelled / no show) */}
       {expiredOrCancelled && (
         <View
           style={{
-            backgroundColor: 'rgba(245, 158, 11, 0.08)',
-            borderWidth: 1,
-            borderColor: 'rgba(245, 158, 11, 0.35)',
-            borderRadius: theme.radius.lg,
-            padding: theme.space[4],
-            gap: theme.space[3],
+            backgroundColor: theme.color.status.warning.bg,
+            borderLeftWidth: 4,
+            borderLeftColor: theme.color.status.warning.icon,
+            borderRadius: theme.radius.surface,
+            padding: theme.space.inset.md,
+            gap: theme.space.stack.sm,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-            <View
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 14 }}>⚠️</Text>
-            </View>
-
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text variant="label.lg" style={{ color: theme.color.status.warning.fg }}>
-                {booking.status === 'EXPIRED'
-                  ? 'Reservation expired (not paid in time)'
-                  : booking.status === 'NO_SHOW'
-                    ? 'Missed reservation'
-                    : 'Reservation cancelled'}
-              </Text>
-              <Text variant="body.sm" tone="secondary">
-                {booking.status === 'EXPIRED'
-                  ? 'This space hold was automatically released because payment was not completed within the reservation window. No funds were charged to your account.'
-                  : 'This reservation is no longer active. If you need parking in Lagos, check real-time availability below.'}
-              </Text>
-            </View>
+          <View style={{ gap: 4 }}>
+            <Text variant="label.lg" style={{ color: theme.color.status.warning.fg }}>
+              {booking.status === 'EXPIRED'
+                ? 'Reservation expired (not paid in time)'
+                : booking.status === 'NO_SHOW'
+                  ? 'Missed reservation'
+                  : 'Reservation cancelled'}
+            </Text>
+            <Text variant="body.sm" tone="secondary">
+              {booking.status === 'EXPIRED'
+                ? 'This space hold was automatically released because payment was not completed within the reservation window. No funds were charged to your account.'
+                : 'This reservation is no longer active. If you need parking in Lagos, check real-time availability below.'}
+            </Text>
           </View>
 
-          <View style={{ gap: 8, marginTop: 4 }}>
+          <View style={{ gap: theme.space.stack.xs }}>
             <Button
               label="Book again at this car park"
               variant="primary"
@@ -472,7 +506,7 @@ export default function BookingScreen() {
               }
             />
             <Button
-              label="🔍 Search other car parks"
+              label="Search other car parks"
               variant="secondary"
               fullWidth
               onPress={() => router.replace('/home')}
@@ -481,19 +515,19 @@ export default function BookingScreen() {
         </View>
       )}
 
-      {/* Pending Payment Alert Banner */}
+      {/* Pending payment alert banner */}
       {booking.status === 'PENDING_PAYMENT' && (
         <View
           style={{
             backgroundColor: theme.color.status.info.bg,
-            borderWidth: 1,
-            borderColor: 'rgba(59, 130, 246, 0.35)',
-            borderRadius: theme.radius.lg,
-            padding: theme.space[4],
-            gap: 6,
+            borderLeftWidth: 4,
+            borderLeftColor: theme.color.status.info.icon,
+            borderRadius: theme.radius.surface,
+            padding: theme.space.inset.md,
+            gap: theme.space.stack.xs,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.inline.sm }}>
             <ActivityIndicator size="small" color={theme.color.status.info.fg} />
             <Text variant="label.lg" style={{ color: theme.color.status.info.fg }}>
               Confirming payment with Paystack
@@ -506,7 +540,7 @@ export default function BookingScreen() {
         </View>
       )}
 
-      {/* Park Now Flexible Hold Notices */}
+      {/* Park Now flexible hold notices */}
       {booking.bookingType === 'PARK_NOW' &&
         booking.status === 'CONFIRMED' &&
         !booking.stay?.checkedInAt && (
@@ -522,11 +556,11 @@ export default function BookingScreen() {
         />
       )}
 
-      {/* Active Stay Timer & Self-Checkin */}
+      {/* Active stay timer & self-checkin */}
       <StayTimer booking={booking} />
       {offline ? null : <SelfCheck booking={booking} onDone={() => setReload((n) => n + 1)} />}
 
-      {/* Unpaid Overstay Alert Banner */}
+      {/* Unpaid overstay alert banner */}
       {/* Only while owed: a paid or waived overstay keeps its amount for the record. */}
       {booking.stay &&
         booking.stay.overstayKobo > 0 &&
@@ -536,29 +570,26 @@ export default function BookingScreen() {
           <View
             style={{
               backgroundColor: theme.color.status.danger.bg,
-              borderWidth: 1,
-              borderColor: 'rgba(239, 68, 68, 0.45)',
-              borderRadius: theme.radius.lg,
-              padding: theme.space[4],
-              gap: 10,
+              borderLeftWidth: 4,
+              borderLeftColor: theme.color.status.danger.icon,
+              borderRadius: theme.radius.surface,
+              padding: theme.space.inset.md,
+              gap: theme.space.stack.sm,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 20 }}>⚠️</Text>
-              <View style={{ flex: 1 }}>
-                <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
-                  {`Unpaid Overstay Due · ${formatNaira(booking.stay.overstayKobo)}`}
-                </Text>
-                <Text variant="body.sm" tone="secondary">
-                  {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
-                </Text>
-              </View>
+            <View style={{ gap: 2 }}>
+              <Text variant="label.lg" style={{ color: theme.color.status.danger.fg }}>
+                {`Unpaid overstay due · ${formatNaira(booking.stay.overstayKobo)}`}
+              </Text>
+              <Text variant="body.sm" tone="secondary">
+                {`Vehicle exceeded booked stay by ${booking.stay.overstayMinutes} minutes. Settle before exit.`}
+              </Text>
             </View>
             <Button
               label={
                 actionLoading
                   ? 'Connecting...'
-                  : `Pay Overstay (${formatNaira(booking.stay.overstayKobo)})`
+                  : `Pay overstay (${formatNaira(booking.stay.overstayKobo)})`
               }
               variant="danger"
               fullWidth
@@ -568,16 +599,16 @@ export default function BookingScreen() {
           </View>
         )}
 
-      {/* Action Success / Error Notices */}
+      {/* Action success / error notices */}
       {actionSuccess ? <Notice kind="success" message={actionSuccess} /> : null}
       {actionError ? <Notice kind="danger" message={actionError} /> : null}
 
-      {/* Lifecycle Action Buttons */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      {/* Lifecycle action buttons */}
+      <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
         {confirmed && !booking.stay?.checkedOutAt && (
           <View style={{ flex: 1 }}>
             <Button
-              label="Extend Stay"
+              label="Extend stay"
               variant="primary"
               fullWidth
               disabled={offline || actionLoading}
@@ -591,7 +622,7 @@ export default function BookingScreen() {
         {booking.status === 'CONFIRMED' && !booking.stay?.checkedInAt && (
           <View style={{ flex: 1 }}>
             <Button
-              label="Cancel Booking"
+              label="Cancel booking"
               variant="secondary"
               fullWidth
               disabled={offline || actionLoading}
@@ -604,21 +635,21 @@ export default function BookingScreen() {
         )}
       </View>
 
-      {/* Official Gate Ticket (Confirmed & Active) */}
+      {/* Official gate ticket (confirmed & active) */}
       {confirmed && !booking.stay?.checkedOutAt && (
         <View
           style={{
             backgroundColor: theme.card.bg,
             borderWidth: 1,
             borderColor: theme.card.border,
-            borderRadius: theme.radius.lg,
-            padding: theme.space[4],
+            borderRadius: theme.card.radius,
+            padding: theme.card.padding,
             alignItems: 'center',
-            gap: theme.space[3],
+            gap: theme.space.stack.md,
           }}
         >
           <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text variant="label.lg">Official Parkly Gate Pass</Text>
+            <Text variant="label.lg">Official Parkly gate pass</Text>
             <Text variant="body.sm" tone="secondary">
               Show to attendant or scan at barrier
             </Text>
@@ -630,8 +661,6 @@ export default function BookingScreen() {
                 padding: 12,
                 borderRadius: theme.radius.md,
                 backgroundColor: theme.color.qr.bg,
-                borderWidth: 1,
-                borderColor: theme.color.border.default,
               }}
             >
               <QrCode
@@ -644,7 +673,7 @@ export default function BookingScreen() {
 
           <View style={{ alignItems: 'center', gap: 4 }}>
             <Text variant="body.sm" tone="secondary">
-              Gate Pass Code
+              Gate pass code
             </Text>
             <Text
               variant="heading.xl"
@@ -660,9 +689,7 @@ export default function BookingScreen() {
               paddingVertical: 6,
               paddingHorizontal: 16,
               borderRadius: theme.radius.sm,
-              backgroundColor: theme.color.bg.surface,
-              borderWidth: 1,
-              borderColor: theme.color.border.strong,
+              backgroundColor: theme.color.bg.subtle,
             }}
           >
             <Text variant="code.md" style={{ fontWeight: '700' }}>
@@ -677,13 +704,13 @@ export default function BookingScreen() {
                 borderLeftWidth: 3,
                 borderLeftColor: theme.color.border.brand,
                 borderRadius: theme.radius.sm,
-                padding: 10,
+                padding: theme.space.inset.sm,
                 width: '100%',
                 gap: 2,
               }}
             >
               <Text variant="label.sm" tone="secondary">
-                GATE / ENTRANCE LANDMARK
+                Gate / entrance landmark
               </Text>
               <Text variant="body.sm" style={{ fontWeight: '600' }}>
                 {booking.lot.entranceNotes}
@@ -691,241 +718,81 @@ export default function BookingScreen() {
             </View>
           ) : null}
 
-          {phoneCallUrl || whatsappUrl ? (
-            <View style={{ width: '100%', gap: 6, marginTop: 2 }}>
-              <Text variant="label.sm" tone="secondary" style={{ textAlign: 'center' }}>
-                Need help finding the gate?
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {phoneCallUrl ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="📞 Call Gate"
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      onPress={() => void Linking.openURL(phoneCallUrl).catch(() => undefined)}
-                    />
-                  </View>
-                ) : null}
-                {whatsappUrl ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="💬 WhatsApp Gate"
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      onPress={() => void Linking.openURL(whatsappUrl).catch(() => undefined)}
-                    />
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          ) : null}
-
           {booking.overstay ? (
-            <View
-              style={{
-                backgroundColor: theme.color.bg.subtle,
-                padding: 10,
-                borderRadius: theme.radius.sm,
-                width: '100%',
-              }}
-            >
-              <Text variant="body.sm" tone="secondary" style={{ textAlign: 'center' }}>
-                {`Overstay rate: ${formatNaira(booking.overstay.per15Kobo)} per 15 min (after ${booking.overstay.graceMin} min grace)`}
-              </Text>
-            </View>
+            <Text variant="body.sm" tone="secondary" style={{ textAlign: 'center' }}>
+              {`Overstay rate: ${formatNaira(booking.overstay.per15Kobo)} per 15 min (after ${booking.overstay.graceMin} min grace)`}
+            </Text>
           ) : null}
         </View>
       )}
 
-      {/* Facility & Access Card */}
+      {/* Facility & access card */}
       <View
         style={{
           backgroundColor: theme.card.bg,
           borderWidth: 1,
           borderColor: theme.card.border,
-          borderRadius: theme.radius.lg,
-          padding: theme.space[4],
-          gap: theme.space[3],
+          borderRadius: theme.card.radius,
+          padding: theme.card.padding,
+          gap: theme.space.stack.md,
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottomWidth: 1,
-            borderBottomColor: theme.color.border.default,
-            paddingBottom: 10,
-          }}
-        >
-          <Text variant="label.lg">Facility & Access</Text>
-          <View
-            style={{
-              paddingVertical: 2,
-              paddingHorizontal: 8,
-              borderRadius: theme.radius.sm,
-              backgroundColor: theme.color.bg['brand-subtle'],
-              borderWidth: 1,
-              borderColor: 'rgba(19, 112, 102, 0.35)',
-            }}
-          >
-            <Text
-              variant="label.sm"
-              style={{
-                color: theme.color.text.brand,
-                fontSize: 10,
-                fontWeight: '700',
-                letterSpacing: 0.5,
-              }}
-            >
-              VERIFIED LOCATION
-            </Text>
-          </View>
-        </View>
+        <Text variant="label.lg">Facility & access</Text>
 
-        {/* Location Row */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ fontSize: 18, marginTop: 2 }}>📍</Text>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="label.md">{booking.lot.name}</Text>
-            <Text variant="body.sm" tone="secondary">
-              {booking.lot.addressLine}
-            </Text>
-            <View style={{ marginTop: 6 }}>
-              <Button
-                label="Get Directions on Google Maps ↗"
-                size="sm"
-                variant="secondary"
-                onPress={() => void Linking.openURL(directionsUrl).catch(() => undefined)}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Reservation Window Row */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ fontSize: 18, marginTop: 2 }}>📅</Text>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="label.md">Reservation Window</Text>
-            <Text variant="body.sm" tone="secondary">
-              {bookingWindowLabel(booking)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Registered Vehicle Row */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ fontSize: 18, marginTop: 2 }}>🚗</Text>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text variant="label.md">Registered Vehicle</Text>
+        <InfoRow label="Location" value={`${booking.lot.name}, ${booking.lot.addressLine}`} />
+        <InfoRow label="Reservation window" value={bookingWindowLabel(booking)} />
+        <InfoRow
+          label="Registered vehicle"
+          value={
             <View
               style={{
                 alignSelf: 'flex-start',
-                paddingVertical: 3,
-                paddingHorizontal: 10,
+                paddingVertical: 2,
+                paddingHorizontal: theme.space[2],
                 borderRadius: theme.radius.sm,
-                backgroundColor: theme.color.bg.surface,
-                borderWidth: 1,
-                borderColor: theme.color.border.default,
+                backgroundColor: theme.color.bg.subtle,
               }}
             >
               <Text variant="code.sm" style={{ fontWeight: '700' }}>
                 {booking.vehicle.plate}
               </Text>
             </View>
-          </View>
-        </View>
-
-        {/* Entrance Landmark Row */}
+          }
+        />
         {booking.lot.entranceNotes ? (
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ fontSize: 18, marginTop: 2 }}>🚪</Text>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="label.md">Entrance Landmark & Notes</Text>
-              <Text variant="body.sm" tone="secondary">
-                {booking.lot.entranceNotes}
-              </Text>
-            </View>
-          </View>
+          <InfoRow label="Entrance landmark & notes" value={booking.lot.entranceNotes} />
+        ) : null}
+        {booking.lot.contactPhone ? (
+          <InfoRow label="Gate attendant contact" value={booking.lot.contactPhone} />
         ) : null}
 
-        {/* Gate Attendant Contact Row */}
-        {phoneCallUrl || whatsappUrl ? (
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ fontSize: 18, marginTop: 2 }}>📞</Text>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text variant="label.md">Gate Attendant Contact</Text>
-              {booking.lot.contactPhone ? (
-                <Text variant="body.sm" tone="secondary">
-                  {booking.lot.contactPhone}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                {phoneCallUrl ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="Call Gate"
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      onPress={() => void Linking.openURL(phoneCallUrl).catch(() => undefined)}
-                    />
-                  </View>
-                ) : null}
-                {whatsappUrl ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="WhatsApp"
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      onPress={() => void Linking.openURL(whatsappUrl).catch(() => undefined)}
-                    />
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        ) : null}
+        <MoreActionsRow onPress={() => setMoreOpen(true)} count={moreActions.length} />
       </View>
 
-      {/* Receipt & Pricing Card */}
+      {/* Receipt & pricing card */}
       <View
         style={{
           backgroundColor: theme.card.bg,
           borderWidth: 1,
           borderColor: theme.card.border,
-          borderRadius: theme.radius.lg,
-          padding: theme.space[4],
-          gap: theme.space[3],
+          borderRadius: theme.card.radius,
+          padding: theme.card.padding,
+          gap: theme.space.stack.sm,
         }}
       >
         <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottomWidth: 1,
-            borderBottomColor: theme.color.border.default,
-            paddingBottom: 10,
-          }}
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Text variant="label.lg">Receipt & Pricing</Text>
+          <Text variant="label.lg">Receipt & pricing</Text>
           <View
             style={{
-              paddingVertical: 2,
-              paddingHorizontal: 8,
-              borderRadius: theme.radius.sm,
+              height: 24,
+              justifyContent: 'center',
+              paddingHorizontal: theme.space[2],
+              borderRadius: theme.radius.pill,
               backgroundColor: expiredOrCancelled
                 ? theme.color.status.danger.bg
                 : theme.color.status.success.bg,
-              borderWidth: 1,
-              borderColor: expiredOrCancelled
-                ? 'rgba(239, 68, 68, 0.4)'
-                : 'rgba(16, 185, 129, 0.4)',
             }}
           >
             <Text
@@ -934,12 +801,10 @@ export default function BookingScreen() {
                 color: expiredOrCancelled
                   ? theme.color.status.danger.fg
                   : theme.color.status.success.fg,
-                fontSize: 10,
                 fontWeight: '700',
-                letterSpacing: 0.5,
               }}
             >
-              {expiredOrCancelled ? 'NOT CHARGED' : 'PAID'}
+              {expiredOrCancelled ? 'Not charged' : 'Paid'}
             </Text>
           </View>
         </View>
@@ -948,11 +813,7 @@ export default function BookingScreen() {
         {booking.lines.map((l, i) => (
           <View
             key={i}
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
           >
             <Text variant="body.sm" tone="secondary" style={{ flex: 1 }}>
               {lineLabel(l)}
@@ -964,107 +825,39 @@ export default function BookingScreen() {
         ))}
 
         {/* Divider */}
-        <View
-          style={{
-            height: 1,
-            backgroundColor: theme.color.border.default,
-            marginVertical: 4,
-          }}
-        />
+        <View style={{ height: 1, backgroundColor: theme.color.border.default }} />
 
-        {/* Total Quote / Total Paid */}
+        {/* Total quote / total paid */}
         <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Text variant="label.lg">{confirmed ? 'Total Paid' : 'Total Quote'}</Text>
+          <Text variant="label.lg">{confirmed ? 'Total paid' : 'Total quote'}</Text>
           <Text
             variant="heading.md"
-            style={{
-              color: confirmed ? theme.color.text.brand : theme.color.text.primary,
-            }}
+            style={{ color: confirmed ? theme.color.text.brand : theme.color.text.primary }}
           >
             {formatNaira(booking.totalKobo)}
           </Text>
         </View>
 
-        {/* LASPA Guarantee Notice */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(19, 112, 102, 0.08)',
-            borderWidth: 1,
-            borderColor: 'rgba(19, 112, 102, 0.25)',
-            borderRadius: theme.radius.md,
-            padding: 10,
-            marginTop: 4,
-          }}
-        >
-          <Text style={{ fontSize: 14 }}>🛡️</Text>
-          <Text variant="body.sm" tone="secondary" style={{ flex: 1, lineHeight: 16 }}>
-            Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority
-            (LASPA) permit.
-          </Text>
-        </View>
-
-        <Button
-          label="View Official Receipt ↗"
-          variant="secondary"
-          fullWidth
-          onPress={async () => {
-            try {
-              const url = await api.receiptUrl(booking.id);
-              await Linking.openURL(url);
-            } catch {
-              // ignore
-            }
-          }}
-        />
-        <Button
-          label="Download PDF receipt"
-          variant="secondary"
-          fullWidth
-          onPress={async () => {
-            try {
-              await Linking.openURL(await api.receiptUrl(booking.id, 'pdf'));
-            } catch {
-              // ignore
-            }
-          }}
-        />
+        <Text variant="body.sm" tone="secondary">
+          Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority
+          (LASPA) permit.
+        </Text>
       </View>
-
-      {/* View Car Park Button */}
-      <Button
-        label="View car park details"
-        variant="secondary"
-        fullWidth
-        onPress={() => router.push({ pathname: '/lot/[slug]', params: { slug: booking.lot.slug } })}
-      />
 
       {/* Extend Stay Modal */}
       <Modal visible={extendOpen} transparent animationType="slide">
         <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            justifyContent: 'flex-end',
-          }}
+          style={{ flex: 1, backgroundColor: theme.color.bg.overlay, justifyContent: 'flex-end' }}
         >
           <View
             style={{
-              backgroundColor: theme.card.bg,
-              borderTopLeftRadius: theme.radius.lg,
-              borderTopRightRadius: theme.radius.lg,
-              borderWidth: 1,
-              borderColor: theme.card.border,
-              padding: theme.space[4],
-              gap: theme.space[3],
+              backgroundColor: theme.color.bg['surface-raised'],
+              borderTopLeftRadius: theme.radius.sheet,
+              borderTopRightRadius: theme.radius.sheet,
+              padding: theme.space.inset.lg,
+              gap: theme.space.stack.md,
             }}
           >
             <View
@@ -1075,7 +868,7 @@ export default function BookingScreen() {
               }}
             >
               <View>
-                <Text variant="label.lg">Extend Parking Stay</Text>
+                <Text variant="label.lg">Extend parking stay</Text>
                 <Text variant="body.sm" tone="secondary">
                   Choose extra duration for {booking.lot.name}
                 </Text>
@@ -1104,7 +897,7 @@ export default function BookingScreen() {
             ) : null}
 
             {/* Duration Chips */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.inline.sm }}>
               {EXTEND_DURATIONS.map((opt) => {
                 const selected = extendMinutes === opt.minutes;
                 const isPastClosing = Boolean(
@@ -1119,21 +912,22 @@ export default function BookingScreen() {
                     disabled={isPastClosing}
                     onPress={() => setExtendMinutes(opt.minutes)}
                     style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      borderRadius: theme.radius.sm,
-                      backgroundColor: selected ? theme.color.bg.brand : theme.color.bg.surface,
+                      minHeight: 36,
+                      justifyContent: 'center',
+                      paddingHorizontal: theme.space[3],
+                      borderRadius: theme.radius.pill,
                       borderWidth: 1,
                       borderColor: selected ? theme.color.border.brand : theme.color.border.default,
-                      opacity: isPastClosing ? 0.35 : 1,
+                      backgroundColor: selected
+                        ? theme.color.bg['brand-subtle']
+                        : theme.color.bg.surface,
+                      opacity: isPastClosing ? theme.opacity.disabled : 1,
                     }}
                   >
                     <Text
                       variant="label.md"
-                      style={{
-                        color: selected ? '#ffffff' : theme.color.text.primary,
-                        fontWeight: '700',
-                      }}
+                      tone={selected ? 'brand' : 'primary'}
+                      style={{ fontWeight: selected ? '700' : '500' }}
                     >
                       {opt.label}
                     </Text>
@@ -1145,13 +939,13 @@ export default function BookingScreen() {
             <View
               style={{
                 backgroundColor: theme.color.bg.subtle,
-                padding: 12,
+                padding: theme.space.inset.sm,
                 borderRadius: theme.radius.sm,
                 gap: 4,
               }}
             >
               <Text variant="body.sm" tone="secondary">
-                {`New Exit Time: ${new Date(new Date(booking.endAt).getTime() + extendMinutes * 60_000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}`}
+                {`New exit time: ${new Date(new Date(booking.endAt).getTime() + extendMinutes * 60_000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}`}
               </Text>
               <Text variant="body.sm" tone="secondary">
                 Payment will be calculated using car park rates.
@@ -1160,9 +954,9 @@ export default function BookingScreen() {
 
             {actionError && <Notice kind="danger" message={actionError} />}
 
-            <View style={{ gap: 8, marginTop: 4 }}>
+            <View style={{ gap: theme.space.stack.xs }}>
               <Button
-                label={actionLoading ? 'Extending...' : `Confirm +${extendMinutes} Mins`}
+                label={actionLoading ? 'Extending...' : `Confirm +${extendMinutes} mins`}
                 variant="primary"
                 fullWidth
                 loading={actionLoading}
@@ -1191,21 +985,15 @@ export default function BookingScreen() {
       {/* Cancel Booking Modal */}
       <Modal visible={cancelOpen} transparent animationType="slide">
         <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            justifyContent: 'flex-end',
-          }}
+          style={{ flex: 1, backgroundColor: theme.color.bg.overlay, justifyContent: 'flex-end' }}
         >
           <View
             style={{
-              backgroundColor: theme.card.bg,
-              borderTopLeftRadius: theme.radius.lg,
-              borderTopRightRadius: theme.radius.lg,
-              borderWidth: 1,
-              borderColor: theme.card.border,
-              padding: theme.space[4],
-              gap: theme.space[3],
+              backgroundColor: theme.color.bg['surface-raised'],
+              borderTopLeftRadius: theme.radius.sheet,
+              borderTopRightRadius: theme.radius.sheet,
+              padding: theme.space.inset.lg,
+              gap: theme.space.stack.md,
             }}
           >
             <View
@@ -1216,7 +1004,7 @@ export default function BookingScreen() {
               }}
             >
               <View>
-                <Text variant="label.lg">Cancel Reservation</Text>
+                <Text variant="label.lg">Cancel reservation</Text>
                 <Text variant="body.sm" tone="secondary">
                   Pass #{booking.code} at {booking.lot.name}
                 </Text>
@@ -1237,41 +1025,29 @@ export default function BookingScreen() {
             {(() => {
               const msToStart = new Date(booking.startAt).getTime() - Date.now();
               const isFree = msToStart >= 30 * 60_000;
-              return isFree ? (
+              return (
                 <View
                   style={{
-                    backgroundColor: theme.color.status.success.bg,
-                    borderWidth: 1,
-                    borderColor: 'rgba(16, 185, 129, 0.35)',
+                    backgroundColor: isFree
+                      ? theme.color.status.success.bg
+                      : theme.color.status.danger.bg,
                     borderRadius: theme.radius.md,
-                    padding: 12,
+                    padding: theme.space.inset.sm,
                     gap: 4,
                   }}
                 >
-                  <Text variant="label.md" style={{ color: theme.color.status.success.fg }}>
-                    Free Cancellation Eligible
+                  <Text
+                    variant="label.md"
+                    style={{
+                      color: isFree ? theme.color.status.success.fg : theme.color.status.danger.fg,
+                    }}
+                  >
+                    {isFree ? 'Free cancellation eligible' : 'Late cancellation (no refund)'}
                   </Text>
                   <Text variant="body.sm" tone="secondary">
-                    {`You are cancelling over 30 mins before start. Full refund of ${formatNaira(booking.totalKobo)} will be returned.`}
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={{
-                    backgroundColor: theme.color.status.danger.bg,
-                    borderWidth: 1,
-                    borderColor: 'rgba(239, 68, 68, 0.35)',
-                    borderRadius: theme.radius.md,
-                    padding: 12,
-                    gap: 4,
-                  }}
-                >
-                  <Text variant="label.md" style={{ color: theme.color.status.danger.fg }}>
-                    Late Cancellation (No Refund)
-                  </Text>
-                  <Text variant="body.sm" tone="secondary">
-                    Cancellations within 30 minutes of booked start time are non-refundable per car
-                    park policy.
+                    {isFree
+                      ? `You are cancelling over 30 mins before start. Full refund of ${formatNaira(booking.totalKobo)} will be returned.`
+                      : 'Cancellations within 30 minutes of booked start time are non-refundable per car park policy.'}
                   </Text>
                 </View>
               );
@@ -1281,7 +1057,7 @@ export default function BookingScreen() {
             <Text variant="label.sm" tone="secondary">
               Select cancellation reason:
             </Text>
-            <View style={{ gap: 6 }}>
+            <View style={{ gap: theme.space.stack.xs }}>
               {CANCEL_REASONS.map((r) => {
                 const selected = cancelReason === r.id;
                 return (
@@ -1289,7 +1065,9 @@ export default function BookingScreen() {
                     key={r.id}
                     onPress={() => setCancelReason(r.id)}
                     style={{
-                      padding: 10,
+                      minHeight: theme.target.min,
+                      justifyContent: 'center',
+                      padding: theme.space.inset.sm,
                       borderRadius: theme.radius.sm,
                       backgroundColor: selected ? theme.color.bg.subtle : 'transparent',
                       borderWidth: 1,
@@ -1304,16 +1082,16 @@ export default function BookingScreen() {
               })}
             </View>
 
-            <View style={{ gap: 8, marginTop: 4 }}>
+            <View style={{ gap: theme.space.stack.xs }}>
               <Button
-                label={actionLoading ? 'Cancelling...' : 'Confirm Cancellation'}
+                label={actionLoading ? 'Cancelling...' : 'Confirm cancellation'}
                 variant="danger"
                 fullWidth
                 loading={actionLoading}
                 onPress={handleCancel}
               />
               <Button
-                label="Keep Booking"
+                label="Keep booking"
                 variant="ghost"
                 fullWidth
                 onPress={() => setCancelOpen(false)}
@@ -1322,6 +1100,14 @@ export default function BookingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* More actions overflow sheet */}
+      <ActionSheet
+        visible={moreOpen}
+        title="More actions"
+        items={moreActions}
+        onClose={() => setMoreOpen(false)}
+      />
     </Screen>
   );
 }
