@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { Pass, PublicLot } from '@parkly/contracts';
 import { formatNaira } from '@parkly/domain/money';
 import { lagosDateKey } from '@parkly/domain/time';
@@ -111,7 +112,21 @@ export default function PassesScreen() {
             gap: theme.space.stack.sm,
           }}
         >
-          <Text variant="label.lg">Verified Driver required</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: theme.color.bg['brand-subtle'],
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="shield-outline" size={20} color={theme.color.text.brand} />
+            </View>
+            <Text variant="label.lg">Verified Driver required</Text>
+          </View>
           <Text variant="body.sm" tone="secondary">
             Complete a 60-second identity check (FRSC Driver’s License or NIN) in Account to unlock
             monthly passes.
@@ -123,9 +138,12 @@ export default function PassesScreen() {
           />
         </View>
       ) : (
-        <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
-          ✓ Verified Driver
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="shield-checkmark" size={16} color={theme.badge.verified.fg} />
+          <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
+            Verified Driver
+          </Text>
+        </View>
       )}
 
       {lot && monthlyPrice ? (
@@ -158,15 +176,16 @@ export default function PassesScreen() {
           <Button
             label="Buy 30-day pass"
             fullWidth
+            disabled={!vehicleId || busy}
             loading={busy}
-            disabled={!me?.isVerifiedDriver || !vehicleId}
             onPress={() => void buyPass()}
           />
-          {capReached && !waitlistJoined ? (
+          {capReached ? (
             <Button
-              label="Join monthly pass waitlist"
+              label={waitlistJoined ? 'On waitlist' : 'Join waitlist'}
               variant="secondary"
               fullWidth
+              disabled={waitlistJoined || busy}
               loading={busy}
               onPress={() => void joinWaitlist()}
             />
@@ -193,7 +212,9 @@ export default function PassesScreen() {
           accessibilityLabel={`${p.lot.name}, monthly pass ${p.code}, ${p.status}`}
           onPress={() => router.push({ pathname: '/pass/[id]', params: { id: p.id } })}
           style={{
-            gap: theme.space.stack.xs,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
             padding: theme.card.padding,
             borderRadius: theme.card.radius,
             borderWidth: 1,
@@ -201,21 +222,50 @@ export default function PassesScreen() {
             backgroundColor: theme.card.bg,
           }}
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text variant="label.lg" style={{ flex: 1 }}>
-              {p.lot.name}
-            </Text>
-            <Text variant="code.md">{p.code}</Text>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="card-outline" size={22} color={theme.color.text.brand} />
           </View>
-          <Text variant="body.sm">
-            {p.periodStart} – {p.periodEnd}
-          </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text variant="label.md" style={{ flex: 1 }} numberOfLines={1}>
+                {p.lot.name}
+              </Text>
+              <Text variant="code.sm">{p.code}</Text>
+            </View>
             <Text variant="body.sm" tone="secondary">
-              {p.status} · {p.vehicle.plate}
-              {p.inLot ? ' · Inside lot' : ''}
+              {p.periodStart} – {p.periodEnd}
             </Text>
-            <Text variant="body.sm">{formatNaira(p.totalKobo)}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 2,
+              }}
+            >
+              <Text variant="label.sm" tone="secondary">
+                {p.status} · {p.vehicle.plate}
+                {p.inLot ? ' · Inside' : ''}
+              </Text>
+              <Text variant="label.sm" style={{ fontWeight: '600' }}>
+                {formatNaira(p.totalKobo)}
+              </Text>
+            </View>
           </View>
         </Pressable>
       ))}

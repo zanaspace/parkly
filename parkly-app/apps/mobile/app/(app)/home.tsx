@@ -1,15 +1,16 @@
 import { AREAS, durationsFor } from '@parkly/domain/discovery';
 import { Button, Text, useTheme } from '@parkly/ui-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Pressable } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
-import { config } from '../../src/lib/config';
 import { Chip } from '../../src/components/Chip';
 import { Notice } from '../../src/components/Notice';
 import { PlaceSearch } from '../../src/components/PlaceSearch';
 import { Screen } from '../../src/components/Screen';
+import { config } from '../../src/lib/config';
 import {
   dayChoices,
   durationLabel,
@@ -32,7 +33,7 @@ function Row({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** D-10/D-11 Home: where and when (doc 03 §1.2). The map arrives with the Google key. */
+/** D-10/D-11 Home: where and when (doc 03 §1.2) with enterprise quick-action icons. */
 export default function Home() {
   const theme = useTheme();
   const router = useRouter();
@@ -108,8 +109,115 @@ export default function Home() {
             marginTop: 4,
           })}
         >
+          <Ionicons name="car-outline" size={16} color={theme.color.text.brand} />
           <Text variant="label.sm" style={{ color: theme.color.text.brand, fontWeight: '600' }}>
             {defaultVehicle ? defaultVehicle.plateNorm : '+ Vehicle'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* OPay-style Quick Action Tiles */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          backgroundColor: theme.card.bg,
+          borderWidth: 1,
+          borderColor: theme.card.border,
+          borderRadius: theme.card.radius,
+          paddingVertical: 14,
+          paddingHorizontal: 10,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scan Gate or QR"
+          onPress={() => router.push('/bookings')}
+          style={{ flex: 1, alignItems: 'center', gap: 6 }}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="qr-code-outline" size={22} color={theme.color.text.brand} />
+          </View>
+          <Text variant="label.sm" style={{ fontWeight: '600', fontSize: 11 }}>
+            Scan Gate
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Find parking near me"
+          onPress={() => void nearMe()}
+          style={{ flex: 1, alignItems: 'center', gap: 6 }}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="navigate-outline" size={22} color={theme.color.text.brand} />
+          </View>
+          <Text variant="label.sm" style={{ fontWeight: '600', fontSize: 11 }}>
+            Near Me
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="My Bookings"
+          onPress={() => router.push('/bookings')}
+          style={{ flex: 1, alignItems: 'center', gap: 6 }}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="receipt-outline" size={22} color={theme.color.text.brand} />
+          </View>
+          <Text variant="label.sm" style={{ fontWeight: '600', fontSize: 11 }}>
+            Bookings
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Monthly Passes"
+          onPress={() => router.push('/passes')}
+          style={{ flex: 1, alignItems: 'center', gap: 6 }}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.color.bg['brand-subtle'],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="card-outline" size={22} color={theme.color.text.brand} />
+          </View>
+          <Text variant="label.sm" style={{ fontWeight: '600', fontSize: 11 }}>
+            Passes
           </Text>
         </Pressable>
       </View>
