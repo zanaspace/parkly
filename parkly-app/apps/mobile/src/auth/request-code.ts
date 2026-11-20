@@ -58,9 +58,11 @@ export async function requestEmailCode(
   });
   if (error) {
     const code = mapSupabaseAuthError({ code: error.code, status: error.status });
+    const message =
+      code === 'AUTH_UNKNOWN' && error.message ? error.message : AUTH_ERROR_MESSAGES[code];
     return {
       ok: false,
-      message: AUTH_ERROR_MESSAGES[code],
+      message,
       waitSeconds: code === 'OTP_RATE_LIMITED' || code === 'AUTH_OTP_LOCKED' ? 60 : null,
     };
   }

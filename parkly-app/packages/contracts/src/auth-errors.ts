@@ -24,6 +24,8 @@ const BY_SUPABASE_CODE: Record<string, ClientAuthErrorCode> = {
   sms_send_failed: 'OTP_RATE_LIMITED',
   hook_payload_invalid_content_type: 'AUTH_UNKNOWN',
   over_sms_send_rate_limit: 'OTP_RATE_LIMITED',
+  over_email_send_rate_limit: 'OTP_RATE_LIMITED',
+  email_rate_limit_exceeded: 'OTP_RATE_LIMITED',
   over_request_rate_limit: 'AUTH_OTP_LOCKED',
   invalid_credentials: 'AUTH_INVALID_CREDENTIALS',
   mfa_verification_failed: 'AUTH_MFA_INVALID',

@@ -18,6 +18,7 @@ function CaptchaView({ onToken }: { onToken: (token: string | null) => void }) {
         // takes the origin of one of them (ADR 0019).
         source={{ html, baseUrl: config.turnstileOrigin }}
         javaScriptEnabled
+        domStorageEnabled
         setSupportMultipleWindows={false}
         scrollEnabled={false}
         onMessage={(e) => {
