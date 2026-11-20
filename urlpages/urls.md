@@ -16,3 +16,9 @@ pnpm --filter @parkly/mobile tunnel
 -----android build apk--code
 cd parkly-app\apps\mobile
 npx eas-cli build --platform android --profile preview
+
+
+
+
+
+latest UI path parkly-mobile-ui\parkly-app\apps\mobile

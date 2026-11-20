@@ -4,15 +4,9 @@ import Constants from 'expo-constants';
  * Public build-time config (EXPO_PUBLIC_* only — these end up in the app
  * bundle, so never put a secret here; see .env.example).
  */
-const rawUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://qbheoilyuvudiefubdco.supabase.co';
-const rawKey = rawUrl.includes('qbheoilyuvudiefubdco')
-  ? 'sb_publishable_HrJbKNmjEKpLxVlge_qBGA_kzzvnHF6'
-  : process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    'sb_publishable_HrJbKNmjEKpLxVlge_qBGA_kzzvnHF6';
-
 export const config = {
-  supabaseUrl: rawUrl,
-  supabasePublishableKey: rawKey,
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
+  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
   apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://parkly-api-six.vercel.app',
   appVersion: Constants.expoConfig?.version ?? '0.0.0',
   /** Shows 5-minute test stays; the API refuses them unless its own switch is on (never in prod). */
