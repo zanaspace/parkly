@@ -36,12 +36,13 @@ export default async function ReviewAndPay({
   const search = readSearch(await searchParams, new Date());
   const back = `/book/${lotId}?${searchQuery(search)}`;
   const driver = await requireDriver(back);
-  const w = searchWindow(search);
-
   let lot: PublicLot;
   let quote: Quote;
+  let w: ReturnType<typeof searchWindow>;
   try {
     lot = await api<PublicLot>(`/v1/lots/${encodeURIComponent(lotId)}`);
+    const hasDaily = lot.prices.some((p) => p.product === 'DAILY');
+    w = searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' });
     quote = await api<Quote>(`/v1/lots/${encodeURIComponent(lot.id)}/quote`, {
       method: 'POST',
       body: w,

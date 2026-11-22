@@ -45,8 +45,12 @@ export default function ReviewAndPay() {
     (async () => {
       try {
         const found = await api.lot(lotId);
+        const hasDaily = found.prices.some((p) => p.product === 'DAILY');
         const [q, owed] = await Promise.all([
-          api.quote(found.id, searchWindow(search)),
+          api.quote(
+            found.id,
+            searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' }),
+          ),
           api.unpaidOverstay(),
         ]);
         if (live) {
@@ -70,7 +74,8 @@ export default function ReviewAndPay() {
     const key = keys.current.get(vehicleId) ?? Crypto.randomUUID();
     keys.current.set(vehicleId, key);
     try {
-      const w = searchWindow(search);
+      const hasDaily = lot.prices.some((p) => p.product === 'DAILY');
+      const w = searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' });
       const created = await api.createBooking(
         {
           lotId: lot.id,
