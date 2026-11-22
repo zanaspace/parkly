@@ -112,7 +112,8 @@ export default function LotScreen() {
         const found = lot ?? (await api.lot(slug));
         if (!live) return;
         setLot(found);
-        const window = searchWindow(search);
+        const hasDaily = found.prices.some((p) => p.product === 'DAILY');
+        const window = searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' });
         try {
           const [q, a] = await Promise.all([
             api.quote(found.id, window),
@@ -124,7 +125,11 @@ export default function LotScreen() {
             setPriceError(null);
           }
         } catch (err) {
-          if (live) setPriceError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+          if (live) {
+            setQuote(null);
+            setAvailability(null);
+            setPriceError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+          }
         } finally {
           if (live) setLoadingQuote(false);
         }

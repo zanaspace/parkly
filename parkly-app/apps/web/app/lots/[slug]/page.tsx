@@ -74,7 +74,8 @@ async function priceForWindow(
   query: Record<string, string | string[] | undefined>,
 ) {
   const search = readSearch(query, new Date());
-  const window = searchWindow(search);
+  const hasDaily = lot.prices.some((p) => p.product === 'DAILY');
+  const window = searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' });
   try {
     const [quote, availability] = await Promise.all([
       api<Quote>(`/v1/lots/${lot.id}/quote`, {

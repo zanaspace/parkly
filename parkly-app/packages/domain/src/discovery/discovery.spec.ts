@@ -38,9 +38,24 @@ describe('search time in Lagos', () => {
       endAt: '2026-10-23T17:00:00.000Z',
       product: 'HOURLY',
     });
-    expect(searchWindow({ date: '2026-10-23', time: '08:00', duration: 'day' })).toEqual({
-      startAt: '2026-10-22T23:00:00.000Z',
-      endAt: '2026-10-23T23:00:00.000Z',
+    expect(searchWindow({ date: '2026-10-23', time: '08:00', duration: 24 })).toEqual({
+      startAt: '2026-10-23T07:00:00.000Z',
+      endAt: '2026-10-24T07:00:00.000Z',
+      product: 'HOURLY',
+    });
+    expect(
+      searchWindow(
+        { date: '2026-10-23', time: '08:00', duration: 'day' },
+        { preferProduct: 'HOURLY' },
+      ),
+    ).toEqual({
+      startAt: '2026-10-23T07:00:00.000Z',
+      endAt: '2026-10-24T07:00:00.000Z',
+      product: 'HOURLY',
+    });
+    expect(searchWindow({ date: '2099-10-23', time: '08:00', duration: 'day' })).toEqual({
+      startAt: '2099-10-22T23:00:00.000Z',
+      endAt: '2099-10-23T23:00:00.000Z',
       product: 'DAILY',
     });
   });
