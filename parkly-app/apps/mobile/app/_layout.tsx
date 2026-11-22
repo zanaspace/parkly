@@ -22,6 +22,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { Screen } from '../src/components/Screen';
+import { ProfileModeProvider } from '../src/context/ProfileModeContext';
 import { isConfigured } from '../src/lib/config';
 import { guardRedirect, type RouteGroup } from '../src/logic/route-guard';
 
@@ -110,7 +111,9 @@ export default function RootLayout() {
     <ThemeProvider>
       {isConfigured ? (
         <AuthProvider>
-          <ThemedApp />
+          <ProfileModeProvider>
+            <ThemedApp />
+          </ProfileModeProvider>
         </AuthProvider>
       ) : (
         <SetupNeeded />
