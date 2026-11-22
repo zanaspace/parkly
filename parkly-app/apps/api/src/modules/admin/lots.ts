@@ -280,6 +280,28 @@ export function adminLotRoutes(deps: AppDeps) {
         entityId: permitId,
         after: { lotId: permit.lotId, expiresAt: permit.expiresAt, note: review.note },
       });
+
+      // FR-LOT-007 / Reinstatement: If the lot was suspended due to permit expiry, auto-reinstate it if now listable.
+      const lot = await deps.store.lots.findById(permit.lotId);
+      if (lot && lot.status === 'SUSPENDED') {
+        const gate = await listabilityOf(lot);
+        if (gate.problems.length === 0) {
+          await deps.store.lots.setStatus(
+            lot.operatorId,
+            lot.id,
+            'SUSPENDED',
+            'LIVE',
+            'Reinstated automatically upon approved LASPA permit renewal',
+          );
+          await audit(c, deps, {
+            action: 'lot.reinstated',
+            entityType: 'lot',
+            entityId: lot.id,
+            after: { status: 'LIVE', reason: 'Reinstated upon approved LASPA permit renewal' },
+          });
+        }
+      }
+
       return c.json(toPermit(row), 200);
     },
   );

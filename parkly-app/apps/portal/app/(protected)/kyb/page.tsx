@@ -39,7 +39,8 @@ export default async function KybPage() {
     apiFetch<{ items: Bank[] }>(api, '/v1/banks', accessToken).catch(() => ({ items: [] })),
   ]);
   const isOwner = grant.role === 'OPERATOR_OWNER';
-  const editable = isOwner && EDITABLE.has(operator.kybStatus);
+  const hasRejectedDoc = docs.items.some((d) => d.status === 'REJECTED');
+  const editable = isOwner && (EDITABLE.has(operator.kybStatus) || hasRejectedDoc);
   const badge = STATUS_BADGE[operator.kybStatus] ?? STATUS_BADGE.NOT_STARTED;
 
   return (
@@ -153,8 +154,9 @@ export default async function KybPage() {
                 Submit for Compliance Review
               </Text>
               <Text variant="body-sm" tone="secondary">
-                Once submitted, Parkly’s operations team will review your CAC registration, director
-                identity, and bank account details within 3 business days.
+                {hasRejectedDoc && operator.kybStatus === 'APPROVED'
+                  ? 'You have updated or renewed compliance documents. Submit them for compliance re-approval.'
+                  : 'Once submitted, Parkly’s operations team will review your CAC registration, director identity, and bank account details within 3 business days.'}
               </Text>
               <SubmitKyb operatorId={operatorId} />
             </div>

@@ -216,6 +216,58 @@ describe('permit review (X-04, FR-LOT-003, doc 03 §4.2)', () => {
     const lot = await ctx.w.call('GET', ctx.base, ctx.as(ctx.owner));
     expect(lot.body?.permit).toMatchObject({ status: 'REJECTED' });
   });
+
+  it('automatically reinstates a suspended lot once a renewed permit is approved', async () => {
+    const ctx = await pendingLot();
+    await approvePermit(ctx);
+    await approvePrice(ctx);
+    await approvedVisit(ctx);
+    const live = await goLive(ctx);
+    expect(live.status).toBe(200);
+
+    // Permit expires, lot is suspended
+    await ctx.w.store.lots.setStatus(
+      ctx.operatorId,
+      ctx.lotId,
+      'LIVE',
+      'SUSPENDED',
+      'LASPA permit expired',
+    );
+
+    // Operator uploads renewed permit
+    const presign = await ctx.w.call('POST', `${ctx.base}/permits/document`, {
+      ...ctx.as(ctx.owner),
+      body: { contentType: 'application/pdf', sizeBytes: pdf.length, sha256: sha(pdf) },
+    });
+    const permitFile = await ctx.w.store.files.find(presign.body?.fileId as string);
+    if (permitFile) ctx.w.storage.put(permitFile.bucket, permitFile.path, pdf);
+    const renewed = await ctx.w.call('POST', `${ctx.base}/permits`, {
+      ...ctx.as(ctx.owner),
+      body: {
+        permitNumber: 'LASPA/VI/2026/9999',
+        issuedAt: '2026-10-15',
+        expiresAt: '2027-10-14',
+        fileId: presign.body?.fileId,
+      },
+    });
+    expect(renewed.status).toBe(201);
+    const renewedPermitId = renewed.body?.id as string;
+
+    // Compliance approves the renewed permit
+    const res = await ctx.w.call('POST', `/v1/admin/permits/${renewedPermitId}/review`, {
+      ...ctx.as(ctx.compliance),
+      body: { decision: 'APPROVE', note: 'Renewed permit verified with LASPA' },
+    });
+    expect(res.status).toBe(200);
+
+    // Lot is automatically reinstated to LIVE
+    const lot = await ctx.w.store.lots.findById(ctx.lotId);
+    expect(lot?.status).toBe('LIVE');
+    expect(ctx.w.store.auditRows.at(-1)).toMatchObject({
+      action: 'lot.reinstated',
+      after: expect.objectContaining({ status: 'LIVE' }),
+    });
+  });
 });
 
 describe('price review (FR-LOT-005)', () => {

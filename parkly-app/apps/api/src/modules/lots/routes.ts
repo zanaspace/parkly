@@ -76,6 +76,12 @@ const PRICE_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED']);
  */
 const HOURS_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED']);
 
+/**
+ * FR-LOT-007: Permits can be uploaded on draft lots, and renewed/updated on live,
+ * paused or suspended lots (e.g. when the previous permit has expired or is nearing expiry).
+ */
+const PERMIT_EDITABLE = new Set<LotRow['status']>(['DRAFT', 'LIVE', 'PAUSED', 'SUSPENDED']);
+
 const CAPACITY_MESSAGES = {
   TOTAL_INVALID: ['capacityTotal', 'Enter the total number of spaces (a whole number above 0).'],
   BOOKABLE_INVALID: ['capacityBookable', 'Enter how many spaces Parkly can sell (at least 1).'],
@@ -590,7 +596,13 @@ export function lotRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
-      await loadLot(c, operatorId, lotId, 'edit');
+      const lot = await loadLot(c, operatorId, lotId, 'read');
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      if (!PERMIT_EDITABLE.has(lot.status))
+        throw new ApiError(
+          'INVALID_STATE_TRANSITION',
+          'Permit can only be uploaded for draft, live, paused or suspended lots',
+        );
       const body = c.req.valid('json');
       const res = await presignUpload(uploadDeps, {
         purpose: 'PERMIT_DOCUMENT',
@@ -618,7 +630,13 @@ export function lotRoutes(deps: AppDeps) {
     }),
     async (c) => {
       const { operatorId, lotId } = c.req.valid('param');
-      await loadLot(c, operatorId, lotId, 'edit');
+      const lot = await loadLot(c, operatorId, lotId, 'read');
+      authorize(c, deps.logger, 'lot:manage', { operatorId });
+      if (!PERMIT_EDITABLE.has(lot.status))
+        throw new ApiError(
+          'INVALID_STATE_TRANSITION',
+          'Permit can only be uploaded for draft, live, paused or suspended lots',
+        );
       const body = c.req.valid('json');
       const dates = checkPermitDates({
         issuedOn: body.issuedAt,
