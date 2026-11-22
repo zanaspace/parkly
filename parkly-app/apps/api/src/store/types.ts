@@ -1,4 +1,7 @@
 import type {
+  CorporateBookingItem,
+  CorporateBookingStatus,
+  CorporateFinanceSummary,
   MonthlyStatement,
   OperatorEarningsReport,
   PlatformEarningsReport,
@@ -1895,7 +1898,50 @@ export type Store = {
         userId?: string | null;
       },
     ): Promise<CorporateFleetDriverRow>;
+    recordBooking(data: {
+      id?: string;
+      corporateId: string;
+      bookingId: string;
+      driverUserId: string;
+      costCenterId?: string | null;
+      workEmail?: string | null;
+      companyName?: string | null;
+      amountKobo: number;
+      serviceFeeKobo?: number;
+      vatKobo?: number;
+      billingPeriod?: string;
+      status?: CorporateBookingStatus;
+    }): Promise<CorporateBookingRow>;
+    listBookings(
+      corporateId: string,
+      options?: {
+        limit?: number;
+        offset?: number;
+        status?: CorporateBookingStatus;
+        billingPeriod?: string;
+      },
+    ): Promise<CorporateBookingItem[]>;
+    getFinanceSummary(
+      corporateId: string,
+      billingPeriod?: string,
+    ): Promise<CorporateFinanceSummary>;
   };
+};
+
+export type CorporateBookingRow = {
+  id: string;
+  corporateId: string;
+  bookingId: string;
+  driverUserId: string;
+  costCenterId: string | null;
+  workEmail: string | null;
+  companyName: string | null;
+  amountKobo: number;
+  serviceFeeKobo: number;
+  vatKobo: number;
+  billingPeriod: string;
+  status: CorporateBookingStatus;
+  createdAt: Date;
 };
 
 export type CorporateAccountRow = {

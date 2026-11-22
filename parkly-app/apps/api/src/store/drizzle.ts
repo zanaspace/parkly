@@ -60,6 +60,11 @@ import { drizzleIncidents } from './drizzle-incidents.js';
 import { drizzleSupport } from './drizzle-support.js';
 import { drizzleBookings } from './drizzle-bookings.js';
 import { drizzlePasses } from './drizzle-passes.js';
+import {
+  getCorporateFinanceSummary,
+  listCorporateBookings,
+  recordCorporateBooking,
+} from './drizzle-corporate.js';
 
 const {
   users,
@@ -2191,6 +2196,10 @@ export function drizzleStore(db: Db): Store {
         if (!row) throw new Error(`Fleet driver ${driverId} not found`);
         return row as CorporateFleetDriverRow;
       },
+      recordBooking: (data) => recordCorporateBooking(db, data),
+      listBookings: (corporateId, options) => listCorporateBookings(db, corporateId, options),
+      getFinanceSummary: (corporateId, billingPeriod) =>
+        getCorporateFinanceSummary(db, corporateId, billingPeriod),
     },
   };
 }

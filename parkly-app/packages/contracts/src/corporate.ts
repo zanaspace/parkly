@@ -169,3 +169,53 @@ export const CorporateDriverLoginResponseSchema = z.object({
   driver: CorporateFleetDriverSchema,
 });
 export type CorporateDriverLoginResponse = z.infer<typeof CorporateDriverLoginResponseSchema>;
+
+export const CorporateBookingStatusSchema = z.enum(['ACCRUED', 'INVOICED', 'PAID']);
+export type CorporateBookingStatus = z.infer<typeof CorporateBookingStatusSchema>;
+
+export const CorporateBookingItemSchema = z.object({
+  id: z.string(),
+  corporateId: z.string(),
+  bookingId: z.string(),
+  driverUserId: z.string(),
+  costCenterId: z.string().nullable().optional(),
+  workEmail: z.string().nullable().optional(),
+  companyName: z.string().nullable().optional(),
+  amountKobo: z.number().int(),
+  serviceFeeKobo: z.number().int(),
+  vatKobo: z.number().int(),
+  billingPeriod: z.string(),
+  status: CorporateBookingStatusSchema,
+  createdAt: z.string(),
+  bookingCode: z.string().optional(),
+  lotName: z.string().optional(),
+  product: z.string().optional(),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  driverName: z.string().optional(),
+  vehiclePlate: z.string().optional(),
+  costCenterName: z.string().optional(),
+});
+export type CorporateBookingItem = z.infer<typeof CorporateBookingItemSchema>;
+
+export const CorporateCostCenterSummarySchema = z.object({
+  costCenterId: z.string().nullable(),
+  name: z.string(),
+  code: z.string(),
+  totalSpendKobo: z.number().int(),
+  bookingCount: z.number().int(),
+  monthlyBudgetKobo: z.number().int().nullable().optional(),
+});
+export type CorporateCostCenterSummary = z.infer<typeof CorporateCostCenterSummarySchema>;
+
+export const CorporateFinanceSummarySchema = z.object({
+  billingPeriod: z.string(),
+  totalSpendKobo: z.number().int(),
+  subtotalKobo: z.number().int(),
+  serviceFeeKobo: z.number().int(),
+  vatKobo: z.number().int(),
+  totalBookings: z.number().int(),
+  activeDrivers: z.number().int(),
+  costCenterBreakdown: z.array(CorporateCostCenterSummarySchema),
+});
+export type CorporateFinanceSummary = z.infer<typeof CorporateFinanceSummarySchema>;

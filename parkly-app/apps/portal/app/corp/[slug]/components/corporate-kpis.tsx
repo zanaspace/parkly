@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Text } from '@parkly/ui';
 import {
   BanknoteIcon,
@@ -114,7 +115,7 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
           >
             <LotsIcon size={18} />
             <Text variant="label-lg" tone="brand">
-              Active Passes
+              Active Passes & Stays
             </Text>
           </div>
           <div className="pk-stat-count">{tenant.totalPasses}</div>
@@ -123,8 +124,21 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
             tone="secondary"
             style={{ marginTop: '0.5rem', display: 'block' }}
           >
-            Monthly parking passes allocated across lots.
+            Monthly parking passes & employee sessions.
           </Text>
+          <Link
+            href={`/corp/${slug}/bookings`}
+            style={{
+              display: 'inline-block',
+              marginTop: '0.5rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: 'var(--pk-color-text-brand)',
+              textDecoration: 'none',
+            }}
+          >
+            View Bookings & Sessions →
+          </Link>
         </div>
       </div>
 
@@ -142,7 +156,7 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
           >
             <BanknoteIcon size={18} />
             <Text variant="label-lg" tone="brand">
-              Billing
+              Billing & VAT
             </Text>
           </div>
           <div className="pk-stat-count" style={{ fontSize: '1.25rem' }}>
@@ -153,8 +167,21 @@ export function CorporateKpis({ tenant, slug }: { tenant: ResolvedTenant; slug: 
             tone="secondary"
             style={{ marginTop: '0.5rem', display: 'block' }}
           >
-            Single itemized invoice with zero employee expense reports.
+            Consolidated invoice with 7.5% FIRS VAT breakdown.
           </Text>
+          <Link
+            href={`/corp/${slug}/finance`}
+            style={{
+              display: 'inline-block',
+              marginTop: '0.5rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: 'var(--pk-color-text-brand)',
+              textDecoration: 'none',
+            }}
+          >
+            View Billing & Tax →
+          </Link>
         </div>
       </div>
     </div>
