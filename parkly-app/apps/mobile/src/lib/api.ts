@@ -123,7 +123,7 @@ export function createApiClient(options: ApiClientOptions) {
       const message = problem.detail || messageForCode(problem.code);
       throw new ApiError(res.status, problem.code, message, retry, problem.errors ?? []);
     }
-    return parser ? parser.parse(data) : (undefined as T);
+    return parser ? parser.parse(data) : ((data ?? undefined) as T);
   }
 
   return {
