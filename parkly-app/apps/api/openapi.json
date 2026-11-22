@@ -25163,6 +25163,131 @@
         }
       }
     },
+    "/v1/corp/work-email/send-otp": {
+      "post": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Send 6-digit OTP to corporate work email for dual-profile linking",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP issued to corporate work email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "company": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "email",
+                    "company",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/corp/work-email/verify-otp": {
+      "post": {
+        "tags": [
+          "corporate"
+        ],
+        "summary": "Verify 6-digit OTP and activate dual-profile corporate subsidy linking",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 8
+                  }
+                },
+                "required": [
+                  "email",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Corporate work email verified and profile linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "company": {
+                      "type": "string"
+                    },
+                    "corporateId": {
+                      "type": "string"
+                    },
+                    "subsidy": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "email",
+                    "company",
+                    "subsidy"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/corp/resolve": {
       "get": {
         "tags": [

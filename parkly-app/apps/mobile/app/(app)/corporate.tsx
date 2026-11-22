@@ -33,7 +33,7 @@ const PERKS = [
 export default function CorporateScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { isCorporate, corporateJoined, corporateCompany, setMode, joinCorporate } =
+  const { isCorporate, corporateJoined, corporateCompany, workEmail, setMode, joinCorporate } =
     useProfileMode();
   const [joinCode, setJoinCode] = useState('');
   const [joinSuccess, setJoinSuccess] = useState(false);
@@ -115,7 +115,54 @@ export default function CorporateScreen() {
         </Text>
       </View>
 
-      {/* Employee Join Card */}
+      {/* Recommended: Dual-Profile Work Email Linking */}
+      <View
+        style={{
+          backgroundColor: theme.card.bg,
+          borderWidth: 1.5,
+          borderColor: theme.color.border.brand,
+          borderRadius: 18,
+          padding: 16,
+          gap: 12,
+        }}
+      >
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="mail-outline" size={20} color={theme.color.text.brand} />
+            <Text variant="label.md" style={{ fontWeight: '700' }}>
+              Dual-Profile Work Email
+            </Text>
+          </View>
+          <View
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 8,
+              backgroundColor: theme.color.bg['brand-subtle'],
+            }}
+          >
+            <Text variant="label.sm" tone="brand" style={{ fontWeight: '800', fontSize: 10 }}>
+              RECOMMENDED
+            </Text>
+          </View>
+        </View>
+        <Text variant="body.sm" tone="secondary" style={{ fontSize: 12, lineHeight: 18 }}>
+          {workEmail
+            ? `Linked to ${workEmail} (${corporateCompany || 'Corporate Fleet'}). 1 account gives you both Personal and Corporate profiles with 1-tap switching.`
+            : 'Link your corporate email (e.g. name@sellyticshq.com) to automatically unlock your company subsidy with 1 account and 1-tap profile switching.'}
+        </Text>
+        <Button
+          label={workEmail ? 'Manage Work Email & Profiles' : 'Link Work Email (Recommended)'}
+          variant="primary"
+          size="md"
+          fullWidth
+          onPress={() => router.push('/work-email' as any)}
+        />
+      </View>
+
+      {/* Alternative: Employee Join Code Card */}
       <View
         style={{
           backgroundColor: theme.card.bg,
@@ -129,7 +176,7 @@ export default function CorporateScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="key-outline" size={20} color={theme.color.text.brand} />
           <Text variant="label.md" style={{ fontWeight: '700' }}>
-            Join with Company Code
+            Or Join with Company Code
           </Text>
         </View>
         <Text variant="body.sm" tone="secondary" style={{ fontSize: 12 }}>

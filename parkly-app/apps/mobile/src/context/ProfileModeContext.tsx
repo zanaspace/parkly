@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
+import { ApiError } from '../lib/api';
+import { api } from '../lib/client';
 
 export type ProfileMode = 'PERSONAL' | 'CORPORATE';
 
@@ -9,8 +11,16 @@ interface ProfileModeContextValue {
   isCorporate: boolean;
   corporateJoined: boolean;
   corporateCompany: string | null;
+  workEmail: string | null;
   setMode: (m: ProfileMode) => Promise<void>;
   joinCorporate: (code: string, company?: string) => Promise<boolean>;
+  sendWorkEmailOtp: (
+    email: string,
+  ) => Promise<{ success: boolean; company?: string; message?: string; error?: string }>;
+  linkWorkEmail: (
+    email: string,
+    code: string,
+  ) => Promise<{ success: boolean; company?: string; error?: string }>;
   leaveCorporate: () => Promise<void>;
 }
 
@@ -20,6 +30,7 @@ const STORAGE_KEYS = {
   MODE: 'parkly.profile.mode',
   JOINED: 'parkly.corporate.joined',
   COMPANY: 'parkly.corporate.company',
+  WORK_EMAIL: 'parkly.corporate.work_email',
 };
 
 async function readStore(key: string): Promise<string | null> {
@@ -45,19 +56,22 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ProfileMode>('PERSONAL');
   const [corporateJoined, setCorporateJoined] = useState(false);
   const [corporateCompany, setCorporateCompany] = useState<string | null>(null);
+  const [workEmail, setWorkEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     void (async () => {
-      const [storedMode, storedJoined, storedCompany] = await Promise.all([
+      const [storedMode, storedJoined, storedCompany, storedEmail] = await Promise.all([
         readStore(STORAGE_KEYS.MODE),
         readStore(STORAGE_KEYS.JOINED),
         readStore(STORAGE_KEYS.COMPANY),
+        readStore(STORAGE_KEYS.WORK_EMAIL),
       ]);
       if (!active) return;
       if (storedJoined === '1') {
         setCorporateJoined(true);
         setCorporateCompany(storedCompany || 'Corporate Fleet Member');
+        setWorkEmail(storedEmail || null);
         if (storedMode === 'CORPORATE') setModeState('CORPORATE');
       }
     })();
@@ -86,13 +100,50 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const sendWorkEmailOtp = async (email: string) => {
+    try {
+      const res = await api.sendWorkEmailOtp(email);
+      return { success: true, company: res.company, message: res.message };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof ApiError ? err.message : 'Could not send verification code.',
+      };
+    }
+  };
+
+  const linkWorkEmail = async (email: string, code: string) => {
+    try {
+      const res = await api.verifyWorkEmailOtp(email, code);
+      setCorporateJoined(true);
+      setCorporateCompany(res.company);
+      setWorkEmail(email);
+      setModeState('CORPORATE');
+      await Promise.all([
+        writeStore(STORAGE_KEYS.JOINED, '1'),
+        writeStore(STORAGE_KEYS.COMPANY, res.company),
+        writeStore(STORAGE_KEYS.WORK_EMAIL, email),
+        writeStore(STORAGE_KEYS.MODE, 'CORPORATE'),
+      ]);
+      return { success: true, company: res.company };
+    } catch (err) {
+      return {
+        success: false,
+        error:
+          err instanceof ApiError ? err.message : 'Invalid or expired 6-digit verification code.',
+      };
+    }
+  };
+
   const leaveCorporate = async () => {
     setCorporateJoined(false);
     setCorporateCompany(null);
+    setWorkEmail(null);
     setModeState('PERSONAL');
     await Promise.all([
       writeStore(STORAGE_KEYS.JOINED, null),
       writeStore(STORAGE_KEYS.COMPANY, null),
+      writeStore(STORAGE_KEYS.WORK_EMAIL, null),
       writeStore(STORAGE_KEYS.MODE, 'PERSONAL'),
     ]);
   };
@@ -104,8 +155,11 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
         isCorporate: mode === 'CORPORATE',
         corporateJoined,
         corporateCompany,
+        workEmail,
         setMode,
         joinCorporate,
+        sendWorkEmailOtp,
+        linkWorkEmail,
         leaveCorporate,
       }}
     >
