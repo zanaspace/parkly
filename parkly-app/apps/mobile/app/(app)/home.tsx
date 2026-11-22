@@ -134,7 +134,7 @@ export default function Home() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Notifications"
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/notifications' as never)}
             style={{
               width: 36,
               height: 36,
