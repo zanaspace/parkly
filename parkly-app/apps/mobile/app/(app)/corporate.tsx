@@ -158,7 +158,7 @@ export default function CorporateScreen() {
           variant="primary"
           size="md"
           fullWidth
-          onPress={() => router.push('/work-email' as any)}
+          onPress={() => router.push('/work-email' as never)}
         />
       </View>
 
