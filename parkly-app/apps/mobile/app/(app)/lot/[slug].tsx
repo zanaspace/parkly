@@ -12,7 +12,7 @@ import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, ScrollView, View } from 'react-native';
 import { DurationPicker } from '../../../src/components/DurationPicker';
 import { LotsMap } from '../../../src/components/LotsMap';
 import { Notice } from '../../../src/components/Notice';

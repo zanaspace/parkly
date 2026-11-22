@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Text, useTheme } from '@parkly/ui-native';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { PlaceSearch } from './PlaceSearch';
 import { PlanPassSection } from './PlanPassSection';
 
@@ -19,8 +18,6 @@ interface PlanParkingCardProps {
   onFindParking: () => void;
   onNearMe: () => void;
 }
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /** Connected origin/destination stay planner (inspired by Shuttlers UI). */
 export function PlanParkingCard({
