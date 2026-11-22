@@ -31,6 +31,7 @@ export default function Account() {
     mode: accountMode,
     corporateJoined,
     corporateCompany,
+    workEmail,
     setMode: setAccountMode,
   } = useProfileMode();
   const [error, setError] = useState<string | null>(null);
@@ -251,6 +252,16 @@ export default function Account() {
 
       <Text variant="heading.sm">Settings</Text>
       <ListItemGroup>
+        <ListItem
+          icon={<Ionicons name="mail-outline" size={18} color={theme.color.text.brand} />}
+          label="Work Email"
+          description={
+            corporateJoined && workEmail
+              ? `${workEmail} · ${corporateCompany || 'Verified'}`
+              : 'Link corporate email to unlock employer parking'
+          }
+          onPress={() => router.push('/work-email' as never)}
+        />
         <ListItem
           icon={<Ionicons name="headset-outline" size={18} color={theme.color.text.brand} />}
           label="Help & Support"

@@ -100,11 +100,11 @@ export default function Home() {
           paddingVertical: 4,
         }}
       >
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, flexShrink: 1, minWidth: 0, gap: 2 }}>
           <Text variant="heading.xl" style={{ fontWeight: '800' }}>
             {me?.firstName ? `Hi, ${me.firstName}` : 'Welcome to Parkly'}
           </Text>
-          <Text variant="body.sm" tone="secondary">
+          <Text variant="body.sm" tone="secondary" numberOfLines={1}>
             Find, park and access smart car parks
           </Text>
         </View>
@@ -127,6 +127,7 @@ export default function Home() {
             borderWidth: 1,
             borderColor: pressed ? theme.color.border.brand : theme.color.border.default,
             flexShrink: 0,
+            alignSelf: 'center',
           })}
         >
           <Ionicons name="car-outline" size={16} color={theme.color.text.brand} />

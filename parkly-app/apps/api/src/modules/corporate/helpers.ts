@@ -179,6 +179,58 @@ export const DriverPatchRoute = createRoute({
   },
 });
 
+export const SendWorkEmailOtpRequestSchema = z.object({
+  email: z.string().email(),
+});
+
+export const SendWorkEmailOtpResponseSchema = z.object({
+  success: z.boolean(),
+  email: z.string(),
+  company: z.string(),
+  message: z.string(),
+});
+
+export const VerifyWorkEmailOtpRequestSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(4).max(8),
+});
+
+export const VerifyWorkEmailOtpResponseSchema = z.object({
+  success: z.boolean(),
+  email: z.string(),
+  company: z.string(),
+  corporateId: z.string().optional(),
+  subsidy: z.string(),
+});
+
+export const SendWorkEmailOtpRoute = createRoute({
+  method: 'post',
+  path: '/corp/work-email/send-otp',
+  tags: ['corporate'],
+  summary: 'Send 6-digit OTP to corporate work email for dual-profile linking',
+  request: { body: json(SendWorkEmailOtpRequestSchema) },
+  responses: {
+    200: {
+      description: 'OTP issued to corporate work email',
+      ...json(SendWorkEmailOtpResponseSchema),
+    },
+  },
+});
+
+export const VerifyWorkEmailOtpRoute = createRoute({
+  method: 'post',
+  path: '/corp/work-email/verify-otp',
+  tags: ['corporate'],
+  summary: 'Verify 6-digit OTP and activate dual-profile corporate subsidy linking',
+  request: { body: json(VerifyWorkEmailOtpRequestSchema) },
+  responses: {
+    200: {
+      description: 'Corporate work email verified and profile linked',
+      ...json(VerifyWorkEmailOtpResponseSchema),
+    },
+  },
+});
+
 export function serializeDriver(d: CorporateFleetDriverRow) {
   return {
     ...d,
