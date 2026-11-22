@@ -706,6 +706,8 @@ const COVERED_ELSEWHERE = new Set([
   'POST /v1/corp/{slug}/drivers',
   'PATCH /v1/corp/{slug}/drivers/{driverId}',
   'PATCH /v1/corp/{slug}/drivers/{driverId}/status',
+  'POST /v1/corp/work-email/send-otp',
+  'POST /v1/corp/work-email/verify-otp',
 ]);
 
 describe('RBAC matrix', () => {
