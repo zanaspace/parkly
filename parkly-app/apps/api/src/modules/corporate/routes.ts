@@ -14,6 +14,7 @@ import {
   ListDriversRoute,
   OnboardTenantRoute,
   ResolveTenantRoute,
+  sendCorporateOtpEmail,
   SendWorkEmailOtpRoute,
   serializeDriver,
   UpdateTenantRoute,
@@ -50,6 +51,20 @@ export function corporateRoutes(deps: AppDeps) {
       expiresAt: Date.now() + 10 * 60 * 1000,
       company,
     });
+
+    try {
+      await sendCorporateOtpEmail({
+        emailProvider: deps.authEmail?.provider,
+        to: normalizedEmail,
+        code,
+        company,
+      });
+    } catch (sendErr) {
+      deps.logger.warn(
+        { err: sendErr, email: normalizedEmail },
+        'Failed to deliver corporate OTP email',
+      );
+    }
 
     deps.logger.info(
       { event: 'corporate.work_email_otp_sent', email: normalizedEmail, company },
