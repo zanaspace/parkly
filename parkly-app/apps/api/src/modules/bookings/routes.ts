@@ -477,6 +477,68 @@ export function bookingRoutes(deps: AppDeps) {
 
     if (body.corporate) {
       const settled = await settleCorporateBooking(deps, paymentId, split.amountKobo);
+      try {
+        let corporateTenantId: string | null = null;
+        let costCenterId: string | null = null;
+        let workEmail: string | null = null;
+        let companyName = body.corporateCompany ?? null;
+
+        if (body.corporateCompany) {
+          const slugCandidate = body.corporateCompany.toLowerCase().replace(/[^a-z0-9-]/g, '');
+          const directMatch = await deps.store.corporate.findBySlug(slugCandidate);
+          if (directMatch) {
+            corporateTenantId = directMatch.account.id;
+            companyName = directMatch.account.legalName;
+          }
+        }
+
+        if (!corporateTenantId) {
+          const userTenants = await deps.store.corporate.findTenantsForUser(driverId);
+          const first = userTenants[0];
+          if (first) {
+            const tenantMatch = await deps.store.corporate.findBySlug(first.slug);
+            if (tenantMatch) {
+              corporateTenantId = tenantMatch.account.id;
+              companyName = tenantMatch.account.legalName;
+            }
+          }
+        }
+
+        if (!corporateTenantId) {
+          const defaultTenant =
+            (await deps.store.corporate.findBySlug('sellyticshq')) ??
+            (await deps.store.corporate.findBySlug('zenith'));
+          if (defaultTenant) {
+            corporateTenantId = defaultTenant.account.id;
+            companyName = companyName ?? defaultTenant.account.legalName;
+          }
+        }
+
+        if (corporateTenantId) {
+          const member = await deps.store.corporate.findMember(corporateTenantId, driverId);
+          costCenterId = member?.costCenterId ?? null;
+          workEmail = member?.workEmail ?? null;
+          const vatKobo = Math.round(split.amountKobo * 0.075);
+
+          await deps.store.corporate.recordBooking({
+            corporateId: corporateTenantId,
+            bookingId,
+            driverUserId: driverId,
+            costCenterId,
+            workEmail,
+            companyName: companyName ?? 'Corporate Account',
+            amountKobo: split.amountKobo,
+            serviceFeeKobo: q.serviceFeeKobo,
+            vatKobo,
+          });
+        }
+      } catch (attribErr) {
+        deps.logger.warn(
+          { err: attribErr, bookingId },
+          'Failed to record corporate booking attribution',
+        );
+      }
+
       deps.logger.info(
         {
           event: 'booking.corporate_confirmed',

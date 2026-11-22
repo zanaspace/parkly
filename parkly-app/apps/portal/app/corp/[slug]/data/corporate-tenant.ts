@@ -1,3 +1,4 @@
+import type { CorporateBookingItem, CorporateFinanceSummary } from '@parkly/contracts';
 import { publicEnv } from '../../../../lib/env';
 
 export type DemoCostCenter = {
@@ -200,4 +201,40 @@ export async function loadCorporateTenant(slug: string): Promise<ResolvedTenant>
     costCenters,
     totalPasses,
   };
+}
+
+export async function loadCorporateBookings(
+  slug: string,
+): Promise<{ bookings: CorporateBookingItem[]; total: number }> {
+  const tenantKey = slug.toLowerCase();
+  try {
+    const res = await fetch(`${publicEnv().apiUrl}/v1/corp/${tenantKey}/bookings`, {
+      next: { revalidate: 0 },
+    });
+    if (res.ok) {
+      return (await res.json()) as { bookings: CorporateBookingItem[]; total: number };
+    }
+  } catch {
+    // API unavailable or offline fallback
+  }
+  return { bookings: [], total: 0 };
+}
+
+export async function loadCorporateFinance(
+  slug: string,
+  period?: string,
+): Promise<CorporateFinanceSummary | null> {
+  const tenantKey = slug.toLowerCase();
+  try {
+    const query = period ? `?period=${period}` : '';
+    const res = await fetch(`${publicEnv().apiUrl}/v1/corp/${tenantKey}/finance${query}`, {
+      next: { revalidate: 0 },
+    });
+    if (res.ok) {
+      return (await res.json()) as CorporateFinanceSummary;
+    }
+  } catch {
+    // API unavailable or offline fallback
+  }
+  return null;
 }

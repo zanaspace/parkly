@@ -1,4 +1,5 @@
 import { CorporateBrandHeader } from '../../../../components/corporate/corporate-brand-header';
+import { CorporateNavTabs } from '../components/corporate-nav-tabs';
 import { loadCorporateTenant } from '../data/corporate-tenant';
 import { CorporateSettingsView } from './components/corporate-settings-view';
 
@@ -31,6 +32,8 @@ export default async function CorporateSettingsPage({
         secondaryColor={tenant.secondaryColor}
         welcomeMessage={tenant.welcomeMessage}
       />
+
+      <CorporateNavTabs slug={slug} primaryColor={tenant.primaryColor} />
 
       <main className="pk-page pk-page--wide" style={{ padding: '2rem 1rem' }}>
         <CorporateSettingsView tenant={tenant} slug={slug} />
