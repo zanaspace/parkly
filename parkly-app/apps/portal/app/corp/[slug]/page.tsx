@@ -3,6 +3,7 @@ import { CorporateCostCenters } from './components/corporate-cost-centers';
 import { CorporateDualProfile } from './components/corporate-dual-profile';
 import { CorporateHero } from './components/corporate-hero';
 import { CorporateKpis } from './components/corporate-kpis';
+import { CorporateNavTabs } from './components/corporate-nav-tabs';
 import { loadCorporateTenant } from './data/corporate-tenant';
 
 export default async function CorporateTenantPage({
@@ -32,6 +33,8 @@ export default async function CorporateTenantPage({
         secondaryColor={tenant.secondaryColor}
         welcomeMessage={tenant.welcomeMessage}
       />
+
+      <CorporateNavTabs slug={slug} primaryColor={tenant.primaryColor} />
 
       <main className="pk-page pk-page--wide">
         {/* 2. Enterprise Hero Card */}

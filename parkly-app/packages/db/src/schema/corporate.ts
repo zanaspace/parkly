@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -10,6 +11,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { bookings } from './bookings.js';
 import { apiAccess, createdAt, id, updatedAt } from './common.js';
 import { users } from './identity.js';
 
@@ -175,5 +177,48 @@ export const corporateFleetDrivers = pgTable(
     index('corporate_fleet_drivers_corporate_id_idx').on(t.corporateId),
     index('corporate_fleet_drivers_phone_idx').on(t.phone),
     apiAccess('corporate_fleet_drivers'),
+  ],
+).enableRLS();
+
+export const corporateBookingStatusEnum = pgEnum('corporate_booking_status', [
+  'ACCRUED',
+  'INVOICED',
+  'PAID',
+]);
+
+/**
+ * Corporate parking sessions and employer-invoiced charges (Sprint CORP-05, doc 00 §3.2).
+ */
+export const corporateBookings = pgTable(
+  'corporate_bookings',
+  {
+    id: id(),
+    corporateId: uuid('corporate_id')
+      .notNull()
+      .references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    driverUserId: uuid('driver_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    costCenterId: uuid('cost_center_id').references(() => corporateCostCenters.id, {
+      onDelete: 'set null',
+    }),
+    workEmail: varchar('work_email', { length: 254 }),
+    companyName: varchar('company_name', { length: 200 }).notNull(),
+    amountKobo: bigint('amount_kobo', { mode: 'number' }).notNull(),
+    serviceFeeKobo: bigint('service_fee_kobo', { mode: 'number' }).notNull().default(10000),
+    vatKobo: bigint('vat_kobo', { mode: 'number' }).notNull().default(0),
+    billingPeriod: varchar('billing_period', { length: 7 }).notNull(), // '2026-11'
+    status: corporateBookingStatusEnum('status').notNull().default('ACCRUED'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('corporate_bookings_booking_id_key').on(t.bookingId),
+    index('corporate_bookings_corp_period_idx').on(t.corporateId, t.billingPeriod),
+    index('corporate_bookings_corp_created_idx').on(t.corporateId, t.createdAt),
+    index('corporate_bookings_driver_idx').on(t.driverUserId),
+    apiAccess('corporate_bookings'),
   ],
 ).enableRLS();

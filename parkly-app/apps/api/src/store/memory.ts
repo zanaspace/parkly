@@ -1,6 +1,7 @@
 import type { RoleGrant } from '@parkly/domain/authz';
 import { compareForQueue } from '@parkly/domain/incident';
 import { randomUUID } from 'node:crypto';
+import type { CorporateBookingItem, CorporateCostCenterSummary } from '@parkly/contracts';
 import { pseudonymise } from '../lib/pseudonym.js';
 import {
   DsrAlreadyOpenError,
@@ -13,6 +14,7 @@ import {
   type AuditRow,
   type DataRequestRow,
   type CorporateAccountRow,
+  type CorporateBookingRow,
   type CorporateBrandingRow,
   type CorporateCostCenterRow,
   type CorporateDomainRow,
@@ -90,6 +92,7 @@ export class MemoryStore implements Store {
   readonly corporateFleetDriverRows = new Map<string, CorporateFleetDriverRow>();
   readonly corporateMemberRows = new Map<string, CorporateMemberRow>();
   readonly corporateCostCenterRows = new Map<string, CorporateCostCenterRow>();
+  readonly corporateBookingRows = new Map<string, CorporateBookingRow>();
   readonly ratePlanRows: (RatePlanRow & { effectiveFrom?: Date })[] = [];
   readonly verificationRows: VerificationRow[] = [];
   readonly flagRows = new Map<string, boolean>();
@@ -1747,6 +1750,148 @@ export class MemoryStore implements Store {
       };
       this.corporateFleetDriverRows.set(driverId, updated);
       return { ...updated };
+    },
+    recordBooking: async (data) => {
+      const period = data.billingPeriod ?? new Date().toISOString().slice(0, 7);
+      const serviceFee = data.serviceFeeKobo ?? 0;
+      const vat = data.vatKobo ?? Math.round(data.amountKobo * 0.075);
+      const row: CorporateBookingRow = {
+        id: data.id ?? randomUUID(),
+        corporateId: data.corporateId,
+        bookingId: data.bookingId,
+        driverUserId: data.driverUserId,
+        costCenterId: data.costCenterId ?? null,
+        workEmail: data.workEmail ?? null,
+        companyName: data.companyName ?? null,
+        amountKobo: data.amountKobo,
+        serviceFeeKobo: serviceFee,
+        vatKobo: vat,
+        billingPeriod: period,
+        status: data.status ?? 'ACCRUED',
+        createdAt: new Date(),
+      };
+      this.corporateBookingRows.set(row.id, row);
+      return { ...row };
+    },
+    listBookings: async (corporateId, options) => {
+      let items = Array.from(this.corporateBookingRows.values()).filter(
+        (b) => b.corporateId === corporateId,
+      );
+      if (options?.status) {
+        items = items.filter((b) => b.status === options.status);
+      }
+      if (options?.billingPeriod) {
+        items = items.filter((b) => b.billingPeriod === options.billingPeriod);
+      }
+      items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const offset = options?.offset ?? 0;
+      const limit = options?.limit ?? 50;
+      const sliced = items.slice(offset, offset + limit);
+
+      const results: CorporateBookingItem[] = [];
+      for (const r of sliced) {
+        const booking = await this.bookings.find(r.bookingId);
+        const lot = booking ? this.lotRows.get(booking.lotId) : undefined;
+        const user = this.userRows.get(r.driverUserId);
+        const driverName = user
+          ? [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+          : r.workEmail
+            ? r.workEmail.split('@')[0]
+            : 'Corporate Driver';
+        const costCenter = r.costCenterId
+          ? this.corporateCostCenterRows.get(r.costCenterId)
+          : undefined;
+
+        results.push({
+          id: r.id,
+          corporateId: r.corporateId,
+          bookingId: r.bookingId,
+          driverUserId: r.driverUserId,
+          costCenterId: r.costCenterId,
+          workEmail: r.workEmail,
+          companyName: r.companyName,
+          amountKobo: r.amountKobo,
+          serviceFeeKobo: r.serviceFeeKobo,
+          vatKobo: r.vatKobo,
+          billingPeriod: r.billingPeriod,
+          status: r.status,
+          createdAt: r.createdAt.toISOString(),
+          bookingCode: booking?.code,
+          lotName: lot?.name ?? 'Parkly Lot',
+          product: booking?.product,
+          startsAt: booking?.startAt?.toISOString(),
+          endsAt: booking?.endAt?.toISOString(),
+          driverName: driverName || 'Corporate Driver',
+          vehiclePlate: booking?.plateNorm,
+          costCenterName: costCenter?.name ?? 'General Operations',
+        });
+      }
+      return results;
+    },
+    getFinanceSummary: async (corporateId, billingPeriod) => {
+      const period = billingPeriod ?? new Date().toISOString().slice(0, 7);
+      const bookings = Array.from(this.corporateBookingRows.values()).filter(
+        (b) => b.corporateId === corporateId && b.billingPeriod === period,
+      );
+
+      let subtotalKobo = 0;
+      let serviceFeeKobo = 0;
+      let vatKobo = 0;
+      const uniqueDrivers = new Set<string>();
+      const spendByCostCenter = new Map<string, { spend: number; count: number }>();
+
+      for (const b of bookings) {
+        subtotalKobo += b.amountKobo;
+        serviceFeeKobo += b.serviceFeeKobo;
+        vatKobo += b.vatKobo;
+        uniqueDrivers.add(b.driverUserId);
+        const ccKey = b.costCenterId ?? 'unassigned';
+        const curr = spendByCostCenter.get(ccKey) ?? { spend: 0, count: 0 };
+        curr.spend += b.amountKobo + b.vatKobo;
+        curr.count += 1;
+        spendByCostCenter.set(ccKey, curr);
+      }
+
+      const allCostCenters = Array.from(this.corporateCostCenterRows.values()).filter(
+        (c) => c.corporateId === corporateId && c.isActive,
+      );
+
+      const costCenterBreakdown: CorporateCostCenterSummary[] = [];
+      for (const cc of allCostCenters) {
+        const stats = spendByCostCenter.get(cc.id) ?? { spend: 0, count: 0 };
+        costCenterBreakdown.push({
+          costCenterId: cc.id,
+          name: cc.name,
+          code: cc.code,
+          totalSpendKobo: stats.spend,
+          bookingCount: stats.count,
+          monthlyBudgetKobo: cc.monthlyBudgetKobo,
+        });
+        spendByCostCenter.delete(cc.id);
+      }
+
+      const unassigned = spendByCostCenter.get('unassigned');
+      if (unassigned && unassigned.count > 0) {
+        costCenterBreakdown.push({
+          costCenterId: null,
+          name: 'General / Unassigned',
+          code: 'CC-GEN-00',
+          totalSpendKobo: unassigned.spend,
+          bookingCount: unassigned.count,
+          monthlyBudgetKobo: null,
+        });
+      }
+
+      return {
+        billingPeriod: period,
+        totalSpendKobo: subtotalKobo + vatKobo,
+        subtotalKobo,
+        serviceFeeKobo,
+        vatKobo,
+        totalBookings: bookings.length,
+        activeDrivers: uniqueDrivers.size,
+        costCenterBreakdown,
+      };
     },
   };
 

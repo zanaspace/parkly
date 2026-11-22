@@ -21,6 +21,7 @@ describe('schema conventions (doc 02 §1)', () => {
       'checkin_events',
       'consents',
       'corporate_accounts',
+      'corporate_bookings',
       'corporate_branding',
       'corporate_cost_centers',
       'corporate_domains',

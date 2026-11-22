@@ -204,6 +204,13 @@
       "when": 1794736508049,
       "tag": "20261115095508_flimsy_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795386392407,
+      "tag": "20261122222632_careless_boomerang",
+      "breakpoints": true
     }
   ]
 }
