@@ -1,13 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { Booking } from '@parkly/contracts';
-import { bookingWindowLabel, statusLabel } from '@parkly/domain/booking';
-import { formatNaira } from '@parkly/domain/money';
-import { Text, useTheme } from '@parkly/ui-native';
+import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
-import { Chip } from '../../src/components/Chip';
+import { BookingTimelineCard } from '../../src/components/BookingTimelineCard';
 import { Notice } from '../../src/components/Notice';
 import { Screen } from '../../src/components/Screen';
 import { ApiError } from '../../src/lib/api';
@@ -15,7 +13,7 @@ import { api, tickets } from '../../src/lib/client';
 import { upcomingTabLabel } from '../../src/logic/booking-tabs';
 import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
 
-/** My bookings (FR-BOOK-004): upcoming first, then past. Enterprise OPay-style cards. */
+/** My bookings (FR-BOOK-004): Shuttlers-style vertical timeline list (image copy 2.png). */
 export default function MyBookings() {
   const theme = useTheme();
   const router = useRouter();
@@ -44,7 +42,6 @@ export default function MyBookings() {
       })
       .catch(async (err: unknown) => {
         if (!live) return;
-        // Offline: the upcoming tab falls back to the tickets saved on the phone.
         if (err instanceof ApiError && err.status === 0 && tab === 'upcoming' && userId) {
           const saved = await tickets.all(userId).catch(() => []);
           if (saved.length > 0) {
@@ -65,99 +62,113 @@ export default function MyBookings() {
 
   return (
     <Screen showNav>
-      <Text variant="heading.xl">My bookings</Text>
-      <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
-        <Chip
-          label={activeTabLabel}
-          selected={tab === 'upcoming'}
+      <Text variant="heading.xl" style={{ fontWeight: '800' }}>
+        My bookings
+      </Text>
+
+      {/* Shuttlers-style Underline Tab Bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          borderBottomWidth: 1,
+          borderBottomColor: theme.color.border.default,
+        }}
+      >
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'upcoming' }}
+          accessibilityLabel={activeTabLabel}
           onPress={() => setTab('upcoming')}
-        />
-        <Chip label="Past" selected={tab === 'past'} onPress={() => setTab('past')} />
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            paddingVertical: 12,
+            borderBottomWidth: 2,
+            borderBottomColor: tab === 'upcoming' ? theme.color.action.primary.bg : 'transparent',
+          }}
+        >
+          <Text
+            variant="label.md"
+            style={{
+              color: tab === 'upcoming' ? theme.color.text.brand : theme.color.text.secondary,
+              fontWeight: tab === 'upcoming' ? '700' : '500',
+            }}
+          >
+            {activeTabLabel}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'past' }}
+          accessibilityLabel="Completed & Past"
+          onPress={() => setTab('past')}
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            paddingVertical: 12,
+            borderBottomWidth: 2,
+            borderBottomColor: tab === 'past' ? theme.color.action.primary.bg : 'transparent',
+          }}
+        >
+          <Text
+            variant="label.md"
+            style={{
+              color: tab === 'past' ? theme.color.text.brand : theme.color.text.secondary,
+              fontWeight: tab === 'past' ? '700' : '500',
+            }}
+          >
+            Completed
+          </Text>
+        </Pressable>
       </View>
+
       {offline ? (
         <Notice kind="info" message="You’re offline. Showing the tickets saved on your phone." />
       ) : null}
+
       {error ? <Notice message={error} /> : null}
+
       {!items && !error ? <ActivityIndicator accessibilityLabel="Loading bookings" /> : null}
+
+      {/* Empty State */}
       {items && items.length === 0 ? (
-        <Text tone="secondary">
-          {tab === 'upcoming'
-            ? `No ${activeTabLabel.toLowerCase()} bookings yet.`
-            : 'Nothing here yet.'}
-        </Text>
-      ) : null}
-      {items?.map((b) => (
-        <Pressable
-          key={b.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${b.lot.name}, ${bookingWindowLabel(b)}, ${statusLabel(b.status)}`}
-          onPress={() => router.push({ pathname: '/booking/[id]', params: { id: b.id } })}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            padding: theme.card.padding,
-            borderRadius: theme.card.radius,
-            borderWidth: 1,
-            borderColor: theme.card.border,
-            backgroundColor: theme.card.bg,
-          }}
-        >
+        <View style={{ alignItems: 'center', paddingVertical: 40, gap: 14 }}>
           <View
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: theme.color.bg['brand-subtle'],
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: theme.color.bg.subtle,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Ionicons
-              name={
-                b.status === 'CHECKED_IN'
-                  ? 'time-outline'
-                  : b.status === 'COMPLETED'
-                    ? 'checkmark-circle-outline'
-                    : 'car-outline'
-              }
-              size={22}
-              color={theme.color.text.brand}
-            />
+            <Ionicons name="car-outline" size={32} color={theme.color.text.secondary} />
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Text variant="label.md" style={{ flex: 1 }} numberOfLines={1}>
-                {b.lot.name}
-              </Text>
-              <Text variant="code.sm">{b.code}</Text>
-            </View>
-            <Text variant="body.sm" tone="secondary">
-              {bookingWindowLabel(b)}
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Text variant="heading.sm" style={{ fontWeight: '700' }}>
+              {tab === 'upcoming' ? 'No active bookings' : 'No past trips yet'}
             </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: 2,
-              }}
-            >
-              <Text variant="label.sm" tone={b.status === 'CHECKED_IN' ? 'brand' : 'secondary'}>
-                {statusLabel(b.status)} · {b.vehicle.plate}
-              </Text>
-              <Text variant="label.sm" style={{ fontWeight: '600' }}>
-                {formatNaira(b.totalKobo)}
-              </Text>
-            </View>
+            <Text variant="body.sm" tone="tertiary" style={{ textAlign: 'center' }}>
+              {tab === 'upcoming'
+                ? 'Reserve a spot in advance or scan at the barrier.'
+                : 'Your completed parking history will appear here.'}
+            </Text>
           </View>
-        </Pressable>
+          {tab === 'upcoming' ? (
+            <Button label="Find parking bays" size="sm" onPress={() => router.push('/search')} />
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* Timeline Booking Cards */}
+      {items?.map((b) => (
+        <BookingTimelineCard
+          key={b.id}
+          booking={b}
+          onPress={() => router.push({ pathname: '/booking/[id]', params: { id: b.id } })}
+        />
       ))}
     </Screen>
   );
