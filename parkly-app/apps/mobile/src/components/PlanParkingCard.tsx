@@ -4,15 +4,18 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
 import { PlaceSearch } from './PlaceSearch';
+import { PlanPassSection } from './PlanPassSection';
 
 interface PlanParkingCardProps {
   originLabel?: string | null;
   destinationLabel?: string | null;
   dateLabel: string;
   timeLabel: string;
+  durationLabel?: string;
   onPickDestination: (p: { lat: number; lng: number; label: string }) => void;
   onClearDestination: () => void;
   onStepTime: (delta: number) => void;
+  onStepDuration?: (delta: number) => void;
   onFindParking: () => void;
   onNearMe: () => void;
 }
@@ -25,24 +28,16 @@ export function PlanParkingCard({
   destinationLabel,
   dateLabel,
   timeLabel,
+  durationLabel,
   onPickDestination,
   onClearDestination,
   onStepTime,
+  onStepDuration,
   onFindParking,
   onNearMe,
 }: PlanParkingCardProps) {
   const theme = useTheme();
-  const router = useRouter();
-  const [returnTrip, setReturnTrip] = useState(false);
-  const [passSubscription, setPassSubscription] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   const [showSearch, setShowSearch] = useState(false);
-
-  function toggleDay(day: string) {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-    );
-  }
 
   return (
     <View
@@ -177,25 +172,25 @@ export function PlanParkingCard({
         </View>
       ) : null}
 
-      {/* Date & Time Selector Tiles */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      {/* Date, Time & Duration Selector Tiles */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
         <View
           style={{
             flex: 1,
             borderWidth: 1,
             borderColor: theme.color.border.default,
             borderRadius: 12,
-            padding: 10,
+            padding: 8,
             gap: 4,
             backgroundColor: theme.color.bg.surface,
           }}
         >
-          <Text variant="label.sm" tone="tertiary" style={{ fontSize: 11 }}>
-            Parking date
+          <Text variant="label.sm" tone="tertiary" style={{ fontSize: 10 }}>
+            Date
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="calendar-outline" size={16} color={theme.color.text.brand} />
-            <Text variant="body.sm" style={{ fontWeight: '600' }} numberOfLines={1}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="calendar-outline" size={14} color={theme.color.text.brand} />
+            <Text variant="body.sm" style={{ fontWeight: '600', fontSize: 12 }} numberOfLines={1}>
               {dateLabel}
             </Text>
           </View>
@@ -207,13 +202,13 @@ export function PlanParkingCard({
             borderWidth: 1,
             borderColor: theme.color.border.default,
             borderRadius: 12,
-            padding: 10,
+            padding: 8,
             gap: 4,
             backgroundColor: theme.color.bg.surface,
           }}
         >
-          <Text variant="label.sm" tone="tertiary" style={{ fontSize: 11 }}>
-            Arrival time
+          <Text variant="label.sm" tone="tertiary" style={{ fontSize: 10 }}>
+            Arrival
           </Text>
           <View
             style={{
@@ -222,28 +217,28 @@ export function PlanParkingCard({
               justifyContent: 'space-between',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="time-outline" size={16} color={theme.color.text.brand} />
-              <Text variant="body.sm" style={{ fontWeight: '600' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={14} color={theme.color.text.brand} />
+              <Text variant="body.sm" style={{ fontWeight: '600', fontSize: 12 }}>
                 {timeLabel}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 2 }}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Minus 15 minutes"
                 onPress={() => onStepTime(-1)}
                 hitSlop={6}
                 style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
                   backgroundColor: theme.color.bg.subtle,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700' }}>−</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700' }}>−</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -251,144 +246,88 @@ export function PlanParkingCard({
                 onPress={() => onStepTime(1)}
                 hitSlop={6}
                 style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
                   backgroundColor: theme.color.bg.subtle,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700' }}>+</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700' }}>+</Text>
               </Pressable>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Return Stay Toggle */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingVertical: 4,
-        }}
-      >
-        <View style={{ gap: 2 }}>
-          <Text variant="label.md" style={{ fontWeight: '600' }}>
-            Multi-day parking
-          </Text>
-          <Text variant="body.sm" tone="tertiary" style={{ fontSize: 11 }}>
-            Overnight or multi-day stay
-          </Text>
-        </View>
-        <Switch
-          value={returnTrip}
-          onValueChange={setReturnTrip}
-          trackColor={{ false: theme.color.border.default, true: theme.color.action.primary.bg }}
-          thumbColor="#FFFFFF"
-        />
-      </View>
-
-      {/* Multi-day Informational Guidance */}
-      {returnTrip ? (
-        <View
-          style={{
-            backgroundColor: theme.color.bg['brand-subtle'],
-            borderWidth: 1,
-            borderColor: theme.color.border.brand,
-            borderRadius: 14,
-            padding: 12,
-            gap: 8,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="information-circle-outline" size={18} color={theme.color.text.brand} />
-            <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
-              Multi-day & Overnight Parking
+        {durationLabel && onStepDuration ? (
+          <View
+            style={{
+              flex: 1,
+              borderWidth: 1,
+              borderColor: theme.color.border.default,
+              borderRadius: 12,
+              padding: 8,
+              gap: 4,
+              backgroundColor: theme.color.bg.surface,
+            }}
+          >
+            <Text variant="label.sm" tone="tertiary" style={{ fontSize: 10 }}>
+              Duration
             </Text>
-          </View>
-          <Text variant="body.sm" tone="secondary" style={{ fontSize: 12, lineHeight: 17 }}>
-            Single reservations cover stays up to 24 hours. For multi-day or overnight parking,
-            subscribe to a 30-day Monthly Pass for guaranteed reserved access, or book daily slots.
-          </Text>
-          <Button
-            label="View 30-day Monthly Passes"
-            size="sm"
-            variant="secondary"
-            onPress={() => router.push('/passes')}
-          />
-        </View>
-      ) : null}
-
-      {/* Monthly Pass Toggle */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingVertical: 4,
-        }}
-      >
-        <View style={{ gap: 2 }}>
-          <Text variant="label.md" style={{ fontWeight: '600' }}>
-            Subscribe to 30-day Pass
-          </Text>
-          <Text variant="body.sm" tone="tertiary" style={{ fontSize: 11 }}>
-            Regular recurring monthly bay
-          </Text>
-        </View>
-        <Switch
-          value={passSubscription}
-          onValueChange={setPassSubscription}
-          trackColor={{ false: theme.color.border.default, true: theme.color.action.primary.bg }}
-          thumbColor="#FFFFFF"
-        />
-      </View>
-
-      {/* Trip Days (when Pass Subscription is enabled) */}
-      {passSubscription ? (
-        <View style={{ gap: 8 }}>
-          <Text variant="label.sm" tone="secondary">
-            Parking days
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {WEEKDAYS.map((day) => {
-              const active = selectedDays.includes(day);
-              return (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="hourglass-outline" size={14} color={theme.color.text.brand} />
+                <Text variant="body.sm" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {durationLabel}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 2 }}>
                 <Pressable
-                  key={day}
                   accessibilityRole="button"
-                  accessibilityLabel={`Toggle ${day}`}
-                  onPress={() => toggleDay(day)}
+                  accessibilityLabel="Minus 1 hour"
+                  onPress={() => onStepDuration(-1)}
+                  hitSlop={6}
                   style={{
-                    paddingVertical: 6,
-                    paddingHorizontal: 12,
-                    borderRadius: theme.radius.pill,
-                    borderWidth: 1,
-                    borderColor: active ? theme.color.border.brand : theme.color.border.default,
-                    backgroundColor: active
-                      ? theme.color.bg['brand-subtle']
-                      : theme.color.bg.surface,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: theme.color.bg.subtle,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  <Text
-                    variant="label.sm"
-                    style={{
-                      color: active ? theme.color.text.brand : theme.color.text.secondary,
-                      fontWeight: active ? '700' : '500',
-                      fontSize: 11,
-                    }}
-                  >
-                    {day}
-                  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700' }}>−</Text>
                 </Pressable>
-              );
-            })}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Plus 1 hour"
+                  onPress={() => onStepDuration(1)}
+                  hitSlop={6}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: theme.color.bg.subtle,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700' }}>+</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
+
+      <PlanPassSection />
 
       {/* CTA Button */}
       <Button label="Find parking bays" size="lg" fullWidth onPress={onFindParking} />

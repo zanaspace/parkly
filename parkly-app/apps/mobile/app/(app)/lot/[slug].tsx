@@ -6,12 +6,14 @@ import {
   searchWindow,
   spacesLabel,
   windowLabel,
+  type Duration,
 } from '@parkly/domain/discovery';
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { DurationPicker } from '../../../src/components/DurationPicker';
 import { LotsMap } from '../../../src/components/LotsMap';
 import { Notice } from '../../../src/components/Notice';
 import { Screen } from '../../../src/components/Screen';
@@ -88,21 +90,26 @@ export default function LotScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ slug: string }>();
-  // Read the search once: the params object can change identity on every render,
-  // which would re-run the loading effect in a loop.
-  const [search] = useState(() => fromParams(params, new Date()));
+  // Search state is mutable so driver can pick parking duration dynamically
+  const [search, setSearch] = useState(() => fromParams(params, new Date()));
   const slug = params.slug;
   const [lot, setLot] = useState<PublicLot | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [availability, setAvailability] = useState<LotAvailability | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [priceError, setPriceError] = useState<string | null>(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+
+  const handleDurationChange = (d: Duration) => {
+    setSearch((prev) => ({ ...prev, duration: d }));
+  };
 
   useEffect(() => {
     let live = true;
     (async () => {
       try {
-        const found = await api.lot(slug);
+        setLoadingQuote(true);
+        const found = lot ?? (await api.lot(slug));
         if (!live) return;
         setLot(found);
         const window = searchWindow(search);
@@ -114,9 +121,12 @@ export default function LotScreen() {
           if (live) {
             setQuote(q);
             setAvailability(a);
+            setPriceError(null);
           }
         } catch (err) {
           if (live) setPriceError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+        } finally {
+          if (live) setLoadingQuote(false);
         }
       } catch (err) {
         if (live) setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
@@ -201,8 +211,14 @@ export default function LotScreen() {
         <Text tone="secondary">{lot.addressLine}</Text>
       </View>
 
+      {/* Duration Selector Card */}
+      <DurationPicker duration={search.duration} onChange={handleDurationChange} />
+
       <Card title={`Your price · ${windowLabel(search)}`}>
         {priceError ? <Notice message={priceError} /> : null}
+        {loadingQuote ? (
+          <ActivityIndicator accessibilityLabel="Recalculating price" size="small" />
+        ) : null}
         {quote ? (
           <View style={{ gap: theme.space.stack.xs }}>
             {quote.lines.map((l, i) => (
@@ -223,7 +239,7 @@ export default function LotScreen() {
               </Text>
             ) : null}
           </View>
-        ) : !priceError ? (
+        ) : !priceError && !loadingQuote ? (
           <ActivityIndicator accessibilityLabel="Getting the price" />
         ) : null}
       </Card>
