@@ -271,6 +271,7 @@ export default function BookingScreen() {
       </Screen>
     );
 
+  const isPendingPayment = booking.status === 'PENDING_PAYMENT';
   const confirmed = booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN';
   const expiredOrCancelled =
     booking.status === 'EXPIRED' || booking.status === 'CANCELLED' || booking.status === 'NO_SHOW';
@@ -826,21 +827,29 @@ export default function BookingScreen() {
               justifyContent: 'center',
               paddingHorizontal: theme.space[2],
               borderRadius: theme.radius.pill,
-              backgroundColor: expiredOrCancelled
-                ? theme.color.status.danger.bg
-                : theme.color.status.success.bg,
+              backgroundColor: isPendingPayment
+                ? theme.color.status.warning.bg
+                : expiredOrCancelled
+                  ? theme.color.status.danger.bg
+                  : theme.color.status.success.bg,
             }}
           >
             <Text
               variant="label.sm"
               style={{
-                color: expiredOrCancelled
-                  ? theme.color.status.danger.fg
-                  : theme.color.status.success.fg,
+                color: isPendingPayment
+                  ? theme.color.status.warning.fg
+                  : expiredOrCancelled
+                    ? theme.color.status.danger.fg
+                    : theme.color.status.success.fg,
                 fontWeight: '700',
               }}
             >
-              {expiredOrCancelled ? 'Not charged' : 'Paid'}
+              {isPendingPayment
+                ? 'Waiting for payment'
+                : expiredOrCancelled
+                  ? 'Not charged'
+                  : 'Paid'}
             </Text>
           </View>
         </View>
@@ -867,14 +876,29 @@ export default function BookingScreen() {
         <View
           style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <Text variant="label.lg">{confirmed ? 'Total paid' : 'Total quote'}</Text>
+          <Text variant="label.lg">
+            {confirmed ? 'Total paid' : isPendingPayment ? 'Amount due' : 'Total quote'}
+          </Text>
           <Text
             variant="heading.md"
-            style={{ color: confirmed ? theme.color.text.brand : theme.color.text.primary }}
+            style={{
+              color: confirmed
+                ? theme.color.text.brand
+                : isPendingPayment
+                  ? theme.color.status.warning.fg
+                  : theme.color.text.primary,
+            }}
           >
             {formatNaira(booking.totalKobo)}
           </Text>
         </View>
+
+        {isPendingPayment ? (
+          <Notice
+            kind="warning"
+            message="Space is held for 10 minutes. If you cancelled checkout on Paystack, this reservation is still awaiting payment."
+          />
+        ) : null}
 
         <Text variant="body.sm" tone="secondary">
           Exact total with no hidden gate charges. Regulated with a Lagos State Parking Authority

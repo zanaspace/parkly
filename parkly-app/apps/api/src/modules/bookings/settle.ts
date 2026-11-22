@@ -1,7 +1,35 @@
 import type { AppDeps } from '../../app.js';
 import { bookingNotice } from '../../notifications/events.js';
+import type { VerifiedCharge } from '../../providers/index.js';
 import type { SettleResult } from '../../store/types.js';
 import { issueReceipt } from './receipt-issue.js';
+
+/**
+ * Corporate fleet settlement: confirms booking immediately against the employer's
+ * corporate billing account (100% employer invoiced, ₦0 driver out-of-pocket).
+ */
+export async function settleCorporateBooking(
+  deps: Pick<AppDeps, 'store' | 'payments' | 'logger' | 'now' | 'notifications'>,
+  paymentId: string,
+  amountKobo: number,
+): Promise<SettleResult> {
+  const now = deps.now();
+  const charge: VerifiedCharge = {
+    status: 'success',
+    amountKobo,
+    currency: 'NGN',
+    paidAt: now,
+    feesKobo: 0,
+    channel: 'corporate_billing',
+    cardLast4: null,
+    cardBrand: null,
+  };
+  const result = await deps.store.payments.settle(paymentId, charge, now);
+  deps.logger.info({ event: 'payment.corporate_settled', paymentId }, 'corporate booking payment settled');
+  await receiptAfterSettle(deps, result);
+  await notifySettled(deps, result);
+  return result;
+}
 
 /**
  * The one way a payment is settled (doc 02 §7.5): ask the provider (never

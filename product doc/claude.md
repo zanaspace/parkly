@@ -1,0 +1,1 @@
+so the UI is nto that great on androids, i wants them sleek buttons overflowing and hiddens, unnecessary icosn, i ant it to feel enterprise, easy to use and less cluttering and also inrive it the way you would like as a senior app dev working for google or meta

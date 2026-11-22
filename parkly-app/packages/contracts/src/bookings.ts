@@ -29,6 +29,9 @@ export const CreateBookingRequestSchema = z.object({
    * on one of Parkly's own sites (the API's allowed origins).
    */
   returnTo: z.url().max(500).optional(),
+  /** Corporate fleet booking: employer billed / invoiced (₦0 driver out-of-pocket). */
+  corporate: z.boolean().optional(),
+  corporateCompany: z.string().max(200).optional(),
 });
 
 /** A driver's booking. Prices are the server's snapshot taken when it was made. */
