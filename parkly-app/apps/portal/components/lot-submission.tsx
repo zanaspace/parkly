@@ -90,6 +90,19 @@ export function PermitSection(props: { operatorId: string; lot: Lot; editable: b
           </Text>
           <Text tone="secondary">{PERMIT_STATUS[permit.status]}</Text>
           {permit.rejectionReason && <Notice tone="error">Reason: {permit.rejectionReason}</Notice>}
+          {permit.status === 'EXPIRED' && (
+            <Notice tone="error">
+              This LASPA permit has expired. Upload your renewed permit below for Parkly compliance
+              review and approval so this car park can be reinstated.
+            </Notice>
+          )}
+          {(permit.status === 'SUBMITTED' || permit.status === 'IN_REVIEW') &&
+            props.lot.status === 'SUSPENDED' && (
+              <Notice tone="info">
+                Renewed permit is under compliance review. Upon approval, your car park will be
+                automatically reinstated.
+              </Notice>
+            )}
           {soon && permit.status !== 'EXPIRED' && (
             <Notice tone="info">
               This permit expires within 30 days. Renew it with LASPA soon.
@@ -118,7 +131,11 @@ export function PermitSection(props: { operatorId: string; lot: Lot; editable: b
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
           />
           <Button type="button" loading={busy !== null} onClick={submit}>
-            {permit ? 'Upload a newer permit' : 'Submit permit'}
+            {permit?.status === 'EXPIRED'
+              ? 'Upload renewed permit for reinstatement'
+              : permit
+                ? 'Upload a newer permit'
+                : 'Submit permit'}
           </Button>
         </form>
       )}

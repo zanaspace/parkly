@@ -69,6 +69,14 @@ export default async function LotPage({
   // FR-LOT-005: prices may change on a live or paused lot too (each change is approved first).
   const pricesEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
   const hoursEditable = ['DRAFT', 'LIVE', 'PAUSED'].includes(lot.status);
+  // FR-LOT-007: LASPA permit can always be renewed or updated when expired, rejected, expiring soon, suspended, or draft.
+  const permitEditable =
+    editable ||
+    !lot.permit ||
+    lot.permit.status === 'EXPIRED' ||
+    lot.permit.status === 'REJECTED' ||
+    lot.status === 'SUSPENDED' ||
+    ['LIVE', 'PAUSED'].includes(lot.status);
   const created = (await searchParams).created === '1';
   const isOwner = me.roles.some((r) => r.role === 'OPERATOR_OWNER' && r.operatorId === operatorId);
   const isManager = me.roles.some(
@@ -102,7 +110,8 @@ export default async function LotPage({
       {!editable && <Text tone="secondary">{STATUS_NOTE[lot.status]}</Text>}
       {lot.status === 'SUSPENDED' && lot.statusReason && (
         <p className="pk-notice pk-notice--error" role="alert">
-          Reason: {lot.statusReason}
+          Reason: {lot.statusReason}. Upload your renewed LASPA permit below; once approved by
+          Parkly compliance, this car park will be reinstated.
         </p>
       )}
 
@@ -145,7 +154,7 @@ export default async function LotPage({
       <Text variant="heading-md" as="h2">
         LASPA permit
       </Text>
-      <PermitSection operatorId={operatorId} lot={lot} editable={editable} />
+      <PermitSection operatorId={operatorId} lot={lot} editable={permitEditable} />
 
       {selfCheckin && (
         <>
