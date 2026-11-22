@@ -38,9 +38,7 @@ export function corporateRoutes(deps: AppDeps) {
     const rawPrefix = domain.split('.')[0] || 'Company';
     const company =
       tenants[0]?.name ||
-      (domain.includes('sellytics')
-        ? 'Sellytics HQ Inc'
-        : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+      (domain.includes('sellytic') ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
 
     // Generate 6-digit OTP (123456 in dev/test)
     const code =
@@ -88,9 +86,7 @@ export function corporateRoutes(deps: AppDeps) {
     const company =
       record?.company ||
       tenants[0]?.name ||
-      (domain.includes('sellytics')
-        ? 'Sellytics HQ Inc'
-        : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+      (domain.includes('sellytic') ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
 
     otpStore.delete(normalizedEmail);
 

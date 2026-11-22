@@ -35,9 +35,17 @@ export default function WorkEmailScreen() {
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
-    const clean = emailInput.trim().toLowerCase();
+    let clean = emailInput.trim().toLowerCase();
+    // Auto-fix if typed e.g. oluwaseun.sellytichq.com without '@'
+    if (!clean.includes('@')) {
+      if (clean.includes('.sellytichq.com')) {
+        clean = clean.replace(/\.sellytichq\.com$/, '@sellytichq.com');
+      } else if (clean.includes('.sellyticshq.com')) {
+        clean = clean.replace(/\.sellyticshq\.com$/, '@sellyticshq.com');
+      }
+    }
     if (!clean || !clean.includes('@')) {
-      setError('Please enter a valid corporate email address (e.g. name@sellyticshq.com).');
+      setError('Please enter a valid corporate email address (e.g. name@sellytichq.com).');
       return;
     }
     setError(null);
@@ -215,7 +223,7 @@ export default function WorkEmailScreen() {
           <Text variant="label.lg">Enter your corporate email</Text>
           <Input
             label="Work Email Address"
-            placeholder="e.g. name@sellyticshq.com"
+            placeholder="e.g. oluwaseun@sellytichq.com"
             value={emailInput}
             onChangeText={setEmailInput}
             autoCapitalize="none"
