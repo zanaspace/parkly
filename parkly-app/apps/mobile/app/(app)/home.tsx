@@ -118,7 +118,7 @@ export default function Home() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Help & Support"
-            onPress={() => router.push('/account')}
+            onPress={() => router.push('/support' as never)}
             style={{
               width: 36,
               height: 36,
