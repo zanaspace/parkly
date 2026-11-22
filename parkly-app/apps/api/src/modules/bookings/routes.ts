@@ -483,15 +483,31 @@ export function bookingRoutes(deps: AppDeps) {
         let workEmail: string | null = null;
         let companyName = body.corporateCompany ?? null;
 
-        if (body.corporateCompany) {
-          const slugCandidate = body.corporateCompany.toLowerCase().replace(/[^a-z0-9-]/g, '');
-          const directMatch = await deps.store.corporate.findBySlug(slugCandidate);
-          if (directMatch) {
-            corporateTenantId = directMatch.account.id;
-            companyName = directMatch.account.legalName;
+        const cleanCompany = (body.corporateCompany ?? 'Corporate Fleet').trim();
+        let slugCandidate = cleanCompany.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'sellyticshq';
+
+        // 1. Direct match on slug
+        let directMatch = await deps.store.corporate.findBySlug(slugCandidate);
+
+        // 2. Common aliases
+        if (!directMatch) {
+          if (slugCandidate.includes('sellytichq') || slugCandidate.includes('sellyticshq')) {
+            directMatch =
+              (await deps.store.corporate.findBySlug('sellytichq')) ??
+              (await deps.store.corporate.findBySlug('sellyticshq'));
+          } else if (slugCandidate.includes('cicod')) {
+            directMatch =
+              (await deps.store.corporate.findBySlug('cicodcrm')) ??
+              (await deps.store.corporate.findBySlug('cicod'));
           }
         }
 
+        if (directMatch) {
+          corporateTenantId = directMatch.account.id;
+          companyName = directMatch.account.legalName;
+        }
+
+        // 3. User's memberships
         if (!corporateTenantId) {
           const userTenants = await deps.store.corporate.findTenantsForUser(driverId);
           const first = userTenants[0];
@@ -504,14 +520,32 @@ export function bookingRoutes(deps: AppDeps) {
           }
         }
 
+        // 4. Default seed tenants
         if (!corporateTenantId) {
           const defaultTenant =
             (await deps.store.corporate.findBySlug('sellyticshq')) ??
+            (await deps.store.corporate.findBySlug('sellytichq')) ??
             (await deps.store.corporate.findBySlug('zenith'));
           if (defaultTenant) {
             corporateTenantId = defaultTenant.account.id;
             companyName = companyName ?? defaultTenant.account.legalName;
           }
+        }
+
+        // 5. If tenant does not exist in DB yet, auto-provision it so bookings are never dropped
+        if (!corporateTenantId) {
+          const autoAccount = await deps.store.corporate.createAccount({
+            slug: slugCandidate,
+            legalName: cleanCompany,
+            cacRcNumber: 'RC-CORP-AUTO',
+            industry: 'Enterprise Mobility',
+            headOfficeAddress: 'Victoria Island, Lagos, Nigeria',
+            primaryContactName: 'Corporate Administrator',
+            primaryContactEmail: `admin@${slugCandidate}.com`,
+            primaryContactPhone: '+2348000000000',
+          });
+          corporateTenantId = autoAccount.id;
+          companyName = autoAccount.legalName;
         }
 
         if (corporateTenantId) {

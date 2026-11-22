@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicLot, Quote, UnpaidOverstay } from '@parkly/contracts';
 import { lineLabel, searchWindow, windowLabel } from '@parkly/domain/discovery';
+import { ceilToSlot } from '@parkly/domain/time';
 import { formatNaira } from '@parkly/domain/money';
 import { Button, Text, useTheme } from '@parkly/ui-native';
 import * as Crypto from 'expo-crypto';
@@ -32,7 +33,7 @@ export default function ReviewAndPay() {
   );
   const [lot, setLot] = useState<PublicLot | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [bookingType, setBookingType] = useState<'RESERVE' | 'PARK_NOW'>('RESERVE');
+  const [bookingType, setBookingType] = useState<'RESERVE' | 'PARK_NOW'>('PARK_NOW');
   const [error, setError] = useState<string | null>(null);
   const [unpaid, setUnpaid] = useState<UnpaidOverstay['unpaid']>(null);
   const [paying, setPaying] = useState(false);
@@ -76,14 +77,27 @@ export default function ReviewAndPay() {
     try {
       const hasDaily = lot.prices.some((p) => p.product === 'DAILY');
       const w = searchWindow(search, { preferProduct: hasDaily ? undefined : 'HOURLY' });
+
+      let startAt = w.startAt;
+      let endAt = w.endAt;
+      if (bookingType === 'PARK_NOW') {
+        const now = new Date();
+        const startSlot = ceilToSlot(new Date(now.getTime() + 60_000));
+        const durationHours = typeof search.duration === 'number' ? search.duration : 1;
+        const durationMs = search.duration === '5m' ? 5 * 60_000 : durationHours * 3600_000;
+        const endSlot = new Date(startSlot.getTime() + durationMs);
+        startAt = startSlot.toISOString();
+        endAt = endSlot.toISOString();
+      }
+
       const created = await api.createBooking(
         {
           lotId: lot.id,
           vehicleId,
           product: w.product,
           bookingType,
-          startAt: w.startAt,
-          endAt: w.endAt,
+          startAt,
+          endAt,
           corporate: isCorporate,
           corporateCompany: corporateCompany ?? undefined,
         },

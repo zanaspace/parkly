@@ -68,6 +68,50 @@ export const GetCorporateFinanceRoute = createRoute({
   },
 });
 
+const KNOWN_DEMO_TENANTS: Record<string, { legalName: string; email: string }> = {
+  zenith: { legalName: 'Zenith Bank PLC', email: 'admin@zenithbank.com' },
+  kpmg: { legalName: 'KPMG Nigeria', email: 'admin@kpmg.com' },
+  dangote: { legalName: 'Dangote Industries Limited', email: 'admin@dangote.com' },
+  sellyticshq: { legalName: 'Sellyticshq Inc', email: 'admin@sellyticshq.com' },
+  sellytichq: { legalName: 'Sellyticshq Inc', email: 'admin@sellytichq.com' },
+  cicod: { legalName: 'CICOD CRM', email: 'admin@cicod.com' },
+  cicodcrm: { legalName: 'CICOD CRM', email: 'admin@cicod.com' },
+};
+
+async function resolveOrEnsureTenant(deps: AppDeps, slug: string) {
+  const cleanSlug = slug.toLowerCase().trim();
+  let tenant = await deps.store.corporate.findBySlug(cleanSlug);
+
+  if (!tenant) {
+    if (cleanSlug.includes('sellytichq') || cleanSlug.includes('sellyticshq')) {
+      tenant =
+        (await deps.store.corporate.findBySlug('sellytichq')) ??
+        (await deps.store.corporate.findBySlug('sellyticshq'));
+    } else if (cleanSlug.includes('cicod')) {
+      tenant =
+        (await deps.store.corporate.findBySlug('cicodcrm')) ??
+        (await deps.store.corporate.findBySlug('cicod'));
+    }
+  }
+
+  if (!tenant && KNOWN_DEMO_TENANTS[cleanSlug]) {
+    const demo = KNOWN_DEMO_TENANTS[cleanSlug]!;
+    const account = await deps.store.corporate.createAccount({
+      slug: cleanSlug,
+      legalName: demo.legalName,
+      cacRcNumber: 'RC-CORP-AUTO',
+      industry: 'Enterprise Mobility',
+      headOfficeAddress: 'Victoria Island, Lagos, Nigeria',
+      primaryContactName: 'Corporate Administrator',
+      primaryContactEmail: demo.email,
+      primaryContactPhone: '+2348000000000',
+    });
+    tenant = { account, branding: null, domains: [] };
+  }
+
+  return tenant;
+}
+
 export function corporateReportingRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
 
@@ -75,7 +119,7 @@ export function corporateReportingRoutes(deps: AppDeps) {
     const { slug } = c.req.valid('param');
     const { limit, offset, status, period } = c.req.valid('query');
 
-    const tenant = await deps.store.corporate.findBySlug(slug);
+    const tenant = await resolveOrEnsureTenant(deps, slug);
     if (!tenant) {
       throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
     }
@@ -100,7 +144,7 @@ export function corporateReportingRoutes(deps: AppDeps) {
     const { slug } = c.req.valid('param');
     const { period } = c.req.valid('query');
 
-    const tenant = await deps.store.corporate.findBySlug(slug);
+    const tenant = await resolveOrEnsureTenant(deps, slug);
     if (!tenant) {
       throw new ApiError('NOT_FOUND', `Corporate tenant '${slug}' not found`);
     }
