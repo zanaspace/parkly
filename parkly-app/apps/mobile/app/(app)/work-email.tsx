@@ -45,7 +45,7 @@ export default function WorkEmailScreen() {
       }
     }
     if (!clean || !clean.includes('@')) {
-      setError('Please enter a valid corporate email address (e.g. name@sellytichq.com).');
+      setError('Please enter a valid corporate email address (e.g. zana@parkly.com).');
       return;
     }
     setError(null);
@@ -223,7 +223,7 @@ export default function WorkEmailScreen() {
           <Text variant="label.lg">Enter your corporate email</Text>
           <Input
             label="Work Email Address"
-            placeholder="e.g. oluwaseun@sellytichq.com"
+            placeholder="zana@parkly.com"
             value={emailInput}
             onChangeText={setEmailInput}
             autoCapitalize="none"
@@ -263,23 +263,12 @@ export default function WorkEmailScreen() {
 
           <Input
             label="Verification Code"
-            placeholder="123456"
+            placeholder="000000"
             value={otpInput}
             onChangeText={setOtpInput}
             keyboardType="number-pad"
             maxLength={6}
           />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Use test code 123456"
-            onPress={() => setOtpInput('123456')}
-            style={{ alignSelf: 'flex-start' }}
-          >
-            <Text variant="body.sm" tone="brand" style={{ fontWeight: '600', fontSize: 12 }}>
-              Quick test code: 123456
-            </Text>
-          </Pressable>
 
           <Button
             label={loading ? 'Verifying…' : 'Verify & Link Corporate Profile'}
