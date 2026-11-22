@@ -103,7 +103,8 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
   const sendWorkEmailOtp = async (email: string) => {
     const clean = email.toLowerCase().trim();
     const domain = clean.split('@')[1] || '';
-    const rawCompany = domain.includes('sellytic')
+    const isKnownDomain = domain === 'sellyticshq.com' || domain === 'sellytichq.com';
+    const rawCompany = isKnownDomain
       ? 'Sellyticshq'
       : `${(domain.split('.')[0] || 'Corporate').toUpperCase()} Fleet`;
 
@@ -128,7 +129,8 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
   const linkWorkEmail = async (email: string, code: string) => {
     const clean = email.toLowerCase().trim();
     const domain = clean.split('@')[1] || '';
-    let targetCompany = domain.includes('sellytic')
+    const isKnownDomain = domain === 'sellyticshq.com' || domain === 'sellytichq.com';
+    let targetCompany = isKnownDomain
       ? 'Sellyticshq'
       : `${(domain.split('.')[0] || 'Corporate').toUpperCase()} Fleet`;
 
