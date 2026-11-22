@@ -226,7 +226,7 @@ export default function ListSpaceScreen() {
           fullWidth
           onPress={() =>
             void Linking.openURL(
-              'https://wa.me/2348123456789?text=Hello%20Parkly%2C%20I%20am%20interested%20in%20listing%20my%20parking%20space.',
+              'https://wa.me/2348061325196?text=Hello%20Parkly%2C%20I%20am%20interested%20in%20listing%20my%20parking%20space.',
             )
           }
         />
