@@ -5,6 +5,7 @@ import {
   dayLabel,
   defaultStart,
   DURATIONS,
+  lagosInstant,
   type Duration,
 } from '@parkly/domain/discovery';
 
@@ -52,6 +53,22 @@ export function stepTime(time: string, quarters: number): string {
 export function durationLabel(d: Duration): string {
   if (d === '5m') return '5 min (Test)';
   return d === 'day' ? 'Full day' : `${d} h`;
+}
+
+/** Ensures the search start time is not in the past relative to Lagos time. */
+export function ensureValidStart(s: SearchState, now: Date = new Date()): SearchState {
+  const { today } = dateRange(now);
+  const def = defaultStart(now);
+  if (s.date < today) {
+    return { ...s, date: today, time: def.time };
+  }
+  if (s.date === today) {
+    const inst = lagosInstant(s.date, s.time);
+    if (inst.getTime() <= now.getTime()) {
+      return { ...s, time: def.time };
+    }
+  }
+  return s;
 }
 
 /** Where the search is centred, and how to describe it. */

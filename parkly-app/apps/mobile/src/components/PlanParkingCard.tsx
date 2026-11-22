@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Text, useTheme } from '@parkly/ui-native';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
 import { PlaceSearch } from './PlaceSearch';
@@ -31,6 +32,7 @@ export function PlanParkingCard({
   onNearMe,
 }: PlanParkingCardProps) {
   const theme = useTheme();
+  const router = useRouter();
   const [returnTrip, setReturnTrip] = useState(false);
   const [passSubscription, setPassSubscription] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
@@ -288,6 +290,37 @@ export function PlanParkingCard({
           thumbColor="#FFFFFF"
         />
       </View>
+
+      {/* Multi-day Informational Guidance */}
+      {returnTrip ? (
+        <View
+          style={{
+            backgroundColor: theme.color.bg['brand-subtle'],
+            borderWidth: 1,
+            borderColor: theme.color.border.brand,
+            borderRadius: 14,
+            padding: 12,
+            gap: 8,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="information-circle-outline" size={18} color={theme.color.text.brand} />
+            <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
+              Multi-day & Overnight Parking
+            </Text>
+          </View>
+          <Text variant="body.sm" tone="secondary" style={{ fontSize: 12, lineHeight: 17 }}>
+            Single reservations cover stays up to 24 hours. For multi-day or overnight parking,
+            subscribe to a 30-day Monthly Pass for guaranteed reserved access, or book daily slots.
+          </Text>
+          <Button
+            label="View 30-day Monthly Passes"
+            size="sm"
+            variant="secondary"
+            onPress={() => router.push('/passes')}
+          />
+        </View>
+      ) : null}
 
       {/* Monthly Pass Toggle */}
       <View
