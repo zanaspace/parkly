@@ -169,6 +169,29 @@ describe('POST /v1/bookings (FR-BOOK-001)', () => {
     expect(slots.every((s) => s.held === 1)).toBe(true);
   });
 
+  it('confirms immediately when corporate booking is selected (invoiced to employer, ₦0 driver payment)', async () => {
+    const t = await setup();
+    const driver = await t.newDriver();
+    const res = await t.book(driver, randomUUID(), {
+      corporate: true,
+      corporateCompany: 'Google Nigeria',
+    });
+    expect(res.status).toBe(201);
+    const body = res.body as unknown as Created;
+    expect(body.booking).toMatchObject({
+      status: 'CONFIRMED',
+      totalKobo: 110_000,
+      holdExpiresAt: null,
+    });
+    expect(body.payment).toMatchObject({
+      status: 'SUCCEEDED',
+      authorizationUrl: null,
+    });
+    const slots = t.store.slotRows.filter((s) => s.lotId === t.lot.id);
+    expect(slots).toHaveLength(8);
+    expect(slots.every((s) => s.booked === 1 && s.held === 0)).toBe(true);
+  });
+
   it('needs an Idempotency-Key and replays the first answer for a repeat', async () => {
     const t = await setup();
     const driver = await t.newDriver();

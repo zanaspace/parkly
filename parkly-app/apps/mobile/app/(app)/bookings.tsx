@@ -82,13 +82,16 @@ export default function MyBookings() {
           style={{
             flex: 1,
             alignItems: 'center',
+            justifyContent: 'center',
             paddingVertical: 12,
+            paddingHorizontal: 8,
             borderBottomWidth: 2,
             borderBottomColor: tab === 'upcoming' ? theme.color.action.primary.bg : 'transparent',
           }}
         >
           <Text
             variant="label.md"
+            numberOfLines={1}
             style={{
               color: tab === 'upcoming' ? theme.color.text.brand : theme.color.text.secondary,
               fontWeight: tab === 'upcoming' ? '700' : '500',
@@ -106,13 +109,16 @@ export default function MyBookings() {
           style={{
             flex: 1,
             alignItems: 'center',
+            justifyContent: 'center',
             paddingVertical: 12,
+            paddingHorizontal: 8,
             borderBottomWidth: 2,
             borderBottomColor: tab === 'past' ? theme.color.action.primary.bg : 'transparent',
           }}
         >
           <Text
             variant="label.md"
+            numberOfLines={1}
             style={{
               color: tab === 'past' ? theme.color.text.brand : theme.color.text.secondary,
               fontWeight: tab === 'past' ? '700' : '500',
