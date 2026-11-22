@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { PublicLot, Quote, UnpaidOverstay } from '@parkly/contracts';
 import { lineLabel, searchWindow, windowLabel } from '@parkly/domain/discovery';
 import { formatNaira } from '@parkly/domain/money';
@@ -10,6 +11,7 @@ import { useAuth } from '../../../src/auth/AuthProvider';
 import { Chip } from '../../../src/components/Chip';
 import { Notice } from '../../../src/components/Notice';
 import { Screen } from '../../../src/components/Screen';
+import { useProfileMode } from '../../../src/context/ProfileModeContext';
 import { ApiError } from '../../../src/lib/api';
 import { api } from '../../../src/lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../../../src/logic/errors';
@@ -23,6 +25,7 @@ export default function ReviewAndPay() {
   const [search] = useState(() => fromParams(params, new Date()));
   const lotId = params.lotId;
   const { vehicles } = useAuth();
+  const { isCorporate, corporateCompany } = useProfileMode();
   const [vehicleId, setVehicleId] = useState<string | null>(
     () => vehicles?.find((v) => v.isDefault)?.id ?? vehicles?.[0]?.id ?? null,
   );
@@ -75,9 +78,18 @@ export default function ReviewAndPay() {
           bookingType,
           startAt: w.startAt,
           endAt: w.endAt,
+          corporate: isCorporate,
+          corporateCompany: corporateCompany ?? undefined,
         },
         key,
       );
+      if (isCorporate) {
+        router.replace({
+          pathname: '/booking/[id]',
+          params: { id: created.booking.id },
+        });
+        return;
+      }
       if (!created.payment.authorizationUrl) throw new Error('no checkout link');
       router.replace({
         pathname: '/pay/[reference]',
@@ -148,7 +160,15 @@ export default function ReviewAndPay() {
       footer={
         <>
           <Button
-            label={paying ? 'Opening payment…' : `Pay ${formatNaira(quote.totalKobo)}`}
+            label={
+              paying
+                ? isCorporate
+                  ? 'Confirming corporate booking…'
+                  : 'Opening payment…'
+                : isCorporate
+                  ? 'Confirm Corporate Booking (₦0 due)'
+                  : `Pay ${formatNaira(quote.totalKobo)}`
+            }
             fullWidth
             disabled={paying || !vehicleId}
             onPress={() => void pay()}
@@ -163,11 +183,34 @@ export default function ReviewAndPay() {
       }
     >
       <Text variant="overline" tone="brand">
-        Review and pay
+        {isCorporate ? 'Review & Confirm Corporate Booking' : 'Review and pay'}
       </Text>
       <Text variant="heading.xl">{lot.name}</Text>
       <Text tone="secondary">{lot.addressLine}</Text>
       <Text variant="label.lg">{windowLabel(search)}</Text>
+
+      {isCorporate ? (
+        <View
+          style={{
+            backgroundColor: theme.color.bg['brand-subtle'],
+            borderColor: theme.color.border.brand,
+            borderWidth: 1,
+            borderRadius: 14,
+            padding: 12,
+            gap: 4,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="briefcase-outline" size={16} color={theme.color.text.brand} />
+            <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
+              Corporate Fleet Billing Active
+            </Text>
+          </View>
+          <Text variant="body.sm" tone="secondary">
+            Invoiced to {corporateCompany ?? 'Corporate Fleet'}. 100% employer-covered with ₦0 out-of-pocket for you.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={{ gap: theme.space.stack.sm }}>
         <Text variant="label.lg">Booking option</Text>
@@ -228,15 +271,31 @@ export default function ReviewAndPay() {
             <Text variant="body.sm">{formatNaira(l.amountKobo)}</Text>
           </View>
         ))}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text variant="label.lg">Total</Text>
-          <Text variant="label.lg">{formatNaira(quote.totalKobo)}</Text>
+        {isCorporate ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text variant="body.sm" tone="brand" style={{ flex: 1, fontWeight: '600' }}>
+              Corporate fleet subsidy ({corporateCompany ?? 'Corporate Fleet'})
+            </Text>
+            <Text variant="body.sm" tone="brand" style={{ fontWeight: '600' }}>
+              -{formatNaira(quote.totalKobo)}
+            </Text>
+          </View>
+        ) : null}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 }}>
+          <Text variant="label.lg">{isCorporate ? 'Amount due from driver' : 'Total'}</Text>
+          <Text
+            variant="label.lg"
+            style={{ color: isCorporate ? theme.color.text.brand : undefined }}
+          >
+            {isCorporate ? '₦0' : formatNaira(quote.totalKobo)}
+          </Text>
         </View>
       </View>
 
       <Text variant="body.sm" tone="secondary">
-        We hold your space for 10 minutes while you pay with card, bank transfer or USSD on
-        Paystack. Free cancellation until 30 minutes before your start time.
+        {isCorporate
+          ? `This stay is billed directly to ${corporateCompany ?? 'your employer'}'s corporate invoicing account. No card or personal payment required.`
+          : 'We hold your space for 10 minutes while you pay with card, bank transfer or USSD on Paystack. Free cancellation until 30 minutes before your start time.'}
       </Text>
       {error ? <Notice message={error} /> : null}
     </Screen>
