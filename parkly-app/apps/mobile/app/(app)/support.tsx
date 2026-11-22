@@ -114,7 +114,7 @@ export default function SupportScreen() {
           accessibilityLabel="Chat on WhatsApp with Parkly Support"
           onPress={() =>
             void Linking.openURL(
-              'https://wa.me/2348123456789?text=Hello%20Parkly%20Support%2C%20I%20need%20assistance.',
+              'https://wa.me/2348061325196?text=Hello%20Parkly%20Support%2C%20I%20need%20assistance.',
             )
           }
           style={({ pressed }) => ({
