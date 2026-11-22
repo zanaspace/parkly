@@ -82,7 +82,9 @@ export function BottomNav() {
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
             onPress={() => {
-              if (!isActive) {
+              if (tab.key === 'search' && pathname === '/search') {
+                router.replace('/home');
+              } else if (!isActive) {
                 router.replace(tab.route);
               }
             }}

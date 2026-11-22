@@ -12,6 +12,7 @@ import { LotsMap } from '../../src/components/LotsMap';
 import { Notice } from '../../src/components/Notice';
 import { PlaceSearch } from '../../src/components/PlaceSearch';
 import { ResultCard } from '../../src/components/ResultCard';
+import { BottomNav } from '../../src/components/BottomNav';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
 import { GENERIC_ERROR_MESSAGE } from '../../src/logic/errors';
@@ -370,6 +371,7 @@ export default function Results() {
           />
         }
       />
+      <BottomNav />
     </SafeAreaView>
   );
 }
