@@ -10,7 +10,7 @@ export const DURATION_OPTIONS: { value: Duration; label: string }[] = [
   { value: 6, label: '6 hours' },
   { value: 8, label: '8 hours' },
   { value: 12, label: '12 hours' },
-  { value: 'day', label: 'Full day' },
+  { value: 24, label: 'Full day' },
 ];
 
 export interface DurationPickerProps {
@@ -30,7 +30,9 @@ export function DurationPicker({
   const theme = useTheme();
 
   const handleStep = (delta: number) => {
-    const idx = DURATION_OPTIONS.findIndex((o) => o.value === duration);
+    const idx = DURATION_OPTIONS.findIndex(
+      (o) => o.value === duration || (o.value === 24 && duration === 'day'),
+    );
     const curIdx = idx === -1 ? 1 : idx;
     const nextIdx = Math.max(0, Math.min(DURATION_OPTIONS.length - 1, curIdx + delta));
     const nextOpt = DURATION_OPTIONS[nextIdx];
@@ -38,7 +40,9 @@ export function DurationPicker({
   };
 
   const displayLabel =
-    duration === 'day' ? 'Full Day Parking' : `${duration} hour${duration === 1 ? '' : 's'}`;
+    duration === 'day' || duration === 24
+      ? 'Full Day Parking'
+      : `${duration} hour${duration === 1 ? '' : 's'}`;
 
   return (
     <View
@@ -122,7 +126,10 @@ export function DurationPicker({
         contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
       >
         {DURATION_OPTIONS.map((opt) => {
-          const isSelected = duration === opt.value;
+          const isSelected =
+            duration === opt.value ||
+            (opt.value === 24 && duration === 'day') ||
+            (opt.value === 'day' && duration === 24);
           return (
             <Pressable
               key={String(opt.value)}

@@ -24,7 +24,7 @@ export const AREAS = [
 export type Area = (typeof AREAS)[number];
 
 /** Hourly stays offered in the pickers; '5m' is a 5-minute test stay (for testing overstay); 'day' is a full Lagos day. */
-export const DURATIONS = [1, 2, 3, 4, 6, 8, 10, 12] as const;
+export const DURATIONS = [1, 2, 3, 4, 6, 8, 10, 12, 24] as const;
 /** Pickers with the 5-minute test stay first; only where test stays are switched on, never in prod. */
 export const TEST_DURATIONS = ['5m', ...DURATIONS] as const;
 export type Duration = (typeof TEST_DURATIONS)[number] | 'day';
@@ -75,16 +75,30 @@ export function lagosWeekday(now: Date): number {
 }
 
 /** The API window: hours from the start time, or the whole Lagos day. */
-export function searchWindow(s: { date: string; time: string; duration: Duration }): {
+export function searchWindow(
+  s: { date: string; time: string; duration: Duration },
+  opts?: { preferProduct?: 'HOURLY' | 'DAILY' },
+): {
   startAt: string;
   endAt: string;
   product: 'HOURLY' | 'DAILY';
 } {
-  if (s.duration === 'day') {
-    const start = lagosInstant(s.date, '00:00');
+  if (s.duration === 'day' || s.duration === 24) {
+    if (opts?.preferProduct === 'HOURLY' || s.duration === 24) {
+      const start = lagosInstant(s.date, s.time);
+      return {
+        startAt: start.toISOString(),
+        endAt: new Date(start.getTime() + 24 * HOUR_MS).toISOString(),
+        product: 'HOURLY',
+      };
+    }
+    const today = lagosParts(new Date()).date;
+    const start = s.date <= today ? lagosInstant(s.date, s.time) : lagosInstant(s.date, '00:00');
+    const dayEnd = new Date(lagosInstant(s.date, '00:00').getTime() + DAY_MS);
+    const endAt = dayEnd.getTime() > start.getTime() ? dayEnd : new Date(start.getTime() + DAY_MS);
     return {
       startAt: start.toISOString(),
-      endAt: new Date(start.getTime() + DAY_MS).toISOString(),
+      endAt: endAt.toISOString(),
       product: 'DAILY',
     };
   }
@@ -128,7 +142,7 @@ export function dayLabel(date: string): string {
 
 /** "Fri 23 Oct, 08:00 for 10 hours" / "Fri 23 Oct, all day". */
 export function windowLabel(s: { date: string; time: string; duration: Duration }): string {
-  if (s.duration === 'day') return `${dayLabel(s.date)}, all day`;
+  if (s.duration === 'day' || s.duration === 24) return `${dayLabel(s.date)}, all day`;
   if (s.duration === '5m') return `${dayLabel(s.date)}, ${s.time} for 5 min (Test)`;
   return `${dayLabel(s.date)}, ${s.time} for ${s.duration} hour${s.duration === 1 ? '' : 's'}`;
 }

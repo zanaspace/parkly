@@ -52,7 +52,7 @@ export function stepTime(time: string, quarters: number): string {
 
 export function durationLabel(d: Duration): string {
   if (d === '5m') return '5 min (Test)';
-  return d === 'day' ? 'Full day' : `${d} h`;
+  return d === 'day' || d === 24 ? 'Full day' : `${d} h`;
 }
 
 /** Ensures the search start time is not in the past relative to Lagos time. */
