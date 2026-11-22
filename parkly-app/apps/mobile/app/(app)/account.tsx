@@ -6,6 +6,7 @@ import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { ListItem, ListItemGroup } from '../../src/components/ListItem';
 import { Notice } from '../../src/components/Notice';
+import { ProfileHeader } from '../../src/components/ProfileHeader';
 import { Screen } from '../../src/components/Screen';
 import { VehicleRow } from '../../src/components/VehicleRow';
 import { ApiError } from '../../src/lib/api';
@@ -131,21 +132,17 @@ export default function Account() {
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
         />
       ) : null}
-      <Text variant="heading.lg">Account</Text>
-      <View style={{ gap: theme.space.stack.xs }}>
-        <Text variant="body.lg">
-          {[me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Your profile'}
-        </Text>
-        {me?.phoneLast4 ? <Text tone="secondary">{`Phone ending ${me.phoneLast4}`}</Text> : null}
-        {me?.isVerifiedDriver ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="shield-checkmark" size={16} color={theme.badge.verified.fg} />
-            <Text variant="label.sm" style={{ color: theme.badge.verified.fg }}>
-              Verified Driver (Tier 2 KYC)
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      <ProfileHeader
+        name={[me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Parkly Driver'}
+        phoneLast4={me?.phoneLast4}
+        isVerifiedDriver={me?.isVerifiedDriver}
+        onShareReferral={() => {
+          void Linking.openURL('https://parkly.ng/invite/PARKLY10');
+        }}
+        onListSpace={() => {
+          void Linking.openURL(legalUrl('terms'));
+        }}
+      />
 
       {!me?.isVerifiedDriver ? (
         <View
