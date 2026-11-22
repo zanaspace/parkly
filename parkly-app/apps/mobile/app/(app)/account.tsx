@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input, Text, useTheme } from '@parkly/ui-native';
+import { Button, Text, useTheme } from '@parkly/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { DriverVerificationCard } from '../../src/components/DriverVerificationCard';
 import { ListItem, ListItemGroup } from '../../src/components/ListItem';
 import { Notice } from '../../src/components/Notice';
 import { ProfileHeader } from '../../src/components/ProfileHeader';
@@ -20,49 +21,15 @@ function errorText(err: unknown) {
   return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
 }
 
-/** D-26 Account settings: profile, vehicles, sign-out, deletion request. */
+/** D-26 Account settings: profile, vehicles, corporate mode, data export, sign-out, deletion request. */
 export default function Account() {
   const theme = useTheme();
   const router = useRouter();
   const auth = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<
-    'device' | 'all' | 'delete' | 'export' | 'keep' | 'verify' | null
-  >(null);
-  const [method, setMethod] = useState<'FRSC_LICENSE' | 'NIN_PHONE'>('FRSC_LICENSE');
-  const [idNumber, setIdNumber] = useState('');
-  const [dob, setDob] = useState('1990-01-01');
+  const [accountMode, setAccountMode] = useState<'PERSONAL' | 'CORPORATE'>('PERSONAL');
+  const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | null>(null);
   const { me, vehicles } = auth;
-
-  async function verifyIdentity() {
-    if (!idNumber.trim()) {
-      setError(
-        method === 'FRSC_LICENSE'
-          ? 'Please enter your FRSC driver’s license number.'
-          : 'Please enter your 11-digit NIN.',
-      );
-      return;
-    }
-    if (method === 'FRSC_LICENSE' && !dob.trim()) {
-      setError('Please enter your date of birth (YYYY-MM-DD).');
-      return;
-    }
-    setBusy('verify');
-    setError(null);
-    try {
-      await api.submitVerification(
-        method === 'FRSC_LICENSE'
-          ? { method: 'FRSC_LICENSE', idNumber: idNumber.trim(), dateOfBirth: dob.trim() }
-          : { method: 'NIN_PHONE', idNumber: idNumber.trim() },
-      );
-      const updated = await api.me();
-      auth.setMe(updated);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function signOut(scope: 'device' | 'all') {
     if (scope === 'all') {
@@ -96,18 +63,8 @@ export default function Account() {
     }
   }
 
-  async function downloadMyData() {
-    setBusy('export');
-    setError(null);
-    try {
-      const made = await api.requestDataExport();
-      const link = await api.dataExportLink(made.requestId);
-      await Linking.openURL(link.url);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(null);
-    }
+  function downloadMyData() {
+    router.push('/data-export' as never);
   }
 
   async function keepAccount() {
@@ -144,130 +101,124 @@ export default function Account() {
         }}
       />
 
-      {!me?.isVerifiedDriver ? (
-        <View
+      {/* Mode Switcher: Personal ⇄ Corporate */}
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: theme.color.bg.subtle,
+          borderRadius: theme.radius.pill,
+          padding: 4,
+          gap: 4,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Personal Parking Mode"
+          onPress={() => setAccountMode('PERSONAL')}
           style={{
-            backgroundColor: theme.card.bg,
-            borderColor: theme.card.border,
-            borderWidth: 1,
-            borderRadius: theme.card.radius,
-            padding: theme.card.padding,
-            gap: theme.space.stack.sm,
+            flex: 1,
+            paddingVertical: 8,
+            alignItems: 'center',
+            borderRadius: theme.radius.pill,
+            backgroundColor: accountMode === 'PERSONAL' ? theme.color.bg.surface : 'transparent',
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="shield-outline" size={20} color={theme.color.text.brand} />
-            <Text variant="heading.sm">Verified Driver (60-second check)</Text>
-          </View>
-          <Text variant="body.sm" tone="secondary">
-            Required for 30-day monthly passes and gated car parks. Verified against FRSC or NIMC;
-            we only store a masked reference.
-          </Text>
-          <View style={{ flexDirection: 'row', gap: theme.space.inline.sm }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: method === 'FRSC_LICENSE' }}
-              accessibilityLabel="FRSC Driver's License"
-              onPress={() => {
-                setMethod('FRSC_LICENSE');
-                setError(null);
-              }}
-              style={({ pressed }) => ({
-                flex: 1,
-                minHeight: 42,
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingVertical: theme.space[2],
-                paddingHorizontal: theme.space[3],
-                borderRadius: theme.radius.pill,
-                borderWidth: 1,
-                borderColor:
-                  method === 'FRSC_LICENSE' ? theme.color.border.brand : theme.color.border.default,
-                backgroundColor:
-                  method === 'FRSC_LICENSE'
-                    ? theme.color.bg['brand-subtle']
-                    : pressed
-                      ? theme.color.bg.muted
-                      : theme.color.bg.surface,
-              })}
-            >
-              <Text
-                variant="body.sm"
-                tone={method === 'FRSC_LICENSE' ? 'brand' : 'primary'}
-                style={{
-                  textAlign: 'center',
-                  fontWeight: method === 'FRSC_LICENSE' ? '600' : '400',
-                }}
-              >
-                FRSC Driver’s License
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: method === 'NIN_PHONE' }}
-              accessibilityLabel="11-digit NIN"
-              onPress={() => {
-                setMethod('NIN_PHONE');
-                setError(null);
-              }}
-              style={({ pressed }) => ({
-                flex: 1,
-                minHeight: 42,
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingVertical: theme.space[2],
-                paddingHorizontal: theme.space[3],
-                borderRadius: theme.radius.pill,
-                borderWidth: 1,
-                borderColor:
-                  method === 'NIN_PHONE' ? theme.color.border.brand : theme.color.border.default,
-                backgroundColor:
-                  method === 'NIN_PHONE'
-                    ? theme.color.bg['brand-subtle']
-                    : pressed
-                      ? theme.color.bg.muted
-                      : theme.color.bg.surface,
-              })}
-            >
-              <Text
-                variant="body.sm"
-                tone={method === 'NIN_PHONE' ? 'brand' : 'primary'}
-                style={{ textAlign: 'center', fontWeight: method === 'NIN_PHONE' ? '600' : '400' }}
-              >
-                11-digit NIN
-              </Text>
-            </Pressable>
-          </View>
-          <Input
-            label={method === 'FRSC_LICENSE' ? 'License number' : '11-digit NIN'}
-            value={idNumber}
-            onChangeText={(t) => {
-              setIdNumber(t);
-              if (error) setError(null);
-            }}
-            autoCapitalize="characters"
-            placeholder={method === 'FRSC_LICENSE' ? 'e.g. ABC12345AA12' : 'e.g. 12345678901'}
-          />
-          {method === 'FRSC_LICENSE' ? (
-            <Input
-              label="Date of birth (YYYY-MM-DD)"
-              value={dob}
-              onChangeText={(t) => {
-                setDob(t);
-                if (error) setError(null);
-              }}
-              placeholder="1990-01-01"
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons
+              name="person"
+              size={14}
+              color={
+                accountMode === 'PERSONAL' ? theme.color.text.brand : theme.color.text.secondary
+              }
             />
-          ) : null}
-          {error ? <Notice message={error} /> : null}
-          <Button
-            label="Verify my driver identity"
-            fullWidth
-            loading={busy === 'verify'}
-            onPress={() => void verifyIdentity()}
-          />
+            <Text
+              variant="label.sm"
+              style={{
+                color:
+                  accountMode === 'PERSONAL' ? theme.color.text.brand : theme.color.text.secondary,
+                fontWeight: accountMode === 'PERSONAL' ? '700' : '500',
+              }}
+            >
+              Personal
+            </Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Corporate Parking Mode"
+          onPress={() => setAccountMode('CORPORATE')}
+          style={{
+            flex: 1,
+            paddingVertical: 8,
+            alignItems: 'center',
+            borderRadius: theme.radius.pill,
+            backgroundColor: accountMode === 'CORPORATE' ? theme.color.bg.surface : 'transparent',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons
+              name="business"
+              size={14}
+              color={
+                accountMode === 'CORPORATE' ? theme.color.text.brand : theme.color.text.secondary
+              }
+            />
+            <Text
+              variant="label.sm"
+              style={{
+                color:
+                  accountMode === 'CORPORATE' ? theme.color.text.brand : theme.color.text.secondary,
+                fontWeight: accountMode === 'CORPORATE' ? '700' : '500',
+              }}
+            >
+              Corporate Fleet
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Corporate Active Banner when in Corporate Mode */}
+      {accountMode === 'CORPORATE' ? (
+        <View
+          style={{
+            backgroundColor: theme.color.bg['brand-subtle'],
+            borderWidth: 1,
+            borderColor: theme.color.border.brand,
+            borderRadius: 16,
+            padding: 14,
+            gap: 6,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="business" size={18} color={theme.color.text.brand} />
+              <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
+                Corporate Fleet Active
+              </Text>
+            </View>
+            <Text
+              variant="label.sm"
+              style={{ color: theme.color.status.success.fg, fontWeight: '700' }}
+            >
+              Subsidized
+            </Text>
+          </View>
+          <Text variant="body.sm" tone="secondary" style={{ fontSize: 12, lineHeight: 17 }}>
+            Reservations are linked to corporate billing. Centralized invoices are issued to your
+            company monthly.
+          </Text>
         </View>
       ) : null}
+
+      {/* Driver Verification Form */}
+      <DriverVerificationCard />
 
       <Text variant="heading.sm">Vehicles</Text>
       {error && me?.isVerifiedDriver ? <Notice message={error} /> : null}
@@ -293,6 +244,12 @@ export default function Account() {
           label="Help & Support"
           description="24/7 hotline, live chat & FAQs"
           onPress={() => router.push('/support' as never)}
+        />
+        <ListItem
+          icon={<Ionicons name="business-outline" size={18} color={theme.color.text.brand} />}
+          label="Corporate Parking Plan"
+          description="Employer parking subsidies & fleet billing."
+          onPress={() => router.push('/corporate' as never)}
         />
         <ListItem
           icon={<Ionicons name="download-outline" size={18} color={theme.color.text.brand} />}
