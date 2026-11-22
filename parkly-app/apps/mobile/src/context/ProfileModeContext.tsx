@@ -104,7 +104,7 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
     const clean = email.toLowerCase().trim();
     const domain = clean.split('@')[1] || '';
     const rawCompany = domain.includes('sellytic')
-      ? 'Sellytics HQ Inc'
+      ? 'Sellyticshq'
       : `${(domain.split('.')[0] || 'Corporate').toUpperCase()} Fleet`;
 
     try {
@@ -131,7 +131,7 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
     const clean = email.toLowerCase().trim();
     const domain = clean.split('@')[1] || '';
     let targetCompany = domain.includes('sellytic')
-      ? 'Sellytics HQ Inc'
+      ? 'Sellyticshq'
       : `${(domain.split('.')[0] || 'Corporate').toUpperCase()} Fleet`;
 
     try {
