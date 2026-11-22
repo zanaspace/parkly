@@ -37,9 +37,10 @@ export function corporateRoutes(deps: AppDeps) {
     // Find registered tenant by domain
     const tenants = await deps.store.corporate.findTenantsForUser('anon', normalizedEmail);
     const rawPrefix = domain.split('.')[0] || 'Company';
+    const isKnownDomain = domain === 'sellyticshq.com' || domain === 'sellytichq.com';
     const company =
       tenants[0]?.name ||
-      (domain.includes('sellytic') ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+      (isKnownDomain ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
 
     // Generate 6-digit OTP
     const code =
@@ -97,10 +98,11 @@ export function corporateRoutes(deps: AppDeps) {
     const domain = normalizedEmail.split('@')[1] || '';
     const tenants = await deps.store.corporate.findTenantsForUser('anon', normalizedEmail);
     const rawPrefix = domain.split('.')[0] || 'Company';
+    const isKnownDomain = domain === 'sellyticshq.com' || domain === 'sellytichq.com';
     const company =
       record?.company ||
       tenants[0]?.name ||
-      (domain.includes('sellytic') ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+      (isKnownDomain ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
 
     otpStore.delete(normalizedEmail);
 

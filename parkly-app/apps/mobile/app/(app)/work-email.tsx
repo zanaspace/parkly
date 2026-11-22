@@ -35,16 +35,9 @@ export default function WorkEmailScreen() {
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
-    let clean = emailInput.trim().toLowerCase();
-    // Auto-fix if typed e.g. oluwaseun.sellytichq.com without '@'
-    if (!clean.includes('@')) {
-      if (clean.includes('.sellytichq.com')) {
-        clean = clean.replace(/\.sellytichq\.com$/, '@sellytichq.com');
-      } else if (clean.includes('.sellyticshq.com')) {
-        clean = clean.replace(/\.sellyticshq\.com$/, '@sellyticshq.com');
-      }
-    }
-    if (!clean || !clean.includes('@')) {
+    const clean = emailInput.trim().toLowerCase();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(clean)) {
       setError('Please enter a valid corporate email address (e.g. zana@parkly.com).');
       return;
     }
