@@ -207,7 +207,8 @@ export default function ReviewAndPay() {
             </Text>
           </View>
           <Text variant="body.sm" tone="secondary">
-            Invoiced to {corporateCompany ?? 'Corporate Fleet'}. 100% employer-covered with ₦0 out-of-pocket for you.
+            Invoiced to {corporateCompany ?? 'Corporate Fleet'}. 100% employer-covered with ₦0
+            out-of-pocket for you.
           </Text>
         </View>
       ) : null}

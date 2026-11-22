@@ -478,7 +478,12 @@ export function bookingRoutes(deps: AppDeps) {
     if (body.corporate) {
       const settled = await settleCorporateBooking(deps, paymentId, split.amountKobo);
       deps.logger.info(
-        { event: 'booking.corporate_confirmed', bookingId, lotId: lot.id, company: body.corporateCompany },
+        {
+          event: 'booking.corporate_confirmed',
+          bookingId,
+          lotId: lot.id,
+          company: body.corporateCompany,
+        },
         'corporate fleet booking confirmed and invoiced to employer',
       );
       const op = await deps.store.operators.find(lot.operatorId);
