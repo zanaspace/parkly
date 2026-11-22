@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { DURATION_OPTIONS } from '../../src/components/DurationPicker';
 import { HomeHeaderBar } from '../../src/components/HomeHeaderBar';
 import { Notice } from '../../src/components/Notice';
 import { PlaceSearch } from '../../src/components/PlaceSearch';
@@ -14,6 +15,7 @@ import { Screen } from '../../src/components/Screen';
 import { ServiceGrid } from '../../src/components/ServiceGrid';
 import {
   dayChoices,
+  durationLabel,
   ensureValidStart,
   initialSearch,
   stepTime,
@@ -65,6 +67,14 @@ export default function Home() {
   function handleFindParking() {
     const valid = ensureValidStart(search, new Date());
     router.push({ pathname: '/search', params: toParams(valid) });
+  }
+
+  function handleStepDuration(delta: number) {
+    const idx = DURATION_OPTIONS.findIndex((o) => o.value === search.duration);
+    const curIdx = idx === -1 ? 1 : idx;
+    const nextIdx = Math.max(0, Math.min(DURATION_OPTIONS.length - 1, curIdx + delta));
+    const nextOpt = DURATION_OPTIONS[nextIdx];
+    if (nextOpt) set({ duration: nextOpt.value });
   }
 
   function handlePickPlace(p: { lat: number; lng: number; label: string }) {
@@ -259,11 +269,13 @@ export default function Home() {
         destinationLabel={search.placeLabel}
         dateLabel={currentDateLabel}
         timeLabel={search.time}
+        durationLabel={durationLabel(search.duration)}
         onPickDestination={(p) =>
           set({ area: null, coords: { lat: p.lat, lng: p.lng }, placeLabel: p.label })
         }
         onClearDestination={() => set({ placeLabel: null, coords: null })}
         onStepTime={(delta) => set({ time: stepTime(search.time, delta) })}
+        onStepDuration={handleStepDuration}
         onFindParking={handleFindParking}
         onNearMe={() => void nearMe()}
       />

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { Chip } from '../../../src/components/Chip';
+import { DurationPicker } from '../../../src/components/DurationPicker';
 import { Notice } from '../../../src/components/Notice';
 import { Screen } from '../../../src/components/Screen';
 import { useProfileMode } from '../../../src/context/ProfileModeContext';
@@ -22,7 +23,7 @@ export default function ReviewAndPay() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ lotId: string }>();
-  const [search] = useState(() => fromParams(params, new Date()));
+  const [search, setSearch] = useState(() => fromParams(params, new Date()));
   const lotId = params.lotId;
   const { vehicles } = useAuth();
   const { isCorporate, corporateCompany } = useProfileMode();
@@ -212,6 +213,11 @@ export default function ReviewAndPay() {
           </Text>
         </View>
       ) : null}
+
+      <DurationPicker
+        duration={search.duration}
+        onChange={(d) => setSearch((prev) => ({ ...prev, duration: d }))}
+      />
 
       <View style={{ gap: theme.space.stack.sm }}>
         <Text variant="label.lg">Booking option</Text>
