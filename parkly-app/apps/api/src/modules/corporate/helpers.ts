@@ -18,6 +18,8 @@ import type {
   CorporateBrandingRow,
   CorporateFleetDriverRow,
 } from '../../store/types.js';
+import { resendEmailProvider } from '../../providers/resend.js';
+import type { EmailProvider } from '../../providers/index.js';
 
 export const json = <T>(schema: T) => ({ content: { 'application/json': { schema } } });
 export const SlugParam = z.object({ slug: z.string().min(1).max(64) });
@@ -266,4 +268,37 @@ export function formatTenant(
       : null,
     emailDomains,
   };
+}
+
+export async function sendCorporateOtpEmail(options: {
+  emailProvider?: EmailProvider;
+  to: string;
+  code: string;
+  company: string;
+}) {
+  const provider =
+    options.emailProvider ??
+    (process.env.RESEND_API_KEY
+      ? resendEmailProvider({
+          apiKey: process.env.RESEND_API_KEY,
+          from: process.env.EMAIL_FROM || 'Parkly <no-reply@parkly.sellytichq.com>',
+        })
+      : null);
+  if (!provider) return;
+
+  await provider.send({
+    to: options.to,
+    subject: `Your Parkly Corporate Verification Code: ${options.code}`,
+    text: `Your Parkly Dual-Profile verification code is: ${options.code}\n\nExpires in 10 minutes.\nCompany: ${options.company}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0f172a; margin-top: 0;">Parkly Corporate Verification</h2>
+        <p style="color: #475569; font-size: 15px;">Use this 6-digit verification code to link your account to <strong>${options.company}</strong>:</p>
+        <div style="background: #f1f5f9; padding: 18px; border-radius: 8px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #0284c7;">${options.code}</span>
+        </div>
+        <p style="color: #64748b; font-size: 13px;">This code will expire in 10 minutes. If you did not request this, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
 }
