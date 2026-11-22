@@ -29,6 +29,7 @@ export default defineConfig({
         'src/store/drizzle-incidents.ts',
         'src/store/drizzle-dsar.ts',
         'src/store/drizzle-passes.ts',
+        'src/store/drizzle-corporate.ts',
         // Test doubles and helpers.
         'src/store/memory.ts',
         'src/store/memory-bookings.ts',
