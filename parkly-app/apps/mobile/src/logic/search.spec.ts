@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dayChoices,
   durationLabel,
+  ensureValidStart,
   fromParams,
   initialSearch,
   searchPoint,
@@ -89,5 +90,15 @@ describe('a place picked from suggestions', () => {
     };
     expect(searchPoint(s)).toEqual({ lat: 6.4247, lng: 3.4284, place: 'Eko Hotel' });
     expect(fromParams(toParams(s), NOW)).toEqual(s);
+  });
+
+  it('bumps past times forward to the next valid start', () => {
+    const past = {
+      ...initialSearch(NOW),
+      date: '2026-10-22',
+      time: '12:00', // NOW is 14:20 in Lagos
+    };
+    const fixed = ensureValidStart(past, NOW);
+    expect(fixed.time).toBe('15:00');
   });
 });
