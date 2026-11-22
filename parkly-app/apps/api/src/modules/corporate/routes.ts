@@ -41,11 +41,11 @@ export function corporateRoutes(deps: AppDeps) {
       tenants[0]?.name ||
       (domain.includes('sellytic') ? 'Sellyticshq' : `${rawPrefix.toUpperCase()} Corporate Fleet`);
 
-    // Generate 6-digit OTP (123456 in dev/test)
+    // Generate 6-digit OTP
     const code =
-      deps.config.appEnv === 'prod'
-        ? String(Math.floor(100000 + Math.random() * 900000))
-        : '123456';
+      process.env.NODE_ENV === 'test'
+        ? '123456'
+        : String(Math.floor(100000 + Math.random() * 900000));
     otpStore.set(normalizedEmail, {
       code,
       expiresAt: Date.now() + 10 * 60 * 1000,
@@ -88,10 +88,9 @@ export function corporateRoutes(deps: AppDeps) {
     const normalizedEmail = email.toLowerCase().trim();
     const record = otpStore.get(normalizedEmail);
 
-    const isTestCode = code.trim() === '123456';
     const isValidCode = record && record.code === code.trim() && record.expiresAt > Date.now();
 
-    if (!isValidCode && !isTestCode) {
+    if (!isValidCode) {
       throw new ApiError('VALIDATION_FAILED', 'Invalid or expired 6-digit verification code');
     }
 

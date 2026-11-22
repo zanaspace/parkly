@@ -117,12 +117,10 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
         company: rawCompany,
         message: `A 6-digit verification code has been sent to ${clean}.`,
       };
-    } catch {
-      // Graceful fallback for test/dev environment on Expo Go / Tunnel
+    } catch (err) {
       return {
-        success: true,
-        company: rawCompany,
-        message: `Verification code sent to ${clean} (Use test code 123456).`,
+        success: false,
+        error: err instanceof ApiError ? err.message : 'Could not send verification code.',
       };
     }
   };
@@ -135,16 +133,9 @@ export function ProfileModeProvider({ children }: { children: ReactNode }) {
       : `${(domain.split('.')[0] || 'Corporate').toUpperCase()} Fleet`;
 
     try {
-      try {
-        const res = await api.verifyWorkEmailOtp(clean, code);
-        if (res?.company) {
-          targetCompany = res.company;
-        }
-      } catch {
-        // Fallback for dev / test code 123456
-        if (code.trim() !== '123456') {
-          return { success: false, error: 'Invalid or expired 6-digit verification code.' };
-        }
+      const res = await api.verifyWorkEmailOtp(clean, code);
+      if (res?.company) {
+        targetCompany = res.company;
       }
 
       setCorporateJoined(true);

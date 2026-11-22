@@ -151,7 +151,7 @@ export default function CorporateScreen() {
         <Text variant="body.sm" tone="secondary" style={{ fontSize: 12, lineHeight: 18 }}>
           {workEmail
             ? `Linked to ${workEmail} (${corporateCompany || 'Corporate Fleet'}). 1 account gives you both Personal and Corporate profiles with 1-tap switching.`
-            : 'Link your corporate email (e.g. name@sellyticshq.com) to automatically unlock your company subsidy with 1 account and 1-tap profile switching.'}
+            : 'Link your corporate email (e.g. zana@parkly.com) to automatically unlock your company subsidy with 1 account and 1-tap profile switching.'}
         </Text>
         <Button
           label={workEmail ? 'Manage Work Email & Profiles' : 'Link Work Email (Recommended)'}
