@@ -25,7 +25,10 @@ export async function settleCorporateBooking(
     cardBrand: null,
   };
   const result = await deps.store.payments.settle(paymentId, charge, now);
-  deps.logger.info({ event: 'payment.corporate_settled', paymentId }, 'corporate booking payment settled');
+  deps.logger.info(
+    { event: 'payment.corporate_settled', paymentId },
+    'corporate booking payment settled',
+  );
   await receiptAfterSettle(deps, result);
   await notifySettled(deps, result);
   return result;

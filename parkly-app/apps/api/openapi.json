@@ -17050,6 +17050,13 @@
                     "type": "string",
                     "maxLength": 500,
                     "format": "uri"
+                  },
+                  "corporate": {
+                    "type": "boolean"
+                  },
+                  "corporateCompany": {
+                    "type": "string",
+                    "maxLength": 200
                   }
                 },
                 "required": [
