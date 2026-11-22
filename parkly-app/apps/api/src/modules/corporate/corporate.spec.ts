@@ -340,4 +340,43 @@ describe('Corporate Tenancy API (Sprint CORP-01)', () => {
     expect(tenants[0]?.slug).toBe('sellyticshq');
     expect(tenants[0]?.role).toBe('CORP_ADMIN');
   });
+
+  it('sends 6-digit OTP to corporate work email and links dual-profile upon verification', async () => {
+    const w = world();
+    const account = await w.store.corporate.createAccount({
+      slug: 'sellyticshq',
+      legalName: 'Sellytics HQ Inc',
+      cacRcNumber: 'RC998877',
+      industry: 'TECH',
+      headOfficeAddress: '12 Marina, Lagos',
+      primaryContactName: 'Seun Adeleye',
+      primaryContactEmail: 'hr@sellyticshq.com',
+      primaryContactPhone: '+2348012345678',
+    });
+
+    await w.store.corporate.addDomain(account.id, {
+      subdomain: 'sellyticshq',
+      emailDomain: 'sellyticshq.com',
+      isVerified: true,
+    });
+
+    // Step 1: Send OTP to work email
+    const sendRes = await w.call('POST', '/v1/corp/work-email/send-otp', {
+      body: { email: 'prince@sellyticshq.com' },
+    });
+    expect(sendRes.status).toBe(200);
+    const sendData = sendRes.body as { success: boolean; company: string };
+    expect(sendData.success).toBe(true);
+    expect(sendData.company).toBe('Sellytics HQ Inc');
+
+    // Step 2: Verify 6-digit OTP
+    const verifyRes = await w.call('POST', '/v1/corp/work-email/verify-otp', {
+      body: { email: 'prince@sellyticshq.com', code: '123456' },
+    });
+    expect(verifyRes.status).toBe(200);
+    const verifyData = verifyRes.body as { success: boolean; company: string; subsidy: string };
+    expect(verifyData.success).toBe(true);
+    expect(verifyData.company).toBe('Sellytics HQ Inc');
+    expect(verifyData.subsidy).toBe('100% Employer Subsidized');
+  });
 });

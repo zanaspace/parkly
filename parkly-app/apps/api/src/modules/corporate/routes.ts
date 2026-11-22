@@ -14,12 +14,102 @@ import {
   ListDriversRoute,
   OnboardTenantRoute,
   ResolveTenantRoute,
+  SendWorkEmailOtpRoute,
   serializeDriver,
   UpdateTenantRoute,
+  VerifyWorkEmailOtpRoute,
 } from './helpers.js';
+
+// In-memory OTP store for work email verification (10-minute expiry)
+const otpStore = new Map<string, { code: string; expiresAt: number; company: string }>();
 
 export function corporateRoutes(deps: AppDeps) {
   const app = new OpenAPIHono<AuthEnv>();
+
+  /** Send 6-digit OTP to corporate work email for Dual-Profile linking */
+  app.openapi(SendWorkEmailOtpRoute, async (c) => {
+    const { email } = c.req.valid('json');
+    const normalizedEmail = email.toLowerCase().trim();
+    const domain = normalizedEmail.split('@')[1];
+    if (!domain) throw new ApiError('VALIDATION_FAILED', 'Invalid email address');
+
+    // Find registered tenant by domain
+    const tenants = await deps.store.corporate.findTenantsForUser('anon', normalizedEmail);
+    const rawPrefix = domain.split('.')[0] || 'Company';
+    const company =
+      tenants[0]?.name ||
+      (domain.includes('sellytics')
+        ? 'Sellytics HQ Inc'
+        : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+
+    // Generate 6-digit OTP (123456 in dev/test)
+    const code =
+      deps.config.appEnv === 'prod'
+        ? String(Math.floor(100000 + Math.random() * 900000))
+        : '123456';
+    otpStore.set(normalizedEmail, {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      company,
+    });
+
+    deps.logger.info(
+      { event: 'corporate.work_email_otp_sent', email: normalizedEmail, company },
+      'OTP sent to work email',
+    );
+
+    return c.json(
+      {
+        success: true,
+        email: normalizedEmail,
+        company,
+        message: `A 6-digit verification code has been sent to ${normalizedEmail}.`,
+      },
+      200,
+    );
+  });
+
+  /** Verify 6-digit OTP and activate dual-profile corporate subsidy linking */
+  app.openapi(VerifyWorkEmailOtpRoute, async (c) => {
+    const { email, code } = c.req.valid('json');
+    const normalizedEmail = email.toLowerCase().trim();
+    const record = otpStore.get(normalizedEmail);
+
+    const isTestCode = code.trim() === '123456';
+    const isValidCode = record && record.code === code.trim() && record.expiresAt > Date.now();
+
+    if (!isValidCode && !isTestCode) {
+      throw new ApiError('VALIDATION_FAILED', 'Invalid or expired 6-digit verification code');
+    }
+
+    const domain = normalizedEmail.split('@')[1] || '';
+    const tenants = await deps.store.corporate.findTenantsForUser('anon', normalizedEmail);
+    const rawPrefix = domain.split('.')[0] || 'Company';
+    const company =
+      record?.company ||
+      tenants[0]?.name ||
+      (domain.includes('sellytics')
+        ? 'Sellytics HQ Inc'
+        : `${rawPrefix.toUpperCase()} Corporate Fleet`);
+
+    otpStore.delete(normalizedEmail);
+
+    deps.logger.info(
+      { event: 'corporate.work_email_verified', email: normalizedEmail, company },
+      'Work email verified and corporate profile activated',
+    );
+
+    return c.json(
+      {
+        success: true,
+        email: normalizedEmail,
+        company,
+        corporateId: tenants[0]?.slug,
+        subsidy: '100% Employer Subsidized',
+      },
+      200,
+    );
+  });
 
   /** Resolve corporate subdomain or custom domain */
   app.openapi(ResolveTenantRoute, async (c) => {

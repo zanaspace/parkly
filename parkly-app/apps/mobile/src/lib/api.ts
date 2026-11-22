@@ -68,49 +68,18 @@ import {
 } from '@parkly/contracts';
 import { retryAfterSeconds } from '../logic/countdown';
 import { messageForCode, NETWORK_ERROR_MESSAGE } from '../logic/errors';
+import { ApiError, safeJson } from './api-error';
+import type {
+  ApiClientOptions,
+  BootstrapResponse,
+  LotSearchParams,
+  VehicleInput,
+} from './api-types';
 
-/** An API failure with friendly copy ready to show (problem+json `code` mapped). */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string | undefined,
-    message: string,
-    readonly retryAfterSec: number | null = null,
-    readonly fieldErrors: { path: string; message: string }[] = [],
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+export { ApiError };
+export type { ApiClientOptions, BootstrapResponse, LotSearchParams, VehicleInput };
 
 type Parser<T> = { parse(data: unknown): T };
-
-export type ApiClientOptions = {
-  baseUrl: string;
-  /** Current Supabase access token, or null when signed out. */
-  getAccessToken: () => Promise<string | null>;
-  fetch?: typeof fetch;
-  now?: () => Date;
-};
-
-export type LotSearchParams = {
-  lat: number;
-  lng: number;
-  radiusM: number;
-  startAt: string;
-  endAt: string;
-  product: 'HOURLY' | 'DAILY';
-  sort: 'distance' | 'price';
-};
-
-export type BootstrapResponse = { user: Me; isNewUser: boolean };
-export type VehicleInput = {
-  plate: string;
-  make?: string;
-  model?: string;
-  colour?: string;
-  isDefault?: boolean;
-};
 
 export function createApiClient(options: ApiClientOptions) {
   const doFetch = options.fetch ?? fetch;
@@ -402,15 +371,22 @@ export function createApiClient(options: ApiClientOptions) {
         body,
         PassWaitlistResponseSchema,
       ),
+    sendWorkEmailOtp: (email: string) =>
+      request<{ success: boolean; email: string; company: string; message: string }>(
+        'POST',
+        '/v1/corp/work-email/send-otp',
+        { email },
+      ),
+    verifyWorkEmailOtp: (email: string, code: string) =>
+      request<{
+        success: boolean;
+        email: string;
+        company: string;
+        corporateId?: string;
+        subsidy: string;
+      }>('POST', '/v1/corp/work-email/verify-otp', { email, code }),
   };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 
-function safeJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
