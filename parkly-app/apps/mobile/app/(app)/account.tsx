@@ -10,6 +10,7 @@ import { Notice } from '../../src/components/Notice';
 import { ProfileHeader } from '../../src/components/ProfileHeader';
 import { Screen } from '../../src/components/Screen';
 import { VehicleRow } from '../../src/components/VehicleRow';
+import { useProfileMode } from '../../src/context/ProfileModeContext';
 import { ApiError } from '../../src/lib/api';
 import { api } from '../../src/lib/client';
 import { confirm } from '../../src/lib/confirm';
@@ -26,8 +27,13 @@ export default function Account() {
   const theme = useTheme();
   const router = useRouter();
   const auth = useAuth();
+  const {
+    mode: accountMode,
+    corporateJoined,
+    corporateCompany,
+    setMode: setAccountMode,
+  } = useProfileMode();
   const [error, setError] = useState<string | null>(null);
-  const [accountMode, setAccountMode] = useState<'PERSONAL' | 'CORPORATE'>('PERSONAL');
   const [busy, setBusy] = useState<'device' | 'all' | 'delete' | 'export' | 'keep' | null>(null);
   const { me, vehicles } = auth;
 
@@ -114,7 +120,7 @@ export default function Account() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Personal Parking Mode"
-          onPress={() => setAccountMode('PERSONAL')}
+          onPress={() => void setAccountMode('PERSONAL')}
           style={{
             flex: 1,
             paddingVertical: 8,
@@ -147,7 +153,13 @@ export default function Account() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Corporate Parking Mode"
-          onPress={() => setAccountMode('CORPORATE')}
+          onPress={() => {
+            if (!corporateJoined) {
+              router.push('/corporate' as never);
+            } else {
+              void setAccountMode('CORPORATE');
+            }
+          }}
           style={{
             flex: 1,
             paddingVertical: 8,
@@ -200,7 +212,7 @@ export default function Account() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="business" size={18} color={theme.color.text.brand} />
               <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
-                Corporate Fleet Active
+                {corporateCompany || 'Corporate Fleet Active'}
               </Text>
             </View>
             <Text

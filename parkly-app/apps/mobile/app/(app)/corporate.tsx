@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { Screen } from '../../src/components/Screen';
+import { useProfileMode } from '../../src/context/ProfileModeContext';
 
 const PERKS = [
   {
@@ -32,17 +33,18 @@ const PERKS = [
 export default function CorporateScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { isCorporate, corporateJoined, corporateCompany, setMode, joinCorporate } =
+    useProfileMode();
   const [joinCode, setJoinCode] = useState('');
   const [joinSuccess, setJoinSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!joinCode.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setJoinSuccess(true);
-    }, 600);
+    await joinCorporate(joinCode);
+    setLoading(false);
+    setJoinSuccess(true);
   };
 
   return (
@@ -135,23 +137,34 @@ export default function CorporateScreen() {
           by your fleet manager.
         </Text>
 
-        {joinSuccess ? (
-          <View
-            style={{
-              backgroundColor: theme.color.bg['brand-subtle'],
-              borderWidth: 1,
-              borderColor: theme.color.border.brand,
-              borderRadius: 12,
-              padding: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <Ionicons name="checkmark-circle" size={20} color={theme.color.text.brand} />
-            <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
-              Connected to Corporate Fleet Account!
-            </Text>
+        {corporateJoined || joinSuccess ? (
+          <View style={{ gap: 10 }}>
+            <View
+              style={{
+                backgroundColor: theme.color.bg['brand-subtle'],
+                borderWidth: 1,
+                borderColor: theme.color.border.brand,
+                borderRadius: 12,
+                padding: 14,
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="checkmark-circle" size={20} color={theme.color.text.brand} />
+                <Text variant="label.sm" tone="brand" style={{ fontWeight: '700' }}>
+                  {corporateCompany || 'Connected to Corporate Fleet Account!'}
+                </Text>
+              </View>
+              <Text variant="body.sm" tone="secondary" style={{ fontSize: 12 }}>
+                Current Active Mode: {isCorporate ? 'Corporate Fleet Mode' : 'Personal Mode'}
+              </Text>
+            </View>
+            <Button
+              label={isCorporate ? 'Switch to Personal Mode' : 'Switch to Corporate Mode Now'}
+              variant={isCorporate ? 'secondary' : 'primary'}
+              fullWidth
+              onPress={() => void setMode(isCorporate ? 'PERSONAL' : 'CORPORATE')}
+            />
           </View>
         ) : (
           <View style={{ gap: 10 }}>

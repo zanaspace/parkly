@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { HomeHeaderBar } from '../../src/components/HomeHeaderBar';
 import { Notice } from '../../src/components/Notice';
 import { PlaceSearch } from '../../src/components/PlaceSearch';
 import { PlanParkingCard } from '../../src/components/PlanParkingCard';
@@ -81,85 +82,13 @@ export default function Home() {
 
   return (
     <Screen showNav>
-      {/* Top Header Bar: Location Pill, Support & Notifications */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        {/* Location Dropdown Pill */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Location: Lagos, Nigeria"
-          onPress={() => setSearchExpanded((prev) => !prev)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            backgroundColor: theme.color.bg.subtle,
-            paddingVertical: 6,
-            paddingHorizontal: 10,
-            borderRadius: theme.radius.pill,
-            flexShrink: 1,
-          }}
-        >
-          <Ionicons name="location-sharp" size={13} color={theme.color.text.brand} />
-          <Text variant="label.sm" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
-            {search.placeLabel ? search.placeLabel : 'Lagos, Nigeria'}
-          </Text>
-          <Ionicons name="chevron-down" size={11} color={theme.color.text.secondary} />
-        </Pressable>
-
-        {/* Right Action Icons: Support & Notifications */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Help & Support"
-            onPress={() => router.push('/support' as never)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: theme.color.bg.subtle,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="headset-outline" size={18} color={theme.color.text.secondary} />
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => router.push('/notifications' as never)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: theme.color.bg.subtle,
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-            }}
-          >
-            <Ionicons name="notifications-outline" size={18} color={theme.color.text.secondary} />
-            <View
-              style={{
-                position: 'absolute',
-                top: 6,
-                right: 6,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: theme.color.status.danger.fg,
-              }}
-            />
-          </Pressable>
-        </View>
-      </View>
+      {/* Top Header Bar: Location Pill, Profile Switcher, Support & Notifications */}
+      <HomeHeaderBar
+        placeLabel={search.placeLabel}
+        onPressLocation={() => setSearchExpanded((prev) => !prev)}
+        onPressSupport={() => router.push('/support' as never)}
+        onPressNotifications={() => router.push('/notifications' as never)}
+      />
 
       {/* Greeting Banner & Add Car Button */}
       <View
