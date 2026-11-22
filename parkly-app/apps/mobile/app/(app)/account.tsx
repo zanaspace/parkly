@@ -140,7 +140,7 @@ export default function Account() {
           void Linking.openURL('https://parkly.ng/invite/PARKLY10');
         }}
         onListSpace={() => {
-          void Linking.openURL(legalUrl('terms'));
+          router.push('/list-space' as never);
         }}
       />
 
@@ -288,6 +288,12 @@ export default function Account() {
 
       <Text variant="heading.sm">Settings</Text>
       <ListItemGroup>
+        <ListItem
+          icon={<Ionicons name="headset-outline" size={18} color={theme.color.text.brand} />}
+          label="Help & Support"
+          description="24/7 hotline, live chat & FAQs"
+          onPress={() => router.push('/support' as never)}
+        />
         <ListItem
           icon={<Ionicons name="download-outline" size={18} color={theme.color.text.brand} />}
           label="Download my data"
